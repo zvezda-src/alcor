@@ -1,0 +1,67 @@
+#!/bin/bash
+#
+
+# Copyright (C) 2010,2013 Google Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+set -e
+
+# Enable Bash-specific patterns
+shopt -s extglob
+
+readonly version=$1
+readonly newsfile=$2
+readonly numpat='+([0-9])'
+
+case "$version" in
+  # Format "x.y.z"
+  $numpat.$numpat.$numpat) : ;;
+
+  # Format "x.y.z~rcN" or "x.y.z~betaN" or "x.y.z~alphaN" for N > 0
+  $numpat.$numpat.$numpat~@(rc|beta|alpha)[1-9]*([0-9])) : ;;
+
+  *)
+    echo "Invalid version format: $version" >&2
+    exit 1
+  ;;
+esac
+
+readonly newsver="Version ${version/\~/ }"
+
+# Only alpha versions are allowed not to have their own NEWS section yet
+set +e
+FOUND=x`echo $version | grep "alpha[1-9]*[0-9]$"`
+set -e
+if [ $FOUND == "x" ]
+then
+  if ! grep -q -x "$newsver" $newsfile
+  then
+    echo "Unable to find heading '$newsver' in NEWS" >&2
+    exit 1
+  fi
+fi
+
+exit 0

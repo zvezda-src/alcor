@@ -1,0 +1,94 @@
+#!/bin/bash
+
+# Copyright (C) 2014 Google Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Script to check whether the local dirty commits are changing files
+# which do not have an updated copyright.
+#
+# The script will determine your current remote branch and local
+# branch, from which it will extract the commits to analyze.
+# Afterwards, for each commit, it will see which files are being
+# modified and, for each file, it will check the copyright.
+
+function join {
+    local IFS="$1"
+    shift
+    echo "$*"
+}
+
+# Determine the tracking branch for the current branch
+readonly REMOTE=$(git branch -vv | grep -e "^\*" | sed -e "s/ \+/ /g" | awk '{ print $4 }' | grep "\[" | tr -d ":[]")
+
+if [ -z "$REMOTE" ]
+then
+    echo check_copyright: failed to get remote branch
+    exit 1
+fi
+
+# Determine which commits have no been pushed (i.e, diff between the
+# remote branch and the current branch)
+COMMITS=$(git log --pretty=format:'%h' ${REMOTE}..HEAD)
+
+if [ -z "$COMMITS" ]
+then
+    echo check_copyright: there are no commits to check
+    exit 0
+fi
+
+# for each commit, check its files
+for commit in $(echo $COMMITS | tac -s " ")
+do
+    FILES=$(git diff-tree --no-commit-id --name-only -r $commit)
+
+    if [ -z "$FILES" ]
+    then
+	echo check_copyright: commit \"$commit\" has no files to check
+    else
+	# for each file, check if it is in the 'lib' or 'src' dirs
+	# and, if so, check the copyright
+	for file in $FILES
+	do
+	    DIR=$(echo $file | cut -d "/" -f 1)
+
+	    if [ "$DIR" = lib -o "$DIR" = src ]
+	    then
+		COPYRIGHT=$(grep "Copyright (C)" $file)
+		YEAR=$(date +%G)
+
+		if [ -z "$COPYRIGHT" ]
+		then
+		    echo check_copyright: commit \"$commit\" misses \
+			copyright for \"$file\"
+		elif ! echo $COPYRIGHT | grep -o $YEAR > /dev/null
+		then
+		    echo check_copyright: commit \"$commit\" misses \
+			\"$YEAR\" copyright for \"$file\"
+		fi
+	    fi
+	done
+    fi
+done

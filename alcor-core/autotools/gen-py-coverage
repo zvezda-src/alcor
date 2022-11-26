@@ -1,0 +1,76 @@
+#!/bin/bash
+#
+
+# Copyright (C) 2010, 2011, 2012 Google Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+set -e
+set -u
+
+: ${PYTHON:=python}
+: ${COVERAGE:?}
+: ${COVERAGE_FILE:?}
+: ${TEXT_COVERAGE:?}
+: ${HTML_COVERAGE:=}
+: ${GANETI_TEMP_DIR:?}
+
+reportargs=(
+  '--include=*'
+  '--omit=test/py/*'
+  )
+
+$COVERAGE erase
+
+if [[ -n "$HTML_COVERAGE" ]]; then
+  if [[ ! -d "$HTML_COVERAGE" ]]; then
+    echo "Not a directory: $HTML_COVERAGE" >&2
+    exit 1
+  fi
+
+  # At least coverage 3.4 fails to overwrite files
+  find "$HTML_COVERAGE" \( -type f -o -type l \) -delete
+fi
+
+for script; do
+  if [[ "$script" == *-runasroot.py ]]; then
+    if [[ -z "$FAKEROOT" ]]; then
+      echo "WARNING: FAKEROOT variable not set: skipping $script" >&2
+      continue
+    fi
+    cmdprefix="$FAKEROOT"
+  else
+    cmdprefix=
+  fi
+  $cmdprefix $COVERAGE run --branch --append "${reportargs[@]}" $script
+done
+
+echo "Writing text report to $TEXT_COVERAGE ..." >&2
+$COVERAGE report "${reportargs[@]}" | tee "$TEXT_COVERAGE"
+
+if [[ -n "$HTML_COVERAGE" ]]; then
+  echo "Generating HTML report in $HTML_COVERAGE ..." >&2
+  $COVERAGE html "${reportargs[@]}" -d "$HTML_COVERAGE"
+fi

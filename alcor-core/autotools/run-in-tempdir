@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# Helper for running things in a temporary directory; used for docs
+# building, unittests, etc.
+
+set -e
+
+tmpdir=$(mktemp -d -t gntbuild.XXXXXXXX)
+trap "rm -rf $tmpdir" EXIT
+
+# fully copy items
+cp -r autotools daemons scripts lib tools qa $tmpdir
+
+if [[ -z "$COPY_DOC" ]]; then
+  mkdir $tmpdir/doc
+  ln -s $PWD/doc/examples $tmpdir/doc
+else
+  # Building documentation requires all files
+  cp -r doc $tmpdir
+fi
+
+mkdir $tmpdir/test/
+cp -r test/py $tmpdir/test/py
+ln -s $PWD/test/data $tmpdir/test
+ln -s $PWD/test/hs $tmpdir/test
+
+mv $tmpdir/lib $tmpdir/ganeti
+ln -T -s $tmpdir/ganeti $tmpdir/lib
+
+mkdir -p $tmpdir/src $tmpdir/test/hs
+for hfile in htools ganeti-confd mon-collector hs2py; do
+  if [ -e src/$hfile ]; then
+    ln -s $PWD/src/$hfile $tmpdir/src/
+  fi
+done
+
+cd $tmpdir && GANETI_TEMP_DIR="$tmpdir" "$@"

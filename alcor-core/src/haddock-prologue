@@ -1,0 +1,5 @@
+This is the internal documentation for the Haskell components of Ganeti.
+
+The @Ganeti.HTools@ subtree contain the htools-specific component
+(rebalancing, allocation, capacity), while the @Ganeti@ tree contains
+basic functionality and core components.

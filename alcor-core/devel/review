@@ -1,0 +1,253 @@
+#!/bin/bash
+
+# Copyright (C) 2009 Google Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# To set user mappings, use this command:
+#   git config gnt-review.johndoe 'John Doe <johndoe@example.com>'
+
+# To disable strict mode (enabled by default):
+#   git config gnt-review.strict false
+
+# To enable strict mode:
+#   git config gnt-review.strict true
+
+set -e
+
+# Get absolute path to myself
+me_plain="$0"
+me=$(readlink -f "$me_plain")
+
+add_reviewed_by() {
+  local msgfile="$1"
+
+  grep -q '^Reviewed-by: ' "$msgfile" && return
+
+  perl -i -e '
+  my $reviewer = $ENV{"REVIEWER"};
+  defined($reviewer) or $reviewer = "";
+  my $sob = 0;
+  while (<>) {
+    if ($sob == 0 and m/^Signed-off-by:/) {
+      $sob = 1;
+
+    } elsif ($sob == 1 and not m/^Signed-off-by:/) {
+      print "Reviewed-by: $reviewer\n";
+      $sob = -1;
+    }
+
+    print;
+  }
+
+  if ($sob == 1) {
+    print "Reviewed-by: $reviewer\n";
+  }
+  ' "$msgfile"
+}
+
+replace_users() {
+  local msgfile="$1"
+
+  if perl -i -e '
+  use strict;
+  use warnings;
+
+  my $error = 0;
+  my $strict;
+
+  sub map_username {
+    my ($name) = @_;
+
+    return $name unless $name;
+
+    my @cmd = ("git", "config", "--get", "gnt-review.$name");
+
+    open(my $fh, "-|", @cmd) or die "Command \"@cmd\" failed: $!";
+    my $output = do { local $/ = undef; <$fh> };
+    close($fh);
+
+    if ($? == 0) {
+      chomp $output;
+      $output =~ s/\s+/ /;
+      return $output;
+    }
+
+    unless (defined $strict) {
+      @cmd = ("git", "config", "--get", "--bool", "gnt-review.strict");
+
+      open($fh, "-|", @cmd) or die "Command \"@cmd\" failed: $!";
+      $output = do { local $/ = undef; <$fh> };
+      close($fh);
+
+      $strict = ($? != 0 or not $output or $output !~ m/^false$/);
+    }
+
+    if ($strict and $name !~ m/^.+<.+\@.+>$/) {
+      $error = 1;
+    }
+
+    return $name;
+  }
+
+  while (<>) {
+    if (m/^Reviewed-by:(.*)$/) {
+      my @names = grep {
+        # Ignore empty entries
+        !/^$/
+      } map {
+        # Normalize whitespace
+        $_ =~ s/(^\s+|\s+$)//g;
+        $_ =~ s/\s+/ /g;
+
+        # Map names
+        $_ = map_username($_);
+
+        $_;
+      } split(m/,/, $1);
+
+      # Get unique names
+      my %saw;
+      @names = grep(!$saw{$_}++, @names);
+      undef %saw;
+
+      foreach (sort @names) {
+        print "Reviewed-by: $_\n";
+      }
+    } else {
+      print;
+    }
+  }
+
+  exit($error? 33 : 0);
+  ' "$msgfile"
+  then
+    :
+  else
+    [[ "$?" == 33 ]] && return 1
+    exit 1
+  fi
+
+  if ! grep -q '^Reviewed-by: ' "$msgfile"
+  then
+    echo 'Missing Reviewed-by: line' >&2
+    sleep 1
+    return 1
+  fi
+
+  return 0
+}
+
+run_editor() {
+  local filename="$1"
+  local editor=${EDITOR:-vi}
+  local args
+
+  case "$(basename "$editor")" in
+    vi* | *vim)
+      # Start edit mode at Reviewed-by: line
+      args='+/^Reviewed-by: +nohlsearch +startinsert!'
+    ;;
+    *)
+      args=
+    ;;
+  esac
+
+  $editor $args "$filename"
+}
+
+commit_editor() {
+  local msgfile="$1"
+
+  local tmpf=$(mktemp)
+  trap "rm -f $tmpf" EXIT
+
+  cp "$msgfile" "$tmpf"
+
+  while :
+  do
+    add_reviewed_by "$tmpf"
+
+    run_editor "$tmpf"
+
+    replace_users "$tmpf" && break
+  done
+
+  cp "$tmpf" "$msgfile"
+}
+
+copy_commit() {
+  local rev="$1" target_branch="$2"
+
+  echo "Copying commit $rev ..."
+
+  git cherry-pick -n "$rev"
+  GIT_EDITOR="$me --commit-editor \"\$@\"" git commit -c "$rev" -s
+}
+
+usage() {
+  echo "Usage: $me_plain [from..to] <target-branch>" >&2
+  echo "  If not passed from..to defaults to target-branch..HEAD" >&2
+  exit 1
+}
+
+main() {
+  local range target_branch
+
+  case "$#" in
+  1)
+    target_branch="$1"
+    range="$target_branch..$(git rev-parse HEAD)"
+  ;;
+  2)
+    range="$1"
+    target_branch="$2"
+    if [[ "$range" != *..* ]]; then
+      usage
+    fi
+  ;;
+  *)
+    usage
+  ;;
+  esac
+
+  git checkout "$target_branch"
+  local old_head=$(git rev-parse HEAD)
+
+  for rev in $(git rev-list --reverse "$range")
+  do
+    copy_commit "$rev"
+  done
+
+  git log "$old_head..$target_branch"
+}
+
+if [[ "$1" == --commit-editor ]]
+then
+  shift
+  commit_editor "$@"
+else
+  main "$@"
+fi

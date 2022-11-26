@@ -1,0 +1,78 @@
+#!/bin/bash
+
+# Copyright (C) 2013 Google Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Checks query equivalence between masterd and confd
+#
+# This is not (currently) run automatically during QA, but you can run
+# it manually on a test cluster. It will force all queries known to be
+# converted via both paths and check the difference, via both 'list'
+# and 'list-fields'. For best results, it should be run on a non-empty
+# cluster.
+#
+# Also note that this is not expected to show 100% perfect matches,
+# since the JSON output differs slightly for complex data types
+# (e.g. dictionaries with different sort order for keys, etc.).
+#
+# Current known delta:
+# - all dicts, sort order
+# - ctime is always defined in Haskell as epoch 0 if missing
+
+MA=`mktemp master.XXXXXX`
+CF=`mktemp confd.XXXXXX`
+trap 'rm -f "$MA" "$CF"' EXIT
+trap 'exit 1' SIGINT
+
+RET=0
+SEP="--separator=,"
+ENABLED_QUERIES="node group network backup"
+
+test_cmd() {
+  cmd="$1"
+  desc="$2"
+  FORCE_LUXI_SOCKET=master $cmd > "$MA"
+  FORCE_LUXI_SOCKET=query  $cmd > "$CF"
+  diff -u "$MA" "$CF" || {
+    echo "Mismatch in $desc, see above."
+    RET=1
+  }
+}
+
+for kind in $ENABLED_QUERIES; do
+  all_fields=$(FORCE_LUXI_SOCKET=master gnt-$kind list-fields \
+    --no-headers --separator=,|cut -d, -f1)
+  comma_fields=$(echo $all_fields|tr ' ' ,|sed -e 's/,$//')
+  for op in list list-fields; do
+    test_cmd "gnt-$kind $op $SEP" "$kind $op"
+  done
+  #test_cmd "gnt-$kind list $SEP -o$comma_fields" "$kind list with all fields"
+  for field in $all_fields; do
+    test_cmd "gnt-$kind list $SEP -o$field" "$kind list for field $field"
+  done
+done
+
+exit $RET

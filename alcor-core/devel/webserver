@@ -1,0 +1,65 @@
+#!/usr/bin/python3
+#
+
+# Copyright (C) 2013 Google Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+import sys
+import BaseHTTPServer
+import SimpleHTTPServer
+
+
+def main():
+  if len(sys.argv) == 2:
+    host = "127.0.0.1"
+
+    (_, port) = sys.argv
+
+  elif len(sys.argv) == 3:
+    (_, port, host) = sys.argv
+
+  else:
+    sys.stderr.write("Usage: %s <port> [<host>]\n" % sys.argv[0])
+    sys.stderr.write("\n")
+    sys.stderr.write("Provides an HTTP server on the specified TCP port")
+    sys.stderr.write(" exporting the current working directory. Binds to")
+    sys.stderr.write(" localhost by default.\n")
+    sys.exit(1)
+
+  try:
+    port = int(port)
+  except (ValueError, TypeError) as err:
+    sys.stderr.write("Invalid port '%s': %s\n" % (port, err))
+    sys.exit(1)
+
+  handler = SimpleHTTPServer.SimpleHTTPRequestHandler
+
+  server = BaseHTTPServer.HTTPServer((host, port), handler)
+  server.serve_forever()
+
+
+if __name__ == "__main__":
+  main()
