@@ -37,7 +37,7 @@ import logging
 import struct
 import fcntl
 
-from ganeti import errors
+from alcor import errors
 
 
 # TUN/TAP driver constants, taken from <linux/if_tun.h>

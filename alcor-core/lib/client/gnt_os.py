@@ -30,15 +30,15 @@
 """OS scripts related commands"""
 
 # pylint: disable=W0401,W0613,W0614,C0103
-# W0401: Wildcard import ganeti.cli
+# W0401: Wildcard import alcor.cli
 # W0613: Unused argument, since all functions follow the same API
 # W0614: Unused import %s from wildcard import (since we need cli)
 # C0103: Invalid name gnt-os
 
-from ganeti.cli import *
-from ganeti import constants
-from ganeti import opcodes
-from ganeti import utils
+from alcor.cli import *
+from alcor import constants
+from alcor import opcodes
+from alcor import utils
 
 
 def ListOS(opts, args):
@@ -266,7 +266,7 @@ def ModifyOS(opts, args):
   # We have to disable pylint for this assignment because of a Pylint bug:
   # Even though there is no `os` in scope, it claims
   #   Redefining name 'os' from outer scope
-  # It is supposed to come from `from ganeti.cli import *`, but that doesn't
+  # It is supposed to come from `from alcor.cli import *`, but that doesn't
   # export `os` since it has `__all__` set.
   os = args[0]  # pylint: disable=W0621
 

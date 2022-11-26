@@ -30,12 +30,12 @@
 """Job filter rule commands"""
 
 # pylint: disable=W0401,W0614
-# W0401: Wildcard import ganeti.cli
+# W0401: Wildcard import alcor.cli
 # W0614: Unused import %s from wildcard import (since we need cli)
 
-from ganeti.cli import *
-from ganeti import constants
-from ganeti import utils
+from alcor.cli import *
+from alcor import constants
+from alcor import utils
 
 
 #: default list of fields for L{ListFilters}
@@ -182,7 +182,7 @@ FILTER_PRIORITY_OPT = \
 FILTER_PREDICATES_OPT = \
     cli_option("--predicates",
                dest="predicates", action="store", default=[], type="json",
-               help="List of predicates in the Ganeti query language,"
+               help="List of predicates in the Alcor query language,"
                     " given as a JSON list.")
 
 FILTER_ACTION_OPT = \

@@ -32,14 +32,14 @@
 
 import itertools
 
-from ganeti import constants
-from ganeti import locking
-from ganeti import utils
-from ganeti.cmdlib.base import NoHooksLU
-from ganeti.cmdlib.common import ShareAll, GetWantedInstances, \
+from alcor import constants
+from alcor import locking
+from alcor import utils
+from alcor.cmdlib.base import NoHooksLU
+from alcor.cmdlib.common import ShareAll, GetWantedInstances, \
   CheckInstancesNodeGroups, AnnotateDiskParams
-from ganeti.cmdlib.instance_utils import NICListToTuple
-from ganeti.hypervisor import hv_base
+from alcor.cmdlib.instance_utils import NICListToTuple
+from alcor.hypervisor import hv_base
 
 
 class LUInstanceQueryData(NoHooksLU):

@@ -37,21 +37,21 @@ running instance directly.
 
 import logging
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import hypervisor
-from ganeti import locking
-from ganeti import objects
-from ganeti import utils
-from ganeti.cmdlib.base import LogicalUnit, NoHooksLU
-from ganeti.cmdlib.common import INSTANCE_ONLINE, INSTANCE_DOWN, \
+from alcor import constants
+from alcor import errors
+from alcor import hypervisor
+from alcor import locking
+from alcor import objects
+from alcor import utils
+from alcor.cmdlib.base import LogicalUnit, NoHooksLU
+from alcor.cmdlib.common import INSTANCE_ONLINE, INSTANCE_DOWN, \
   CheckHVParams, CheckInstanceState, CheckNodeOnline, GetUpdatedParams, \
   CheckOSParams, CheckOSImage, ShareAll
-from ganeti.cmdlib.instance_storage import StartInstanceDisks, \
+from alcor.cmdlib.instance_storage import StartInstanceDisks, \
   ShutdownInstanceDisks, ImageDisks
-from ganeti.cmdlib.instance_utils import BuildInstanceHookEnvByObject, \
+from alcor.cmdlib.instance_utils import BuildInstanceHookEnvByObject, \
   CheckInstanceBridgesExist, CheckNodeFreeMemory, UpdateMetadata
-from ganeti.hypervisor import hv_base
+from alcor.hypervisor import hv_base
 
 
 def _IsInstanceUserDown(cluster, instance, instance_info):

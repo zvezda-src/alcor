@@ -48,25 +48,25 @@ import zlib
 
 import pycurl
 
-from ganeti import utils
-from ganeti import objects
-from ganeti import http
-from ganeti import serializer
-from ganeti import constants
-from ganeti import errors
-from ganeti import netutils
-from ganeti import ssconf
-from ganeti import runtime
-from ganeti import compat
-from ganeti import rpc_defs
-from ganeti import pathutils
-from ganeti import vcluster
+from alcor import utils
+from alcor import objects
+from alcor import http
+from alcor import serializer
+from alcor import constants
+from alcor import errors
+from alcor import netutils
+from alcor import ssconf
+from alcor import runtime
+from alcor import compat
+from alcor import rpc_defs
+from alcor import pathutils
+from alcor import vcluster
 
 # Special module generated at build time
-from ganeti import _generated_rpc
+from alcor import _generated_rpc
 
 # pylint has a bug here, doesn't see this import
-import ganeti.http.client  # pylint: disable=W0611
+import alcor.http.client  # pylint: disable=W0611
 
 
 _RPC_CLIENT_HEADERS = [
@@ -110,7 +110,7 @@ def _ConfigRpcCurl(curl):
   noded_cert = pathutils.NODED_CERT_FILE
   noded_client_cert = pathutils.NODED_CLIENT_CERT_FILE
 
-  # This fallback is required for backwards compatibility with 2.10. Ganeti
+  # This fallback is required for backwards compatibility with 2.10. Alcor
   # 2.11 introduced per-node client certificates, but when we restart after
   # an upgrade from 2.10, the client certs are not in place yet, and we need
   # to fall back to using the cluster-wide server cert.

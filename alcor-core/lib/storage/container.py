@@ -43,9 +43,9 @@
 
 import logging
 
-from ganeti import errors
-from ganeti import constants
-from ganeti import utils
+from alcor import errors
+from alcor import constants
+from alcor import utils
 
 
 def _ParseSize(value):

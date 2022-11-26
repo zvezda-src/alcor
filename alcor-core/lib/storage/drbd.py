@@ -34,15 +34,15 @@ import errno
 import logging
 import time
 
-from ganeti import constants
-from ganeti import utils
-from ganeti import errors
-from ganeti import netutils
-from ganeti import objects
-from ganeti.storage import base
-from ganeti.storage.drbd_info import DRBD8Info
-from ganeti.storage import drbd_info
-from ganeti.storage import drbd_cmdgen
+from alcor import constants
+from alcor import utils
+from alcor import errors
+from alcor import netutils
+from alcor import objects
+from alcor.storage import base
+from alcor.storage.drbd_info import DRBD8Info
+from alcor.storage import drbd_info
+from alcor.storage import drbd_cmdgen
 
 
 # Size of reads in _CanReadDevice
@@ -214,8 +214,8 @@ class DRBD8Dev(base.BlockDev):
     info = DRBD8.GetProcInfo()
     version = info.GetVersion()
     if version["k_major"] != 8:
-      base.ThrowError("Mismatch in DRBD kernel version and requested ganeti"
-                      " usage: kernel is %s.%s, ganeti wants 8.x",
+      base.ThrowError("Mismatch in DRBD kernel version and requested alcor"
+                      " usage: kernel is %s.%s, alcor wants 8.x",
                       version["k_major"], version["k_minor"])
 
     if version["k_minor"] <= 3:
@@ -1044,7 +1044,7 @@ class DRBD8Dev(base.BlockDev):
     """
     # Zero the metadata first, in order to make sure drbdmeta doesn't
     # try to auto-detect existing filesystems or similar (see
-    # https://github.com/ganeti/ganeti/issues/238); we only
+    # https://github.com/alcor/alcor/issues/238); we only
     # care about the first 128MB of data in the device, even though it
     # can be bigger
     result = utils.RunCmd([constants.DD_CMD,

@@ -38,11 +38,11 @@
 import re
 import urllib.parse
 
-from ganeti import constants
-from ganeti import http
-from ganeti import utils
+from alcor import constants
+from alcor import http
+from alcor import utils
 
-from ganeti.rapi import rlib2
+from alcor.rapi import rlib2
 
 
 _NAME_PATTERN = r"[\w\._-]+"

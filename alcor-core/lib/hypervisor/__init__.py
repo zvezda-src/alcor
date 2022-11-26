@@ -32,14 +32,14 @@
 
 """
 
-from ganeti import constants
-from ganeti import errors
+from alcor import constants
+from alcor import errors
 
-from ganeti.hypervisor import hv_fake
-from ganeti.hypervisor import hv_xen
-from ganeti.hypervisor import hv_kvm
-from ganeti.hypervisor import hv_chroot
-from ganeti.hypervisor import hv_lxc
+from alcor.hypervisor import hv_fake
+from alcor.hypervisor import hv_xen
+from alcor.hypervisor import hv_kvm
+from alcor.hypervisor import hv_chroot
+from alcor.hypervisor import hv_lxc
 
 
 _HYPERVISOR_MAP = {

@@ -34,36 +34,36 @@ import os
 
 import OpenSSL
 
-from ganeti import compat
-from ganeti import constants
-from ganeti import errors
-from ganeti import hypervisor
-from ganeti import locking
-from ganeti.masterd import iallocator
-from ganeti import masterd
-from ganeti import netutils
-from ganeti import objects
-from ganeti import pathutils
-from ganeti import utils
-from ganeti import serializer
+from alcor import compat
+from alcor import constants
+from alcor import errors
+from alcor import hypervisor
+from alcor import locking
+from alcor.masterd import iallocator
+from alcor import masterd
+from alcor import netutils
+from alcor import objects
+from alcor import pathutils
+from alcor import utils
+from alcor import serializer
 
-from ganeti.cmdlib.base import LogicalUnit
+from alcor.cmdlib.base import LogicalUnit
 
-from ganeti.cmdlib.common import \
+from alcor.cmdlib.common import \
   CheckNodeOnline, \
   CheckParamsNotGlobal, \
   IsExclusiveStorageEnabledNode, CheckHVParams, CheckOSParams, \
   ExpandNodeUuidAndName, \
   IsValidDiskAccessModeCombination, \
   CheckDiskTemplateEnabled, CheckIAllocatorOrNode, CheckOSImage
-from ganeti.cmdlib.instance_helpervm import RunWithHelperVM
-from ganeti.cmdlib.instance_storage import CalculateFileStorageDir, \
+from alcor.cmdlib.instance_helpervm import RunWithHelperVM
+from alcor.cmdlib.instance_storage import CalculateFileStorageDir, \
   CheckNodesFreeDiskPerVG, CheckRADOSFreeSpace, CheckSpindlesExclusiveStorage, \
   ComputeDiskSizePerVG, CreateDisks, \
   GenerateDiskTemplate, CommitDisks, \
   WaitForSync, ComputeDisks, \
   ImageDisks, WipeDisks
-from ganeti.cmdlib.instance_utils import \
+from alcor.cmdlib.instance_utils import \
   CheckNodeNotDrained, CopyLockList, \
   ReleaseLocks, CheckNodeVmCapable, \
   RemoveDisks, CheckNodeFreeMemory, \
@@ -74,7 +74,7 @@ from ganeti.cmdlib.instance_utils import \
   ComputeFullBeParams, ComputeNics, GetClusterDomainSecret, \
   CheckInstanceExistence, CreateInstanceAllocRequest, BuildInstanceHookEnv, \
   NICListToTuple, CheckNicsBridgesExist, CheckCompressionTool
-import ganeti.masterd.instance
+import alcor.masterd.instance
 
 
 def _ValidateTrunkVLAN(vlan):
@@ -1102,7 +1102,7 @@ class LUInstanceCreate(LogicalUnit):
       }
 
     group_info = self.cfg.GetNodeGroup(pnode.group)
-    ipolicy = ganeti.masterd.instance.CalculateGroupIPolicy(cluster, group_info)
+    ipolicy = alcor.masterd.instance.CalculateGroupIPolicy(cluster, group_info)
     disk_types = [self.op.disk_template] * len(self.disks)
     res = ComputeIPolicyInstanceSpecViolation(ipolicy, ispec, disk_types)
     if not self.op.ignore_ipolicy and res:

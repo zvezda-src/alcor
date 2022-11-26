@@ -33,18 +33,18 @@
 import logging
 import operator
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import locking
-from ganeti import netutils
-from ganeti import objects
-from ganeti import opcodes
-import ganeti.rpc.node as rpc
-from ganeti import utils
-from ganeti.masterd import iallocator
+from alcor import constants
+from alcor import errors
+from alcor import locking
+from alcor import netutils
+from alcor import objects
+from alcor import opcodes
+import alcor.rpc.node as rpc
+from alcor import utils
+from alcor.masterd import iallocator
 
-from ganeti.cmdlib.base import LogicalUnit, NoHooksLU, ResultWithJobs
-from ganeti.cmdlib.common import CheckParamsNotGlobal, \
+from alcor.cmdlib.base import LogicalUnit, NoHooksLU, ResultWithJobs
+from alcor.cmdlib.common import CheckParamsNotGlobal, \
   MergeAndVerifyHvState, MergeAndVerifyDiskState, \
   IsExclusiveStorageEnabledNode, CheckNodePVs, \
   RedistributeAncillaryFiles, ExpandNodeUuidAndName, ShareAll, SupportsOob, \
@@ -879,7 +879,7 @@ class LUNodeSetParams(LogicalUnit):
             True, # remove node's key from all nodes' authorized_keys file
             False, # currently, all nodes are potential master candidates
             False, # do not clear node's 'authorized_keys'
-            False, # do not clear node's 'ganeti_pub_keys'
+            False, # do not clear node's 'alcor_pub_keys'
             False) # no readd
           ssh_result[master_node].Raise(
             "Could not adjust the SSH setup after demoting node '%s'"
@@ -1579,7 +1579,7 @@ class LUNodeRemove(LogicalUnit):
         self.node.master_candidate, # from_authorized_keys
         potential_master_candidate, # from_public_keys
         True, # clear node's 'authorized_keys'
-        True, # clear node's 'ganeti_public_keys'
+        True, # clear node's 'alcor_public_keys'
         False) # no readd
       result[master_node].Raise(
         "Could not remove the SSH key of node '%s' (UUID: %s)." %

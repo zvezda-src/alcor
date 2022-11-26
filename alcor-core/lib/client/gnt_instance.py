@@ -30,7 +30,7 @@
 """Instance related commands"""
 
 # pylint: disable=W0401,W0614,C0103
-# W0401: Wildcard import ganeti.cli
+# W0401: Wildcard import alcor.cli
 # W0614: Unused import %s from wildcard import (since we need cli)
 # C0103: Invalid name gnt-instance
 
@@ -40,16 +40,16 @@ import logging
 
 import simplejson
 
-from ganeti.cli import *
-from ganeti import opcodes
-from ganeti import constants
-from ganeti import compat
-from ganeti import utils
-from ganeti import errors
-from ganeti import netutils
-from ganeti import ssh
-from ganeti import objects
-from ganeti import ht
+from alcor.cli import *
+from alcor import opcodes
+from alcor import constants
+from alcor import compat
+from alcor import utils
+from alcor import errors
+from alcor import netutils
+from alcor import ssh
+from alcor import objects
+from alcor import ht
 
 
 _EXPAND_CLUSTER = "cluster"
@@ -162,7 +162,7 @@ def _EnsureInstancesExist(client, names):
   This function will raise an OpPrereqError in case they don't
   exist. Otherwise it will exit cleanly.
 
-  @type client: L{ganeti.luxi.Client}
+  @type client: L{alcor.luxi.Client}
   @param client: the client to use for the query
   @type names: list
   @param names: the list of instance names to query
@@ -1186,7 +1186,7 @@ def _FormatInstanceInfo(instance, roman_integers):
   if console:
     info.append(("console connection", console))
   # deprecated "memory" value, kept for one version for compatibility
-  # TODO(ganeti 2.7) remove.
+  # TODO(alcor 2.7) remove.
   be_actual = copy.deepcopy(instance["be_actual"])
   be_actual["memory"] = be_actual[constants.BE_MAXMEM]
   info.extend([
@@ -1470,12 +1470,12 @@ def SetInstanceParams(opts, args):
       ToStdout(" - %-5s -> %s", param, data)
     ToStdout("Please don't forget that most parameters take effect"
              " only at the next (re)start of the instance initiated by"
-             " ganeti; restarting from within the instance will"
+             " alcor; restarting from within the instance will"
              " not be enough.")
     if opts.hvparams:
       ToStdout("Note that changing hypervisor parameters without performing a"
                " restart might lead to a crash while performing a live"
-               " migration. This will be addressed in future Ganeti versions.")
+               " migration. This will be addressed in future Alcor versions.")
   return 0
 
 

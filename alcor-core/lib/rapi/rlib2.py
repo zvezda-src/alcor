@@ -68,15 +68,15 @@ import errno
 import OpenSSL
 import socket
 
-from ganeti import opcodes
-from ganeti import objects
-from ganeti import http
-from ganeti import constants
-from ganeti import cli
-from ganeti import rapi
-from ganeti import ht
-from ganeti import compat
-from ganeti.rapi import baserlib
+from alcor import opcodes
+from alcor import objects
+from alcor import http
+from alcor import constants
+from alcor import cli
+from alcor import rapi
+from alcor import ht
+from alcor import compat
+from alcor.rapi import baserlib
 
 
 _COMMON_FIELDS = ["ctime", "mtime", "uuid", "serial_no", "tags"]
@@ -190,7 +190,7 @@ _WFJC_TIMEOUT = 10
 
 
 # FIXME: For compatibility we update the beparams/memory field. Needs to be
-#        removed in Ganeti 2.8
+#        removed in Alcor 2.8
 def _UpdateBeparams(inst):
   """Updates the beparams dict of inst to support the memory field.
 
@@ -1089,7 +1089,7 @@ class R_2_groups_name_assign_nodes(baserlib.OpcodeResource):
 def _ConvertUsbDevices(data):
   """Convert in place the usb_devices string to the proper format.
 
-  In Ganeti 2.8.4 the separator for the usb_devices hvparam was changed from
+  In Alcor 2.8.4 the separator for the usb_devices hvparam was changed from
   comma to space because commas cannot be accepted on the command line
   (they already act as the separator between different hvparams). RAPI
   should be able to accept commas for backwards compatibility, but we want

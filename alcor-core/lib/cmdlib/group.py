@@ -33,15 +33,15 @@
 import itertools
 import logging
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import locking
-from ganeti import objects
-from ganeti import opcodes
-from ganeti import utils
-from ganeti.masterd import iallocator
-from ganeti.cmdlib.base import LogicalUnit, NoHooksLU, ResultWithJobs
-from ganeti.cmdlib.common import MergeAndVerifyHvState, \
+from alcor import constants
+from alcor import errors
+from alcor import locking
+from alcor import objects
+from alcor import opcodes
+from alcor import utils
+from alcor.masterd import iallocator
+from alcor.cmdlib.base import LogicalUnit, NoHooksLU, ResultWithJobs
+from alcor.cmdlib.common import MergeAndVerifyHvState, \
   MergeAndVerifyDiskState, GetWantedNodes, GetUpdatedParams, \
   CheckNodeGroupInstances, GetUpdatedIPolicy, \
   ComputeNewInstanceViolations, GetDefaultIAllocator, ShareAll, \
@@ -49,7 +49,7 @@ from ganeti.cmdlib.common import MergeAndVerifyHvState, \
   CheckIpolicyVsDiskTemplates, CheckDiskAccessModeValidity, \
   CheckDiskAccessModeConsistency, ConnectInstanceCommunicationNetworkOp
 
-import ganeti.masterd.instance
+import alcor.masterd.instance
 
 
 class LUGroupAdd(LogicalUnit):
@@ -151,8 +151,8 @@ class LUGroupAdd(LogicalUnit):
     The group is connected to the instance communication network via
     the Opcode 'OpNetworkConnect'.
 
-    @type cfg: L{ganeti.config.ConfigWriter}
-    @param cfg: Ganeti configuration
+    @type cfg: L{alcor.config.ConfigWriter}
+    @param cfg: Alcor configuration
 
     @type group_uuid: string
     @param group_uuid: UUID of the group to connect
@@ -160,8 +160,8 @@ class LUGroupAdd(LogicalUnit):
     @type network_name: string
     @param network_name: name of the network to connect to
 
-    @rtype: L{ganeti.cmdlib.ResultWithJobs} or L{None}
-    @return: L{ganeti.cmdlib.ResultWithJobs} if the group needs to be
+    @rtype: L{alcor.cmdlib.ResultWithJobs} or L{None}
+    @return: L{alcor.cmdlib.ResultWithJobs} if the group needs to be
              connected, otherwise (the group is already connected)
              L{None}
 
@@ -406,7 +406,7 @@ class LUGroupSetParams(LogicalUnit):
                                   cluster.enabled_disk_templates)
       instances = \
         dict(self.cfg.GetMultiInstanceInfoByName(owned_instance_names))
-      gmi = ganeti.masterd.instance
+      gmi = alcor.masterd.instance
       violations = \
           ComputeNewInstanceViolations(gmi.CalculateGroupIPolicy(cluster,
                                                                  self.group),

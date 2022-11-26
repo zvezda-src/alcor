@@ -35,12 +35,12 @@ to clients of cmdlib.
 
 """
 
-from ganeti.cmdlib.base import \
+from alcor.cmdlib.base import \
   LogicalUnit, \
   NoHooksLU, \
   ResultWithJobs
 
-from ganeti.cmdlib.cluster import \
+from alcor.cmdlib.cluster import \
   LUClusterActivateMasterIp, \
   LUClusterDeactivateMasterIp, \
   LUClusterConfigQuery, \
@@ -52,12 +52,12 @@ from ganeti.cmdlib.cluster import \
   LUClusterRepairDiskSizes, \
   LUClusterSetParams, \
   LUClusterRenewCrypto
-from ganeti.cmdlib.cluster.verify import \
+from alcor.cmdlib.cluster.verify import \
   LUClusterVerify, \
   LUClusterVerifyConfig, \
   LUClusterVerifyGroup, \
   LUClusterVerifyDisks
-from ganeti.cmdlib.group import \
+from alcor.cmdlib.group import \
   LUGroupAdd, \
   LUGroupAssignNodes, \
   LUGroupSetParams, \
@@ -65,7 +65,7 @@ from ganeti.cmdlib.group import \
   LUGroupRename, \
   LUGroupEvacuate, \
   LUGroupVerifyDisks
-from ganeti.cmdlib.node import \
+from alcor.cmdlib.node import \
   LUNodeAdd, \
   LUNodeSetParams, \
   LUNodePowercycle, \
@@ -76,59 +76,59 @@ from ganeti.cmdlib.node import \
   LUNodeQueryStorage, \
   LUNodeRemove, \
   LURepairNodeStorage
-from ganeti.cmdlib.instance import \
+from alcor.cmdlib.instance import \
   LUInstanceRename, \
   LUInstanceRemove, \
   LUInstanceMove, \
   LUInstanceMultiAlloc, \
   LUInstanceChangeGroup
-from ganeti.cmdlib.instance_create import \
+from alcor.cmdlib.instance_create import \
   LUInstanceCreate
-from ganeti.cmdlib.instance_storage import \
+from alcor.cmdlib.instance_storage import \
   LUInstanceRecreateDisks, \
   LUInstanceGrowDisk, \
   LUInstanceReplaceDisks, \
   LUInstanceActivateDisks, \
   LUInstanceDeactivateDisks
-from ganeti.cmdlib.instance_migration import \
+from alcor.cmdlib.instance_migration import \
   LUInstanceFailover, \
   LUInstanceMigrate
-from ganeti.cmdlib.instance_operation import \
+from alcor.cmdlib.instance_operation import \
   LUInstanceStartup, \
   LUInstanceShutdown, \
   LUInstanceReinstall, \
   LUInstanceReboot, \
   LUInstanceConsole
-from ganeti.cmdlib.instance_set_params import \
+from alcor.cmdlib.instance_set_params import \
   LUInstanceSetParams
-from ganeti.cmdlib.instance_query import \
+from alcor.cmdlib.instance_query import \
   LUInstanceQueryData
-from ganeti.cmdlib.backup import \
+from alcor.cmdlib.backup import \
   LUBackupPrepare, \
   LUBackupExport, \
   LUBackupRemove
-from ganeti.cmdlib.query import \
+from alcor.cmdlib.query import \
   LUQuery, \
   LUQueryFields
-from ganeti.cmdlib.operating_system import \
+from alcor.cmdlib.operating_system import \
   LUOsDiagnose
-from ganeti.cmdlib.tags import \
+from alcor.cmdlib.tags import \
   LUTagsGet, \
   LUTagsSearch, \
   LUTagsSet, \
   LUTagsDel
-from ganeti.cmdlib.network import \
+from alcor.cmdlib.network import \
   LUNetworkAdd, \
   LUNetworkRemove, \
   LUNetworkRename, \
   LUNetworkSetParams, \
   LUNetworkConnect, \
   LUNetworkDisconnect
-from ganeti.cmdlib.misc import \
+from alcor.cmdlib.misc import \
   LUOobCommand, \
   LUExtStorageDiagnose, \
   LURestrictedCommand
-from ganeti.cmdlib.test import \
+from alcor.cmdlib.test import \
   LUTestOsParams, \
   LUTestDelay, \
   LUTestJqueue, \

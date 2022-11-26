@@ -32,10 +32,10 @@
 
 import logging
 
-from ganeti import objects
-from ganeti import constants
-from ganeti import utils
-from ganeti import errors
+from alcor import objects
+from alcor import constants
+from alcor import utils
+from alcor import errors
 
 
 class BlockDev(object):

@@ -36,8 +36,8 @@ import logging
 import logging.handlers
 from io import StringIO
 
-from ganeti import constants
-from ganeti import compat
+from alcor import constants
+from alcor import compat
 
 
 class _ReopenableLogHandler(logging.handlers.BaseRotatingHandler):
@@ -102,7 +102,7 @@ def _LogErrorsToConsole(base):
     """Log handler that doesn't fallback to stderr.
 
     When an error occurs while writing on the logfile, logging.FileHandler
-    tries to log on stderr. This doesn't work in Ganeti since stderr is
+    tries to log on stderr. This doesn't work in Alcor since stderr is
     redirected to a logfile. This class avoids failures by reporting errors to
     /dev/console.
 

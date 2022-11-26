@@ -41,11 +41,11 @@ from io import StringIO
 
 import OpenSSL
 
-from ganeti import constants
-from ganeti import utils
+from alcor import constants
+from alcor import utils
 
 
-HTTP_GANETI_VERSION = "Ganeti %s" % constants.RELEASE_VERSION
+HTTP_GANETI_VERSION = "Alcor %s" % constants.RELEASE_VERSION
 
 HTTP_OK = 200
 HTTP_NO_CONTENT = 204

@@ -27,7 +27,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"""Module implementing the Ganeti locking code."""
+"""Module implementing the Alcor locking code."""
 
 # pylint: disable=W0212
 
@@ -42,10 +42,10 @@ import logging
 import heapq
 import time
 
-from ganeti import errors
-from ganeti import utils
-from ganeti import compat
-from ganeti import query
+from alcor import errors
+from alcor import utils
+from alcor import compat
+from alcor import query
 
 
 _EXCLUSIVE_TEXT = "exclusive"
@@ -928,7 +928,7 @@ class _AcquireTimeout(Exception):
 
 
 # Locking levels, must be acquired in increasing order. Current rules are:
-# - At level LEVEL_CLUSTER resides the Big Ganeti Lock (BGL) which must be
+# - At level LEVEL_CLUSTER resides the Big Alcor Lock (BGL) which must be
 #   acquired before performing any operation, either in shared or exclusive
 #   mode. Acquiring the BGL in exclusive mode is discouraged and should be
 #   avoided..
@@ -972,5 +972,5 @@ LEVEL_NAMES = {
   LEVEL_NETWORK: "network",
   }
 
-# Constant for the big ganeti lock
+# Constant for the big alcor lock
 BGL = "BGL"

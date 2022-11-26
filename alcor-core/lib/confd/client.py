@@ -28,7 +28,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-"""Ganeti confd client
+"""Alcor confd client
 
 Clients can use the confd client library to send requests to a group of master
 candidates running confd. The expected usage is through the asyncore framework,
@@ -62,17 +62,17 @@ confirming what you already got.
 import time
 import random
 
-from ganeti import utils
-from ganeti import constants
-from ganeti import objects
-from ganeti import serializer
-from ganeti import daemon # contains AsyncUDPSocket
-from ganeti import errors
-from ganeti import confd
-from ganeti import ssconf
-from ganeti import compat
-from ganeti import netutils
-from ganeti import pathutils
+from alcor import utils
+from alcor import constants
+from alcor import objects
+from alcor import serializer
+from alcor import daemon # contains AsyncUDPSocket
+from alcor import errors
+from alcor import confd
+from alcor import ssconf
+from alcor import compat
+from alcor import netutils
+from alcor import pathutils
 
 
 class ConfdAsyncUDPClient(daemon.AsyncUDPSocket):
@@ -217,7 +217,7 @@ class ConfdClient(object):
     @type coverage: integer
     @param coverage: number of remote nodes to contact; if default
         (0), it will use a reasonable default
-        (L{ganeti.constants.CONFD_DEFAULT_REQ_COVERAGE}), if -1 is
+        (L{alcor.constants.CONFD_DEFAULT_REQ_COVERAGE}), if -1 is
         passed, it will use the maximum number of peers, otherwise the
         number passed in will be used
     @type async_: boolean
@@ -355,7 +355,7 @@ class ConfdClient(object):
 
     @param salt: the salt of the request we want responses for
     @param timeout: the maximum timeout (should be less or equal to
-        L{ganeti.constants.CONFD_CLIENT_EXPIRE_TIMEOUT}
+        L{alcor.constants.CONFD_CLIENT_EXPIRE_TIMEOUT}
     @rtype: tuple
     @return: a tuple of (timed_out, sent_cnt, recv_cnt); if the
         request is unknown, timed_out will be true and the counters
@@ -691,7 +691,7 @@ def GetConfdClient(callback):
   This is handy to abstract the MC list and HMAC key reading.
 
   @attention: This should only be called on nodes which are part of a
-      cluster, since it depends on a valid (ganeti) data directory;
+      cluster, since it depends on a valid (alcor) data directory;
       for code running outside of a cluster, you need to create the
       client manually
 

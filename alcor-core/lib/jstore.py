@@ -33,11 +33,11 @@
 import errno
 import os
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import runtime
-from ganeti import utils
-from ganeti import pathutils
+from alcor import constants
+from alcor import errors
+from alcor import runtime
+from alcor import utils
+from alcor import pathutils
 
 
 JOBS_PER_ARCHIVE_DIRECTORY = constants.JSTORE_JOBS_PER_ARCHIVE_DIRECTORY

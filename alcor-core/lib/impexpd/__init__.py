@@ -41,11 +41,11 @@ import errno
 import time
 from io import StringIO
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import utils
-from ganeti import netutils
-from ganeti import compat
+from alcor import constants
+from alcor import errors
+from alcor import utils
+from alcor import netutils
+from alcor import compat
 
 
 #: Used to recognize point at which socat(1) starts to listen on its socket.

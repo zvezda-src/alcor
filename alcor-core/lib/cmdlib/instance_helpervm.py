@@ -34,12 +34,12 @@
 
 import contextlib
 
-from ganeti import constants
-from ganeti import errors
-from ganeti.utils import retry
+from alcor import constants
+from alcor import errors
+from alcor.utils import retry
 
-from ganeti.cmdlib.common import IsInstanceRunning, DetermineImageSize
-from ganeti.cmdlib.instance_storage import StartInstanceDisks, \
+from alcor.cmdlib.common import IsInstanceRunning, DetermineImageSize
+from alcor.cmdlib.instance_storage import StartInstanceDisks, \
   TemporaryDisk, ImageDisks
 
 

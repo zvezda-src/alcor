@@ -38,15 +38,15 @@ import logging
 import os
 import socket
 
-from ganeti import utils
-from ganeti import errors
-from ganeti import netutils
-from ganeti import constants
-from ganeti import ssconf
+from alcor import utils
+from alcor import errors
+from alcor import netutils
+from alcor import constants
+from alcor import ssconf
 
-from ganeti.utils import io
-from ganeti.storage import base
-from ganeti.storage.filestorage import FileDeviceHelper
+from alcor.utils import io
+from alcor.storage import base
+from alcor.storage.filestorage import FileDeviceHelper
 
 
 class GlusterVolume(object):
@@ -146,18 +146,18 @@ class GlusterVolume(object):
 
     # If, for some unfortunate reason, this folder exists before mounting:
     #
-    #   /var/run/ganeti/gluster/gv0/10.0.0.1:30000:gv0/
+    #   /var/run/alcor/gluster/gv0/10.0.0.1:30000:gv0/
     #   '--------- cwd ------------'
     #
     # and you _are_ trying to mount the gluster volume gv0 on 10.0.0.1:30000,
     # then the mount.glusterfs command parser gets confused and this command:
     #
-    #   mount -t glusterfs 10.0.0.1:30000:gv0 /var/run/ganeti/gluster/gv0
+    #   mount -t glusterfs 10.0.0.1:30000:gv0 /var/run/alcor/gluster/gv0
     #                      '-- remote end --' '------ mountpoint -------'
     #
     # gets parsed instead like this:
     #
-    #   mount -t glusterfs 10.0.0.1:30000:gv0 /var/run/ganeti/gluster/gv0
+    #   mount -t glusterfs 10.0.0.1:30000:gv0 /var/run/alcor/gluster/gv0
     #                      '-- mountpoint --' '----- syntax error ------'
     #
     # and if there _is_ a gluster server running locally at the default remote
@@ -287,7 +287,7 @@ class GlusterVolume(object):
 class GlusterStorage(base.BlockDev):
   """File device using the Gluster backend.
 
-  This class represents a file storage backend device stored on Gluster. Ganeti
+  This class represents a file storage backend device stored on Gluster. Alcor
   mounts and unmounts the Gluster devices automatically.
 
   The unique_id for the file device is a (file_driver, file_path) tuple.

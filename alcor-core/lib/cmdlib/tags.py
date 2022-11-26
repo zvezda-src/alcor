@@ -32,13 +32,13 @@
 
 import re
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import locking
-from ganeti import objects
-from ganeti import utils
-from ganeti.cmdlib.base import NoHooksLU
-from ganeti.cmdlib.common import ExpandNodeUuidAndName, \
+from alcor import constants
+from alcor import errors
+from alcor import locking
+from alcor import objects
+from alcor import utils
+from alcor.cmdlib.base import NoHooksLU
+from alcor.cmdlib.common import ExpandNodeUuidAndName, \
   ExpandInstanceUuidAndName, ShareAll
 
 

@@ -36,18 +36,18 @@ import logging
 import random
 import time
 
-from ganeti import constants
-from ganeti import errors
-import ganeti.rpc.client as cl
-from ganeti.rpc.transport import Transport
-from ganeti.rpc.errors import TimeoutError
+from alcor import constants
+from alcor import errors
+import alcor.rpc.client as cl
+from alcor.rpc.transport import Transport
+from alcor.rpc.errors import TimeoutError
 
 
 # If the metadata daemon is disabled, there is no stub generated for it.
 # So import the module and define the client class only if enabled, otherwise
 # just generate an empty placeholder class.
 if constants.ENABLE_METAD:
-  import ganeti.rpc.stub.metad as stub
+  import alcor.rpc.stub.metad as stub
 
   class Client(cl.AbstractStubClient, stub.ClientRpcStub):
     """High-level Metad client implementation.

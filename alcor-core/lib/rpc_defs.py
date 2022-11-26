@@ -48,9 +48,9 @@ RPC definition fields:
 
 """
 
-from ganeti import constants
-from ganeti import utils
-from ganeti import objects
+from alcor import constants
+from alcor import utils
+from alcor import objects
 
 
 # Guidelines for choosing timeouts:
@@ -559,7 +559,7 @@ _NODE_CALLS = [
     ("clear_authorized_keys", None,
      "If the 'authorized_keys' file of the node should be cleared."),
     ("clear_public_keys", None,
-     "If the 'ganeti_pub_keys' file of the node should be cleared."),
+     "If the 'alcor_pub_keys' file of the node should be cleared."),
     ("readd", None,
      "Whether this is a readd operation.")],
     None, None, "Remove a node's SSH key from the other nodes' key files."),

@@ -30,10 +30,10 @@
 
 """Verification helpers for the configuration object."""
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import objects
-from ganeti import utils
+from alcor import constants
+from alcor import errors
+from alcor import objects
+from alcor import utils
 
 
 def ValidateConfig(data):

@@ -33,10 +33,10 @@
 
 import logging
 
-from ganeti import constants
-from ganeti import errors
-from ganeti.utils import io as utils_io
-from ganeti.utils import process as utils_process
+from alcor import constants
+from alcor import errors
+from alcor.utils import io as utils_io
+from alcor.utils import process as utils_process
 
 
 def GetDiskTemplatesOfStorageTypes(*storage_types):
@@ -296,7 +296,7 @@ def osminor(dev):
   """Return the device minor number from a raw device number.
 
   This is a replacement for os.minor working around the issue that
-  Python's os.minor still has the old definition. See Ganeti issue
+  Python's os.minor still has the old definition. See Alcor issue
   1058 for more details.
   """
   return (dev & 0xff) | ((dev >> 12) & ~0xff)

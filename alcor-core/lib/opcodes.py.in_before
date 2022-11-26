@@ -46,10 +46,10 @@ opcodes.
 # pylint: disable=R0903
 # pylint: disable=C0301
 
-from ganeti import constants
-from ganeti import ht
+from alcor import constants
+from alcor import ht
 
-from ganeti import opcodes_base
+from alcor import opcodes_base
 
 
 class OpCode(opcodes_base.BaseOpCode):

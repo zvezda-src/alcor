@@ -34,11 +34,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 module Main (main) where
 
-import qualified Ganeti.Constants as Constants
-import Ganeti.Daemon (OptType)
-import qualified Ganeti.Daemon as Daemon
-import qualified Ganeti.Metad.Server as Server
-import qualified Ganeti.Runtime as Runtime
+import qualified Alcor.Constants as Constants
+import Alcor.Daemon (OptType)
+import qualified Alcor.Daemon as Daemon
+import qualified Alcor.Metad.Server as Server
+import qualified Alcor.Runtime as Runtime
 
 options :: [OptType]
 options =
@@ -51,7 +51,7 @@ options =
 
 main :: IO ()
 main =
-  Daemon.genericMain Runtime.GanetiMetad options
+  Daemon.genericMain Runtime.AlcorMetad options
     (\_ -> return . Right $ ())
     (\_ _ -> return ())
     (\opts _ _ -> Server.start opts)

@@ -38,7 +38,7 @@
 
 set -e
 
-: ${URL:=https://github.com/ganeti/ganeti}
+: ${URL:=https://github.com/alcor/alcor}
 TAG="$1"
 : ${PARALLEL:=$(egrep -c "^processor\s+:" /proc/cpuinfo)}
 
@@ -80,7 +80,7 @@ done
 ./configure
 
 VERSION=$(sed -n -e '/^PACKAGE_VERSION =/ s/^PACKAGE_VERSION = // p' Makefile)
-ARCHIVE="ganeti-${VERSION}.tar.gz"
+ARCHIVE="alcor-${VERSION}.tar.gz"
 
 make -j$PARALLEL distcheck-release
 fakeroot make -j$PARALLEL dist-release

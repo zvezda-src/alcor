@@ -31,7 +31,7 @@
 
 """
 
-from ganeti import constants
+from alcor import constants
 
 
 def CheckVolumeGroupSize(vglist, vgname, minsize):

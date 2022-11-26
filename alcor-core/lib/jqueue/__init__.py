@@ -47,27 +47,27 @@ try:
 except ImportError:
   import pyinotify
 
-from ganeti import asyncnotifier
-from ganeti import constants
-from ganeti import serializer
-from ganeti import locking
-from ganeti import luxi
-from ganeti import opcodes
-from ganeti import opcodes_base
-from ganeti import errors
-from ganeti import mcpu
-from ganeti import utils
-from ganeti import jstore
-import ganeti.rpc.node as rpc
-from ganeti import runtime
-from ganeti import netutils
-from ganeti import compat
-from ganeti import ht
-from ganeti import query
-from ganeti import qlang
-from ganeti import pathutils
-from ganeti import vcluster
-from ganeti.cmdlib import cluster
+from alcor import asyncnotifier
+from alcor import constants
+from alcor import serializer
+from alcor import locking
+from alcor import luxi
+from alcor import opcodes
+from alcor import opcodes_base
+from alcor import errors
+from alcor import mcpu
+from alcor import utils
+from alcor import jstore
+import alcor.rpc.node as rpc
+from alcor import runtime
+from alcor import netutils
+from alcor import compat
+from alcor import ht
+from alcor import query
+from alcor import qlang
+from alcor import pathutils
+from alcor import vcluster
+from alcor.cmdlib import cluster
 
 
 #: Retrieves "id" attribute
@@ -1246,9 +1246,9 @@ class JobQueue(object):
     (if they were queue) or for aborting them (if they were already
     running).
 
-    @type context: GanetiContext
+    @type context: AlcorContext
     @param context: the context object for access to the configuration
-        data and other ganeti objects
+        data and other alcor objects
 
     """
     self.context = context

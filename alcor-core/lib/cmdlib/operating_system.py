@@ -30,10 +30,10 @@
 
 """Logical units dealing with OS."""
 
-from ganeti import locking
-from ganeti import qlang
-from ganeti import query
-from ganeti.cmdlib.base import QueryBase, NoHooksLU
+from alcor import locking
+from alcor import qlang
+from alcor import query
+from alcor.cmdlib.base import QueryBase, NoHooksLU
 
 
 class OsQuery(QueryBase):

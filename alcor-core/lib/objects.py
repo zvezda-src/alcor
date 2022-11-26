@@ -28,7 +28,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-"""Transportable objects for Ganeti.
+"""Transportable objects for Alcor.
 
 This module provides small, mostly data-only objects which are safe to
 pass to and from external parties.
@@ -55,12 +55,12 @@ import time
 from io import StringIO
 from socket import AF_INET
 
-from ganeti import errors
-from ganeti import constants
-from ganeti import netutils
-from ganeti import outils
-from ganeti import utils
-from ganeti import serializer
+from alcor import errors
+from alcor import constants
+from alcor import netutils
+from alcor import outils
+from alcor import utils
+from alcor import serializer
 
 
 __all__ = ["ConfigObject", "ConfigData", "NIC", "Disk", "Instance",
@@ -505,7 +505,7 @@ class ConfigData(ConfigObject):
         template_set.add(constants.DT_DRBD8)
         template_set.add(constants.DT_PLAIN)
       # Set enabled_disk_templates to the inferred disk templates. Order them
-      # according to a preference list that is based on Ganeti's history of
+      # according to a preference list that is based on Alcor's history of
       # supported disk templates.
       self.cluster.enabled_disk_templates = []
       for preferred_template in constants.DISK_TEMPLATE_PREFERENCE:
@@ -927,7 +927,7 @@ class Disk(ConfigObject):
       for child in self.children:
         child.UpgradeConfig()
 
-    # FIXME: Make this configurable in Ganeti 2.7
+    # FIXME: Make this configurable in Alcor 2.7
     # Params should be an empty dict that gets filled any time needed
     # In case of ext template we allow arbitrary params that should not
     # be overrided during a config reload/upgrade.
@@ -2361,7 +2361,7 @@ class InstanceConsole(ConfigObject):
 
 
 class Network(TaggableObject):
-  """Object representing a network definition for ganeti.
+  """Object representing a network definition for alcor.
 
   """
   __slots__ = [

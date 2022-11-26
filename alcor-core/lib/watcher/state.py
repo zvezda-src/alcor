@@ -28,7 +28,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-"""Module keeping state for Ganeti watcher.
+"""Module keeping state for Alcor watcher.
 
 """
 
@@ -36,9 +36,9 @@ import os
 import time
 import logging
 
-from ganeti import utils
-from ganeti import serializer
-from ganeti import errors
+from alcor import utils
+from alcor import serializer
+from alcor import errors
 
 
 # Delete any record that is older than 8 hours; this value is based on
@@ -123,7 +123,7 @@ class WatcherState(object):
       return
 
     # We need to make sure the file is locked before renaming it, otherwise
-    # starting ganeti-watcher again at the same time will create a conflict.
+    # starting alcor-watcher again at the same time will create a conflict.
     fd = utils.WriteFile(filename,
                          data=serialized_form,
                          prewrite=utils.LockFile, close=False)

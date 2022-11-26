@@ -28,7 +28,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-"""Script to generate bash_completion script for Ganeti.
+"""Script to generate bash_completion script for Alcor.
 
 """
 
@@ -44,15 +44,15 @@ from io import StringIO
 
 # _constants shouldn't be imported from anywhere except constants.py, but we're
 # making an exception here because this script is only used at build time.
-from ganeti import _constants
+from alcor import _constants
 
-from ganeti import constants
-from ganeti import cli
-from ganeti import utils
-from ganeti import build
-from ganeti import pathutils
+from alcor import constants
+from alcor import cli
+from alcor import utils
+from alcor import build
+from alcor import pathutils
 
-from ganeti.tools import burnin
+from alcor.tools import burnin
 
 #: Regular expression describing desired format of option names. Long names can
 #: contain lowercase characters, numbers and dashes only.
@@ -85,7 +85,7 @@ def _WriteGntLog(sw, support_debug):
 
 
 def _WriteNodes(sw):
-  sw.Write("_ganeti_nodes() {")
+  sw.Write("_alcor_nodes() {")
   sw.IncIndent()
   try:
     node_list_path = os.path.join(pathutils.DATA_DIR, "ssconf_node_list")
@@ -96,7 +96,7 @@ def _WriteNodes(sw):
 
 
 def _WriteInstances(sw):
-  sw.Write("_ganeti_instances() {")
+  sw.Write("_alcor_instances() {")
   sw.IncIndent()
   try:
     instance_list_path = os.path.join(pathutils.DATA_DIR,
@@ -108,7 +108,7 @@ def _WriteInstances(sw):
 
 
 def _WriteJobs(sw):
-  sw.Write("_ganeti_jobs() {")
+  sw.Write("_alcor_jobs() {")
   sw.IncIndent()
   try:
     # FIXME: this is really going into the internals of the job queue
@@ -126,7 +126,7 @@ def _WriteOSAndIAllocator(sw):
     ("os", pathutils.OS_SEARCH_PATH),
     ("iallocator", constants.IALLOCATOR_SEARCH_PATH),
     ]:
-    sw.Write("_ganeti_%s() {", fnname)
+    sw.Write("_alcor_%s() {", fnname)
     sw.IncIndent()
     try:
       # FIXME: Make querying the master for all OSes cheap
@@ -139,7 +139,7 @@ def _WriteOSAndIAllocator(sw):
 
 
 def _WriteNodegroup(sw):
-  sw.Write("_ganeti_nodegroup() {")
+  sw.Write("_alcor_nodegroup() {")
   sw.IncIndent()
   try:
     nodegroups_path = os.path.join(pathutils.DATA_DIR, "ssconf_nodegroups")
@@ -150,7 +150,7 @@ def _WriteNodegroup(sw):
 
 
 def _WriteNetwork(sw):
-  sw.Write("_ganeti_network() {")
+  sw.Write("_alcor_network() {")
   sw.IncIndent()
   try:
     networks_path = os.path.join(pathutils.DATA_DIR, "ssconf_networks")
@@ -163,7 +163,7 @@ def _WriteNetwork(sw):
 def _WriteFindFirstArg(sw):
   # Params: <offset> <options with values> <options without values>
   # Result variable: $first_arg_idx
-  sw.Write("_ganeti_find_first_arg() {")
+  sw.Write("_alcor_find_first_arg() {")
   sw.IncIndent()
   try:
     sw.Write("local w i")
@@ -195,7 +195,7 @@ def _WriteListOptions(sw):
   # Params: <list of options separated by space>
   # Input variable: $first_arg_idx
   # Result variables: $arg_idx, $choices
-  sw.Write("_ganeti_list_options() {")
+  sw.Write("_alcor_list_options() {")
   sw.IncIndent()
   try:
     sw.Write("""if [[ -z "$first_arg_idx" ]]; then""")
@@ -334,7 +334,7 @@ class CompletionWriter(object):
 
     if ignore or skip_one:
       # Try to locate first argument
-      sw.Write("_ganeti_find_first_arg %s %s %s",
+      sw.Write("_alcor_find_first_arg %s %s %s",
                self.arg_offset + 1,
                utils.ShellQuote("|".join(skip_one)),
                utils.ShellQuote("|".join(ignore)))
@@ -397,21 +397,21 @@ class CompletionWriter(object):
           # TODO: Implement comma-separated values
           WriteCompReply(sw, "-W ''", cur=cur)
         elif suggest == cli.OPT_COMPL_ONE_NODE:
-          WriteCompReply(sw, "-W \"$(_ganeti_nodes)\"", cur=cur)
+          WriteCompReply(sw, "-W \"$(_alcor_nodes)\"", cur=cur)
         elif suggest == cli.OPT_COMPL_ONE_INSTANCE:
-          WriteCompReply(sw, "-W \"$(_ganeti_instances)\"", cur=cur)
+          WriteCompReply(sw, "-W \"$(_alcor_instances)\"", cur=cur)
         elif suggest == cli.OPT_COMPL_ONE_OS:
-          WriteCompReply(sw, "-W \"$(_ganeti_os)\"", cur=cur)
+          WriteCompReply(sw, "-W \"$(_alcor_os)\"", cur=cur)
         elif suggest == cli.OPT_COMPL_ONE_EXTSTORAGE:
-          WriteCompReply(sw, "-W \"$(_ganeti_extstorage)\"", cur=cur)
+          WriteCompReply(sw, "-W \"$(_alcor_extstorage)\"", cur=cur)
         elif suggest == cli.OPT_COMPL_ONE_FILTER:
-          WriteCompReply(sw, "-W \"$(_ganeti_filter)\"", cur=cur)
+          WriteCompReply(sw, "-W \"$(_alcor_filter)\"", cur=cur)
         elif suggest == cli.OPT_COMPL_ONE_IALLOCATOR:
-          WriteCompReply(sw, "-W \"$(_ganeti_iallocator)\"", cur=cur)
+          WriteCompReply(sw, "-W \"$(_alcor_iallocator)\"", cur=cur)
         elif suggest == cli.OPT_COMPL_ONE_NODEGROUP:
-          WriteCompReply(sw, "-W \"$(_ganeti_nodegroup)\"", cur=cur)
+          WriteCompReply(sw, "-W \"$(_alcor_nodegroup)\"", cur=cur)
         elif suggest == cli.OPT_COMPL_ONE_NETWORK:
-          WriteCompReply(sw, "-W \"$(_ganeti_network)\"", cur=cur)
+          WriteCompReply(sw, "-W \"$(_alcor_network)\"", cur=cur)
         elif suggest == cli.OPT_COMPL_INST_ADD_NODES:
           sw.Write("local tmp= node1= pfx= curvalue=\"${optcur#*:}\"")
 
@@ -435,7 +435,7 @@ class CompletionWriter(object):
             sw.Write("_gnt_log pfx=\"'$pfx'\" curvalue=\"'$curvalue'\""
                      " node1=\"'$node1'\"")
 
-          sw.Write("for i in $(_ganeti_nodes); do")
+          sw.Write("for i in $(_alcor_nodes); do")
           sw.IncIndent()
           try:
             sw.Write("if [[ -z \"$node1\" ]]; then")
@@ -478,7 +478,7 @@ class CompletionWriter(object):
     all_option_names.sort()
 
     # List options if no argument has been specified yet
-    sw.Write("_ganeti_list_options %s",
+    sw.Write("_alcor_list_options %s",
              utils.ShellQuote(" ".join(all_option_names)))
 
     if self.args:
@@ -505,21 +505,21 @@ class CompletionWriter(object):
         elif isinstance(arg, cli.ArgSuggest):
           choices = utils.ShellQuote(" ".join(arg.choices))
         elif isinstance(arg, cli.ArgInstance):
-          choices = "$(_ganeti_instances)"
+          choices = "$(_alcor_instances)"
         elif isinstance(arg, cli.ArgNode):
-          choices = "$(_ganeti_nodes)"
+          choices = "$(_alcor_nodes)"
         elif isinstance(arg, cli.ArgGroup):
-          choices = "$(_ganeti_nodegroup)"
+          choices = "$(_alcor_nodegroup)"
         elif isinstance(arg, cli.ArgNetwork):
-          choices = "$(_ganeti_network)"
+          choices = "$(_alcor_network)"
         elif isinstance(arg, cli.ArgJobId):
-          choices = "$(_ganeti_jobs)"
+          choices = "$(_alcor_jobs)"
         elif isinstance(arg, cli.ArgOs):
-          choices = "$(_ganeti_os)"
+          choices = "$(_alcor_os)"
         elif isinstance(arg, cli.ArgExtStorage):
-          choices = "$(_ganeti_extstorage)"
+          choices = "$(_alcor_extstorage)"
         elif isinstance(arg, cli.ArgFilter):
-          choices = "$(_ganeti_filter)"
+          choices = "$(_alcor_filter)"
         elif isinstance(arg, cli.ArgFile):
           choices = ""
           compgenargs.append("-f")
@@ -886,20 +886,20 @@ def main():
                                          build.LoadModule(filename)))
 
   # Burnin script
-  WriteCompletion(sw, "%s/burnin" % pathutils.TOOLSDIR, "_ganeti_burnin",
+  WriteCompletion(sw, "%s/burnin" % pathutils.TOOLSDIR, "_alcor_burnin",
                   debug,
                   opts=burnin.OPTIONS, args=burnin.ARGUMENTS)
 
-  # ganeti-cleaner
-  WriteHaskellCompletion(sw, "daemons/ganeti-cleaner", htools=False,
+  # alcor-cleaner
+  WriteHaskellCompletion(sw, "daemons/alcor-cleaner", htools=False,
                          debug=not options.compact)
 
   # htools
   for script in _constants.HTOOLS_PROGS:
     WriteHaskellCompletion(sw, script, htools=True, debug=debug)
 
-  # ganeti-confd, if enabled
-  WriteHaskellCompletion(sw, "src/ganeti-confd", htools=False,
+  # alcor-confd, if enabled
+  WriteHaskellCompletion(sw, "src/alcor-confd", htools=False,
                          debug=debug)
 
   # mon-collector, if monitoring is enabled

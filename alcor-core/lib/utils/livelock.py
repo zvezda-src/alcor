@@ -39,8 +39,8 @@ import os
 import struct
 import time
 
-from ganeti.utils.algo import NiceSort
-from ganeti import pathutils
+from alcor.utils.algo import NiceSort
+from alcor import pathutils
 
 
 class LiveLock(object):

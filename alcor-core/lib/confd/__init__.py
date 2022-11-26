@@ -28,13 +28,13 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-"""Ganeti confd client/server library
+"""Alcor confd client/server library
 
 """
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import ht
+from alcor import constants
+from alcor import errors
+from alcor import ht
 
 
 _FOURCC_LEN = 4

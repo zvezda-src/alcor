@@ -30,14 +30,14 @@
 """External Storage related commands"""
 
 # pylint: disable=W0401,W0613,W0614,C0103
-# W0401: Wildcard import ganeti.cli
+# W0401: Wildcard import alcor.cli
 # W0613: Unused argument, since all functions follow the same API
 # W0614: Unused import %s from wildcard import (since we need cli)
 # C0103: Invalid name gnt-storage
 
-from ganeti.cli import *
-from ganeti import opcodes
-from ganeti import utils
+from alcor.cli import *
+from alcor import opcodes
+from alcor import utils
 
 
 def ShowExtStorageInfo(opts, args):

@@ -35,7 +35,7 @@
 import logging
 import time
 
-from ganeti import errors
+from alcor import errors
 
 
 #: Special delay to specify whole remaining timeout

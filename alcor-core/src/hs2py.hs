@@ -34,11 +34,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 -}
 
-import Ganeti.Hs2Py.GenOpCodes
-import Ganeti.Hs2Py.ListConstants
-import Ganeti.THH.PyRPC
-import qualified Ganeti.WConfd.Core as WConfd
-import qualified Ganeti.Metad.ConfigCore as Metad
+import Alcor.Hs2Py.GenOpCodes
+import Alcor.Hs2Py.ListConstants
+import Alcor.THH.PyRPC
+import qualified Alcor.WConfd.Core as WConfd
+import qualified Alcor.Metad.ConfigCore as Metad
 
 import System.Environment (getArgs)
 import System.Exit (exitFailure)

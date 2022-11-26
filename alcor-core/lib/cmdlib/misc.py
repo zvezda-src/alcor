@@ -33,14 +33,14 @@
 import logging
 import time
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import locking
-from ganeti import qlang
-from ganeti import query
-from ganeti import utils
-from ganeti.cmdlib.base import NoHooksLU, QueryBase
-from ganeti.cmdlib.common import GetWantedNodes, SupportsOob
+from alcor import constants
+from alcor import errors
+from alcor import locking
+from alcor import qlang
+from alcor import query
+from alcor import utils
+from alcor.cmdlib.base import NoHooksLU, QueryBase
+from alcor.cmdlib.common import GetWantedNodes, SupportsOob
 
 
 class LUOobCommand(NoHooksLU):

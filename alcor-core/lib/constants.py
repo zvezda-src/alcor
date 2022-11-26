@@ -32,17 +32,17 @@
 
 # pylint: disable=W0401,W0614
 #
-# The modules 'ganeti._constants' and 'ganeti._vcsversion' are meant
+# The modules 'alcor._constants' and 'alcor._vcsversion' are meant
 # to be re-exported but pylint complains because the imported names
 # are not actually used in this module.
 
 import re
 import socket
 
-from ganeti._constants import *
-from ganeti._vcsversion import *
-from ganeti import compat
-from ganeti import pathutils
+from alcor._constants import *
+from alcor._vcsversion import *
+from alcor import compat
+from alcor import pathutils
 
 ALLOCATABLE_KEY = "allocatable"
 FAILED_KEY = "failed"

@@ -28,7 +28,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-"""Ganeti node daemon"""
+"""Alcor node daemon"""
 
 # pylint: disable=C0103
 
@@ -44,21 +44,21 @@ import signal
 
 from optparse import OptionParser
 
-from ganeti import backend
-from ganeti import constants
-from ganeti import objects
-from ganeti import errors
-from ganeti import jstore
-from ganeti import daemon
-from ganeti import http
-from ganeti import utils
-from ganeti.storage import container
-from ganeti import serializer
-from ganeti import netutils
-from ganeti import pathutils
-from ganeti import ssconf
+from alcor import backend
+from alcor import constants
+from alcor import objects
+from alcor import errors
+from alcor import jstore
+from alcor import daemon
+from alcor import http
+from alcor import utils
+from alcor.storage import container
+from alcor import serializer
+from alcor import netutils
+from alcor import pathutils
+from alcor import ssconf
 
-import ganeti.http.server # pylint: disable=W0611
+import alcor.http.server # pylint: disable=W0611
 
 
 queue_lock = None
@@ -193,7 +193,7 @@ class NodeRequestHandler(http.server.HttpServerHandler):
       # exception was constructed with a single argument, and in
       # this case, err.message == err.args[0] == str(err)
       result = (False, str(err))
-    except errors.QuitGanetiException as err:
+    except errors.QuitAlcorException as err:
       # Tell parent to quit
       logging.info("Shutting down the node daemon, arguments: %s",
                    str(err.args))
@@ -525,7 +525,7 @@ class NodeRequestHandler(http.server.HttpServerHandler):
     """List the available exports on this node.
 
     Note that as opposed to export_info, which may query data about an
-    export in any path, this only queries the standard Ganeti path
+    export in any path, this only queries the standard Alcor path
     (pathutils.EXPORT_DIR).
 
     """
@@ -1313,7 +1313,7 @@ def SSLVerifyPeer(conn, cert, errnum, errdepth, ok):
   in the bootstrap/upgrade phase. In this case, we read the server certificate
   digest and compare it to the incoming request.
 
-  This means that after an upgrade of Ganeti, the system continues to operate
+  This means that after an upgrade of Alcor, the system continues to operate
   like before, using server certificates only. After the client certificates
   are generated with ``gnt-cluster renew-crypto --new-node-certificates``,
   RPC communication is switched to using client certificates and the trick of
@@ -1425,10 +1425,10 @@ def Main():
   """Main function for the node daemon.
 
   """
-  parser = OptionParser(description="Ganeti node daemon",
+  parser = OptionParser(description="Alcor node daemon",
                         usage=("%prog [-f] [-d] [-p port] [-b ADDRESS]"
                                " [-i INTERFACE]"),
-                        version="%%prog (ganeti) %s" %
+                        version="%%prog (alcor) %s" %
                         constants.RELEASE_VERSION)
   parser.add_option("--no-mlock", dest="mlock",
                     help="Do not mlock the node memory in ram",

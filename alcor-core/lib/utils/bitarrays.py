@@ -34,7 +34,7 @@
 
 from bitarray import bitarray
 
-from ganeti import errors
+from alcor import errors
 
 # Constant bitarray that reflects to a free slot
 # Use it with bitarray.search()

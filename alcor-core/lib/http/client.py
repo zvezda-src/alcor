@@ -38,10 +38,10 @@ from io import BytesIO
 
 import pycurl
 
-from ganeti import http
-from ganeti import compat
-from ganeti import netutils
-from ganeti import locking
+from alcor import http
+from alcor import compat
+from alcor import netutils
+from alcor import locking
 
 
 class HttpClientRequest(object):

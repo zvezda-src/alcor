@@ -33,8 +33,8 @@
 import logging
 import shlex
 
-from ganeti import constants
-from ganeti import errors
+from alcor import constants
+from alcor import errors
 
 
 class BaseDRBDCmdGenerator(object):

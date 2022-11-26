@@ -34,19 +34,19 @@ import logging
 
 import OpenSSL
 
-from ganeti import compat
-from ganeti import constants
-from ganeti import errors
-from ganeti import locking
-from ganeti import masterd
-from ganeti import utils
+from alcor import compat
+from alcor import constants
+from alcor import errors
+from alcor import locking
+from alcor import masterd
+from alcor import utils
 
-from ganeti.cmdlib.base import NoHooksLU, LogicalUnit
-from ganeti.cmdlib.common import CheckNodeOnline, ExpandNodeUuidAndName
-from ganeti.cmdlib.instance_helpervm import RunWithHelperVM
-from ganeti.cmdlib.instance_storage import StartInstanceDisks, \
+from alcor.cmdlib.base import NoHooksLU, LogicalUnit
+from alcor.cmdlib.common import CheckNodeOnline, ExpandNodeUuidAndName
+from alcor.cmdlib.instance_helpervm import RunWithHelperVM
+from alcor.cmdlib.instance_storage import StartInstanceDisks, \
   ShutdownInstanceDisks
-from ganeti.cmdlib.instance_utils import GetClusterDomainSecret, \
+from alcor.cmdlib.instance_utils import GetClusterDomainSecret, \
   BuildInstanceHookEnvByObject, CheckNodeNotDrained, RemoveInstance, \
   CheckCompressionTool
 

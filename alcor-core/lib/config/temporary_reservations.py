@@ -32,7 +32,7 @@
 
 """
 
-from ganeti import errors
+from alcor import errors
 
 
 class TemporaryReservationManager(object):

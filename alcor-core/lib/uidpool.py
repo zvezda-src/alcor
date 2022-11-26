@@ -43,10 +43,10 @@ import logging
 import os
 import random
 
-from ganeti import errors
-from ganeti import constants
-from ganeti import utils
-from ganeti import pathutils
+from alcor import errors
+from alcor import constants
+from alcor import utils
+from alcor import pathutils
 
 
 def ParseUidPool(value, separator=None):
@@ -244,8 +244,8 @@ def RequestUnusedUid(all_uids):
 
   1. When starting a process::
 
-      from ganeti import ssconf
-      from ganeti import uidpool
+      from alcor import ssconf
+      from alcor import uidpool
 
       # Get list of all user-ids in the uid-pool from ssconf
       ss = ssconf.SimpleStore()
@@ -263,7 +263,7 @@ def RequestUnusedUid(all_uids):
 
   2. Stopping a process::
 
-      from ganeti import uidpool
+      from alcor import uidpool
 
       uid = <get the UID the process is running under>
       <stop the process>

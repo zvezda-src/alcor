@@ -44,13 +44,13 @@ from copy import deepcopy
 # Python 2.6 and above contain a JSON module based on simplejson. Unfortunately
 # the standard library version is significantly slower than the external
 # module. While it should be better from at least Python 3.2 on (see Python
-# issue 7451), for now Ganeti needs to work well with older Python versions
+# issue 7451), for now Alcor needs to work well with older Python versions
 # too.
 import simplejson
 
-from ganeti import errors
-from ganeti import utils
-from ganeti import constants
+from alcor import errors
+from alcor import utils
+from alcor import constants
 
 _RE_EOLSP = re.compile("[ \t]+$", re.MULTILINE)
 
@@ -113,7 +113,7 @@ def WrapPrivateValues(json):
     elif isinstance(data, dict): # Object
 
       # This is kind of a kludge, but the only place where we know what should
-      # be protected is in ganeti.opcodes, and not in a way that is helpful to
+      # be protected is in alcor.opcodes, and not in a way that is helpful to
       # us, especially in such a high traffic method; on the other hand, the
       # Haskell `py_compat_fields` test should complain whenever this check
       # does not protect fields properly.

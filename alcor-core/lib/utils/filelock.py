@@ -36,8 +36,8 @@ import errno
 import os
 import logging
 
-from ganeti import errors
-from ganeti.utils import retry
+from alcor import errors
+from alcor.utils import retry
 
 
 def LockFile(fd):

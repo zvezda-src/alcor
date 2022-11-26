@@ -36,18 +36,18 @@ import os
 import os.path
 import logging
 
-from ganeti import utils
-from ganeti import constants
-from ganeti import errors
-from ganeti import objects
-from ganeti import pathutils
-from ganeti.hypervisor import hv_base
+from alcor import utils
+from alcor import constants
+from alcor import errors
+from alcor import objects
+from alcor import pathutils
+from alcor.hypervisor import hv_base
 
 
 class FakeHypervisor(hv_base.BaseHypervisor):
   """Fake hypervisor interface.
 
-  This can be used for testing the ganeti code without having to have
+  This can be used for testing the alcor code without having to have
   a real virtualisation software installed.
 
   """

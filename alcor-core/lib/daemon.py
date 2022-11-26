@@ -44,13 +44,13 @@ import socket
 import select
 import sys
 
-from ganeti import utils
-from ganeti import constants
-from ganeti import errors
-from ganeti import netutils
-from ganeti import ssconf
-from ganeti import runtime
-from ganeti import compat
+from alcor import utils
+from alcor import constants
+from alcor import errors
+from alcor import netutils
+from alcor import ssconf
+from alcor import runtime
+from alcor import compat
 
 
 class SchedulerBreakout(Exception):
@@ -124,8 +124,8 @@ class AsyncoreScheduler(sched.scheduler):
     return AsyncoreDelayFunction(timeout)
 
 
-class GanetiBaseAsyncoreDispatcher(asyncore.dispatcher):
-  """Base Ganeti Asyncore Dispacher
+class AlcorBaseAsyncoreDispatcher(asyncore.dispatcher):
+  """Base Alcor Asyncore Dispacher
 
   """
   # this method is overriding an asyncore.dispatcher method
@@ -280,7 +280,7 @@ class AsyncTerminatedMessageStream(asynchat.async_chat):
     self.close_log()
 
 
-class AsyncUDPSocket(GanetiBaseAsyncoreDispatcher):
+class AsyncUDPSocket(AlcorBaseAsyncoreDispatcher):
   """An improved asyncore udp socket.
 
   """
@@ -288,7 +288,7 @@ class AsyncUDPSocket(GanetiBaseAsyncoreDispatcher):
     """Constructor for AsyncUDPSocket
 
     """
-    GanetiBaseAsyncoreDispatcher.__init__(self)
+    AlcorBaseAsyncoreDispatcher.__init__(self)
     self._out_queue = []
     self._family = family
     self.create_socket(family, socket.SOCK_DGRAM)
@@ -363,7 +363,7 @@ class AsyncUDPSocket(GanetiBaseAsyncoreDispatcher):
       return False
 
 
-class AsyncAwaker(GanetiBaseAsyncoreDispatcher):
+class AsyncAwaker(AlcorBaseAsyncoreDispatcher):
   """A way to notify the asyncore loop that something is going on.
 
   If an asyncore daemon is multithreaded when a thread tries to push some data
@@ -379,7 +379,7 @@ class AsyncAwaker(GanetiBaseAsyncoreDispatcher):
     @param signal_fn: function to call when awaken
 
     """
-    GanetiBaseAsyncoreDispatcher.__init__(self)
+    AlcorBaseAsyncoreDispatcher.__init__(self)
     assert signal_fn is None or callable(signal_fn)
     (self.in_socket, self.out_socket) = socket.socketpair(socket.AF_UNIX,
                                                           socket.SOCK_STREAM)
@@ -685,7 +685,7 @@ def GenericMain(daemon_name, optionparser,
 
   family = ssconf.SimpleStore().GetPrimaryIPFamily()
   # family will default to AF_INET if there is no ssconf file (e.g. when
-  # upgrading a cluster from 2.2 -> 2.3. This is intended, as Ganeti clusters
+  # upgrading a cluster from 2.2 -> 2.3. This is intended, as Alcor clusters
   # <= 2.2 can not be AF_INET6
   if daemon_name in constants.DAEMONS_PORTS:
     default_bind_address = constants.IP4_ADDRESS_ANY
@@ -778,7 +778,7 @@ def GenericMain(daemon_name, optionparser,
   if options.fork:
     # Newer GnuTLS versions (>= 3.3.0) use a library constructor for
     # initialization and open /dev/urandom on library load time, way before we
-    # fork(). Closing /dev/urandom causes subsequent ganeti.http.client
+    # fork(). Closing /dev/urandom causes subsequent alcor.http.client
     # requests to fail and the process to receive a SIGABRT. As we cannot
     # reliably detect GnuTLS's socket, we work our way around this by keeping
     # all fds referring to /dev/urandom open.

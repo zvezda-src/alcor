@@ -40,15 +40,15 @@ import tempfile
 from collections import namedtuple
 from functools import partial
 
-from ganeti import utils
-from ganeti import errors
-from ganeti import constants
-from ganeti import netutils
-from ganeti import pathutils
-from ganeti import vcluster
-from ganeti import compat
-from ganeti import serializer
-from ganeti import ssconf
+from alcor import utils
+from alcor import errors
+from alcor import constants
+from alcor import netutils
+from alcor import pathutils
+from alcor import vcluster
+from alcor import compat
+from alcor import serializer
+from alcor import ssconf
 
 
 def GetUserFiles(user, mkdir=False, dircheck=True, kind=constants.SSHK_DSA,
@@ -416,7 +416,7 @@ def _ReplaceNameByUuidProcessLine(
   """Replaces a node's name with its UUID on a matching line in the key file.
 
   This is an auxiliary function for C{_ManipulatePublicKeyFile} which processes
-  a line of the ganeti public key file. If the line in question matches the
+  a line of the alcor public key file. If the line in question matches the
   node's name, the name will be replaced by the node's UUID.
 
   @type node_name: string
@@ -500,7 +500,7 @@ def _ManipulatePubKeyFile(target_identifier, target_key,
   This is a general function to manipulate the public key file. It needs
   two auxiliary functions C{process_line_fn} and C{process_else_fn} to
   work. Generally, the public key file is processed as follows:
-  1) The function processes each line of the original ganeti public key file,
+  1) The function processes each line of the original alcor public key file,
   applies the C{process_line_fn} function on it, which returns a possibly
   manipulated line and an indicator whether the line in question was found.
   If a line is returned, it is added to a list of lines for later writing
@@ -969,12 +969,12 @@ def WriteKnownHostsFile(cfg, file_name):
   utils.WriteFile(file_name, mode=0o600, data=data)
 
 
-def _EnsureCorrectGanetiVersion(cmd):
-  """Ensured the correct Ganeti version before running a command via SSH.
+def _EnsureCorrectAlcorVersion(cmd):
+  """Ensured the correct Alcor version before running a command via SSH.
 
   Before a command is run on a node via SSH, it makes sense in some
   situations to ensure that this node is indeed running the correct
-  version of Ganeti like the rest of the cluster.
+  version of Alcor like the rest of the cluster.
 
   @type cmd: string
   @param cmd: string
@@ -982,28 +982,28 @@ def _EnsureCorrectGanetiVersion(cmd):
   @return: a list of commands with the newly added ones at the beginning
 
   """
-  logging.debug("Ensure correct Ganeti version: %s", cmd)
+  logging.debug("Ensure correct Alcor version: %s", cmd)
 
   version = constants.DIR_VERSION
   all_cmds = [["test", "-d", os.path.join(pathutils.PKGLIBDIR, version)]]
   if constants.HAS_GNU_LN:
     all_cmds.extend([["ln", "-s", "-f", "-T",
                       os.path.join(pathutils.PKGLIBDIR, version),
-                      os.path.join(pathutils.SYSCONFDIR, "ganeti/lib")],
+                      os.path.join(pathutils.SYSCONFDIR, "alcor/lib")],
                      ["ln", "-s", "-f", "-T",
                       os.path.join(pathutils.SHAREDIR, version),
-                      os.path.join(pathutils.SYSCONFDIR, "ganeti/share")]])
+                      os.path.join(pathutils.SYSCONFDIR, "alcor/share")]])
   else:
     all_cmds.extend([["rm", "-f",
-                      os.path.join(pathutils.SYSCONFDIR, "ganeti/lib")],
+                      os.path.join(pathutils.SYSCONFDIR, "alcor/lib")],
                      ["ln", "-s", "-f",
                       os.path.join(pathutils.PKGLIBDIR, version),
-                      os.path.join(pathutils.SYSCONFDIR, "ganeti/lib")],
+                      os.path.join(pathutils.SYSCONFDIR, "alcor/lib")],
                      ["rm", "-f",
-                      os.path.join(pathutils.SYSCONFDIR, "ganeti/share")],
+                      os.path.join(pathutils.SYSCONFDIR, "alcor/share")],
                      ["ln", "-s", "-f",
                       os.path.join(pathutils.SHAREDIR, version),
-                      os.path.join(pathutils.SYSCONFDIR, "ganeti/share")]])
+                      os.path.join(pathutils.SYSCONFDIR, "alcor/share")]])
   all_cmds.append(cmd)
   return all_cmds
 
@@ -1045,7 +1045,7 @@ def RunSshCmdWithStdin(cluster_name, node, basecmd, port, data,
     cmd.append("--verbose")
 
   if ensure_version:
-    all_cmds = _EnsureCorrectGanetiVersion(cmd)
+    all_cmds = _EnsureCorrectAlcorVersion(cmd)
   else:
     all_cmds = [cmd]
 

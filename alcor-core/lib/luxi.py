@@ -38,12 +38,12 @@ The module is also used by the master daemon.
 
 """
 
-from ganeti import constants
-from ganeti import pathutils
-from ganeti import objects
-import ganeti.rpc.client as cl
-from ganeti.rpc.errors import RequestError
-from ganeti.rpc.transport import Transport
+from alcor import constants
+from alcor import pathutils
+from alcor import objects
+import alcor.rpc.client as cl
+from alcor.rpc.errors import RequestError
+from alcor.rpc.transport import Transport
 
 __all__ = [
   # classes:

@@ -36,15 +36,15 @@ inheritance from parent classes requires it.
 """
 
 # pylint: disable=C0103
-# C0103: Invalid name ganeti-masterd
+# C0103: Invalid name alcor-masterd
 
 import logging
 
-from ganeti import config
-from ganeti import constants
-from ganeti import jqueue
-from ganeti import utils
-import ganeti.rpc.node as rpc
+from alcor import config
+from alcor import constants
+from alcor import jqueue
+from alcor import utils
+import alcor.rpc.node as rpc
 
 
 CLIENT_REQUEST_WORKERS = 16
@@ -53,8 +53,8 @@ EXIT_NOTMASTER = constants.EXIT_NOTMASTER
 EXIT_NODESETUP_ERROR = constants.EXIT_NODESETUP_ERROR
 
 
-class GanetiContext(object):
-  """Context common to all ganeti threads.
+class AlcorContext(object):
+  """Context common to all alcor threads.
 
   This class creates and holds common objects shared by all threads.
 
@@ -64,13 +64,13 @@ class GanetiContext(object):
   _instance = None
 
   def __init__(self, livelock=None):
-    """Constructs a new GanetiContext object.
+    """Constructs a new AlcorContext object.
 
-    There should be only a GanetiContext object at any time, so this
+    There should be only a AlcorContext object at any time, so this
     function raises an error if this is not the case.
 
     """
-    assert self.__class__._instance is None, "double GanetiContext instance"
+    assert self.__class__._instance is None, "double AlcorContext instance"
 
     # Create a livelock file
     if livelock is None:
@@ -87,10 +87,10 @@ class GanetiContext(object):
     self.__class__._instance = self
 
   def __setattr__(self, name, value):
-    """Setting GanetiContext attributes is forbidden after initialization.
+    """Setting AlcorContext attributes is forbidden after initialization.
 
     """
-    assert self.__class__._instance is None, "Attempt to modify Ganeti Context"
+    assert self.__class__._instance is None, "Attempt to modify Alcor Context"
     object.__setattr__(self, name, value)
 
   def GetWConfdContext(self, ec_id):

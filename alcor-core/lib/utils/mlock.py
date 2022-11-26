@@ -34,7 +34,7 @@
 import os
 import logging
 
-from ganeti import errors
+from alcor import errors
 
 try:
   # pylint: disable=F0401

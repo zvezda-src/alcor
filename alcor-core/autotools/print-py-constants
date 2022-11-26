@@ -30,7 +30,7 @@
 """Script for printing Python constants related to sockets.
 
 These constants are the remnants of the Haskell to Python constant
-generation.  This solution is transitional until Ganeti 2.11 because
+generation.  This solution is transitional until Alcor 2.11 because
 the solution for eliminating completely the Python to Haskell
 conversion requires updating the configuration file.
 

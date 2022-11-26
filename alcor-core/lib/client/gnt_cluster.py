@@ -30,7 +30,7 @@
 """Cluster related commands"""
 
 # pylint: disable=W0401,W0613,W0614,C0103
-# W0401: Wildcard import ganeti.cli
+# W0401: Wildcard import alcor.cli
 # W0613: Unused argument, since all functions follow the same API
 # W0614: Unused import %s from wildcard import (since we need cli)
 # C0103: Invalid name gnt-cluster
@@ -44,24 +44,24 @@ from io import StringIO
 
 import OpenSSL
 
-from ganeti.cli import *
-from ganeti import bootstrap
-from ganeti import compat
-from ganeti import constants
-from ganeti import config
-from ganeti import errors
-from ganeti import netutils
-from ganeti import objects
-from ganeti import opcodes
-from ganeti import pathutils
-from ganeti import qlang
-from ganeti.rpc.node import RunWithRPC
-from ganeti import serializer
-from ganeti import ssconf
-from ganeti import ssh
-from ganeti import uidpool
-from ganeti import utils
-from ganeti.client import base
+from alcor.cli import *
+from alcor import bootstrap
+from alcor import compat
+from alcor import constants
+from alcor import config
+from alcor import errors
+from alcor import netutils
+from alcor import objects
+from alcor import opcodes
+from alcor import pathutils
+from alcor import qlang
+from alcor.rpc.node import RunWithRPC
+from alcor import serializer
+from alcor import ssconf
+from alcor import ssh
+from alcor import uidpool
+from alcor import utils
+from alcor.client import base
 
 
 ON_OPT = cli_option("--on", default=False,
@@ -87,10 +87,10 @@ FORCE_DISTRIBUTION = cli_option("--yes-do-it", dest="yes_do_it",
                                 default=False, action="store_true")
 
 TO_OPT = cli_option("--to", default=None, type="string",
-                    help="The Ganeti version to upgrade to")
+                    help="The Alcor version to upgrade to")
 
 RESUME_OPT = cli_option("--resume", default=False, action="store_true",
-                        help="Resume any pending Ganeti upgrades")
+                        help="Resume any pending Alcor upgrades")
 
 DATA_COLLECTOR_INTERVAL_OPT = cli_option(
     "--data-collector-interval", default={}, type="keyval",
@@ -455,7 +455,7 @@ def RedistributeConfig(opts, args):
 
 
 def ShowClusterVersion(opts, args):
-  """Write version of ganeti software to the standard output.
+  """Write version of alcor software to the standard output.
 
   @param opts: the command line options selected by the user
   @type args: list
@@ -1221,12 +1221,12 @@ def _RenewCrypto(new_cluster_cert, new_rapi_cert, # pylint: disable=R0911
   return 0
 
 
-def _BuildGanetiPubKeys(options, pub_key_file=pathutils.SSH_PUB_KEYS, cl=None,
+def _BuildAlcorPubKeys(options, pub_key_file=pathutils.SSH_PUB_KEYS, cl=None,
                         get_online_nodes_fn=GetOnlineNodes,
                         get_nodes_ssh_ports_fn=GetNodesSshPorts,
                         get_node_uuids_fn=GetNodeUUIDs,
                         homedir_fn=None):
-  """Recreates the 'ganeti_pub_key' file by polling all nodes.
+  """Recreates the 'alcor_pub_key' file by polling all nodes.
 
   """
 
@@ -1237,7 +1237,7 @@ def _BuildGanetiPubKeys(options, pub_key_file=pathutils.SSH_PUB_KEYS, cl=None,
     cl.QueryConfigValues(["cluster_name", "master_node", "modify_ssh_setup",
                           "ssh_key_type"])
 
-  # In case Ganeti is not supposed to modify the SSH setup, simply exit and do
+  # In case Alcor is not supposed to modify the SSH setup, simply exit and do
   # not update this file.
   if not modify_ssh_setup:
     return
@@ -1281,7 +1281,7 @@ def RenewCrypto(opts, args):
 
   """
   if opts.new_ssh_keys:
-    _BuildGanetiPubKeys(opts)
+    _BuildAlcorPubKeys(opts)
   return _RenewCrypto(opts.new_cluster_cert,
                       opts.new_rapi_cert,
                       opts.rapi_cert,
@@ -1983,7 +1983,7 @@ def _VerifyCommand(cmd):
   """Verify that a given command succeeds on all online nodes.
 
   As this function is intended to run during upgrades, it
-  is implemented in such a way that it still works, if all Ganeti
+  is implemented in such a way that it still works, if all Alcor
   daemons are down.
   @param cmd: a list of unquoted shell arguments
   @type cmd: list
@@ -2000,7 +2000,7 @@ def _VerifyCommandRaw(command):
   """Verify that a given command succeeds on all online nodes.
 
   As this function is intended to run during upgrades, it
-  is implemented in such a way that it still works, if all Ganeti
+  is implemented in such a way that it still works, if all Alcor
   daemons are down.
   @param cmd: a bare string to pass to SSH. The caller must do their
               own shell/ssh escaping.
@@ -2032,7 +2032,7 @@ def _VerifyCommandRaw(command):
 
 
 def _VerifyVersionInstalled(versionstring):
-  """Verify that the given version of ganeti is installed on all online nodes.
+  """Verify that the given version of alcor is installed on all online nodes.
 
   Do nothing, if this is the case, otherwise print an appropriate
   message to stderr.
@@ -2046,7 +2046,7 @@ def _VerifyVersionInstalled(versionstring):
   badnodes = _VerifyCommand(["test", "-d",
                              os.path.join(pathutils.PKGLIBDIR, versionstring)])
   if badnodes:
-    ToStderr("Ganeti version %s not installed on nodes %s"
+    ToStderr("Alcor version %s not installed on nodes %s"
              % (versionstring, ", ".join(badnodes)))
     return False
 
@@ -2066,8 +2066,8 @@ def _GetRunning():
   return len(cl.Query(constants.QR_JOB, [], qfilter).data)
 
 
-def _SetGanetiVersionAndEnsure(versionstring):
-  """Symlink the active version of ganeti to the given versionstring,
+def _SetAlcorVersionAndEnsure(versionstring):
+  """Symlink the active version of alcor to the given versionstring,
   and run the ensure-dirs script.
 
   @type versionstring: string
@@ -2081,23 +2081,23 @@ def _SetGanetiVersionAndEnsure(versionstring):
     link_lib_cmd = [
         "ln", "-s", "-f", "-T",
         os.path.join(pathutils.PKGLIBDIR, versionstring),
-        os.path.join(pathutils.SYSCONFDIR, "ganeti/lib")]
+        os.path.join(pathutils.SYSCONFDIR, "alcor/lib")]
     link_share_cmd = [
         "ln", "-s", "-f", "-T",
         os.path.join(pathutils.SHAREDIR, versionstring),
-        os.path.join(pathutils.SYSCONFDIR, "ganeti/share")]
+        os.path.join(pathutils.SYSCONFDIR, "alcor/share")]
     cmds = [link_lib_cmd, link_share_cmd]
   else:
     rm_lib_cmd = [
-        "rm", "-f", os.path.join(pathutils.SYSCONFDIR, "ganeti/lib")]
+        "rm", "-f", os.path.join(pathutils.SYSCONFDIR, "alcor/lib")]
     link_lib_cmd = [
         "ln", "-s", "-f", os.path.join(pathutils.PKGLIBDIR, versionstring),
-        os.path.join(pathutils.SYSCONFDIR, "ganeti/lib")]
+        os.path.join(pathutils.SYSCONFDIR, "alcor/lib")]
     rm_share_cmd = [
-        "rm", "-f", os.path.join(pathutils.SYSCONFDIR, "ganeti/share")]
+        "rm", "-f", os.path.join(pathutils.SYSCONFDIR, "alcor/share")]
     ln_share_cmd = [
         "ln", "-s", "-f", os.path.join(pathutils.SHAREDIR, versionstring),
-        os.path.join(pathutils.SYSCONFDIR, "ganeti/share")]
+        os.path.join(pathutils.SYSCONFDIR, "alcor/share")]
     cmds = [rm_lib_cmd, link_lib_cmd, rm_share_cmd, ln_share_cmd]
 
   # Run the ensure-dirs script to verify the new version is OK.
@@ -2175,7 +2175,7 @@ def _WriteIntentToUpgrade(version):
 def _UpgradeBeforeConfigurationChange(versionstring):
   """
   Carry out all the tasks necessary for an upgrade that happen before
-  the configuration file, or Ganeti version, changes.
+  the configuration file, or Alcor version, changes.
 
   @type versionstring: string
   @param versionstring: the version to upgrade to
@@ -2220,7 +2220,7 @@ def _UpgradeBeforeConfigurationChange(versionstring):
     ToStderr("Failed to stop daemons on %s." % (", ".join(badnodes),))
     return (False, rollback)
 
-  backuptar = os.path.join(pathutils.BACKUP_DIR, "ganeti%d.tar" % time.time())
+  backuptar = os.path.join(pathutils.BACKUP_DIR, "alcor%d.tar" % time.time())
   ToStdoutAndLoginfo("Backing up configuration as %s", backuptar)
   if not _RunCommandAndReport(["mkdir", "-p", pathutils.BACKUP_DIR]):
     return (False, rollback)
@@ -2266,7 +2266,7 @@ def _VersionSpecificDowngrade():
 
 def _SwitchVersionAndConfig(versionstring, downgrade):
   """
-  Switch to the new Ganeti version and change the configuration,
+  Switch to the new Alcor version and change the configuration,
   in correct order.
 
   @type versionstring: string
@@ -2293,17 +2293,17 @@ def _SwitchVersionAndConfig(versionstring, downgrade):
   # safer to push through the up/dowgrade than to try to roll it back.
 
   ToStdoutAndLoginfo("Switching to version %s on all nodes", versionstring)
-  rollback.append(lambda: _SetGanetiVersionAndEnsure(constants.DIR_VERSION))
-  badnodes = _SetGanetiVersionAndEnsure(versionstring)
+  rollback.append(lambda: _SetAlcorVersionAndEnsure(constants.DIR_VERSION))
+  badnodes = _SetAlcorVersionAndEnsure(versionstring)
   if badnodes:
-    ToStderr("Failed to switch to Ganeti version %s on nodes %s"
+    ToStderr("Failed to switch to Alcor version %s on nodes %s"
              % (versionstring, ", ".join(badnodes)))
     if not downgrade:
       return (False, rollback)
 
-  # Now that we have changed to the new version of Ganeti we should
+  # Now that we have changed to the new version of Alcor we should
   # not communicate over luxi any more, as luxi might have changed in
-  # incompatible ways. Therefore, manually call the corresponding ganeti
+  # incompatible ways. Therefore, manually call the corresponding alcor
   # commands using their canonical (version independent) path.
 
   if not downgrade:
@@ -2317,9 +2317,9 @@ def _SwitchVersionAndConfig(versionstring, downgrade):
 def _UpgradeAfterConfigurationChange(oldversion):
   """
   Carry out the upgrade actions necessary after switching to the new
-  Ganeti version and updating the configuration.
+  Alcor version and updating the configuration.
 
-  As this part is run at a time where the new version of Ganeti is already
+  As this part is run at a time where the new version of Alcor is already
   running, no communication should happen via luxi, as this is not a stable
   interface. Also, as the configuration change is the point of no return,
   all actions are pushed through, even if some of them fail.
@@ -2371,8 +2371,8 @@ def _UpgradeAfterConfigurationChange(oldversion):
   return returnvalue
 
 
-def UpgradeGanetiCommand(opts, args):
-  """Upgrade a cluster to a new ganeti version.
+def UpgradeAlcorCommand(opts, args):
+  """Upgrade a cluster to a new alcor version.
 
   @param opts: the command line options selected by the user
   @type args: list
@@ -2601,8 +2601,8 @@ commands = {
     ShowCreateCommand, ARGS_NONE, [], "",
     "Show the command line to re-create the cluster"),
   "upgrade": (
-    UpgradeGanetiCommand, ARGS_NONE, [TO_OPT, RESUME_OPT], "",
-    "Upgrade (or downgrade) to a new Ganeti version"),
+    UpgradeAlcorCommand, ARGS_NONE, [TO_OPT, RESUME_OPT], "",
+    "Upgrade (or downgrade) to a new Alcor version"),
   }
 
 

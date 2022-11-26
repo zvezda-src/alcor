@@ -32,12 +32,12 @@
 
 """
 
-from ganeti import constants
-from ganeti import cli
+from alcor import constants
+from alcor import cli
 
-from ganeti.rapi import client
+from alcor.rapi import client
 
-# Local constant to avoid importing ganeti.http
+# Local constant to avoid importing alcor.http
 HTTP_NOT_FOUND = 404
 
 
@@ -61,7 +61,7 @@ class RapiJobPollCb(cli.JobPollCbBase):
     try:
       result = self.cl.WaitForJobChange(job_id, fields,
                                         prev_job_info, prev_log_serial)
-    except client.GanetiApiError as err:
+    except client.AlcorApiError as err:
       if err.code == HTTP_NOT_FOUND:
         return None
 
@@ -86,7 +86,7 @@ class RapiJobPollCb(cli.JobPollCbBase):
 
     try:
       result = self.cl.GetJobStatus(job_ids[0])
-    except client.GanetiApiError as err:
+    except client.AlcorApiError as err:
       if err.code == HTTP_NOT_FOUND:
         return [None]
 
@@ -114,7 +114,7 @@ def PollJob(rapi_client, job_id, reporter):
   @raise errors.JobLost: If job can't be found
   @raise errors.OpExecError: if job didn't succeed
 
-  @see: L{ganeti.cli.GenericPollJob}
+  @see: L{alcor.cli.GenericPollJob}
 
   """
   return cli.GenericPollJob(job_id, RapiJobPollCb(rapi_client), reporter)

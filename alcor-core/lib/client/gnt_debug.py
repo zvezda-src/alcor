@@ -30,7 +30,7 @@
 """Debugging commands"""
 
 # pylint: disable=W0401,W0614,C0103
-# W0401: Wildcard import ganeti.cli
+# W0401: Wildcard import alcor.cli
 # W0614: Unused import %s from wildcard import (since we need cli)
 # C0103: Invalid name gnt-backup
 
@@ -40,16 +40,16 @@ import time
 
 import simplejson
 
-from ganeti.cli import *
-from ganeti import cli
-from ganeti import constants
-from ganeti import opcodes
-from ganeti import utils
-from ganeti import errors
-from ganeti import compat
-from ganeti import ht
-from ganeti import metad
-from ganeti import wconfd
+from alcor.cli import *
+from alcor import cli
+from alcor import constants
+from alcor import opcodes
+from alcor import utils
+from alcor import errors
+from alcor import compat
+from alcor import ht
+from alcor import metad
+from alcor import wconfd
 
 
 #: Default fields for L{ListLocks}

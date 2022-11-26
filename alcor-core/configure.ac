@@ -9,7 +9,7 @@ m4_define([gnt_version_full],
                     gnt_version_revision, gnt_version_suffix))
 
 AC_PREREQ(2.59)
-AC_INIT(ganeti, gnt_version_full, ganeti@googlegroups.com)
+AC_INIT(alcor, gnt_version_full, alcor@googlegroups.com)
 AC_CONFIG_AUX_DIR(autotools)
 AC_CONFIG_SRCDIR(configure)
 AM_INIT_AUTOMAKE([1.9 foreign tar-ustar -Wall -Wno-portability]
@@ -149,17 +149,17 @@ AC_SUBST(SSHD_RESTART_COMMAND, $sshd_restart_command)
 AC_ARG_WITH([export-dir],
   [AS_HELP_STRING([--with-export-dir=DIR],
     [directory to use by default for instance image]
-    [ exports (default is /srv/ganeti/export)]
+    [ exports (default is /srv/alcor/export)]
   )],
   [export_dir="$withval"],
-  [export_dir="/srv/ganeti/export"])
+  [export_dir="/srv/alcor/export"])
 AC_SUBST(EXPORT_DIR, $export_dir)
 
 # --with-backup-dir=...
 AC_ARG_WITH([backup-dir],
   [AS_HELP_STRING([--with-backup-dir=DIR],
     [directory to use for configuration backups]
-    [ on Ganeti upgrades (default is $(localstatedir)/lib)]
+    [ on Alcor upgrades (default is $(localstatedir)/lib)]
   )],
   [backup_dir="$withval"
    USE_BACKUP_DIR=yes
@@ -193,10 +193,10 @@ AC_SUBST(XEN_CONFIG_DIR, $xen_config_dir)
 AC_ARG_WITH([os-search-path],
   [AS_HELP_STRING([--with-os-search-path=LIST],
     [comma separated list of directories to]
-    [ search for OS images (default is /srv/ganeti/os)]
+    [ search for OS images (default is /srv/alcor/os)]
   )],
   [os_search_path="$withval"],
-  [os_search_path="/srv/ganeti/os"])
+  [os_search_path="/srv/alcor/os"])
 AC_SUBST(OS_SEARCH_PATH, $os_search_path)
 
 # --with-extstorage-search-path=...
@@ -204,17 +204,17 @@ AC_ARG_WITH([extstorage-search-path],
   [AS_HELP_STRING([--with-extstorage-search-path=LIST],
     [comma separated list of directories to]
     [ search for External Storage Providers]
-    [ (default is /srv/ganeti/extstorage)]
+    [ (default is /srv/alcor/extstorage)]
   )],
   [es_search_path="$withval"],
-  [es_search_path="/srv/ganeti/extstorage"])
+  [es_search_path="/srv/alcor/extstorage"])
 AC_SUBST(ES_SEARCH_PATH, $es_search_path)
 
 # --with-iallocator-search-path=...
 AC_ARG_WITH([iallocator-search-path],
   [AS_HELP_STRING([--with-iallocator-search-path=LIST],
     [comma separated list of directories to]
-    [ search for instance allocators (default is $libdir/ganeti/iallocators)]
+    [ search for instance allocators (default is $libdir/alcor/iallocators)]
   )],
   [iallocator_search_path="$withval"],
   [iallocator_search_path="$libdir/$PACKAGE_NAME/iallocators"])
@@ -409,12 +409,12 @@ AC_SUBST(MOND_GROUP, $group_mond)
 AC_SUBST(METAD_GROUP, $group_metad)
 
 # Print the config to the user
-AC_MSG_NOTICE([Running ganeti-masterd as $group_masterd:$group_masterd])
-AC_MSG_NOTICE([Running ganeti-metad as $group_metad:$group_metad])
-AC_MSG_NOTICE([Running ganeti-rapi as $user_rapi:$group_rapi])
-AC_MSG_NOTICE([Running ganeti-confd as $user_confd:$group_confd])
-AC_MSG_NOTICE([Running ganeti-wconfd as $user_wconfd:$group_wconfd])
-AC_MSG_NOTICE([Running ganeti-luxid as $user_luxid:$group_luxid])
+AC_MSG_NOTICE([Running alcor-masterd as $group_masterd:$group_masterd])
+AC_MSG_NOTICE([Running alcor-metad as $group_metad:$group_metad])
+AC_MSG_NOTICE([Running alcor-rapi as $user_rapi:$group_rapi])
+AC_MSG_NOTICE([Running alcor-confd as $user_confd:$group_confd])
+AC_MSG_NOTICE([Running alcor-wconfd as $user_wconfd:$group_wconfd])
+AC_MSG_NOTICE([Running alcor-luxid as $user_luxid:$group_luxid])
 AC_MSG_NOTICE([Group for daemons is $group_daemons])
 AC_MSG_NOTICE([Group for clients is $group_admin])
 
@@ -625,7 +625,7 @@ fi
 ENABLE_MOND=
 AC_ARG_ENABLE([monitoring],
   [AS_HELP_STRING([--enable-monitoring],
-  [enable the ganeti monitoring daemon (default: check)])],
+  [enable the alcor monitoring daemon (default: check)])],
   [],
   [enable_monitoring=check])
 
@@ -633,7 +633,7 @@ AC_ARG_ENABLE([monitoring],
 ENABLE_METADATA=
 AC_ARG_ENABLE([metadata],
   [AS_HELP_STRING([--enable-metadata],
-  [enable the ganeti metadata daemon (default: check)])],
+  [enable the alcor metadata daemon (default: check)])],
   [],
   [enable_metadata=check])
 
@@ -727,12 +727,12 @@ if test "$enable_monitoring" != no; then
   if test -z "$MONITORING_DEP"; then
     has_monitoring_dep=True
   elif test "$enable_monitoring" = check; then
-    AC_MSG_WARN(m4_normalize([The optional Ganeti components required for the
+    AC_MSG_WARN(m4_normalize([The optional Alcor components required for the
                               monitoring agent were not enabled
                               ($MONITORING_DEP), monitoring disabled]))
   else
     AC_MSG_FAILURE(m4_normalize([The monitoring functionality was requested, but
-                                 required optional Ganeti components were not
+                                 required optional Alcor components were not
                                  found: $MONITORING_DEP]))
   fi
 
@@ -927,7 +927,7 @@ AC_SUBST(PY_NODEV)
 AM_CONDITIONAL([PY_UNIT], [test -z $PY_NODEV])
 
 include_makefile_ghc='
-ifneq ($(MAKECMDGOALS),ganeti)
+ifneq ($(MAKECMDGOALS),alcor)
 ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(MAKECMDGOALS),distclean)
 include Makefile.ghc

@@ -32,11 +32,11 @@
 
 """
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import utils
-from ganeti import compat
-from ganeti import pathutils
+from alcor import constants
+from alcor import errors
+from alcor import utils
+from alcor import compat
+from alcor import pathutils
 
 
 def _RpcResultsToHooksResults(rpc_results):

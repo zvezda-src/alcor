@@ -36,7 +36,7 @@ import ipaddress
 
 from bitarray import bitarray
 
-from ganeti import errors
+from alcor import errors
 
 
 def _ComputeIpv4NumHosts(network_size):

@@ -31,7 +31,7 @@
 """Tool to restart erroneously downed virtual machines.
 
 This program and set of classes implement a watchdog to restart
-virtual machines in a Ganeti cluster that have crashed or been killed
+virtual machines in a Alcor cluster that have crashed or been killed
 by a node reboot.  Run from cron or similar.
 
 """
@@ -45,26 +45,26 @@ import logging
 import errno
 from optparse import OptionParser
 
-from ganeti import utils
-from ganeti import wconfd
-from ganeti import constants
-from ganeti import compat
-from ganeti import errors
-from ganeti import opcodes
-from ganeti import cli
-import ganeti.rpc.errors as rpcerr
-from ganeti import rapi
-from ganeti import netutils
-from ganeti import qlang
-from ganeti import ssconf
-from ganeti import ht
-from ganeti import pathutils
+from alcor import utils
+from alcor import wconfd
+from alcor import constants
+from alcor import compat
+from alcor import errors
+from alcor import opcodes
+from alcor import cli
+import alcor.rpc.errors as rpcerr
+from alcor import rapi
+from alcor import netutils
+from alcor import qlang
+from alcor import ssconf
+from alcor import ht
+from alcor import pathutils
 
-import ganeti.rapi.client # pylint: disable=W0611
-from ganeti.rapi.client import UsesRapiClient
+import alcor.rapi.client # pylint: disable=W0611
+from alcor.rapi.client import UsesRapiClient
 
-from ganeti.watcher import nodemaint
-from ganeti.watcher import state
+from alcor.watcher import nodemaint
+from alcor.watcher import state
 
 
 MAXTRIES = 5
@@ -417,14 +417,14 @@ def IsRapiResponding(hostname):
 
   """
   curl_config = rapi.client.GenericCurlConfig()
-  rapi_client = rapi.client.GanetiRapiClient(hostname,
+  rapi_client = rapi.client.AlcorRapiClient(hostname,
                                              curl_config_fn=curl_config)
   try:
     master_version = rapi_client.GetVersion()
   except rapi.client.CertificateError as err:
     logging.warning("RAPI certificate error: %s", err)
     return False
-  except rapi.client.GanetiApiError as err:
+  except rapi.client.AlcorApiError as err:
     if err.code == 401:
       # Unauthorized, but RAPI is alive and responding
       return True
@@ -440,7 +440,7 @@ def IsWconfdResponding():
   """Probes an echo RPC to WConfD.
 
   """
-  probe_string = "ganeti watcher probe %d" % time.time()
+  probe_string = "alcor watcher probe %d" % time.time()
 
   try:
     result = wconfd.Client().Echo(probe_string)
@@ -461,9 +461,9 @@ def ParseOptions():
   @return: (options, args) as from OptionParser.parse_args()
 
   """
-  parser = OptionParser(description="Ganeti cluster watcher",
+  parser = OptionParser(description="Alcor cluster watcher",
                         usage="%prog [-d]",
-                        version="%%prog (ganeti) %s" %
+                        version="%%prog (alcor) %s" %
                         constants.RELEASE_VERSION)
 
   parser.add_option(cli.DEBUG_OPT)

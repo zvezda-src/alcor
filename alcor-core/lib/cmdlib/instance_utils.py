@@ -33,16 +33,16 @@
 import logging
 import os
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import ht
-from ganeti import locking
-from ganeti.masterd import iallocator
-from ganeti import netutils
-from ganeti import objects
-from ganeti import pathutils
-from ganeti import utils
-from ganeti.cmdlib.common import AnnotateDiskParams, \
+from alcor import constants
+from alcor import errors
+from alcor import ht
+from alcor import locking
+from alcor.masterd import iallocator
+from alcor import netutils
+from alcor import objects
+from alcor import pathutils
+from alcor import utils
+from alcor.cmdlib.common import AnnotateDiskParams, \
   ComputeIPolicyInstanceViolation, CheckDiskTemplateEnabled, \
   ComputeIPolicySpecViolation
 
@@ -497,7 +497,7 @@ def _ComputeIPolicyNodeViolation(ipolicy, instance, current_group,
   @type cfg: L{config.ConfigWriter}
   @param cfg: Cluster configuration
   @param _compute_fn: The function to verify ipolicy (unittest only)
-  @see: L{ganeti.cmdlib.common.ComputeIPolicySpecViolation}
+  @see: L{alcor.cmdlib.common.ComputeIPolicySpecViolation}
 
   """
   if current_group == target_group:
@@ -517,7 +517,7 @@ def CheckTargetNodeIPolicy(lu, ipolicy, instance, node, cfg, ignore=False,
   @param cfg: Cluster configuration
   @param ignore: Ignore violations of the ipolicy
   @param _compute_fn: The function to verify ipolicy (unittest only)
-  @see: L{ganeti.cmdlib.common.ComputeIPolicySpecViolation}
+  @see: L{alcor.cmdlib.common.ComputeIPolicySpecViolation}
 
   """
   primary_node = lu.cfg.GetNodeInfo(instance.primary_node)
@@ -676,7 +676,7 @@ def CheckCompressionTool(lu, compression_tool):
   @rtype: NoneType
   @return: None
 
-  @raise errors.OpPrereqError: If the tool is not enabled by Ganeti or
+  @raise errors.OpPrereqError: If the tool is not enabled by Alcor or
                                whitelisted
 
   """

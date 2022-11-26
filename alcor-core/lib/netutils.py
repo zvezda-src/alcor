@@ -28,7 +28,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-"""Ganeti network utility module.
+"""Alcor network utility module.
 
 This module holds functions that can be used in both daemons (all) and
 the command line scripts.
@@ -43,10 +43,10 @@ import socket
 import struct
 import logging
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import utils
-from ganeti import vcluster
+from alcor import constants
+from alcor import errors
+from alcor import utils
+from alcor import vcluster
 
 # Structure definition for getsockopt(SOL_SOCKET, SO_PEERCRED, ...):
 # struct ucred { pid_t pid; uid_t uid; gid_t gid; };
@@ -353,9 +353,9 @@ def TcpPing(target, port, timeout=10, live_port_needed=False, source=None):
 def GetDaemonPort(daemon_name):
   """Get the daemon port for this cluster.
 
-  Note that this routine does not read a ganeti-specific file, but
+  Note that this routine does not read a alcor-specific file, but
   instead uses C{socket.getservbyname} to allow pre-customization of
-  this parameter outside of Ganeti.
+  this parameter outside of Alcor.
 
   @type daemon_name: string
   @param daemon_name: daemon name (in constants.DAEMONS_PORTS)

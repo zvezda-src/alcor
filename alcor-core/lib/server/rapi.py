@@ -27,13 +27,13 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"""Ganeti Remote API master script.
+"""Alcor Remote API master script.
 
 """
 
 # pylint: disable=C0103
 
-# C0103: Invalid name ganeti-watcher
+# C0103: Invalid name alcor-watcher
 
 from __future__ import print_function
 
@@ -49,21 +49,21 @@ try:
 except ImportError:
   import pyinotify
 
-from ganeti import asyncnotifier
-from ganeti import constants
-from ganeti import http
-from ganeti import daemon
-from ganeti import ssconf
-import ganeti.rpc.errors as rpcerr
-from ganeti import serializer
-from ganeti import compat
-from ganeti import utils
-from ganeti import pathutils
-from ganeti.rapi import connector
-from ganeti.rapi import baserlib
+from alcor import asyncnotifier
+from alcor import constants
+from alcor import http
+from alcor import daemon
+from alcor import ssconf
+import alcor.rpc.errors as rpcerr
+from alcor import serializer
+from alcor import compat
+from alcor import utils
+from alcor import pathutils
+from alcor.rapi import connector
+from alcor.rapi import baserlib
 
-import ganeti.http.auth   # pylint: disable=W0611
-import ganeti.http.server # pylint: disable=W0611
+import alcor.http.auth   # pylint: disable=W0611
+import alcor.http.server # pylint: disable=W0611
 
 
 class RemoteApiRequestContext(object):
@@ -82,7 +82,7 @@ class RemoteApiHandler(http.auth.HttpServerRequestAuthentication,
   """REST Request Handler Class.
 
   """
-  AUTH_REALM = "Ganeti Remote API"
+  AUTH_REALM = "Alcor Remote API"
 
   def __init__(self, user_fn, reqauth, _client_cls=None):
     """Initializes this class.
@@ -375,10 +375,10 @@ def Main():
   """Main function.
 
   """
-  parser = optparse.OptionParser(description="Ganeti Remote API",
+  parser = optparse.OptionParser(description="Alcor Remote API",
                                  usage=("%prog [-f] [-d] [-p port] [-b ADDRESS]"
                                         " [-i INTERFACE]"),
-                                 version="%%prog (ganeti) %s" %
+                                 version="%%prog (alcor) %s" %
                                  constants.RELEASE_VERSION)
   parser.add_option("--require-authentication", dest="reqauth",
                     default=False, action="store_true",
@@ -387,7 +387,7 @@ def Main():
   parser.add_option("--max-clients", dest="max_clients",
                     default=20, type="int",
                     help="Number of simultaneous connections accepted"
-                    " by ganeti-rapi")
+                    " by alcor-rapi")
   parser.add_option("--ssl-chain", dest="ssl_chain",
                     help="SSL Certificate chain path",
                     default=None, type="string")

@@ -38,17 +38,17 @@ import os
 import logging
 import math
 
-from ganeti import utils
-from ganeti import errors
-from ganeti import constants
-from ganeti import objects
-from ganeti import compat
-from ganeti import serializer
-from ganeti.storage import base
-from ganeti.storage import drbd
-from ganeti.storage.filestorage import FileStorage
-from ganeti.storage.gluster import GlusterStorage
-from ganeti.storage.extstorage import ExtStorageDevice
+from alcor import utils
+from alcor import errors
+from alcor import constants
+from alcor import objects
+from alcor import compat
+from alcor import serializer
+from alcor.storage import base
+from alcor.storage import drbd
+from alcor.storage.filestorage import FileStorage
+from alcor.storage.gluster import GlusterStorage
+from alcor.storage.extstorage import ExtStorageDevice
 
 
 class RbdShowmappedJsonError(Exception):

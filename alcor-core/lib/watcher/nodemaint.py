@@ -28,22 +28,22 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-"""Module doing node maintenance for Ganeti watcher.
+"""Module doing node maintenance for Alcor watcher.
 
 """
 
 import logging
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import hypervisor
-from ganeti import netutils
-from ganeti import ssconf
-from ganeti import utils
-from ganeti import confd
-from ganeti.storage import drbd
+from alcor import constants
+from alcor import errors
+from alcor import hypervisor
+from alcor import netutils
+from alcor import ssconf
+from alcor import utils
+from alcor import confd
+from alcor.storage import drbd
 
-import ganeti.confd.client # pylint: disable=W0611
+import alcor.confd.client # pylint: disable=W0611
 
 
 class NodeMaintenance(object):

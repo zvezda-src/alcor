@@ -38,25 +38,25 @@ import re
 import logging
 import time
 
-from ganeti.cmdlib import cluster
-import ganeti.rpc.node as rpc
-from ganeti import ssh
-from ganeti import utils
-from ganeti import errors
-from ganeti import config
-from ganeti import constants
-from ganeti import objects
-from ganeti import ssconf
-from ganeti import serializer
-from ganeti import hypervisor
-from ganeti.storage import drbd
-from ganeti.storage import filestorage
-from ganeti import netutils
-from ganeti import luxi
-from ganeti import jstore
-from ganeti import pathutils
-from ganeti import runtime
-from ganeti import vcluster
+from alcor.cmdlib import cluster
+import alcor.rpc.node as rpc
+from alcor import ssh
+from alcor import utils
+from alcor import errors
+from alcor import config
+from alcor import constants
+from alcor import objects
+from alcor import ssconf
+from alcor import serializer
+from alcor import hypervisor
+from alcor.storage import drbd
+from alcor.storage import filestorage
+from alcor import netutils
+from alcor import luxi
+from alcor import jstore
+from alcor import pathutils
+from alcor import runtime
+from alcor import vcluster
 
 
 # ec_id for InitConfig's temporary reservation manager
@@ -189,7 +189,7 @@ def GenerateClusterCrypto(new_cluster_cert, new_rapi_cert, new_spice_cert,
     GenerateHmacKey(cds_file)
 
 
-def _InitGanetiServerSetup(master_name, cfg):
+def _InitAlcorServerSetup(master_name, cfg):
   """Setup the necessary configuration for the initial node daemon.
 
   This creates the nodepass file containing the shared password for
@@ -819,7 +819,7 @@ def InitCluster(cluster_name, mac_prefix, # pylint: disable=R0913, R0914
   if modify_ssh_setup:
     ssh.InitPubKeyFile(master_uuid, ssh_key_type)
   # set up the inter-node password and certificate
-  _InitGanetiServerSetup(hostname.name, cfg)
+  _InitAlcorServerSetup(hostname.name, cfg)
 
   logging.debug("Starting daemons")
   result = utils.RunCmd([pathutils.DAEMON_UTIL, "start-all"])
@@ -922,7 +922,7 @@ def SetupNodeDaemon(opts, cluster_name, node, ssh_port):
   """Add a node to the cluster.
 
   This function must be called before the actual opcode, and will ssh
-  to the remote node, copy the needed files, and start ganeti-noded,
+  to the remote node, copy the needed files, and start alcor-noded,
   allowing the master to do the rest via normal rpc calls.
 
   @param cluster_name: the cluster name

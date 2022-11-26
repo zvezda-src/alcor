@@ -41,11 +41,11 @@ import logging
 import socket
 import time
 
-from ganeti import constants
-import ganeti.errors
-from ganeti import ssconf
-from ganeti import utils
-from ganeti.rpc import errors
+from alcor import constants
+import alcor.errors
+from alcor import ssconf
+from alcor import utils
+from alcor.rpc import errors
 
 
 DEF_CTMO = constants.LUXI_DEF_CTMO
@@ -130,7 +130,7 @@ class Transport(object):
           ss = ssconf.SimpleStore()
           try:
             master, myself = ssconf.GetMasterAndMyself(ss=ss)
-          except ganeti.errors.ConfigurationError:
+          except alcor.errors.ConfigurationError:
             raise errors.NoMasterError(address)
           if master != myself:
             raise errors.NoMasterError(address)

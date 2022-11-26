@@ -35,17 +35,17 @@ import math
 import os
 import urllib.request, urllib.error, urllib.parse
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import hypervisor
-from ganeti import locking
-from ganeti import objects
-from ganeti import opcodes
-from ganeti import pathutils
-import ganeti.rpc.node as rpc
-from ganeti.serializer import Private
-from ganeti import ssconf
-from ganeti import utils
+from alcor import constants
+from alcor import errors
+from alcor import hypervisor
+from alcor import locking
+from alcor import objects
+from alcor import opcodes
+from alcor import pathutils
+import alcor.rpc.node as rpc
+from alcor.serializer import Private
+from alcor import ssconf
+from alcor import utils
 
 
 # States of instance
@@ -234,7 +234,7 @@ def RedistributeAncillaryFiles(lu):
 
 
 def ComputeAncillaryFiles(cluster, redist):
-  """Compute files external to Ganeti which need to be consistent.
+  """Compute files external to Alcor which need to be consistent.
 
   @type redist: boolean
   @param redist: Whether to include files which need to be redistributed
@@ -834,7 +834,7 @@ def AnnotateDiskParams(instance, devs, cfg):
   @param devs: The root devices (not any of its children!)
   @param cfg: The config object
   @returns The annotated disk copies
-  @see L{ganeti.rpc.node.AnnotateDiskParams}
+  @see L{alcor.rpc.node.AnnotateDiskParams}
 
   """
   return rpc.AnnotateDiskParams(devs, cfg.GetInstanceDiskParams(instance))
@@ -1444,7 +1444,7 @@ def AddInstanceCommunicationNetworkOp(network):
   @type network: string
   @param network: name or UUID of the instance communication network
 
-  @rtype: L{ganeti.opcodes.OpCode}
+  @rtype: L{alcor.opcodes.OpCode}
   @return: OpCode that creates the instance communication network
 
   """
@@ -1474,7 +1474,7 @@ def ConnectInstanceCommunicationNetworkOp(group_uuid, network):
   @param network: name or UUID of the network to connect to, i.e., the
                   instance communication network
 
-  @rtype: L{ganeti.opcodes.OpCode}
+  @rtype: L{alcor.opcodes.OpCode}
   @return: OpCode that connects the group to the instance
            communication network
 

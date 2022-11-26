@@ -28,7 +28,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-"""Global Configuration data for Ganeti.
+"""Global Configuration data for Alcor.
 
 This module provides the interface to a special case of cluster
 configuration data, which is mostly static and available to all nodes.
@@ -39,11 +39,11 @@ import sys
 import errno
 import logging
 
-from ganeti import errors
-from ganeti import constants
-from ganeti import utils
-from ganeti import netutils
-from ganeti import pathutils
+from alcor import errors
+from alcor import constants
+from alcor import utils
+from alcor import netutils
+from alcor import pathutils
 
 
 SSCONF_LOCK_TIMEOUT = 10

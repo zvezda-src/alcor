@@ -1,4 +1,4 @@
-{-| Custom hint lints for Ganeti.
+{-| Custom hint lints for Alcor.
 
 Since passing --hint to hlint will override, not extend the built-in
 hints, we need to import the existing hints so that we get full

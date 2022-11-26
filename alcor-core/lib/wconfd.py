@@ -36,10 +36,10 @@ import logging
 import random
 import time
 
-import ganeti.rpc.client as cl
-import ganeti.rpc.stub.wconfd as stub
-from ganeti.rpc.transport import Transport
-from ganeti.rpc import errors
+import alcor.rpc.client as cl
+import alcor.rpc.stub.wconfd as stub
+from alcor.rpc.transport import Transport
+from alcor.rpc import errors
 
 
 class Client(cl.AbstractStubClient, stub.ClientRpcStub):

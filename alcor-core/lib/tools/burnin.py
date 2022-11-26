@@ -46,17 +46,17 @@ from itertools import islice, cycle
 from io import StringIO
 from operator import or_
 
-from ganeti import opcodes
-from ganeti import constants
-from ganeti import cli
-from ganeti import errors
-from ganeti import utils
-from ganeti import hypervisor
-from ganeti import compat
-from ganeti import pathutils
+from alcor import opcodes
+from alcor import constants
+from alcor import cli
+from alcor import errors
+from alcor import utils
+from alcor import hypervisor
+from alcor import compat
+from alcor import pathutils
 
-from ganeti.confd import client as confd_client
-from ganeti.runtime import (GetClient)
+from alcor.confd import client as confd_client
+from alcor.runtime import (GetClient)
 
 
 USAGE = ("\tburnin -o OS_NAME [options...] instance_name ...")
@@ -345,7 +345,7 @@ class FeedbackAccumulator(object):
 
 
 class JobHandler(FeedbackAccumulator):
-  """Class for handling Ganeti jobs."""
+  """Class for handling Alcor jobs."""
 
   queued_ops = []
   queue_retry = False
@@ -515,7 +515,7 @@ class Burner(JobHandler):
 
     """
     parser = optparse.OptionParser(usage="\n%s" % USAGE,
-                                   version=("%%prog (ganeti) %s" %
+                                   version=("%%prog (alcor) %s" %
                                             constants.RELEASE_VERSION),
                                    option_list=OPTIONS)
 

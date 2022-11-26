@@ -1,4 +1,4 @@
-{-| Ganeti WConfD (config writer) daemon
+{-| Alcor WConfD (config writer) daemon
 
 -}
 
@@ -34,15 +34,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 module Main (main) where
 
-import qualified Ganeti.WConfd.Server
-import Ganeti.Daemon
-import Ganeti.Runtime
+import qualified Alcor.WConfd.Server
+import Alcor.Daemon
+import Alcor.Runtime
 
 -- | Main function.
 main :: IO ()
 main =
-  genericMain GanetiWConfd
-    Ganeti.WConfd.Server.options
-    Ganeti.WConfd.Server.checkMain
-    Ganeti.WConfd.Server.prepMain
-    Ganeti.WConfd.Server.main
+  genericMain AlcorWConfd
+    Alcor.WConfd.Server.options
+    Alcor.WConfd.Server.checkMain
+    Alcor.WConfd.Server.prepMain
+    Alcor.WConfd.Server.main

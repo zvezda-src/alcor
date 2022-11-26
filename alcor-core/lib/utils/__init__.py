@@ -28,7 +28,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-"""Ganeti utility module.
+"""Alcor utility module.
 
 This module holds functions that can be used in both daemons (all) and
 the command line scripts.
@@ -49,30 +49,30 @@ import socket
 import logging
 import signal
 
-from ganeti import errors
-from ganeti import constants
-from ganeti import compat
-from ganeti import pathutils
+from alcor import errors
+from alcor import constants
+from alcor import compat
+from alcor import pathutils
 
-from ganeti.utils.algo import *
-from ganeti.utils.filelock import *
-from ganeti.utils.hash import *
-from ganeti.utils.io import *
-from ganeti.utils.livelock import *
-from ganeti.utils.log import *
-from ganeti.utils.lvm import *
-from ganeti.utils.mlock import *
-from ganeti.utils.nodesetup import *
-from ganeti.utils.process import *
-from ganeti.utils.retry import *
-from ganeti.utils.security import *
-from ganeti.utils.storage import *
-from ganeti.utils.tags import *
-from ganeti.utils.text import *
-from ganeti.utils.wrapper import *
-from ganeti.utils.version import *
-from ganeti.utils.x509 import *
-from ganeti.utils.bitarrays import *
+from alcor.utils.algo import *
+from alcor.utils.filelock import *
+from alcor.utils.hash import *
+from alcor.utils.io import *
+from alcor.utils.livelock import *
+from alcor.utils.log import *
+from alcor.utils.lvm import *
+from alcor.utils.mlock import *
+from alcor.utils.nodesetup import *
+from alcor.utils.process import *
+from alcor.utils.retry import *
+from alcor.utils.security import *
+from alcor.utils.storage import *
+from alcor.utils.tags import *
+from alcor.utils.text import *
+from alcor.utils.wrapper import *
+from alcor.utils.version import *
+from alcor.utils.x509 import *
+from alcor.utils.bitarrays import *
 
 
 _VALID_SERVICE_NAME_RE = re.compile("^[-_.a-zA-Z0-9]{1,128}$")

@@ -40,13 +40,13 @@ import time
 
 import OpenSSL
 
-from ganeti import errors
-from ganeti import constants
-from ganeti import pathutils
+from alcor import errors
+from alcor import constants
+from alcor import pathutils
 
-from ganeti.utils import text as utils_text
-from ganeti.utils import io as utils_io
-from ganeti.utils import hash as utils_hash
+from alcor.utils import text as utils_text
+from alcor.utils import io as utils_io
+from alcor.utils import hash as utils_hash
 
 
 HEX_CHAR_RE = r"[a-zA-Z0-9]"

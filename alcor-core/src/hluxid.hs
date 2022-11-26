@@ -1,4 +1,4 @@
-{-| Ganeti query daemon
+{-| Alcor query daemon
 
 -}
 
@@ -34,9 +34,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 module Main (main) where
 
-import qualified Ganeti.Query.Server
-import Ganeti.Daemon
-import Ganeti.Runtime
+import qualified Alcor.Query.Server
+import Alcor.Daemon
+import Alcor.Runtime
 
 -- | Options list and functions.
 options :: [OptType]
@@ -52,7 +52,7 @@ options =
 -- | Main function.
 main :: IO ()
 main =
-  genericMain GanetiLuxid options
-    Ganeti.Query.Server.checkMain
-    Ganeti.Query.Server.prepMain
-    Ganeti.Query.Server.main
+  genericMain AlcorLuxid options
+    Alcor.Query.Server.checkMain
+    Alcor.Query.Server.prepMain
+    Alcor.Query.Server.main

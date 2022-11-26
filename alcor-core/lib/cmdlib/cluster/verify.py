@@ -34,21 +34,21 @@ import logging
 import operator
 import re
 import time
-import ganeti.masterd.instance
-import ganeti.rpc.node as rpc
+import alcor.masterd.instance
+import alcor.rpc.node as rpc
 
-from ganeti import compat
-from ganeti import constants
-from ganeti import errors
-from ganeti import locking
-from ganeti import pathutils
-from ganeti import utils
-from ganeti import vcluster
-from ganeti import hypervisor
-from ganeti import opcodes
+from alcor import compat
+from alcor import constants
+from alcor import errors
+from alcor import locking
+from alcor import pathutils
+from alcor import utils
+from alcor import vcluster
+from alcor import hypervisor
+from alcor import opcodes
 
-from ganeti.cmdlib.base import LogicalUnit, NoHooksLU, ResultWithJobs
-from ganeti.cmdlib.common import ShareAll, ComputeAncillaryFiles, \
+from alcor.cmdlib.base import LogicalUnit, NoHooksLU, ResultWithJobs
+from alcor.cmdlib.common import ShareAll, ComputeAncillaryFiles, \
     CheckNodePVs, ComputeIPolicyInstanceViolation, AnnotateDiskParams, \
     SupportsOob
 
@@ -381,7 +381,7 @@ class LUClusterVerifyGroup(LogicalUnit, _VerifyErrors):
     @type uuid: string
     @ivar uuid: the node UUID to which this object refers
     @ivar volumes: a structure as returned from
-        L{ganeti.backend.GetVolumeList} (runtime)
+        L{alcor.backend.GetVolumeList} (runtime)
     @ivar instances: a list of running instances (runtime)
     @ivar pinst: list of configured primary instances (config)
     @ivar sinst: list of configured secondary instances (config)
@@ -539,7 +539,7 @@ class LUClusterVerifyGroup(LogicalUnit, _VerifyErrors):
 
       - check the result data structure is well formed and has all the
         mandatory fields
-      - check ganeti version
+      - check alcor version
 
     @type ninfo: L{objects.Node}
     @param ninfo: the node to check
@@ -556,7 +556,7 @@ class LUClusterVerifyGroup(LogicalUnit, _VerifyErrors):
     if test:
       return False
 
-    # compares ganeti version
+    # compares alcor version
     local_version = constants.PROTOCOL_VERSION
     remote_version = nresult.get("version", None)
     test = not (remote_version and
@@ -810,7 +810,7 @@ class LUClusterVerifyGroup(LogicalUnit, _VerifyErrors):
     self.cfg.GetInstanceLVsByNode(instance.uuid, lvmap=node_vol_should)
 
     cluster = self.cfg.GetClusterInfo()
-    ipolicy = ganeti.masterd.instance.CalculateGroupIPolicy(cluster,
+    ipolicy = alcor.masterd.instance.CalculateGroupIPolicy(cluster,
                                                             self.group_info)
     err = ComputeIPolicyInstanceViolation(ipolicy, instance, self.cfg)
     self._ErrorIf(err, constants.CV_EINSTANCEPOLICY, instance.name,
@@ -957,12 +957,12 @@ class LUClusterVerifyGroup(LogicalUnit, _VerifyErrors):
     reported as unknown.
 
     @type vg_name: string
-    @param vg_name: the name of the Ganeti-administered volume group
+    @param vg_name: the name of the Alcor-administered volume group
     @type node_vol_should: dict
     @param node_vol_should: mapping of node UUIDs to expected LVs on each node
     @type node_image: dict
     @param node_image: mapping of node UUIDs to L{NodeImage} objects
-    @type reserved: L{ganeti.utils.FieldSet}
+    @type reserved: L{alcor.utils.FieldSet}
     @param reserved: a FieldSet of reserved volume names
 
     """
@@ -972,7 +972,7 @@ class LUClusterVerifyGroup(LogicalUnit, _VerifyErrors):
         # skip non-healthy nodes
         continue
       for volume in n_img.volumes:
-        # skip volumes not belonging to the ganeti-administered volume group
+        # skip volumes not belonging to the alcor-administered volume group
         if volume.split('/')[0] != vg_name:
           continue
 
@@ -1269,7 +1269,7 @@ class LUClusterVerifyGroup(LogicalUnit, _VerifyErrors):
     @param instanceinfo: the dict of instances
     @param disks_info: the dict of disks
     @param drbd_map: the DRBD map as returned by
-        L{ganeti.config.ConfigWriter.ComputeDRBDMap}
+        L{alcor.config.ConfigWriter.ComputeDRBDMap}
     @type error_if: callable like L{_ErrorIf}
     @param error_if: The error reporting function
     @return: dict from minor number to (disk_uuid, instance_uuid, active)
@@ -1307,7 +1307,7 @@ class LUClusterVerifyGroup(LogicalUnit, _VerifyErrors):
     @param disks_info: the dict of disks
     @param drbd_helper: the configured DRBD usermode helper
     @param drbd_map: the DRBD map as returned by
-        L{ganeti.config.ConfigWriter.ComputeDRBDMap}
+        L{alcor.config.ConfigWriter.ComputeDRBDMap}
 
     """
     self._VerifyNodeDrbdHelper(ninfo, nresult, drbd_helper)

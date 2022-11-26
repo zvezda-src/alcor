@@ -35,12 +35,12 @@
 import logging
 import time
 
-import ganeti.rpc.transport as t
+import alcor.rpc.transport as t
 
-from ganeti import constants
-from ganeti import errors
-from ganeti.rpc.errors import (ProtocolError, RequestError, LuxiError)
-from ganeti import serializer
+from alcor import constants
+from alcor import errors
+from alcor.rpc.errors import (ProtocolError, RequestError, LuxiError)
+from alcor import serializer
 
 KEY_METHOD = constants.LUXI_KEY_METHOD
 KEY_ARGS = constants.LUXI_KEY_ARGS

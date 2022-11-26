@@ -44,15 +44,15 @@ import time
 import itertools
 import traceback
 
-from ganeti import opcodes
-from ganeti import opcodes_base
-from ganeti import constants
-from ganeti import errors
-from ganeti import hooksmaster
-from ganeti import cmdlib
-from ganeti import locking
-from ganeti import utils
-from ganeti import wconfd
+from alcor import opcodes
+from alcor import opcodes_base
+from alcor import constants
+from alcor import errors
+from alcor import hooksmaster
+from alcor import cmdlib
+from alcor import locking
+from alcor import utils
+from alcor import wconfd
 
 
 sighupReceived = [False]
@@ -293,8 +293,8 @@ class Processor(object):
   def __init__(self, context, ec_id, enable_locks=True):
     """Constructor for Processor
 
-    @type context: GanetiContext
-    @param context: global Ganeti context
+    @type context: AlcorContext
+    @param context: global Alcor context
     @type ec_id: string
     @param ec_id: execution context identifier
 
@@ -373,7 +373,7 @@ class Processor(object):
 
   def _AcquireLocks(self, level, names, shared, opportunistic, timeout,
                     opportunistic_count=1, request_only=False):
-    """Acquires locks via the Ganeti lock manager.
+    """Acquires locks via the Alcor lock manager.
 
     @type level: int
     @param level: Lock level
@@ -685,7 +685,7 @@ class Processor(object):
     self._cbs = cbs
     try:
       if self._enable_locks:
-        # Acquire the Big Ganeti Lock exclusively if this LU requires it,
+        # Acquire the Big Alcor Lock exclusively if this LU requires it,
         # and in a shared fashion otherwise (to prevent concurrent run with
         # an exclusive LU.
         self._AcquireLocks(locking.LEVEL_CLUSTER, locking.BGL,

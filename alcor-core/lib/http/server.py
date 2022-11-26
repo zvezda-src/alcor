@@ -41,11 +41,11 @@ import asyncore
 
 from http.server import BaseHTTPRequestHandler
 
-from ganeti import http
-from ganeti import utils
-from ganeti import netutils
-from ganeti import compat
-from ganeti import errors
+from alcor import http
+from alcor import utils
+from alcor import netutils
+from alcor import compat
+from alcor import errors
 
 
 WEEKDAYNAME = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -487,7 +487,7 @@ class HttpServer(http.HttpBase, asyncore.dispatcher):
                request_executor_class=None, ssl_verify_callback=None):
     """Initializes the HTTP server
 
-    @type mainloop: ganeti.daemon.Mainloop
+    @type mainloop: alcor.daemon.Mainloop
     @param mainloop: Mainloop used to poll for I/O events
     @type local_address: string
     @param local_address: Local IP address to bind to

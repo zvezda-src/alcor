@@ -39,14 +39,14 @@ import logging
 import sys
 import re
 
-from ganeti import constants
-from ganeti import errors # pylint: disable=W0611
-from ganeti import utils
-from ganeti import objects
-from ganeti import pathutils
-from ganeti import serializer
-from ganeti.hypervisor import hv_base
-from ganeti.errors import HypervisorError
+from alcor import constants
+from alcor import errors # pylint: disable=W0611
+from alcor import utils
+from alcor import objects
+from alcor import pathutils
+from alcor import serializer
+from alcor.hypervisor import hv_base
+from alcor.errors import HypervisorError
 
 
 def _CreateBlankFile(path, mode):
@@ -683,7 +683,7 @@ class LXCHypervisor(hv_base.BaseHypervisor):
     """Ensures all cgroup subsystems required to run LXC container are mounted.
 
     """
-    # Check cgroup subsystems required by the Ganeti LXC hypervisor
+    # Check cgroup subsystems required by the Alcor LXC hypervisor
     for subsystem in cls._REQUIRED_CGROUP_SUBSYSTEMS:
       cls._GetOrPrepareCgroupSubsysMountPoint(subsystem)
 

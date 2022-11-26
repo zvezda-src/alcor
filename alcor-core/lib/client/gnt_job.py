@@ -30,17 +30,17 @@
 """Job related commands"""
 
 # pylint: disable=W0401,W0613,W0614,C0103
-# W0401: Wildcard import ganeti.cli
+# W0401: Wildcard import alcor.cli
 # W0613: Unused argument, since all functions follow the same API
 # W0614: Unused import %s from wildcard import (since we need cli)
 # C0103: Invalid name gnt-job
 
-from ganeti.cli import *
-from ganeti import constants
-from ganeti import errors
-from ganeti import utils
-from ganeti import cli
-from ganeti import qlang
+from alcor.cli import *
+from alcor import constants
+from alcor import errors
+from alcor import utils
+from alcor import cli
+from alcor import qlang
 
 
 #: default list of fields for L{ListJobs}
@@ -173,7 +173,7 @@ def AutoArchiveJobs(opts, args):
   @param opts: the command line options selected by the user
   @type args: list
   @param args: should contain only one element, the age as a time spec
-      that can be parsed by L{ganeti.cli.ParseTimespec} or the
+      that can be parsed by L{alcor.cli.ParseTimespec} or the
       keyword I{all}, which will cause all jobs to be archived
   @rtype: int
   @return: the desired exit code

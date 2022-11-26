@@ -64,30 +64,30 @@ import zlib
 
 import pycurl
 
-from ganeti import errors
-from ganeti import http
-from ganeti import utils
-from ganeti import ssh
-from ganeti import hypervisor
-from ganeti.hypervisor import hv_base
-from ganeti import constants
-from ganeti.storage import bdev
-from ganeti.storage import drbd
-from ganeti.storage import extstorage
-from ganeti.storage import filestorage
-from ganeti import objects
-from ganeti import ssconf
-from ganeti import serializer
-from ganeti import netutils
-from ganeti import runtime
-from ganeti import compat
-from ganeti import pathutils
-from ganeti import vcluster
-from ganeti import ht
-from ganeti.storage.base import BlockDev
-from ganeti.storage.drbd import DRBD8
-from ganeti import hooksmaster
-import ganeti.metad as metad
+from alcor import errors
+from alcor import http
+from alcor import utils
+from alcor import ssh
+from alcor import hypervisor
+from alcor.hypervisor import hv_base
+from alcor import constants
+from alcor.storage import bdev
+from alcor.storage import drbd
+from alcor.storage import extstorage
+from alcor.storage import filestorage
+from alcor import objects
+from alcor import ssconf
+from alcor import serializer
+from alcor import netutils
+from alcor import runtime
+from alcor import compat
+from alcor import pathutils
+from alcor import vcluster
+from alcor import ht
+from alcor.storage.base import BlockDev
+from alcor.storage.drbd import DRBD8
+from alcor import hooksmaster
+import alcor.metad as metad
 
 
 _BOOT_ID_PATH = "/proc/sys/kernel/random/boot_id"
@@ -149,7 +149,7 @@ def _StoreInstReasonTrail(instance_name, trail):
   """Serialize a reason trail related to an instance change of state to file.
 
   The exact location of the file depends on the name of the instance and on
-  the configuration of the Ganeti cluster defined at deploy time.
+  the configuration of the Alcor cluster defined at deploy time.
 
   @type instance_name: string
   @param instance_name: The name of the instance
@@ -168,7 +168,7 @@ def _StoreInstReasonTrail(instance_name, trail):
 def _Fail(msg, *args, **kwargs):
   """Log an error and the raise an RPCFail exception.
 
-  This exception is then handled specially in the ganeti daemon and
+  This exception is then handled specially in the alcor daemon and
   turned into a 'failed' return type. As such, this function is a
   useful shortcut for logging the error and returning it to the master
   daemon.
@@ -426,10 +426,10 @@ def ActivateMasterIp(master_params, use_external_mip_script):
 def StartMasterDaemons(no_voting):
   """Activate local node as master node.
 
-  The function will start the master daemons (ganeti-masterd and ganeti-rapi).
+  The function will start the master daemons (alcor-masterd and alcor-rapi).
 
   @type no_voting: boolean
-  @param no_voting: whether to start ganeti-masterd without a node vote
+  @param no_voting: whether to start alcor-masterd without a node vote
       but still non-interactively
   @rtype: None
 
@@ -447,7 +447,7 @@ def StartMasterDaemons(no_voting):
 
   result = utils.RunCmd([pathutils.DAEMON_UTIL, "start-master"], env=env)
   if result.failed:
-    msg = "Can't start Ganeti master: %s" % result.output
+    msg = "Can't start Alcor master: %s" % result.output
     logging.error(msg)
     _Fail(msg)
 
@@ -472,7 +472,7 @@ def DeactivateMasterIp(master_params, use_external_mip_script):
 def StopMasterDaemons():
   """Stop the master daemons on this node.
 
-  Stop the master daemons (ganeti-masterd and ganeti-rapi) on this node.
+  Stop the master daemons (alcor-masterd and alcor-rapi) on this node.
 
   @rtype: None
 
@@ -482,7 +482,7 @@ def StopMasterDaemons():
 
   result = utils.RunCmd([pathutils.DAEMON_UTIL, "stop-master"])
   if result.failed:
-    logging.error("Could not stop Ganeti master, command %s had exitcode %s"
+    logging.error("Could not stop Alcor master, command %s had exitcode %s"
                   " and error %s",
                   result.cmd, result.exit_code, result.output)
 
@@ -547,7 +547,7 @@ def LeaveCluster(modify_ssh_setup):
   from the cluster.
 
   If processing is successful, then it raises an
-  L{errors.QuitGanetiException} which is used as a special case to
+  L{errors.QuitAlcorException} which is used as a special case to
   shutdown the node daemon.
 
   @param modify_ssh_setup: boolean
@@ -583,8 +583,8 @@ def LeaveCluster(modify_ssh_setup):
   utils.StopDaemon(constants.MOND)
   utils.StopDaemon(constants.KVMD)
 
-  # Raise a custom exception (handled in ganeti-noded)
-  raise errors.QuitGanetiException(True, "Shutdown scheduled")
+  # Raise a custom exception (handled in alcor-noded)
+  raise errors.QuitAlcorException(True, "Shutdown scheduled")
 
 
 def _CheckStorageParams(params, num_params):
@@ -949,7 +949,7 @@ def _VerifyClientCertificate(cert_file=pathutils.NODED_CLIENT_CERT_FILE):
   """Verify the existance and validity of the client SSL certificate.
 
   Also, verify that the client certificate is not self-signed. Self-
-  signed client certificates stem from Ganeti versions 2.12.0 - 2.12.4
+  signed client certificates stem from Alcor versions 2.12.0 - 2.12.4
   and should be replaced by client certificates signed by the server
   certificate. Hence we output a warning when we encounter a self-signed
   one.
@@ -974,7 +974,7 @@ def _VerifyClientCertificate(cert_file=pathutils.NODED_CLIENT_CERT_FILE):
 
 
 def _VerifySshSetup(node_status_list, my_name, ssh_key_type,
-                    ganeti_pub_keys_file=pathutils.SSH_PUB_KEYS):
+                    alcor_pub_keys_file=pathutils.SSH_PUB_KEYS):
   """Verifies the state of the SSH key files.
 
   @type node_status_list: list of tuples
@@ -985,8 +985,8 @@ def _VerifySshSetup(node_status_list, my_name, ssh_key_type,
   @param my_name: name of this node
   @type ssh_key_type: one of L{constants.SSHK_ALL}
   @param ssh_key_type: type of key used on nodes
-  @type ganeti_pub_keys_file: str
-  @param ganeti_pub_keys_file: filename of the public keys file
+  @type alcor_pub_keys_file: str
+  @param alcor_pub_keys_file: filename of the public keys file
 
   """
   if node_status_list is None:
@@ -1002,16 +1002,16 @@ def _VerifySshSetup(node_status_list, my_name, ssh_key_type,
 
   result = []
 
-  if not os.path.exists(ganeti_pub_keys_file):
+  if not os.path.exists(alcor_pub_keys_file):
     result.append("The public key file '%s' does not exist. Consider running"
                   " 'gnt-cluster renew-crypto --new-ssh-keys"
-                  " [--no-ssh-key-check]' to fix this." % ganeti_pub_keys_file)
+                  " [--no-ssh-key-check]' to fix this." % alcor_pub_keys_file)
     return result
 
   pot_mc_uuids = [uuid for (uuid, _, _, _, _) in node_status_list]
   offline_nodes = [uuid for (uuid, _, _, _, online) in node_status_list
                    if not online]
-  pub_keys = ssh.QueryPubKeyFile(None, key_file=ganeti_pub_keys_file)
+  pub_keys = ssh.QueryPubKeyFile(None, key_file=alcor_pub_keys_file)
 
   if potential_master_candidate:
     # Check that the set of potential master candidates matches the
@@ -1021,7 +1021,7 @@ def _VerifySshSetup(node_status_list, my_name, ssh_key_type,
     missing_uuids = set([])
     if pub_uuids_set != pot_mc_uuids_set:
       unknown_uuids = pub_uuids_set - pot_mc_uuids_set
-      pub_key_path = "%s:%s" % (my_name, ganeti_pub_keys_file)
+      pub_key_path = "%s:%s" % (my_name, alcor_pub_keys_file)
       if unknown_uuids:
         result.append("The following node UUIDs are listed in the shared public"
                       " keys file %s, but are not potential master"
@@ -1256,7 +1256,7 @@ def VerifyNode(what, cluster_name, all_hvparams):
       # We only test if master candidates can communicate to other nodes.
       # We cannot test if normal nodes cannot communicate with other nodes,
       # because the administrator might have installed additional SSH keys,
-      # over which Ganeti has no power.
+      # over which Alcor has no power.
       if my_name in mcs:
         success, message = _GetSshRunner(cluster_name). \
                               VerifyNodeHostname(node, ssh_port_map[node])
@@ -1493,7 +1493,7 @@ def AddNodeSshKey(node_uuid, node_name,
   @param to_public_keys: whether the keys should be added to the public key file
   @type get_public_keys: boolean
   @param get_public_keys: whether the node should add the clusters' public keys
-    to its {ganeti_pub_keys} file
+    to its {alcor_pub_keys} file
 
   """
   node_list = [SshAddNodeInfo(name=node_name, uuid=node_uuid,
@@ -1715,12 +1715,12 @@ def RemoveNodeSshKey(node_uuid, node_name,
     from the C{authorized_keys} file
   @type from_public_keys: boolean
   @param from_public_keys: whether or not the key should be remove from
-    the C{ganeti_pub_keys} file
+    the C{alcor_pub_keys} file
   @type clear_authorized_keys: boolean
   @param clear_authorized_keys: whether or not the C{authorized_keys} file
     should be cleared on the node whose keys are removed
   @type clear_public_keys: boolean
-  @param clear_public_keys: whether to clear the node's C{ganeti_pub_key} file
+  @param clear_public_keys: whether to clear the node's C{alcor_pub_key} file
   @type readd: boolean
   @param readd: whether this is called during a readd operation.
   @rtype: list of string
@@ -1938,9 +1938,9 @@ def RemoveNodeSshKeyBulk(node_list,
                                  " node '%s', which is leaving the cluster.")
 
       if node_info.clear_authorized_keys:
-        # The 'authorized_keys' file is not solely managed by Ganeti. Therefore,
+        # The 'authorized_keys' file is not solely managed by Alcor. Therefore,
         # we have to specify exactly which keys to clear to leave keys untouched
-        # that were not added by Ganeti.
+        # that were not added by Alcor.
         other_master_candidate_uuids = [uuid for uuid in master_candidate_uuids
                                         if uuid != node_info.uuid]
         candidate_keys = ssh.QueryPubKeyFile(other_master_candidate_uuids,
@@ -2097,11 +2097,11 @@ def _ReplaceMasterKeyOnMaster(root_keyfiles):
 def RenewSshKeys(node_uuids, node_names, master_candidate_uuids,
                  potential_master_candidates, old_key_type, new_key_type,
                  new_key_bits,
-                 ganeti_pub_keys_file=pathutils.SSH_PUB_KEYS,
+                 alcor_pub_keys_file=pathutils.SSH_PUB_KEYS,
                  ssconf_store=None,
                  noded_cert_file=pathutils.NODED_CERT_FILE,
                  run_cmd_fn=ssh.RunSshCmdWithStdin):
-  """Renews all SSH keys and updates authorized_keys and ganeti_pub_keys.
+  """Renews all SSH keys and updates authorized_keys and alcor_pub_keys.
 
   @type node_uuids: list of str
   @param node_uuids: list of node UUIDs whose keys should be renewed
@@ -2117,8 +2117,8 @@ def RenewSshKeys(node_uuids, node_names, master_candidate_uuids,
   @param new_key_type: the type of SSH key to be generated
   @type new_key_bits: int
   @param new_key_bits: the length of the key to be generated
-  @type ganeti_pub_keys_file: str
-  @param ganeti_pub_keys_file: file path of the the public key file
+  @type alcor_pub_keys_file: str
+  @param alcor_pub_keys_file: file path of the the public key file
   @type noded_cert_file: str
   @param noded_cert_file: path of the noded SSL certificate file
   @type run_cmd_fn: function
@@ -2174,7 +2174,7 @@ def RenewSshKeys(node_uuids, node_names, master_candidate_uuids,
                       potential_master_candidate))
 
     keys_by_uuid = ssh.QueryPubKeyFile([node_uuid],
-                                       key_file=ganeti_pub_keys_file)
+                                       key_file=alcor_pub_keys_file)
     if not keys_by_uuid:
       raise errors.SshUpdateError("No public key of node %s (UUID %s) found,"
                                   " not generating a new key."
@@ -2188,7 +2188,7 @@ def RenewSshKeys(node_uuids, node_names, master_candidate_uuids,
                                              False, # ask_key
                                              False) # key_check
       if old_pub_key != old_master_key:
-        # If we are already in a multi-key setup (that is past Ganeti 2.12),
+        # If we are already in a multi-key setup (that is past Alcor 2.12),
         # we can safely remove the old key of the node. Otherwise, we cannot
         # remove that node's key, because it is also the master node's key
         # and that would terminate all communication from the master to the
@@ -2219,7 +2219,7 @@ def RenewSshKeys(node_uuids, node_names, master_candidate_uuids,
 
     logging.debug("Generating new SSH key for node '%s'.", node_name)
     _GenerateNodeSshKey(node_uuid, node_name, ssh_port_map, new_key_type,
-                        new_key_bits, pub_key_file=ganeti_pub_keys_file,
+                        new_key_bits, pub_key_file=alcor_pub_keys_file,
                         ssconf_store=ssconf_store,
                         noded_cert_file=noded_cert_file,
                         run_cmd_fn=run_cmd_fn)
@@ -2236,8 +2236,8 @@ def RenewSshKeys(node_uuids, node_names, master_candidate_uuids,
                                   " (UUID %s)" % (node_name, node_uuid))
 
     if potential_master_candidate:
-      ssh.RemovePublicKey(node_uuid, key_file=ganeti_pub_keys_file)
-      ssh.AddPublicKey(node_uuid, pub_key, key_file=ganeti_pub_keys_file)
+      ssh.RemovePublicKey(node_uuid, key_file=alcor_pub_keys_file)
+      ssh.AddPublicKey(node_uuid, pub_key, key_file=alcor_pub_keys_file)
 
     node_info = SshAddNodeInfo(name=node_name,
                                uuid=node_uuid,
@@ -2249,7 +2249,7 @@ def RenewSshKeys(node_uuids, node_names, master_candidate_uuids,
   if node_keys_to_add:
     node_errors = AddNodeSshKeyBulk(
         node_keys_to_add, potential_master_candidates,
-        pub_key_file=ganeti_pub_keys_file, ssconf_store=ssconf_store,
+        pub_key_file=alcor_pub_keys_file, ssconf_store=ssconf_store,
         noded_cert_file=noded_cert_file,
         run_cmd_fn=run_cmd_fn)
     if node_errors:
@@ -2259,13 +2259,13 @@ def RenewSshKeys(node_uuids, node_names, master_candidate_uuids,
 
   # Preserve the old keys for now
   old_master_keys_by_uuid = _GetOldMasterKeys(master_node_uuid,
-                                              ganeti_pub_keys_file)
+                                              alcor_pub_keys_file)
 
   # Generate a new master key with a suffix, don't touch the old one for now
   logging.debug("Generate new ssh key of master.")
   _GenerateNodeSshKey(master_node_uuid, master_node_name, ssh_port_map,
                       new_key_type, new_key_bits,
-                      pub_key_file=ganeti_pub_keys_file,
+                      pub_key_file=alcor_pub_keys_file,
                       ssconf_store=ssconf_store,
                       noded_cert_file=noded_cert_file,
                       run_cmd_fn=run_cmd_fn,
@@ -2274,16 +2274,16 @@ def RenewSshKeys(node_uuids, node_names, master_candidate_uuids,
   new_master_key_dict = _GetNewMasterKey(root_keyfiles, master_node_uuid)
 
   # Replace master key in the master nodes' public key file
-  ssh.RemovePublicKey(master_node_uuid, key_file=ganeti_pub_keys_file)
+  ssh.RemovePublicKey(master_node_uuid, key_file=alcor_pub_keys_file)
   for pub_key in new_master_key_dict[master_node_uuid]:
-    ssh.AddPublicKey(master_node_uuid, pub_key, key_file=ganeti_pub_keys_file)
+    ssh.AddPublicKey(master_node_uuid, pub_key, key_file=alcor_pub_keys_file)
 
   # Add new master key to all node's public and authorized keys
   logging.debug("Add new master key to all nodes.")
   node_errors = AddNodeSshKey(
       master_node_uuid, master_node_name, potential_master_candidates,
       to_authorized_keys=True, to_public_keys=True,
-      get_public_keys=False, pub_key_file=ganeti_pub_keys_file,
+      get_public_keys=False, pub_key_file=alcor_pub_keys_file,
       ssconf_store=ssconf_store, noded_cert_file=noded_cert_file,
       run_cmd_fn=run_cmd_fn)
   if node_errors:
@@ -4521,7 +4521,7 @@ def FinalizeExport(instance, snap_disks):
              instance.beparams[constants.BE_MAXMEM])
   config.set(constants.INISECT_INS, "minmem", "%d" %
              instance.beparams[constants.BE_MINMEM])
-  # "memory" is deprecated, but useful for exporting to old ganeti versions
+  # "memory" is deprecated, but useful for exporting to old alcor versions
   config.set(constants.INISECT_INS, "memory", "%d" %
              instance.beparams[constants.BE_MAXMEM])
   config.set(constants.INISECT_INS, "vcpus", "%d" %
@@ -5911,7 +5911,7 @@ def GetFileInfo(file_path):
 class HooksRunner(object):
   """Hook runner.
 
-  This class is instantiated on the node side (ganeti-noded) and not
+  This class is instantiated on the node side (alcor-noded) and not
   on the master side.
 
   """
@@ -6005,7 +6005,7 @@ class HooksRunner(object):
 class IAllocatorRunner(object):
   """IAllocator runner.
 
-  This class is instantiated on the node side (ganeti-noded) and not on
+  This class is instantiated on the node side (alcor-noded) and not on
   the master side.
 
   """
@@ -6031,7 +6031,7 @@ class IAllocatorRunner(object):
     if alloc_script is None:
       _Fail("iallocator module '%s' not found in the search path", name)
 
-    fd, fin_name = tempfile.mkstemp(prefix="ganeti-iallocator.")
+    fd, fin_name = tempfile.mkstemp(prefix="alcor-iallocator.")
     try:
       os.write(fd, idata.encode("utf-8"))
       os.close(fd)

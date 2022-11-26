@@ -32,12 +32,12 @@
 
 import logging
 
-from ganeti import errors
-from ganeti import constants
-from ganeti import locking
-from ganeti import query
-from ganeti import utils
-from ganeti.cmdlib.common import ExpandInstanceUuidAndName
+from alcor import errors
+from alcor import constants
+from alcor import locking
+from alcor import query
+from alcor import utils
+from alcor.cmdlib.common import ExpandInstanceUuidAndName
 
 
 class ResultWithJobs(object):
@@ -100,7 +100,7 @@ class LogicalUnit(object): # pylint: disable=R0902
     - implement BuildHooksNodes
     - redefine HPATH and HTYPE
     - optionally redefine their run requirements:
-        REQ_BGL: the LU needs to hold the Big Ganeti Lock exclusively
+        REQ_BGL: the LU needs to hold the Big Alcor Lock exclusively
 
   Note that all commands require root permissions.
 
@@ -310,7 +310,7 @@ class LogicalUnit(object): # pylint: disable=R0902
     self.needed_locks for the level.
 
     @param level: Locking level which is going to be locked
-    @type level: member of L{ganeti.locking.LEVELS}
+    @type level: member of L{alcor.locking.LEVELS}
 
     """
 

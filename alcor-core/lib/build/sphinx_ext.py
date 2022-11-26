@@ -51,22 +51,22 @@ import sphinx.addnodes
 
 orig_manpage_role = None
 
-from ganeti import _constants
-from ganeti import constants
-from ganeti import compat
-from ganeti import errors
-from ganeti import utils
-from ganeti import opcodes
-from ganeti import opcodes_base
-from ganeti import ht
-from ganeti import rapi
-from ganeti import luxi
-from ganeti import objects
-from ganeti import http
-from ganeti import pathutils
+from alcor import _constants
+from alcor import constants
+from alcor import compat
+from alcor import errors
+from alcor import utils
+from alcor import opcodes
+from alcor import opcodes_base
+from alcor import ht
+from alcor import rapi
+from alcor import luxi
+from alcor import objects
+from alcor import http
+from alcor import pathutils
 
-import ganeti.rapi.rlib2 # pylint: disable=W0611
-import ganeti.rapi.connector # pylint: disable=W0611
+import alcor.rapi.rlib2 # pylint: disable=W0611
+import alcor.rapi.connector # pylint: disable=W0611
 
 
 #: Regular expression for man page names

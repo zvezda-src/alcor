@@ -28,9 +28,9 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-"""Configuration management for Ganeti
+"""Configuration management for Alcor
 
-This module provides the interface to the Ganeti cluster configuration.
+This module provides the interface to the Alcor cluster configuration.
 
 The configuration data is stored on every node but is updated on the master
 only. After each update, the master distributes the data to the other nodes.
@@ -54,22 +54,22 @@ import time
 import threading
 import itertools
 
-from ganeti.config.temporary_reservations import TemporaryReservationManager
-from ganeti.config.utils import ConfigSync, ConfigManager
-from ganeti.config.verify import (VerifyType, VerifyNic, VerifyIpolicy,
+from alcor.config.temporary_reservations import TemporaryReservationManager
+from alcor.config.utils import ConfigSync, ConfigManager
+from alcor.config.verify import (VerifyType, VerifyNic, VerifyIpolicy,
                                   ValidateConfig)
 
-from ganeti import errors
-from ganeti import utils
-from ganeti import constants
-import ganeti.wconfd as wc
-from ganeti import objects
-from ganeti import serializer
-from ganeti import uidpool
-from ganeti import netutils
-from ganeti import runtime
-from ganeti import pathutils
-from ganeti import network
+from alcor import errors
+from alcor import utils
+from alcor import constants
+import alcor.wconfd as wc
+from alcor import objects
+from alcor import serializer
+from alcor import uidpool
+from alcor import netutils
+from alcor import runtime
+from alcor import pathutils
+from alcor import network
 
 
 def GetWConfdContext(ec_id, livelock):
@@ -81,7 +81,7 @@ def GetWConfdContext(ec_id, livelock):
 
   @type ec_id: int, or None
   @param ec_id: the job ID or None, if the caller isn't a job
-  @type livelock: L{ganeti.utils.livelock.LiveLock}
+  @type livelock: L{alcor.utils.livelock.LiveLock}
   @param livelock: a livelock object holding the lockfile needed for WConfd
   @return: the WConfd context
 
@@ -101,7 +101,7 @@ def GetConfig(ec_id, livelock, **kwargs):
 
   @type ec_id: int, or None
   @param ec_id: the job ID or None, if the caller isn't a job
-  @type livelock: L{ganeti.utils.livelock.LiveLock}
+  @type livelock: L{alcor.utils.livelock.LiveLock}
   @param livelock: a livelock object holding the lockfile needed for WConfd
   @type kwargs: dict
   @param kwargs: Any additional arguments for the ConfigWriter constructor

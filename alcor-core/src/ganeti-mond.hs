@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-{-| Ganeti monitoring agent daemon
+{-| Alcor monitoring agent daemon
 
 -}
 
@@ -37,13 +37,13 @@ module Main (main) where
 
 import Data.List ((\\))
 
-import Ganeti.Daemon
-import Ganeti.DataCollectors (collectors)
-import Ganeti.DataCollectors.Types (dName)
-import Ganeti.Runtime
-import qualified Ganeti.Monitoring.Server as S
-import qualified Ganeti.Constants as C
-import qualified Ganeti.ConstantUtils as CU
+import Alcor.Daemon
+import Alcor.DataCollectors (collectors)
+import Alcor.DataCollectors.Types (dName)
+import Alcor.Runtime
+import qualified Alcor.Monitoring.Server as S
+import qualified Alcor.Constants as C
+import qualified Alcor.ConstantUtils as CU
 
 -- Check constistency of defined data collectors and their names used for the
 -- Python constant generation:
@@ -52,7 +52,7 @@ $(let names = map dName collectors
   in if null missing
     then return []
     else fail $ "Please add " ++ show missing
-              ++ " to the Ganeti.Constants.dataCollectorNames.")
+              ++ " to the Alcor.Constants.dataCollectorNames.")
 
 
 -- | Options list and functions.
@@ -68,7 +68,7 @@ options =
 -- | Main function.
 main :: IO ()
 main =
-  genericMain GanetiMond options
+  genericMain AlcorMond options
     S.checkMain
     S.prepMain
     S.main

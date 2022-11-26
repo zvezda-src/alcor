@@ -44,10 +44,10 @@ import pwd
 
 from io import FileIO, TextIOWrapper, BufferedRWPair
 
-from ganeti import errors
-from ganeti import constants
-from ganeti import pathutils
-from ganeti.utils import filelock
+from alcor import errors
+from alcor import constants
+from alcor import pathutils
+from alcor.utils import filelock
 
 #: Directory used by fsck(8) to store recovered data, usually at a file
 #: system's root directory
@@ -885,7 +885,7 @@ def ReadLockedPidFile(path):
 
 
 def DaemonPidFileName(name):
-  """Compute a ganeti pid file absolute path
+  """Compute a alcor pid file absolute path
 
   @type name: str
   @param name: the daemon name

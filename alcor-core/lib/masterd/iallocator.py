@@ -32,17 +32,17 @@
 
 import logging
 
-from ganeti import compat
-from ganeti import constants
-from ganeti import errors
-from ganeti import ht
-from ganeti import outils
-from ganeti import opcodes
-from ganeti import serializer
-from ganeti import utils
+from alcor import compat
+from alcor import constants
+from alcor import errors
+from alcor import ht
+from alcor import outils
+from alcor import opcodes
+from alcor import serializer
+from alcor import utils
 
-import ganeti.rpc.node as rpc
-import ganeti.masterd.instance as gmi
+import alcor.rpc.node as rpc
+import alcor.masterd.instance as gmi
 
 _STRING_LIST = ht.TListOf(ht.TString)
 _JOB_LIST = ht.TListOf(ht.TListOf(ht.TStrictDict(True, False, {

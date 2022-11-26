@@ -37,14 +37,14 @@ import optparse
 import sys
 import logging
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import runtime
-from ganeti import ssconf
-from ganeti import utils
-from ganeti import cli
-from ganeti import pathutils
-from ganeti import compat
+from alcor import constants
+from alcor import errors
+from alcor import runtime
+from alcor import ssconf
+from alcor import utils
+from alcor import cli
+from alcor import pathutils
+from alcor import compat
 
 
 (DIR,

@@ -44,7 +44,7 @@ _STANDARD_MODULES = set(sys.modules.keys())
 
 import os.path
 
-from ganeti import build
+from alcor import build
 
 
 def main():
@@ -59,7 +59,7 @@ def main():
   script_path = abspath(__file__)
   srcdir = normpath(abspath(args.pop(0)))
 
-  assert "ganeti" in sys.modules
+  assert "alcor" in sys.modules
 
   for filename in args:
     # Reset global state
@@ -72,7 +72,7 @@ def main():
     for name in modules_to_remove:
       sys.modules.pop(name, None)
 
-    assert "ganeti" not in sys.modules
+    assert "alcor" not in sys.modules
 
     # Load module (this might import other modules)
     module = load_module(filename)

@@ -30,9 +30,9 @@
 
 """Utils for CLI commands"""
 
-from ganeti import cli
-from ganeti import constants
-from ganeti import ht
+from alcor import cli
+from alcor import constants
+from alcor import ht
 
 
 def GetResult(cl, opts, result):
@@ -43,7 +43,7 @@ def GetResult(cl, opts, result):
   it is of type L{ht.TJobIdListOnly}, then it will wait for the jobs
   to complete, otherwise just return L{constants.EXIT_SUCCESS}.
 
-  @type cl: L{ganeti.luxi.Client}
+  @type cl: L{alcor.luxi.Client}
   @param cl: client that was used to submit the OpCode, which will
              also be used to poll the jobs
 

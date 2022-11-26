@@ -27,9 +27,9 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"""Ganeti RAPI module"""
+"""Alcor RAPI module"""
 
-from ganeti import compat
+from alcor import compat
 
 
 RAPI_ACCESS_WRITE = "write"

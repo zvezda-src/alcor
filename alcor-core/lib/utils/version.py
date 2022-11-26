@@ -32,12 +32,12 @@
 
 import re
 
-from ganeti import constants
+from alcor import constants
 
 _FULL_VERSION_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 _SHORT_VERSION_RE = re.compile(r"(\d+)\.(\d+)")
 
-# The first Ganeti version that supports automatic upgrades
+# The first Alcor version that supports automatic upgrades
 FIRST_UPGRADE_VERSION = (2, 10, 0)
 
 CURRENT_VERSION = (constants.VERSION_MAJOR, constants.VERSION_MINOR,

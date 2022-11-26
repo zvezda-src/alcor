@@ -38,8 +38,8 @@ import time
 import numbers
 import collections
 
-from ganeti import errors
-from ganeti import compat
+from alcor import errors
+from alcor import compat
 
 
 #: Unit checker regexp

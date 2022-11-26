@@ -38,8 +38,8 @@ functions' docstrings for details.
 
 import os
 
-from ganeti import compat
-from ganeti import _constants
+from alcor import compat
+from alcor import _constants
 # cannot use constants, as this would cause a circular import
 
 
@@ -195,8 +195,8 @@ def AddNodePrefix(path, _noderoot=_VIRT_NODEROOT):
   """Adds a node-specific prefix to a path in a virtual cluster.
 
   Returned path includes user-specified root directory if specified in
-  environment. As an example, the path C{/var/lib/ganeti} becomes
-  C{/tmp/vcluster/node1/var/lib/ganeti} if C{/tmp/vcluster/node1} is the root
+  environment. As an example, the path C{/var/lib/alcor} becomes
+  C{/tmp/vcluster/node1/var/lib/alcor} if C{/tmp/vcluster/node1} is the root
   directory specified in the environment.
 
   """

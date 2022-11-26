@@ -30,18 +30,18 @@
 """IP pool related commands"""
 
 # pylint: disable=W0401,W0614
-# W0401: Wildcard import ganeti.cli
+# W0401: Wildcard import alcor.cli
 # W0614: Unused import %s from wildcard import (since we need cli)
 
 import textwrap
 import itertools
 
-from ganeti.cli import *
-from ganeti import constants
-from ganeti import opcodes
-from ganeti import utils
-from ganeti import errors
-from ganeti import objects
+from alcor.cli import *
+from alcor import constants
+from alcor import opcodes
+from alcor import utils
+from alcor import errors
+from alcor import objects
 
 
 #: default list of fields for L{ListNetworks}

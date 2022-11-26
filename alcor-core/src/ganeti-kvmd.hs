@@ -1,8 +1,8 @@
 
-import Ganeti.Daemon (OptType)
-import qualified Ganeti.Daemon as Daemon
-import qualified Ganeti.Kvmd as Kvmd (start)
-import Ganeti.Runtime (GanetiDaemon(..))
+import Alcor.Daemon (OptType)
+import qualified Alcor.Daemon as Daemon
+import qualified Alcor.Kvmd as Kvmd (start)
+import Alcor.Runtime (AlcorDaemon(..))
 
 -- | Options list and functions.
 options :: [OptType]
@@ -16,7 +16,7 @@ options =
 -- | Main function.
 main :: IO ()
 main =
-  Daemon.genericMain GanetiKvmd options
+  Daemon.genericMain AlcorKvmd options
     (\_ -> return . Right $ ())
     (\_ _ -> return ())
     (\_ _ _ -> Kvmd.start)

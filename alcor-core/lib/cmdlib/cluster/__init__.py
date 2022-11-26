@@ -38,27 +38,27 @@ import os
 import re
 import time
 
-from ganeti import compat
-from ganeti import constants
-from ganeti import errors
-from ganeti import hypervisor
-from ganeti import locking
-from ganeti import masterd
-from ganeti import netutils
-from ganeti import objects
-from ganeti import opcodes
-from ganeti import pathutils
-from ganeti import query
-import ganeti.rpc.node as rpc
-from ganeti import runtime
-from ganeti import ssh
-from ganeti import uidpool
-from ganeti import utils
-from ganeti import vcluster
+from alcor import compat
+from alcor import constants
+from alcor import errors
+from alcor import hypervisor
+from alcor import locking
+from alcor import masterd
+from alcor import netutils
+from alcor import objects
+from alcor import opcodes
+from alcor import pathutils
+from alcor import query
+import alcor.rpc.node as rpc
+from alcor import runtime
+from alcor import ssh
+from alcor import uidpool
+from alcor import utils
+from alcor import vcluster
 
-from ganeti.cmdlib.base import NoHooksLU, QueryBase, LogicalUnit, \
+from alcor.cmdlib.base import NoHooksLU, QueryBase, LogicalUnit, \
   ResultWithJobs
-from ganeti.cmdlib.common import ShareAll, RunPostHook, \
+from alcor.cmdlib.common import ShareAll, RunPostHook, \
   ComputeAncillaryFiles, RedistributeAncillaryFiles, UploadHelper, \
   GetWantedInstances, MergeAndVerifyHvState, MergeAndVerifyDiskState, \
   GetUpdatedIPolicy, ComputeNewInstanceViolations, GetUpdatedParams, \
@@ -69,7 +69,7 @@ from ganeti.cmdlib.common import ShareAll, RunPostHook, \
   AddInstanceCommunicationNetworkOp, ConnectInstanceCommunicationNetworkOp, \
   CheckImageValidity, EnsureKvmdOnNodes
 
-import ganeti.masterd.instance
+import alcor.masterd.instance
 
 
 class LUClusterRenewCrypto(NoHooksLU):
@@ -169,7 +169,7 @@ class LUClusterRenewCrypto(NoHooksLU):
     """Renew all nodes' SSH keys.
 
     @type feedback_fn: function
-    @param feedback_fn: logging function, see L{ganeti.cmdlist.base.LogicalUnit}
+    @param feedback_fn: logging function, see L{alcor.cmdlist.base.LogicalUnit}
 
     """
     master_uuid = self.cfg.GetMasterNode()
@@ -676,7 +676,7 @@ class LUClusterRepairDiskSizes(NoHooksLU):
     This is valid mainly for DRBD8 and fixes an issue where the
     children have smaller disk size.
 
-    @param disk: an L{ganeti.objects.Disk} object
+    @param disk: an L{alcor.objects.Disk} object
 
     """
     if disk.dev_type == constants.DT_DRBD8:
@@ -1208,8 +1208,8 @@ class LUClusterSetParams(LogicalUnit):
     parameters that are advisable for instance communication, and
     otherwise issue security warnings.
 
-    @type network: L{ganeti.objects.Network}
-    @param network: L{ganeti.objects.Network} object whose
+    @type network: L{alcor.objects.Network}
+    @param network: L{alcor.objects.Network} object whose
                     configuration is being checked
     @type warning_fn: function
     @param warning_fn: function used to print warnings
@@ -1551,8 +1551,8 @@ class LUClusterSetParams(LogicalUnit):
     @type network_name: string
     @param network_name: instance communication network name
 
-    @rtype: L{ganeti.cmdlib.ResultWithJobs} or L{None}
-    @return: L{ganeti.cmdlib.ResultWithJobs} if the instance
+    @rtype: L{alcor.cmdlib.ResultWithJobs} or L{None}
+    @return: L{alcor.cmdlib.ResultWithJobs} if the instance
              communication needs to be created or it needs to be
              connected to a group, otherwise L{None}
 
@@ -1595,7 +1595,7 @@ class LUClusterSetParams(LogicalUnit):
     configuration.
 
     Compares the user-supplied instance communication network against
-    the one stored in the Ganeti cluster configuration.  If there is a
+    the one stored in the Alcor cluster configuration.  If there is a
     change, the instance communication network may be possibly created
     and connected to all groups (see
     L{LUClusterSetParams._EnsureInstanceCommunicationNetwork}).
@@ -1607,7 +1607,7 @@ class LUClusterSetParams(LogicalUnit):
     @param network_name: instance communication network name
 
     @type feedback_fn: function
-    @param feedback_fn: see L{ganeti.cmdlist.base.LogicalUnit}
+    @param feedback_fn: see L{alcor.cmdlist.base.LogicalUnit}
 
     @rtype: L{LUClusterSetParams._EnsureInstanceCommunicationNetwork} or L{None}
     @return: see L{LUClusterSetParams._EnsureInstanceCommunicationNetwork}

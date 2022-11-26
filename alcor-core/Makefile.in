@@ -92,39 +92,39 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-@ENABLE_MOND_TRUE@am__append_1 = src/ganeti-mond
-@ENABLE_METADATA_TRUE@am__append_2 = src/ganeti-metad
+@ENABLE_MOND_TRUE@am__append_1 = src/alcor-mond
+@ENABLE_METADATA_TRUE@am__append_2 = src/alcor-metad
 @ENABLE_METADATA_TRUE@am__append_3 = lib/rpc/stub/metad.py
 @ENABLE_METADATA_TRUE@am__append_4 = lib/rpc/stub/metad.py
-@ENABLE_MOND_TRUE@am__append_5 = src/ganeti-mond
-@ENABLE_METADATA_TRUE@am__append_6 = src/ganeti-metad
+@ENABLE_MOND_TRUE@am__append_5 = src/alcor-mond
+@ENABLE_METADATA_TRUE@am__append_6 = src/alcor-metad
 @HTEST_TRUE@am__append_7 = test/hs/htest
 @HTEST_FALSE@am__append_8 = test/hs/htest.hs
 @HCOVERAGE_TRUE@am__append_9 = -fhpc
 @HTEST_TRUE@am__append_10 = -DTEST
-@ENABLE_MOND_TRUE@am__append_11 = src/Ganeti/Monitoring/Server.hs
-@ENABLE_MOND_FALSE@am__append_12 = src/Ganeti/Monitoring/Server.hs
+@ENABLE_MOND_TRUE@am__append_11 = src/Alcor/Monitoring/Server.hs
+@ENABLE_MOND_FALSE@am__append_12 = src/Alcor/Monitoring/Server.hs
 @ENABLE_METADATA_TRUE@am__append_13 = \
-@ENABLE_METADATA_TRUE@	src/Ganeti/Metad/Config.hs \
-@ENABLE_METADATA_TRUE@	src/Ganeti/Metad/ConfigCore.hs \
-@ENABLE_METADATA_TRUE@	src/Ganeti/Metad/ConfigServer.hs \
-@ENABLE_METADATA_TRUE@	src/Ganeti/Metad/Server.hs \
-@ENABLE_METADATA_TRUE@	src/Ganeti/Metad/Types.hs \
-@ENABLE_METADATA_TRUE@	src/Ganeti/Metad/WebServer.hs
+@ENABLE_METADATA_TRUE@	src/Alcor/Metad/Config.hs \
+@ENABLE_METADATA_TRUE@	src/Alcor/Metad/ConfigCore.hs \
+@ENABLE_METADATA_TRUE@	src/Alcor/Metad/ConfigServer.hs \
+@ENABLE_METADATA_TRUE@	src/Alcor/Metad/Server.hs \
+@ENABLE_METADATA_TRUE@	src/Alcor/Metad/Types.hs \
+@ENABLE_METADATA_TRUE@	src/Alcor/Metad/WebServer.hs
 
 @ENABLE_METADATA_FALSE@am__append_14 = \
-@ENABLE_METADATA_FALSE@	src/Ganeti/Metad/Config.hs \
-@ENABLE_METADATA_FALSE@	src/Ganeti/Metad/ConfigCore.hs \
-@ENABLE_METADATA_FALSE@	src/Ganeti/Metad/ConfigServer.hs \
-@ENABLE_METADATA_FALSE@	src/Ganeti/Metad/Server.hs \
-@ENABLE_METADATA_FALSE@	src/Ganeti/Metad/Types.hs \
-@ENABLE_METADATA_FALSE@	src/Ganeti/Metad/WebServer.hs
+@ENABLE_METADATA_FALSE@	src/Alcor/Metad/Config.hs \
+@ENABLE_METADATA_FALSE@	src/Alcor/Metad/ConfigCore.hs \
+@ENABLE_METADATA_FALSE@	src/Alcor/Metad/ConfigServer.hs \
+@ENABLE_METADATA_FALSE@	src/Alcor/Metad/Server.hs \
+@ENABLE_METADATA_FALSE@	src/Alcor/Metad/Types.hs \
+@ENABLE_METADATA_FALSE@	src/Alcor/Metad/WebServer.hs
 
 @HAS_SPHINX_TRUE@@MANPAGES_IN_DOC_TRUE@am__append_15 = doc/man-html
 @HAS_SPHINX_TRUE@@MANPAGES_IN_DOC_FALSE@am__append_16 = doc/html
 @WANT_HSTESTS_TRUE@am__append_17 = $(HS_TEST_PROGS:%=%.hs)
-@ENABLE_MOND_TRUE@am__append_18 = src/ganeti-mond
-@ENABLE_METADATA_TRUE@am__append_19 = src/ganeti-metad
+@ENABLE_MOND_TRUE@am__append_18 = src/alcor-mond
+@ENABLE_METADATA_TRUE@am__append_19 = src/alcor-metad
 @PY_UNIT_TRUE@am__append_20 = $(python_tests)
 @WANT_HSTESTS_TRUE@am__append_21 = $(haskell_tests)
 @WANT_HSTESTS_TRUE@am__append_22 = test/hs/offline-test.sh
@@ -292,7 +292,7 @@ distcleancheck_listfiles = find . -type f -print
 
 # Note: these are automake-specific variables, and must be named after
 # the directory + 'dir' suffix
-pkglibdir = $(versiondir)$(libdir)/ganeti
+pkglibdir = $(versiondir)$(libdir)/alcor
 ACLOCAL = @ACLOCAL@
 ADMIN_GROUP = @ADMIN_GROUP@
 AMTAR = @AMTAR@
@@ -454,7 +454,7 @@ mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
 pdfdir = @pdfdir@
 pkgpyexecdir = @pkgpyexecdir@
-pkgpythondir = $(versionedsharedir)/ganeti
+pkgpythondir = $(versionedsharedir)/alcor
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
@@ -495,22 +495,22 @@ EXTRA_DIST = $(am__append_8) $(am__append_12) $(am__append_14) NEWS \
 	autotools/sphinx-wrapper autotools/testrunner \
 	autotools/wrong-hardcoded-paths cabal/cabal-from-modules.py \
 	$(RUN_IN_TEMPDIR) daemons/daemon-util.in \
-	daemons/ganeti-cleaner.in $(pkglib_python_scripts) \
+	daemons/alcor-cleaner.in $(pkglib_python_scripts) \
 	devel/build_chroot devel/upload devel/webserver \
-	tools/kvm-ifup.in tools/ifup-os.in tools/vif-ganeti.in \
-	tools/vif-ganeti-metad.in tools/net-common.in \
+	tools/kvm-ifup.in tools/ifup-os.in tools/vif-alcor.in \
+	tools/vif-alcor-metad.in tools/net-common.in \
 	tools/vcluster-setup.in $(python_scripts) $(docinput) doc/html \
-	$(BUILT_EXAMPLES:%=%.in) doc/examples/ganeti.default \
-	doc/examples/ganeti.default-debug doc/examples/hooks/ethers \
+	$(BUILT_EXAMPLES:%=%.in) doc/examples/alcor.default \
+	doc/examples/alcor.default-debug doc/examples/hooks/ethers \
 	doc/examples/gnt-debug/README \
 	doc/examples/gnt-debug/delay0.json \
 	doc/examples/gnt-debug/delay50.json \
-	doc/examples/systemd/ganeti-master.target \
-	doc/examples/systemd/ganeti-node.target \
-	doc/examples/systemd/ganeti.service \
-	doc/examples/systemd/ganeti.target \
+	doc/examples/systemd/alcor-master.target \
+	doc/examples/systemd/alcor-node.target \
+	doc/examples/systemd/alcor.service \
+	doc/examples/systemd/alcor.target \
 	doc/users/groupmemberships.in doc/users/groups.in \
-	doc/users/users.in ganeti.cabal cabal/ganeti.template.cabal \
+	doc/users/users.in alcor.cabal cabal/alcor.template.cabal \
 	cabal/CabalDependenciesMacros.hs $(dist_TESTS) $(TEST_FILES) \
 	$(python_test_support) $(python_test_utils) man/footer.rst \
 	$(manrst) qa/qa-sample.json $(qa_scripts) $(HS_LIBTEST_SRCS) \
@@ -540,28 +540,28 @@ BUILD_RPC = $(top_srcdir)/autotools/build-rpc
 SHELL_ENV_INIT = autotools/shell-env-init
 @USE_VERSION_FULL_FALSE@DIRVERSION = $(VERSION_MAJOR).$(VERSION_MINOR)
 
-# starting as of Ganeti 2.10, all files are stored in two directories,
+# starting as of Alcor 2.10, all files are stored in two directories,
 # with only symbolic links added at other places.
 #
-# $(versiondir) contains most of Ganeti and all architecture-dependent files
+# $(versiondir) contains most of Alcor and all architecture-dependent files
 # $(versionedsharedir) contains only architecture-independent files; all python
-# executables need to go directly to $(versionedsharedir), as all ganeti python
+# executables need to go directly to $(versionedsharedir), as all alcor python
 # mdules are installed outside the usual python path, i.e., as private modules.
 #
 # $(defaultversiondir) and $(defaultversionedsharedir) are the corresponding
-# directories for "the currently running" version of Ganeti. We never install
+# directories for "the currently running" version of Alcor. We never install
 # there, but all symbolic links go there, rather than directory to $(versiondir)
 # or $(versionedsharedir). Note that all links to $(default*dir) need to be stable;
 # so, if some currently architecture-independent executable is replaced by an
 # architecture-dependent one (and hence has to go under $(versiondir)), add a link
 # under $(versionedsharedir) but do not change the external links.
 @USE_VERSION_FULL_TRUE@DIRVERSION = $(VERSION_FULL)
-versiondir = $(libdir)/ganeti/$(DIRVERSION)
-defaultversiondir = $(libdir)/ganeti/default
-versionedsharedir = $(prefix)/share/ganeti/$(DIRVERSION)
-defaultversionedsharedir = $(prefix)/share/ganeti/default
+versiondir = $(libdir)/alcor/$(DIRVERSION)
+defaultversiondir = $(libdir)/alcor/default
+versionedsharedir = $(prefix)/share/alcor/$(DIRVERSION)
+defaultversionedsharedir = $(prefix)/share/alcor/default
 myexeclibdir = $(pkglibdir)
-pkgpython_rpc_stubdir = $(versionedsharedir)/ganeti/rpc/stub
+pkgpython_rpc_stubdir = $(versionedsharedir)/alcor/rpc/stub
 gntpythondir = $(versionedsharedir)
 pkgpython_bindir = $(versionedsharedir)
 gnt_python_sbindir = $(versionedsharedir)
@@ -587,14 +587,14 @@ utilsdir = $(pkgpythondir)/utils
 toolsdir = $(pkglibdir)/tools
 iallocatorsdir = $(pkglibdir)/iallocators
 pytoolsdir = $(pkgpythondir)/tools
-ifupdir = $(sysconfdir)/ganeti
+ifupdir = $(sysconfdir)/alcor
 @USE_BACKUP_DIR_FALSE@backup_dir = $(localstatedir)/lib
 @USE_BACKUP_DIR_TRUE@backup_dir = $(BACKUP_DIR)
 SYMLINK_TARGET_DIRS = \
-	$(sysconfdir)/ganeti \
-	$(libdir)/ganeti/iallocators \
-	$(libdir)/ganeti/tools \
-	$(prefix)/share/ganeti \
+	$(sysconfdir)/alcor \
+	$(libdir)/alcor/iallocators \
+	$(libdir)/alcor/tools \
+	$(prefix)/share/alcor \
 	$(BINDIR) \
 	$(SBINDIR) \
 	$(MANDIR)/man1 \
@@ -603,56 +603,56 @@ SYMLINK_TARGET_DIRS = \
 
 HS_DIRS = \
 	src \
-	src/Ganeti \
-	src/Ganeti/Confd \
-	src/Ganeti/Curl \
-	src/Ganeti/Cpu \
-	src/Ganeti/DataCollectors \
-	src/Ganeti/Daemon \
-	src/Ganeti/Hs2Py \
-	src/Ganeti/HTools \
-	src/Ganeti/HTools/Backend \
-	src/Ganeti/HTools/Cluster \
-	src/Ganeti/HTools/Program \
-	src/Ganeti/HTools/Tags \
-	src/Ganeti/Hypervisor \
-	src/Ganeti/Hypervisor/Xen \
-	src/Ganeti/JQScheduler \
-	src/Ganeti/JQueue \
-	src/Ganeti/Locking \
-	src/Ganeti/Logging \
-	src/Ganeti/MaintD \
-	src/Ganeti/Metad \
-	src/Ganeti/Monitoring \
-	src/Ganeti/Objects \
-	src/Ganeti/OpCodes \
-	src/Ganeti/Query \
-	src/Ganeti/Storage \
-	src/Ganeti/Storage/Diskstats \
-	src/Ganeti/Storage/Drbd \
-	src/Ganeti/Storage/Lvm \
-	src/Ganeti/THH \
-	src/Ganeti/Utils \
-	src/Ganeti/WConfd \
+	src/Alcor \
+	src/Alcor/Confd \
+	src/Alcor/Curl \
+	src/Alcor/Cpu \
+	src/Alcor/DataCollectors \
+	src/Alcor/Daemon \
+	src/Alcor/Hs2Py \
+	src/Alcor/HTools \
+	src/Alcor/HTools/Backend \
+	src/Alcor/HTools/Cluster \
+	src/Alcor/HTools/Program \
+	src/Alcor/HTools/Tags \
+	src/Alcor/Hypervisor \
+	src/Alcor/Hypervisor/Xen \
+	src/Alcor/JQScheduler \
+	src/Alcor/JQueue \
+	src/Alcor/Locking \
+	src/Alcor/Logging \
+	src/Alcor/MaintD \
+	src/Alcor/Metad \
+	src/Alcor/Monitoring \
+	src/Alcor/Objects \
+	src/Alcor/OpCodes \
+	src/Alcor/Query \
+	src/Alcor/Storage \
+	src/Alcor/Storage/Diskstats \
+	src/Alcor/Storage/Drbd \
+	src/Alcor/Storage/Lvm \
+	src/Alcor/THH \
+	src/Alcor/Utils \
+	src/Alcor/WConfd \
 	test/hs \
 	test/hs/Test \
-	test/hs/Test/Ganeti \
-	test/hs/Test/Ganeti/Storage \
-	test/hs/Test/Ganeti/Storage/Diskstats \
-	test/hs/Test/Ganeti/Storage/Drbd \
-	test/hs/Test/Ganeti/Storage/Lvm \
-	test/hs/Test/Ganeti/Confd \
-	test/hs/Test/Ganeti/HTools \
-	test/hs/Test/Ganeti/HTools/Backend \
-	test/hs/Test/Ganeti/Hypervisor \
-	test/hs/Test/Ganeti/Hypervisor/Xen \
-	test/hs/Test/Ganeti/JQueue \
-	test/hs/Test/Ganeti/Locking \
-	test/hs/Test/Ganeti/Objects \
-	test/hs/Test/Ganeti/Query \
-	test/hs/Test/Ganeti/THH \
-	test/hs/Test/Ganeti/Utils \
-	test/hs/Test/Ganeti/WConfd
+	test/hs/Test/Alcor \
+	test/hs/Test/Alcor/Storage \
+	test/hs/Test/Alcor/Storage/Diskstats \
+	test/hs/Test/Alcor/Storage/Drbd \
+	test/hs/Test/Alcor/Storage/Lvm \
+	test/hs/Test/Alcor/Confd \
+	test/hs/Test/Alcor/HTools \
+	test/hs/Test/Alcor/HTools/Backend \
+	test/hs/Test/Alcor/Hypervisor \
+	test/hs/Test/Alcor/Hypervisor/Xen \
+	test/hs/Test/Alcor/JQueue \
+	test/hs/Test/Alcor/Locking \
+	test/hs/Test/Alcor/Objects \
+	test/hs/Test/Alcor/Query \
+	test/hs/Test/Alcor/THH \
+	test/hs/Test/Alcor/Utils \
+	test/hs/Test/Alcor/WConfd
 
 
 # Haskell directories without the roots (src, test/hs)
@@ -746,7 +746,7 @@ BUILDTIME_DIRS = \
 
 DIRCHECK_EXCLUDE = \
 	$(BUILDTIME_DIRS) \
-	ganeti-[0-9]*.[0-9]*.[0-9]* \
+	alcor-[0-9]*.[0-9]*.[0-9]* \
 	doc/html/_* \
 	doc/man-html/_* \
 	tools/shebang \
@@ -777,7 +777,7 @@ CLEANFILES = \
 	$(HASKELL_PACKAGE_VERSIONS_FILE) \
 	$(CABAL_EXECUTABLES_APPS_STAMPS) \
 	empty-cabal-config \
-	ganeti.cabal \
+	alcor.cabal \
 	$(HASKELL_PACKAGE_IDS_FILE) \
 	$(HASKELL_PACKAGE_VERSIONS_FILE) \
 	Makefile.ghc \
@@ -787,7 +787,7 @@ CLEANFILES = \
 	$(REPLACE_VARS_SED) \
 	$(SHELL_ENV_INIT) \
 	daemons/daemon-util \
-	daemons/ganeti-cleaner \
+	daemons/alcor-cleaner \
 	devel/squeeze-amd64.tar.gz \
 	devel/squeeze-amd64.conf \
 	$(mandocrst) \
@@ -802,8 +802,8 @@ CLEANFILES = \
 	tools/kvm-ifup \
 	tools/kvm-ifup-os \
 	tools/xen-ifup-os \
-	tools/vif-ganeti \
-	tools/vif-ganeti-metad \
+	tools/vif-alcor \
+	tools/vif-alcor-metad \
 	tools/net-common \
 	tools/users-setup \
 	tools/ssl-update \
@@ -818,11 +818,11 @@ CLEANFILES = \
 	$(gnt_scripts) \
 	$(HS_ALL_PROGS) $(HS_BUILT_SRCS) \
 	$(HS_BUILT_TEST_HELPERS) \
-	src/ganeti-confd \
-	src/ganeti-wconfd \
-	src/ganeti-luxid \
-	src/ganeti-metad \
-	src/ganeti-mond \
+	src/alcor-confd \
+	src/alcor-wconfd \
+	src/alcor-luxid \
+	src/alcor-metad \
+	src/alcor-mond \
 	.hpc/*.mix src/*.tix test/hs/*.tix *.tix \
 	doc/hs-lint.html
 
@@ -832,8 +832,8 @@ GENERATED_FILES = \
 	$(PYTHON_BOOTSTRAP) \
 	$(gnt_python_sbin_SCRIPTS)
 
-HS_GENERATED_FILES = $(HS_PROGS) src/hluxid src/ganeti-luxid \
-	src/hconfd src/ganeti-confd $(am__append_1) $(am__append_2)
+HS_GENERATED_FILES = $(HS_PROGS) src/hluxid src/alcor-luxid \
+	src/hconfd src/alcor-confd $(am__append_1) $(am__append_2)
 built_base_sources = \
 	stamp-directories \
 	stamp-srclinks
@@ -847,23 +847,23 @@ built_python_sources = \
 
 # these are all built from the underlying %.in sources
 BUILT_EXAMPLES = \
-	doc/examples/ganeti-kvm-poweroff.initd \
-	doc/examples/ganeti.cron \
-	doc/examples/ganeti.initd \
-	doc/examples/ganeti.logrotate \
-	doc/examples/ganeti-master-role.ocf \
-	doc/examples/ganeti-node-role.ocf \
+	doc/examples/alcor-kvm-poweroff.initd \
+	doc/examples/alcor.cron \
+	doc/examples/alcor.initd \
+	doc/examples/alcor.logrotate \
+	doc/examples/alcor-master-role.ocf \
+	doc/examples/alcor-node-role.ocf \
 	doc/examples/gnt-config-backup \
 	doc/examples/hooks/ipsec \
-	doc/examples/systemd/ganeti-common.service \
-	doc/examples/systemd/ganeti-confd.service \
-	doc/examples/systemd/ganeti-kvmd.service \
-	doc/examples/systemd/ganeti-luxid.service \
-	doc/examples/systemd/ganeti-metad.service \
-	doc/examples/systemd/ganeti-mond.service \
-	doc/examples/systemd/ganeti-noded.service \
-	doc/examples/systemd/ganeti-rapi.service \
-	doc/examples/systemd/ganeti-wconfd.service
+	doc/examples/systemd/alcor-common.service \
+	doc/examples/systemd/alcor-confd.service \
+	doc/examples/systemd/alcor-kvmd.service \
+	doc/examples/systemd/alcor-luxid.service \
+	doc/examples/systemd/alcor-metad.service \
+	doc/examples/systemd/alcor-mond.service \
+	doc/examples/systemd/alcor-noded.service \
+	doc/examples/systemd/alcor-rapi.service \
+	doc/examples/systemd/alcor-wconfd.service
 
 nodist_ifup_SCRIPTS = \
 	tools/kvm-ifup-os \
@@ -1109,7 +1109,7 @@ docinput = \
 	doc/design-allocation-efficiency.rst \
 	doc/design-autorepair.rst \
 	doc/design-bulk-create.rst \
-	doc/design-ceph-ganeti-support.rst \
+	doc/design-ceph-alcor-support.rst \
 	doc/design-configlock.rst \
 	doc/design-chained-jobs.rst \
 	doc/design-cmdlib-unittests.rst \
@@ -1123,7 +1123,7 @@ docinput = \
 	doc/design-draft.rst \
 	doc/design-file-based-disks-ownership.rst \
 	doc/design-file-based-storage.rst \
-	doc/design-glusterfs-ganeti-support.rst \
+	doc/design-glusterfs-alcor-support.rst \
 	doc/design-hotplug.rst \
 	doc/design-hroller.rst \
 	doc/design-hsqueeze.rst \
@@ -1205,7 +1205,7 @@ HS_BIN_PROGS = src/htools
 @ENABLE_MOND_TRUE@HS_MYEXECLIB_PROGS = src/mon-collector
 
 # Haskell programs to be compiled by "make really-all"
-HS_COMPILE_PROGS = src/ganeti-kvmd src/ganeti-wconfd src/hconfd \
+HS_COMPILE_PROGS = src/alcor-kvmd src/alcor-wconfd src/hconfd \
 	src/hluxid src/hs2py src/rpc-test $(am__append_5) \
 	$(am__append_6)
 
@@ -1266,199 +1266,199 @@ HEXTRA_TEST = -threaded -with-rtsopts="-N -A32m" -rtsopts
 
 # exclude options for coverage reports
 HPCEXCL = --exclude Main \
-	--exclude Ganeti.Constants \
-	--exclude Ganeti.HTools.QC \
-	--exclude Ganeti.THH \
-	--exclude Ganeti.Version \
-	--exclude Test.Ganeti.Attoparsec \
-	--exclude Test.Ganeti.TestCommon \
-	--exclude Test.Ganeti.TestHTools \
-	--exclude Test.Ganeti.TestHelper \
-	--exclude Test.Ganeti.TestImports \
+	--exclude Alcor.Constants \
+	--exclude Alcor.HTools.QC \
+	--exclude Alcor.THH \
+	--exclude Alcor.Version \
+	--exclude Test.Alcor.Attoparsec \
+	--exclude Test.Alcor.TestCommon \
+	--exclude Test.Alcor.TestHTools \
+	--exclude Test.Alcor.TestHelper \
+	--exclude Test.Alcor.TestImports \
 	$(patsubst src.%,--exclude Test.%,$(subst /,.,$(patsubst %.hs,%, $(HS_LIB_SRCS))))
 
-HS_LIB_SRCS = src/Ganeti/BasicTypes.hs src/Ganeti/Codec.hs \
-	src/Ganeti/Common.hs src/Ganeti/Compat.hs \
-	src/Ganeti/Confd/Client.hs src/Ganeti/Confd/ClientFunctions.hs \
-	src/Ganeti/Confd/Server.hs src/Ganeti/Confd/Types.hs \
-	src/Ganeti/Confd/Utils.hs src/Ganeti/Config.hs \
-	src/Ganeti/ConfigReader.hs src/Ganeti/Constants.hs \
-	src/Ganeti/ConstantUtils.hs src/Ganeti/Cpu/LoadParser.hs \
-	src/Ganeti/Cpu/Types.hs src/Ganeti/Curl/Multi.hs \
-	src/Ganeti/Daemon.hs src/Ganeti/Daemon/Utils.hs \
-	src/Ganeti/DataCollectors.hs src/Ganeti/DataCollectors/CLI.hs \
-	src/Ganeti/DataCollectors/CPUload.hs \
-	src/Ganeti/DataCollectors/Diskstats.hs \
-	src/Ganeti/DataCollectors/Drbd.hs \
-	src/Ganeti/DataCollectors/InstStatus.hs \
-	src/Ganeti/DataCollectors/InstStatusTypes.hs \
-	src/Ganeti/DataCollectors/Lv.hs \
-	src/Ganeti/DataCollectors/Program.hs \
-	src/Ganeti/DataCollectors/Types.hs \
-	src/Ganeti/DataCollectors/XenCpuLoad.hs src/Ganeti/Errors.hs \
-	src/Ganeti/HTools/AlgorithmParams.hs \
-	src/Ganeti/HTools/Backend/IAlloc.hs \
-	src/Ganeti/HTools/Backend/Luxi.hs \
-	src/Ganeti/HTools/Backend/MonD.hs \
-	src/Ganeti/HTools/Backend/Rapi.hs \
-	src/Ganeti/HTools/Backend/Simu.hs \
-	src/Ganeti/HTools/Backend/Text.hs src/Ganeti/HTools/CLI.hs \
-	src/Ganeti/HTools/Cluster.hs \
-	src/Ganeti/HTools/Cluster/AllocatePrimitives.hs \
-	src/Ganeti/HTools/Cluster/AllocateSecondary.hs \
-	src/Ganeti/HTools/Cluster/AllocationSolution.hs \
-	src/Ganeti/HTools/Cluster/Evacuate.hs \
-	src/Ganeti/HTools/Cluster/Metrics.hs \
-	src/Ganeti/HTools/Cluster/Moves.hs \
-	src/Ganeti/HTools/Cluster/Utils.hs \
-	src/Ganeti/HTools/Container.hs src/Ganeti/HTools/Dedicated.hs \
-	src/Ganeti/HTools/ExtLoader.hs src/Ganeti/HTools/GlobalN1.hs \
-	src/Ganeti/HTools/Graph.hs src/Ganeti/HTools/Group.hs \
-	src/Ganeti/HTools/Instance.hs src/Ganeti/HTools/Loader.hs \
-	src/Ganeti/HTools/Nic.hs src/Ganeti/HTools/Node.hs \
-	src/Ganeti/HTools/PeerMap.hs src/Ganeti/HTools/Program/Hail.hs \
-	src/Ganeti/HTools/Program/Harep.hs \
-	src/Ganeti/HTools/Program/Hbal.hs \
-	src/Ganeti/HTools/Program/Hcheck.hs \
-	src/Ganeti/HTools/Program/Hinfo.hs \
-	src/Ganeti/HTools/Program/Hscan.hs \
-	src/Ganeti/HTools/Program/Hspace.hs \
-	src/Ganeti/HTools/Program/Hsqueeze.hs \
-	src/Ganeti/HTools/Program/Hroller.hs \
-	src/Ganeti/HTools/Program/Main.hs src/Ganeti/HTools/Tags.hs \
-	src/Ganeti/HTools/Tags/Constants.hs src/Ganeti/HTools/Types.hs \
-	src/Ganeti/Hypervisor/Xen.hs \
-	src/Ganeti/Hypervisor/Xen/XlParser.hs \
-	src/Ganeti/Hypervisor/Xen/Types.hs src/Ganeti/Hash.hs \
-	src/Ganeti/Hs2Py/GenConstants.hs \
-	src/Ganeti/Hs2Py/GenOpCodes.hs src/Ganeti/Hs2Py/OpDoc.hs \
-	src/Ganeti/JQScheduler.hs src/Ganeti/JQScheduler/Filtering.hs \
-	src/Ganeti/JQScheduler/ReasonRateLimiting.hs \
-	src/Ganeti/JQScheduler/Types.hs src/Ganeti/JQueue.hs \
-	src/Ganeti/JQueue/Lens.hs src/Ganeti/JQueue/Objects.hs \
-	src/Ganeti/JSON.hs src/Ganeti/Jobs.hs src/Ganeti/Kvmd.hs \
-	src/Ganeti/Lens.hs src/Ganeti/Locking/Allocation.hs \
-	src/Ganeti/Locking/Types.hs src/Ganeti/Locking/Locks.hs \
-	src/Ganeti/Locking/Waiting.hs src/Ganeti/Logging.hs \
-	src/Ganeti/Logging/Lifted.hs src/Ganeti/Logging/WriterLog.hs \
-	src/Ganeti/Luxi.hs src/Ganeti/Network.hs src/Ganeti/Objects.hs \
-	src/Ganeti/Objects/BitArray.hs src/Ganeti/Objects/Disk.hs \
-	src/Ganeti/Objects/Instance.hs src/Ganeti/Objects/Lens.hs \
-	src/Ganeti/Objects/Nic.hs src/Ganeti/OpCodes.hs \
-	src/Ganeti/OpCodes/Lens.hs src/Ganeti/OpParams.hs \
-	src/Ganeti/Path.hs src/Ganeti/Parsers.hs src/Ganeti/PyValue.hs \
-	src/Ganeti/Query/Cluster.hs src/Ganeti/Query/Common.hs \
-	src/Ganeti/Query/Exec.hs src/Ganeti/Query/Export.hs \
-	src/Ganeti/Query/Filter.hs src/Ganeti/Query/FilterRules.hs \
-	src/Ganeti/Query/Group.hs src/Ganeti/Query/Instance.hs \
-	src/Ganeti/Query/Job.hs src/Ganeti/Query/Language.hs \
-	src/Ganeti/Query/Locks.hs src/Ganeti/Query/Network.hs \
-	src/Ganeti/Query/Node.hs src/Ganeti/Query/Query.hs \
-	src/Ganeti/Query/Server.hs src/Ganeti/Query/Types.hs \
-	src/Ganeti/PartialParams.hs src/Ganeti/Rpc.hs \
-	src/Ganeti/Runtime.hs src/Ganeti/SlotMap.hs \
-	src/Ganeti/Ssconf.hs src/Ganeti/Storage/Diskstats/Parser.hs \
-	src/Ganeti/Storage/Diskstats/Types.hs \
-	src/Ganeti/Storage/Drbd/Parser.hs \
-	src/Ganeti/Storage/Drbd/Types.hs \
-	src/Ganeti/Storage/Lvm/LVParser.hs \
-	src/Ganeti/Storage/Lvm/Types.hs src/Ganeti/Storage/Utils.hs \
-	src/Ganeti/THH.hs src/Ganeti/THH/Compat.hs \
-	src/Ganeti/THH/Field.hs src/Ganeti/THH/HsRPC.hs \
-	src/Ganeti/THH/PyRPC.hs src/Ganeti/THH/PyType.hs \
-	src/Ganeti/THH/Types.hs src/Ganeti/THH/RPC.hs \
-	src/Ganeti/Types.hs src/Ganeti/UDSServer.hs \
-	src/Ganeti/Utils.hs src/Ganeti/Utils/Atomic.hs \
-	src/Ganeti/Utils/AsyncWorker.hs src/Ganeti/Utils/IORef.hs \
-	src/Ganeti/Utils/Livelock.hs src/Ganeti/Utils/Monad.hs \
-	src/Ganeti/Utils/MultiMap.hs src/Ganeti/Utils/MVarLock.hs \
-	src/Ganeti/Utils/Random.hs src/Ganeti/Utils/Statistics.hs \
-	src/Ganeti/Utils/UniStd.hs src/Ganeti/Utils/Validate.hs \
-	src/Ganeti/VCluster.hs src/Ganeti/WConfd/ConfigState.hs \
-	src/Ganeti/WConfd/ConfigModifications.hs \
-	src/Ganeti/WConfd/ConfigVerify.hs \
-	src/Ganeti/WConfd/ConfigWriter.hs src/Ganeti/WConfd/Client.hs \
-	src/Ganeti/WConfd/Core.hs src/Ganeti/WConfd/DeathDetection.hs \
-	src/Ganeti/WConfd/Language.hs src/Ganeti/WConfd/Monad.hs \
-	src/Ganeti/WConfd/Persistent.hs src/Ganeti/WConfd/Server.hs \
-	src/Ganeti/WConfd/Ssconf.hs src/Ganeti/WConfd/TempRes.hs \
+HS_LIB_SRCS = src/Alcor/BasicTypes.hs src/Alcor/Codec.hs \
+	src/Alcor/Common.hs src/Alcor/Compat.hs \
+	src/Alcor/Confd/Client.hs src/Alcor/Confd/ClientFunctions.hs \
+	src/Alcor/Confd/Server.hs src/Alcor/Confd/Types.hs \
+	src/Alcor/Confd/Utils.hs src/Alcor/Config.hs \
+	src/Alcor/ConfigReader.hs src/Alcor/Constants.hs \
+	src/Alcor/ConstantUtils.hs src/Alcor/Cpu/LoadParser.hs \
+	src/Alcor/Cpu/Types.hs src/Alcor/Curl/Multi.hs \
+	src/Alcor/Daemon.hs src/Alcor/Daemon/Utils.hs \
+	src/Alcor/DataCollectors.hs src/Alcor/DataCollectors/CLI.hs \
+	src/Alcor/DataCollectors/CPUload.hs \
+	src/Alcor/DataCollectors/Diskstats.hs \
+	src/Alcor/DataCollectors/Drbd.hs \
+	src/Alcor/DataCollectors/InstStatus.hs \
+	src/Alcor/DataCollectors/InstStatusTypes.hs \
+	src/Alcor/DataCollectors/Lv.hs \
+	src/Alcor/DataCollectors/Program.hs \
+	src/Alcor/DataCollectors/Types.hs \
+	src/Alcor/DataCollectors/XenCpuLoad.hs src/Alcor/Errors.hs \
+	src/Alcor/HTools/AlgorithmParams.hs \
+	src/Alcor/HTools/Backend/IAlloc.hs \
+	src/Alcor/HTools/Backend/Luxi.hs \
+	src/Alcor/HTools/Backend/MonD.hs \
+	src/Alcor/HTools/Backend/Rapi.hs \
+	src/Alcor/HTools/Backend/Simu.hs \
+	src/Alcor/HTools/Backend/Text.hs src/Alcor/HTools/CLI.hs \
+	src/Alcor/HTools/Cluster.hs \
+	src/Alcor/HTools/Cluster/AllocatePrimitives.hs \
+	src/Alcor/HTools/Cluster/AllocateSecondary.hs \
+	src/Alcor/HTools/Cluster/AllocationSolution.hs \
+	src/Alcor/HTools/Cluster/Evacuate.hs \
+	src/Alcor/HTools/Cluster/Metrics.hs \
+	src/Alcor/HTools/Cluster/Moves.hs \
+	src/Alcor/HTools/Cluster/Utils.hs \
+	src/Alcor/HTools/Container.hs src/Alcor/HTools/Dedicated.hs \
+	src/Alcor/HTools/ExtLoader.hs src/Alcor/HTools/GlobalN1.hs \
+	src/Alcor/HTools/Graph.hs src/Alcor/HTools/Group.hs \
+	src/Alcor/HTools/Instance.hs src/Alcor/HTools/Loader.hs \
+	src/Alcor/HTools/Nic.hs src/Alcor/HTools/Node.hs \
+	src/Alcor/HTools/PeerMap.hs src/Alcor/HTools/Program/Hail.hs \
+	src/Alcor/HTools/Program/Harep.hs \
+	src/Alcor/HTools/Program/Hbal.hs \
+	src/Alcor/HTools/Program/Hcheck.hs \
+	src/Alcor/HTools/Program/Hinfo.hs \
+	src/Alcor/HTools/Program/Hscan.hs \
+	src/Alcor/HTools/Program/Hspace.hs \
+	src/Alcor/HTools/Program/Hsqueeze.hs \
+	src/Alcor/HTools/Program/Hroller.hs \
+	src/Alcor/HTools/Program/Main.hs src/Alcor/HTools/Tags.hs \
+	src/Alcor/HTools/Tags/Constants.hs src/Alcor/HTools/Types.hs \
+	src/Alcor/Hypervisor/Xen.hs \
+	src/Alcor/Hypervisor/Xen/XlParser.hs \
+	src/Alcor/Hypervisor/Xen/Types.hs src/Alcor/Hash.hs \
+	src/Alcor/Hs2Py/GenConstants.hs \
+	src/Alcor/Hs2Py/GenOpCodes.hs src/Alcor/Hs2Py/OpDoc.hs \
+	src/Alcor/JQScheduler.hs src/Alcor/JQScheduler/Filtering.hs \
+	src/Alcor/JQScheduler/ReasonRateLimiting.hs \
+	src/Alcor/JQScheduler/Types.hs src/Alcor/JQueue.hs \
+	src/Alcor/JQueue/Lens.hs src/Alcor/JQueue/Objects.hs \
+	src/Alcor/JSON.hs src/Alcor/Jobs.hs src/Alcor/Kvmd.hs \
+	src/Alcor/Lens.hs src/Alcor/Locking/Allocation.hs \
+	src/Alcor/Locking/Types.hs src/Alcor/Locking/Locks.hs \
+	src/Alcor/Locking/Waiting.hs src/Alcor/Logging.hs \
+	src/Alcor/Logging/Lifted.hs src/Alcor/Logging/WriterLog.hs \
+	src/Alcor/Luxi.hs src/Alcor/Network.hs src/Alcor/Objects.hs \
+	src/Alcor/Objects/BitArray.hs src/Alcor/Objects/Disk.hs \
+	src/Alcor/Objects/Instance.hs src/Alcor/Objects/Lens.hs \
+	src/Alcor/Objects/Nic.hs src/Alcor/OpCodes.hs \
+	src/Alcor/OpCodes/Lens.hs src/Alcor/OpParams.hs \
+	src/Alcor/Path.hs src/Alcor/Parsers.hs src/Alcor/PyValue.hs \
+	src/Alcor/Query/Cluster.hs src/Alcor/Query/Common.hs \
+	src/Alcor/Query/Exec.hs src/Alcor/Query/Export.hs \
+	src/Alcor/Query/Filter.hs src/Alcor/Query/FilterRules.hs \
+	src/Alcor/Query/Group.hs src/Alcor/Query/Instance.hs \
+	src/Alcor/Query/Job.hs src/Alcor/Query/Language.hs \
+	src/Alcor/Query/Locks.hs src/Alcor/Query/Network.hs \
+	src/Alcor/Query/Node.hs src/Alcor/Query/Query.hs \
+	src/Alcor/Query/Server.hs src/Alcor/Query/Types.hs \
+	src/Alcor/PartialParams.hs src/Alcor/Rpc.hs \
+	src/Alcor/Runtime.hs src/Alcor/SlotMap.hs \
+	src/Alcor/Ssconf.hs src/Alcor/Storage/Diskstats/Parser.hs \
+	src/Alcor/Storage/Diskstats/Types.hs \
+	src/Alcor/Storage/Drbd/Parser.hs \
+	src/Alcor/Storage/Drbd/Types.hs \
+	src/Alcor/Storage/Lvm/LVParser.hs \
+	src/Alcor/Storage/Lvm/Types.hs src/Alcor/Storage/Utils.hs \
+	src/Alcor/THH.hs src/Alcor/THH/Compat.hs \
+	src/Alcor/THH/Field.hs src/Alcor/THH/HsRPC.hs \
+	src/Alcor/THH/PyRPC.hs src/Alcor/THH/PyType.hs \
+	src/Alcor/THH/Types.hs src/Alcor/THH/RPC.hs \
+	src/Alcor/Types.hs src/Alcor/UDSServer.hs \
+	src/Alcor/Utils.hs src/Alcor/Utils/Atomic.hs \
+	src/Alcor/Utils/AsyncWorker.hs src/Alcor/Utils/IORef.hs \
+	src/Alcor/Utils/Livelock.hs src/Alcor/Utils/Monad.hs \
+	src/Alcor/Utils/MultiMap.hs src/Alcor/Utils/MVarLock.hs \
+	src/Alcor/Utils/Random.hs src/Alcor/Utils/Statistics.hs \
+	src/Alcor/Utils/UniStd.hs src/Alcor/Utils/Validate.hs \
+	src/Alcor/VCluster.hs src/Alcor/WConfd/ConfigState.hs \
+	src/Alcor/WConfd/ConfigModifications.hs \
+	src/Alcor/WConfd/ConfigVerify.hs \
+	src/Alcor/WConfd/ConfigWriter.hs src/Alcor/WConfd/Client.hs \
+	src/Alcor/WConfd/Core.hs src/Alcor/WConfd/DeathDetection.hs \
+	src/Alcor/WConfd/Language.hs src/Alcor/WConfd/Monad.hs \
+	src/Alcor/WConfd/Persistent.hs src/Alcor/WConfd/Server.hs \
+	src/Alcor/WConfd/Ssconf.hs src/Alcor/WConfd/TempRes.hs \
 	$(am__append_11) $(am__append_13)
 HS_TEST_SRCS = \
 	test/hs/Test/AutoConf.hs \
-	test/hs/Test/Ganeti/Attoparsec.hs \
-	test/hs/Test/Ganeti/BasicTypes.hs \
-	test/hs/Test/Ganeti/Common.hs \
-	test/hs/Test/Ganeti/Confd/Types.hs \
-	test/hs/Test/Ganeti/Confd/Utils.hs \
-	test/hs/Test/Ganeti/Constants.hs \
-	test/hs/Test/Ganeti/Daemon.hs \
-	test/hs/Test/Ganeti/Errors.hs \
-	test/hs/Test/Ganeti/HTools/Backend/MonD.hs \
-	test/hs/Test/Ganeti/HTools/Backend/Simu.hs \
-	test/hs/Test/Ganeti/HTools/Backend/Text.hs \
-	test/hs/Test/Ganeti/HTools/CLI.hs \
-	test/hs/Test/Ganeti/HTools/Cluster.hs \
-	test/hs/Test/Ganeti/HTools/Container.hs \
-	test/hs/Test/Ganeti/HTools/Graph.hs \
-	test/hs/Test/Ganeti/HTools/Instance.hs \
-	test/hs/Test/Ganeti/HTools/Loader.hs \
-	test/hs/Test/Ganeti/HTools/Node.hs \
-	test/hs/Test/Ganeti/HTools/PeerMap.hs \
-	test/hs/Test/Ganeti/HTools/Types.hs \
-	test/hs/Test/Ganeti/Hypervisor/Xen/XlParser.hs \
-	test/hs/Test/Ganeti/JSON.hs \
-	test/hs/Test/Ganeti/Jobs.hs \
-	test/hs/Test/Ganeti/JQScheduler.hs \
-	test/hs/Test/Ganeti/JQueue.hs \
-	test/hs/Test/Ganeti/JQueue/Objects.hs \
-	test/hs/Test/Ganeti/Kvmd.hs \
-	test/hs/Test/Ganeti/Luxi.hs \
-	test/hs/Test/Ganeti/Locking/Allocation.hs \
-	test/hs/Test/Ganeti/Locking/Locks.hs \
-	test/hs/Test/Ganeti/Locking/Waiting.hs \
-	test/hs/Test/Ganeti/Network.hs \
-	test/hs/Test/Ganeti/PartialParams.hs \
-	test/hs/Test/Ganeti/PyValue.hs \
-	test/hs/Test/Ganeti/Objects.hs \
-	test/hs/Test/Ganeti/Objects/BitArray.hs \
-	test/hs/Test/Ganeti/OpCodes.hs \
-	test/hs/Test/Ganeti/Query/Aliases.hs \
-	test/hs/Test/Ganeti/Query/Filter.hs \
-	test/hs/Test/Ganeti/Query/Instance.hs \
-	test/hs/Test/Ganeti/Query/Language.hs \
-	test/hs/Test/Ganeti/Query/Network.hs \
-	test/hs/Test/Ganeti/Query/Query.hs \
-	test/hs/Test/Ganeti/Rpc.hs \
-	test/hs/Test/Ganeti/Runtime.hs \
-	test/hs/Test/Ganeti/SlotMap.hs \
-	test/hs/Test/Ganeti/Ssconf.hs \
-	test/hs/Test/Ganeti/Storage/Diskstats/Parser.hs \
-	test/hs/Test/Ganeti/Storage/Drbd/Parser.hs \
-	test/hs/Test/Ganeti/Storage/Drbd/Types.hs \
-	test/hs/Test/Ganeti/Storage/Lvm/LVParser.hs \
-	test/hs/Test/Ganeti/THH.hs \
-	test/hs/Test/Ganeti/THH/Types.hs \
-	test/hs/Test/Ganeti/TestCommon.hs \
-	test/hs/Test/Ganeti/TestHTools.hs \
-	test/hs/Test/Ganeti/TestHelper.hs \
-	test/hs/Test/Ganeti/Types.hs \
-	test/hs/Test/Ganeti/Utils.hs \
-	test/hs/Test/Ganeti/Utils/MultiMap.hs \
-	test/hs/Test/Ganeti/Utils/Statistics.hs \
-	test/hs/Test/Ganeti/WConfd/Ssconf.hs \
-	test/hs/Test/Ganeti/WConfd/TempRes.hs
+	test/hs/Test/Alcor/Attoparsec.hs \
+	test/hs/Test/Alcor/BasicTypes.hs \
+	test/hs/Test/Alcor/Common.hs \
+	test/hs/Test/Alcor/Confd/Types.hs \
+	test/hs/Test/Alcor/Confd/Utils.hs \
+	test/hs/Test/Alcor/Constants.hs \
+	test/hs/Test/Alcor/Daemon.hs \
+	test/hs/Test/Alcor/Errors.hs \
+	test/hs/Test/Alcor/HTools/Backend/MonD.hs \
+	test/hs/Test/Alcor/HTools/Backend/Simu.hs \
+	test/hs/Test/Alcor/HTools/Backend/Text.hs \
+	test/hs/Test/Alcor/HTools/CLI.hs \
+	test/hs/Test/Alcor/HTools/Cluster.hs \
+	test/hs/Test/Alcor/HTools/Container.hs \
+	test/hs/Test/Alcor/HTools/Graph.hs \
+	test/hs/Test/Alcor/HTools/Instance.hs \
+	test/hs/Test/Alcor/HTools/Loader.hs \
+	test/hs/Test/Alcor/HTools/Node.hs \
+	test/hs/Test/Alcor/HTools/PeerMap.hs \
+	test/hs/Test/Alcor/HTools/Types.hs \
+	test/hs/Test/Alcor/Hypervisor/Xen/XlParser.hs \
+	test/hs/Test/Alcor/JSON.hs \
+	test/hs/Test/Alcor/Jobs.hs \
+	test/hs/Test/Alcor/JQScheduler.hs \
+	test/hs/Test/Alcor/JQueue.hs \
+	test/hs/Test/Alcor/JQueue/Objects.hs \
+	test/hs/Test/Alcor/Kvmd.hs \
+	test/hs/Test/Alcor/Luxi.hs \
+	test/hs/Test/Alcor/Locking/Allocation.hs \
+	test/hs/Test/Alcor/Locking/Locks.hs \
+	test/hs/Test/Alcor/Locking/Waiting.hs \
+	test/hs/Test/Alcor/Network.hs \
+	test/hs/Test/Alcor/PartialParams.hs \
+	test/hs/Test/Alcor/PyValue.hs \
+	test/hs/Test/Alcor/Objects.hs \
+	test/hs/Test/Alcor/Objects/BitArray.hs \
+	test/hs/Test/Alcor/OpCodes.hs \
+	test/hs/Test/Alcor/Query/Aliases.hs \
+	test/hs/Test/Alcor/Query/Filter.hs \
+	test/hs/Test/Alcor/Query/Instance.hs \
+	test/hs/Test/Alcor/Query/Language.hs \
+	test/hs/Test/Alcor/Query/Network.hs \
+	test/hs/Test/Alcor/Query/Query.hs \
+	test/hs/Test/Alcor/Rpc.hs \
+	test/hs/Test/Alcor/Runtime.hs \
+	test/hs/Test/Alcor/SlotMap.hs \
+	test/hs/Test/Alcor/Ssconf.hs \
+	test/hs/Test/Alcor/Storage/Diskstats/Parser.hs \
+	test/hs/Test/Alcor/Storage/Drbd/Parser.hs \
+	test/hs/Test/Alcor/Storage/Drbd/Types.hs \
+	test/hs/Test/Alcor/Storage/Lvm/LVParser.hs \
+	test/hs/Test/Alcor/THH.hs \
+	test/hs/Test/Alcor/THH/Types.hs \
+	test/hs/Test/Alcor/TestCommon.hs \
+	test/hs/Test/Alcor/TestHTools.hs \
+	test/hs/Test/Alcor/TestHelper.hs \
+	test/hs/Test/Alcor/Types.hs \
+	test/hs/Test/Alcor/Utils.hs \
+	test/hs/Test/Alcor/Utils/MultiMap.hs \
+	test/hs/Test/Alcor/Utils/Statistics.hs \
+	test/hs/Test/Alcor/WConfd/Ssconf.hs \
+	test/hs/Test/Alcor/WConfd/TempRes.hs
 
 HS_LIBTEST_SRCS = $(HS_LIB_SRCS) $(HS_TEST_SRCS)
 HS_BUILT_SRCS = \
-	test/hs/Test/Ganeti/TestImports.hs \
+	test/hs/Test/Alcor/TestImports.hs \
 	src/AutoConf.hs \
-	src/Ganeti/Hs2Py/ListConstants.hs \
-	src/Ganeti/Curl/Internal.hs \
-	src/Ganeti/Version.hs
+	src/Alcor/Hs2Py/ListConstants.hs \
+	src/Alcor/Curl/Internal.hs \
+	src/Alcor/Version.hs
 
 HS_BUILT_SRCS_IN = \
-	$(patsubst %,%.in,$(filter-out src/Ganeti/Curl/Internal.hs,$(HS_BUILT_SRCS))) \
-	src/Ganeti/Curl/Internal.hsc \
+	$(patsubst %,%.in,$(filter-out src/Alcor/Curl/Internal.hs,$(HS_BUILT_SRCS))) \
+	src/Alcor/Curl/Internal.hsc \
 	lib/_constants.py.in \
 	lib/opcodes.py.in_after \
 	lib/opcodes.py.in_before
@@ -1496,9 +1496,9 @@ gnt_python_sbin_SCRIPTS = \
 
 gntpython_SCRIPTS = $(gnt_scripts)
 PYTHON_BOOTSTRAP_SBIN = \
-	daemons/ganeti-noded \
-	daemons/ganeti-rapi \
-	daemons/ganeti-watcher
+	daemons/alcor-noded \
+	daemons/alcor-rapi \
+	daemons/alcor-watcher
 
 PYTHON_BOOTSTRAP = \
 	tools/burnin \
@@ -1511,7 +1511,7 @@ PYTHON_BOOTSTRAP = \
 
 qa_scripts = \
 	qa/__init__.py \
-	qa/ganeti-qa.py \
+	qa/alcor-qa.py \
 	qa/qa_cluster.py \
 	qa/qa_config.py \
 	qa/qa_daemon.py \
@@ -1545,7 +1545,7 @@ HS_MAKEFILE_GHC_SRCS = $(HS_SRC_PROGS:%=%.hs) $(am__append_17)
 # (CabalDependenciesMacros.hs) after `cabal configure`.
 # This file is created along with HASKELL_PACKAGE_VERSIONS_FILE; if you want
 # to depend on it in a rule, depend on HASKELL_PACKAGE_VERSIONS_FILE instead.
-HASKELL_PACKAGE_IDS_FILE = ganeti.depsflags
+HASKELL_PACKAGE_IDS_FILE = alcor.depsflags
 
 # Defines the MIN_VERSION_* macros for all Haskell packages used in this
 # compilation.
@@ -1557,10 +1557,10 @@ HASKELL_PACKAGE_IDS_FILE = ganeti.depsflags
 # downloading (only `cabal install` can do that).
 HASKELL_PACKAGE_VERSIONS_FILE = cabal_macros.h
 dist_sbin_SCRIPTS = \
-	tools/ganeti-listrunner
+	tools/alcor-listrunner
 
-nodist_sbin_SCRIPTS = daemons/ganeti-cleaner src/ganeti-kvmd \
-	src/ganeti-luxid src/ganeti-confd src/ganeti-wconfd \
+nodist_sbin_SCRIPTS = daemons/alcor-cleaner src/alcor-kvmd \
+	src/alcor-luxid src/alcor-confd src/alcor-wconfd \
 	$(am__append_18) $(am__append_19)
 
 # strip path prefixes off the sbin scripts
@@ -1627,8 +1627,8 @@ myexeclib_SCRIPTS = \
 	tools/kvm-ifup \
 	tools/kvm-ifup-os \
 	tools/xen-ifup-os \
-	tools/vif-ganeti \
-	tools/vif-ganeti-metad \
+	tools/vif-alcor \
+	tools/vif-alcor-metad \
 	tools/net-common \
 	$(HS_MYEXECLIB_PROGS)
 
@@ -1638,19 +1638,19 @@ myexeclib_scripts_basenames = \
 	$(patsubst tools/%,%,$(patsubst daemons/%,%,$(patsubst src/%,%,$(myexeclib_SCRIPTS))))
 
 man_MANS = \
-	man/ganeti-cleaner.8 \
-	man/ganeti-confd.8 \
-	man/ganeti-luxid.8 \
-	man/ganeti-listrunner.8 \
-	man/ganeti-kvmd.8 \
-	man/ganeti-mond.8 \
-	man/ganeti-noded.8 \
-	man/ganeti-os-interface.7 \
-	man/ganeti-extstorage-interface.7 \
-	man/ganeti-rapi.8 \
-	man/ganeti-watcher.8 \
-	man/ganeti-wconfd.8 \
-	man/ganeti.7 \
+	man/alcor-cleaner.8 \
+	man/alcor-confd.8 \
+	man/alcor-luxid.8 \
+	man/alcor-listrunner.8 \
+	man/alcor-kvmd.8 \
+	man/alcor-mond.8 \
+	man/alcor-noded.8 \
+	man/alcor-os-interface.7 \
+	man/alcor-extstorage-interface.7 \
+	man/alcor-rapi.8 \
+	man/alcor-watcher.8 \
+	man/alcor-wconfd.8 \
+	man/alcor.7 \
 	man/gnt-backup.8 \
 	man/gnt-cluster.8 \
 	man/gnt-debug.8 \
@@ -1840,8 +1840,8 @@ TEST_FILES = \
 	test/data/ovfdata/corrupted_resources.ovf \
 	test/data/ovfdata/empty.ini \
 	test/data/ovfdata/empty.ovf \
-	test/data/ovfdata/ganeti.mf \
-	test/data/ovfdata/ganeti.ovf \
+	test/data/ovfdata/alcor.mf \
+	test/data/ovfdata/alcor.ovf \
 	test/data/ovfdata/gzip_disk.ovf \
 	test/data/ovfdata/new_disk.vmdk \
 	test/data/ovfdata/no_disk.ini \
@@ -1887,7 +1887,7 @@ TEST_FILES = \
 	test/data/xen-xl-list-4.0.1-four-instances.txt \
 	test/data/xen-xl-list-long-4.0.1.txt \
 	test/data/xen-xl-uptime-4.0.1.txt \
-	test/py/ganeti-cli.test \
+	test/py/alcor-cli.test \
 	test/py/gnt-cli.test \
 	test/py/import-export_unittest-helper
 
@@ -1905,89 +1905,89 @@ python_tests = \
 	test/py/cmdlib/test_unittest.py \
 	test/py/cfgupgrade_unittest.py \
 	test/py/docs_unittest.py \
-	test/py/ganeti.asyncnotifier_unittest.py \
-	test/py/ganeti.backend_unittest-runasroot.py \
-	test/py/ganeti.backend_unittest.py \
-	test/py/ganeti.bootstrap_unittest.py \
-	test/py/ganeti.cli_unittest.py \
-	test/py/ganeti.cli_opts_unittest.py \
-	test/py/ganeti.client.gnt_cluster_unittest.py \
-	test/py/ganeti.client.gnt_instance_unittest.py \
-	test/py/ganeti.client.gnt_job_unittest.py \
-	test/py/ganeti.compat_unittest.py \
-	test/py/ganeti.confd.client_unittest.py \
-	test/py/ganeti.config_unittest.py \
-	test/py/ganeti.constants_unittest.py \
-	test/py/ganeti.daemon_unittest.py \
-	test/py/ganeti.errors_unittest.py \
-	test/py/ganeti.hooks_unittest.py \
-	test/py/ganeti.ht_unittest.py \
-	test/py/ganeti.http_unittest.py \
-	test/py/ganeti.hypervisor.hv_chroot_unittest.py \
-	test/py/ganeti.hypervisor.hv_fake_unittest.py \
-	test/py/ganeti.hypervisor.hv_kvm_unittest.py \
-	test/py/ganeti.hypervisor.hv_lxc_unittest.py \
-	test/py/ganeti.hypervisor.hv_xen_unittest.py \
-	test/py/ganeti.hypervisor_unittest.py \
-	test/py/ganeti.impexpd_unittest.py \
-	test/py/ganeti.jqueue_unittest.py \
-	test/py/ganeti.jstore_unittest.py \
-	test/py/ganeti.locking_unittest.py \
-	test/py/ganeti.luxi_unittest.py \
-	test/py/ganeti.masterd.iallocator_unittest.py \
-	test/py/ganeti.masterd.instance_unittest.py \
-	test/py/ganeti.mcpu_unittest.py \
-	test/py/ganeti.netutils_unittest.py \
-	test/py/ganeti.objects_unittest.py \
-	test/py/ganeti.opcodes_unittest.py \
-	test/py/ganeti.outils_unittest.py \
-	test/py/ganeti.ovf_unittest.py \
-	test/py/ganeti.qlang_unittest.py \
-	test/py/ganeti.query_unittest.py \
-	test/py/ganeti.rapi.baserlib_unittest.py \
-	test/py/ganeti.rapi.client_unittest.py \
-	test/py/ganeti.rapi.resources_unittest.py \
-	test/py/ganeti.rapi.rlib2_unittest.py \
-	test/py/ganeti.rapi.testutils_unittest.py \
-	test/py/ganeti.rpc_unittest.py \
-	test/py/ganeti.rpc.client_unittest.py \
-	test/py/ganeti.runtime_unittest.py \
-	test/py/ganeti.serializer_unittest.py \
-	test/py/ganeti.server.rapi_unittest.py \
-	test/py/ganeti.ssconf_unittest.py \
-	test/py/ganeti.ssh_unittest.py \
-	test/py/ganeti.storage.bdev_unittest.py \
-	test/py/ganeti.storage.container_unittest.py \
-	test/py/ganeti.storage.drbd_unittest.py \
-	test/py/ganeti.storage.filestorage_unittest.py \
-	test/py/ganeti.storage.gluster_unittest.py \
-	test/py/ganeti.tools.burnin_unittest.py \
-	test/py/ganeti.tools.ensure_dirs_unittest.py \
-	test/py/ganeti.tools.node_daemon_setup_unittest.py \
-	test/py/ganeti.tools.prepare_node_join_unittest.py \
-	test/py/ganeti.uidpool_unittest.py \
-	test/py/ganeti.utils.algo_unittest.py \
-	test/py/ganeti.utils.filelock_unittest.py \
-	test/py/ganeti.utils.hash_unittest.py \
-	test/py/ganeti.utils.io_unittest-runasroot.py \
-	test/py/ganeti.utils.io_unittest.py \
-	test/py/ganeti.utils.log_unittest.py \
-	test/py/ganeti.utils.livelock_unittest.py \
-	test/py/ganeti.utils.lvm_unittest.py \
-	test/py/ganeti.utils.mlock_unittest.py \
-	test/py/ganeti.utils.nodesetup_unittest.py \
-	test/py/ganeti.utils.process_unittest.py \
-	test/py/ganeti.utils.retry_unittest.py \
-	test/py/ganeti.utils.security_unittest.py \
-	test/py/ganeti.utils.storage_unittest.py \
-	test/py/ganeti.utils.text_unittest.py \
-	test/py/ganeti.utils.version_unittest.py \
-	test/py/ganeti.utils.wrapper_unittest.py \
-	test/py/ganeti.utils.x509_unittest.py \
-	test/py/ganeti.utils.bitarrays_unittest.py \
-	test/py/ganeti.utils_unittest.py \
-	test/py/ganeti.vcluster_unittest.py \
-	test/py/ganeti.workerpool_unittest.py \
+	test/py/alcor.asyncnotifier_unittest.py \
+	test/py/alcor.backend_unittest-runasroot.py \
+	test/py/alcor.backend_unittest.py \
+	test/py/alcor.bootstrap_unittest.py \
+	test/py/alcor.cli_unittest.py \
+	test/py/alcor.cli_opts_unittest.py \
+	test/py/alcor.client.gnt_cluster_unittest.py \
+	test/py/alcor.client.gnt_instance_unittest.py \
+	test/py/alcor.client.gnt_job_unittest.py \
+	test/py/alcor.compat_unittest.py \
+	test/py/alcor.confd.client_unittest.py \
+	test/py/alcor.config_unittest.py \
+	test/py/alcor.constants_unittest.py \
+	test/py/alcor.daemon_unittest.py \
+	test/py/alcor.errors_unittest.py \
+	test/py/alcor.hooks_unittest.py \
+	test/py/alcor.ht_unittest.py \
+	test/py/alcor.http_unittest.py \
+	test/py/alcor.hypervisor.hv_chroot_unittest.py \
+	test/py/alcor.hypervisor.hv_fake_unittest.py \
+	test/py/alcor.hypervisor.hv_kvm_unittest.py \
+	test/py/alcor.hypervisor.hv_lxc_unittest.py \
+	test/py/alcor.hypervisor.hv_xen_unittest.py \
+	test/py/alcor.hypervisor_unittest.py \
+	test/py/alcor.impexpd_unittest.py \
+	test/py/alcor.jqueue_unittest.py \
+	test/py/alcor.jstore_unittest.py \
+	test/py/alcor.locking_unittest.py \
+	test/py/alcor.luxi_unittest.py \
+	test/py/alcor.masterd.iallocator_unittest.py \
+	test/py/alcor.masterd.instance_unittest.py \
+	test/py/alcor.mcpu_unittest.py \
+	test/py/alcor.netutils_unittest.py \
+	test/py/alcor.objects_unittest.py \
+	test/py/alcor.opcodes_unittest.py \
+	test/py/alcor.outils_unittest.py \
+	test/py/alcor.ovf_unittest.py \
+	test/py/alcor.qlang_unittest.py \
+	test/py/alcor.query_unittest.py \
+	test/py/alcor.rapi.baserlib_unittest.py \
+	test/py/alcor.rapi.client_unittest.py \
+	test/py/alcor.rapi.resources_unittest.py \
+	test/py/alcor.rapi.rlib2_unittest.py \
+	test/py/alcor.rapi.testutils_unittest.py \
+	test/py/alcor.rpc_unittest.py \
+	test/py/alcor.rpc.client_unittest.py \
+	test/py/alcor.runtime_unittest.py \
+	test/py/alcor.serializer_unittest.py \
+	test/py/alcor.server.rapi_unittest.py \
+	test/py/alcor.ssconf_unittest.py \
+	test/py/alcor.ssh_unittest.py \
+	test/py/alcor.storage.bdev_unittest.py \
+	test/py/alcor.storage.container_unittest.py \
+	test/py/alcor.storage.drbd_unittest.py \
+	test/py/alcor.storage.filestorage_unittest.py \
+	test/py/alcor.storage.gluster_unittest.py \
+	test/py/alcor.tools.burnin_unittest.py \
+	test/py/alcor.tools.ensure_dirs_unittest.py \
+	test/py/alcor.tools.node_daemon_setup_unittest.py \
+	test/py/alcor.tools.prepare_node_join_unittest.py \
+	test/py/alcor.uidpool_unittest.py \
+	test/py/alcor.utils.algo_unittest.py \
+	test/py/alcor.utils.filelock_unittest.py \
+	test/py/alcor.utils.hash_unittest.py \
+	test/py/alcor.utils.io_unittest-runasroot.py \
+	test/py/alcor.utils.io_unittest.py \
+	test/py/alcor.utils.log_unittest.py \
+	test/py/alcor.utils.livelock_unittest.py \
+	test/py/alcor.utils.lvm_unittest.py \
+	test/py/alcor.utils.mlock_unittest.py \
+	test/py/alcor.utils.nodesetup_unittest.py \
+	test/py/alcor.utils.process_unittest.py \
+	test/py/alcor.utils.retry_unittest.py \
+	test/py/alcor.utils.security_unittest.py \
+	test/py/alcor.utils.storage_unittest.py \
+	test/py/alcor.utils.text_unittest.py \
+	test/py/alcor.utils.version_unittest.py \
+	test/py/alcor.utils.wrapper_unittest.py \
+	test/py/alcor.utils.x509_unittest.py \
+	test/py/alcor.utils.bitarrays_unittest.py \
+	test/py/alcor.utils_unittest.py \
+	test/py/alcor.vcluster_unittest.py \
+	test/py/alcor.workerpool_unittest.py \
 	test/py/pycurl_reset_unittest.py \
 	test/py/qa.qa_config_unittest.py \
 	test/py/tempfile_fork_unittest.py
@@ -2017,7 +2017,7 @@ haskell_tests = test/hs/htest
 dist_TESTS = test/py/check-cert-expired_unittest.bash \
 	test/py/daemon-util_unittest.bash \
 	test/py/systemd_unittest.bash \
-	test/py/ganeti-cleaner_unittest.bash \
+	test/py/alcor-cleaner_unittest.bash \
 	test/py/import-export_unittest.bash test/py/cli-test.bash \
 	test/py/bash_completion.bash $(am__append_20) $(am__append_22)
 nodist_TESTS = $(am__append_21)
@@ -2052,7 +2052,7 @@ srclink_files = \
 	test/py/check-cert-expired_unittest.bash \
 	test/py/daemon-util_unittest.bash \
 	test/py/systemd_unittest.bash \
-	test/py/ganeti-cleaner_unittest.bash \
+	test/py/alcor-cleaner_unittest.bash \
 	test/py/import-export_unittest.bash \
 	test/py/cli-test.bash \
 	test/py/bash_completion.bash \
@@ -2070,8 +2070,8 @@ check_python_code = \
 	$(all_python_code)
 
 lint_python_code = \
-	ganeti \
-	ganeti/http/server.py \
+	alcor \
+	alcor/http/server.py \
 	$(dist_sbin_SCRIPTS) \
 	$(python_scripts) \
 	$(pkglib_python_scripts) \
@@ -2084,11 +2084,11 @@ lint_python_code = \
 
 standalone_python_modules = \
 	lib/rapi/client.py \
-	tools/ganeti-listrunner
+	tools/alcor-listrunner
 
 pycodestyle_python_code = \
-	ganeti \
-	ganeti/http/server.py \
+	alcor \
+	alcor/http/server.py \
 	$(dist_sbin_SCRIPTS) \
 	$(python_scripts) \
 	$(pkglib_python_scripts) \
@@ -2123,10 +2123,10 @@ PEP8_EXCLUDE = $(subst $(space),$(comma),$(strip $(notdir $(built_python_sources
 
 # A space-separated list of pylint warnings to completely ignore:
 # I0013 = disable warnings for ignoring whole files
-# R0912 = disable too many branches warning. It's useful, but ganeti requires
+# R0912 = disable too many branches warning. It's useful, but alcor requires
 #         a lot of refactoring to fix this.
 # R0204 = disable redefined-variable-type warning. There are a large number of
-#         cases where Ganeti assigns multiple types (eg set/list, float/int) to
+#         cases where Alcor assigns multiple types (eg set/list, float/int) to
 #         the same variable, and these are benign.
 # C0325 = disable superfluous-parens. There are a lot of cases where this is
 #         overzealous, eg where we use parens to make it clear that we're
@@ -2144,7 +2144,7 @@ LINT_OPTS_ALL = $(LINT_OPTS) $(addprefix --disable=,$(LINT_DISABLE)) \
 	--extension-pkg-whitelist=pycurl
 LINT_TARGETS = pylint pylint-qa pylint-test $(am__append_25) \
 	$(am__append_26)
-HLINT_EXCLUDES = src/Ganeti/THH.hs test/hs/hpc-htools.hs
+HLINT_EXCLUDES = src/Alcor/THH.hs test/hs/hpc-htools.hs
 COVERAGE_TESTS = $(am__append_27) $(am__append_28)
 CABAL_EXECUTABLES = $(HS_DEFAULT_PROGS)
 CABAL_EXECUTABLES_HS = $(patsubst %,%.hs,$(CABAL_EXECUTABLES))
@@ -4300,19 +4300,19 @@ Makefile.ghc: $(HS_MAKEFILE_GHC_SRCS) Makefile $(HASKELL_PACKAGE_VERSIONS_FILE) 
 		$(HEXTRA_COMBINED) $(HS_MAKEFILE_GHC_SRCS)
 # Since ghc -M does not generate dependency line for object files, dependencies
 # from a target executable seed object (e.g. src/hluxid.o) to objects which
-# finally will be linked to the target object (e.g. src/Ganeti/Daemon.o) are
+# finally will be linked to the target object (e.g. src/Alcor/Daemon.o) are
 # missing in Makefile.ghc.
 # see: https://www.haskell.org/ghc/docs/7.6.2/html/users_guide/separate-compilation.html#makefile-dependencies
 # Following substitutions will add dependencies between object files which
 # corresponds to the interface file already there as a dependency for each
 # object listed in Makefile.ghc.
-# e.g. src/hluxid.o : src/Ganeti/Daemon.hi
-#        => src/hluxid.o : src/Ganeti/Daemon.hi src/Ganeti/Daemon.o
+# e.g. src/hluxid.o : src/Alcor/Daemon.hi
+#        => src/hluxid.o : src/Alcor/Daemon.hi src/Alcor/Daemon.o
 	sed -i -r -e 's/([^ ]+)\.hi$$/\1.hi \1.o/' -e 's/([^ ]+)_hi$$/\1_hi \1_o/' $@
 
 @include_makefile_ghc@
 
-$(HASKELL_PACKAGE_VERSIONS_FILE): Makefile ganeti.cabal \
+$(HASKELL_PACKAGE_VERSIONS_FILE): Makefile alcor.cabal \
                                   cabal/CabalDependenciesMacros.hs
 	touch empty-cabal-config
 	$(CABAL) --config-file=empty-cabal-config \
@@ -4322,7 +4322,7 @@ $(HASKELL_PACKAGE_VERSIONS_FILE): Makefile ganeti.cabal \
 	  -f`test $(ENABLE_METADATA) == True && echo "metad" || echo "-metad"` \
 	  -f`test $(ENABLE_NETWORK_BSD) == True && echo "network_bsd" || echo "-network_bsd"`
 	runhaskell $(abs_top_srcdir)/cabal/CabalDependenciesMacros.hs \
-	  ganeti.cabal \
+	  alcor.cabal \
 	  $(HASKELL_PACKAGE_IDS_FILE) \
 	  $(HASKELL_PACKAGE_VERSIONS_FILE)
 
@@ -4396,10 +4396,10 @@ $(HS_TEST_PROGS): %: %.$(HTEST_SUFFIX)_o \
 	@rm -f $(notdir $@).tix
 	@touch "$@"
 
-src/ganeti-luxid: src/hluxid
+src/alcor-luxid: src/hluxid
 	cp -pf $< $@
 
-src/ganeti-confd: src/hconfd
+src/alcor-confd: src/hconfd
 	cp -pf $< $@
 
 tools/shebang/%: tools/%
@@ -4415,7 +4415,7 @@ test/py/daemon-util_unittest.bash: daemons/daemon-util
 
 test/py/systemd_unittest.bash: daemons/daemon-util $(BUILT_EXAMPLES)
 
-test/py/ganeti-cleaner_unittest.bash: daemons/ganeti-cleaner
+test/py/alcor-cleaner_unittest.bash: daemons/alcor-cleaner
 
 test/py/bash_completion.bash: doc/examples/bash_completion-debug
 
@@ -4431,11 +4431,11 @@ tools/xen-ifup-os: tools/ifup-os.in $(REPLACE_VARS_SED)
 	sed -f $(REPLACE_VARS_SED) -e "s/ifup-os:/xen-ifup-os:/" < $< > $@
 	chmod +x $@
 
-tools/vif-ganeti: tools/vif-ganeti.in $(REPLACE_VARS_SED)
+tools/vif-alcor: tools/vif-alcor.in $(REPLACE_VARS_SED)
 	sed -f $(REPLACE_VARS_SED) < $< > $@
 	chmod +x $@
 
-tools/vif-ganeti-metad: tools/vif-ganeti-metad.in $(REPLACE_VARS_SED)
+tools/vif-alcor-metad: tools/vif-alcor-metad.in $(REPLACE_VARS_SED)
 	sed -f $(REPLACE_VARS_SED) < $< > $@
 	chmod +x $@
 
@@ -4482,7 +4482,7 @@ doc/examples/bash_completion-debug: BC_ARGS =
 doc/examples/bash_completion doc/examples/bash_completion-debug: \
 	$(BUILD_BASH_COMPLETION) $(RUN_IN_TEMPDIR) \
 	lib/cli.py $(gnt_scripts) $(client_PYTHON) tools/burnin \
-	daemons/ganeti-cleaner \
+	daemons/alcor-cleaner \
 	$(GENERATED_FILES) $(HS_GENERATED_FILES)
 	PYTHONPATH=. $(RUN_IN_TEMPDIR) \
 	  $(CURDIR)/$(BUILD_BASH_COMPLETION) $(BC_ARGS) > $@
@@ -4541,31 +4541,31 @@ regen-vcs-version:
 	  fi; \
 	fi
 
-src/Ganeti/Version.hs: src/Ganeti/Version.hs.in \
+src/Alcor/Version.hs: src/Alcor/Version.hs.in \
 	vcs-version $(built_base_sources)
 	set -e; \
 	VCSVER=`cat $(srcdir)/vcs-version`; \
 	sed -e 's"%ver%"'"$$VCSVER"'"' < $< > $@
 
-src/Ganeti/Hs2Py/ListConstants.hs: src/Ganeti/Hs2Py/ListConstants.hs.in \
-				   src/Ganeti/Constants.hs \
+src/Alcor/Hs2Py/ListConstants.hs: src/Alcor/Hs2Py/ListConstants.hs.in \
+				   src/Alcor/Constants.hs \
 				 | stamp-directories
 	@echo Generating $@
 	@set -e; \
-	NAMES=$$(sed -e "/^--/ d" $(abs_top_srcdir)/src/Ganeti/Constants.hs |\
+	NAMES=$$(sed -e "/^--/ d" $(abs_top_srcdir)/src/Alcor/Constants.hs |\
 		 sed -n -e "/=/ s/\(.*\) =.*/    '\1:/g p"); \
 	m4 -DPY_CONSTANT_NAMES="$$NAMES" \
-		$(abs_top_srcdir)/src/Ganeti/Hs2Py/ListConstants.hs.in > $@
+		$(abs_top_srcdir)/src/Alcor/Hs2Py/ListConstants.hs.in > $@
 
-src/Ganeti/Curl/Internal.hs: src/Ganeti/Curl/Internal.hsc | stamp-directories
+src/Alcor/Curl/Internal.hs: src/Alcor/Curl/Internal.hsc | stamp-directories
 	hsc2hs -o $@ $<
 
-test/hs/Test/Ganeti/TestImports.hs: test/hs/Test/Ganeti/TestImports.hs.in \
+test/hs/Test/Alcor/TestImports.hs: test/hs/Test/Alcor/TestImports.hs.in \
 	$(built_base_sources)
 	set -e; \
 	{ cat $< ; \
 	  echo ; \
-	  for name in $(filter-out Ganeti.THH,$(subst /,.,$(patsubst %.hs,%,$(patsubst src/%,%,$(HS_LIB_SRCS))))) ; do \
+	  for name in $(filter-out Alcor.THH,$(subst /,.,$(patsubst %.hs,%,$(patsubst src/%,%,$(HS_LIB_SRCS))))) ; do \
 	    echo "import $$name ()" ; \
 	  done ; \
 	} > $@
@@ -4611,11 +4611,11 @@ src/AutoConf.hs: Makefile src/AutoConf.hs.in $(PRINT_PY_CONSTANTS) \
 	    -DSOCAT_USE_ESCAPE="$(SOCAT_USE_ESCAPE)" \
 	    -DSOCAT_USE_COMPRESS="$(SOCAT_USE_COMPRESS)" \
 	    -DLVM_STRIPECOUNT="$(LVM_STRIPECOUNT)" \
-	    -DTOOLSDIR="$(libdir)/ganeti/tools" \
+	    -DTOOLSDIR="$(libdir)/alcor/tools" \
 	    -DGNT_SCRIPTS="$(foreach i,$(notdir $(gnt_scripts)),\"$(i)\":)" \
 	    -DHS_HTOOLS_PROGS="$(foreach i,$(HS_HTOOLS_PROGS),\"$(i)\":)" \
-	    -DPKGLIBDIR="$(libdir)/ganeti" \
-	    -DSHAREDIR="$(prefix)/share/ganeti" \
+	    -DPKGLIBDIR="$(libdir)/alcor" \
+	    -DSHAREDIR="$(prefix)/share/alcor" \
 	    -DVERSIONEDSHAREDIR="$(versionedsharedir)" \
 	    -DDRBD_BARRIERS="$(DRBD_BARRIERS)" \
 	    -DDRBD_NO_META_FLUSH="$(DRBD_NO_META_FLUSH)" \
@@ -4661,7 +4661,7 @@ lib/_vcsversion.py: Makefile vcs-version | stamp-directories
 	{ echo '# This file is automatically generated, do not edit!'; \
 	  echo '#'; \
 	  echo ''; \
-	  echo '"""Build-time VCS version number for Ganeti.'; \
+	  echo '"""Build-time VCS version number for Alcor.'; \
 	  echo '';\
 	  echo 'This file is autogenerated by the build process.'; \
 	  echo 'For any changes you need to re-run ./configure (and'; \
@@ -4699,11 +4699,11 @@ $(SHELL_ENV_INIT): Makefile stamp-directories
 	  echo 'readonly LOCALSTATEDIR=$${LOCALSTATEDIR:-$${GANETI_ROOTDIR:-}$(localstatedir)}'; \
 	  echo 'readonly SYSCONFDIR=$${SYSCONFDIR:-$${GANETI_ROOTDIR:-}$(sysconfdir)}'; \
 	  echo; \
-	  echo 'readonly PKGLIBDIR=$(libdir)/ganeti'; \
-	  echo 'readonly LOG_DIR="$$LOCALSTATEDIR/log/ganeti"'; \
-	  echo 'readonly RUN_DIR="$$LOCALSTATEDIR/run/ganeti"'; \
-	  echo 'readonly DATA_DIR="$$LOCALSTATEDIR/lib/ganeti"'; \
-	  echo 'readonly CONF_DIR="$$SYSCONFDIR/ganeti"'; \
+	  echo 'readonly PKGLIBDIR=$(libdir)/alcor'; \
+	  echo 'readonly LOG_DIR="$$LOCALSTATEDIR/log/alcor"'; \
+	  echo 'readonly RUN_DIR="$$LOCALSTATEDIR/run/alcor"'; \
+	  echo 'readonly DATA_DIR="$$LOCALSTATEDIR/lib/alcor"'; \
+	  echo 'readonly CONF_DIR="$$SYSCONFDIR/alcor"'; \
 	} > $@
 
 $(REPLACE_VARS_SED): $(SHELL_ENV_INIT) Makefile stamp-directories
@@ -4721,7 +4721,7 @@ $(REPLACE_VARS_SED): $(SHELL_ENV_INIT) Makefile stamp-directories
 	  echo 's#@''CUSTOM_IALLOCATOR_SEARCH_PATH@#$(IALLOCATOR_SEARCH_PATH)#g'; \
 	  echo 's#@''CUSTOM_EXPORT_DIR@#$(EXPORT_DIR)#g'; \
 	  echo 's#@''RPL_SSHD_RESTART_COMMAND@#$(SSHD_RESTART_COMMAND)#g'; \
-	  echo 's#@''PKGLIBDIR@#$(libdir)/ganeti#g'; \
+	  echo 's#@''PKGLIBDIR@#$(libdir)/alcor#g'; \
 	  echo 's#@''GNTMASTERUSER@#$(MASTERD_USER)#g'; \
 	  echo 's#@''GNTRAPIUSER@#$(RAPI_USER)#g'; \
 	  echo 's#@''GNTCONFDUSER@#$(CONFD_USER)#g'; \
@@ -4750,16 +4750,16 @@ $(REPLACE_VARS_SED): $(SHELL_ENV_INIT) Makefile stamp-directories
 	} > $@
 
 # Using deferred evaluation
-daemons/ganeti-%: MODULE = ganeti.server.$(patsubst ganeti-%,%,$(notdir $@))
-daemons/ganeti-watcher: MODULE = ganeti.watcher
-scripts/%: MODULE = ganeti.client.$(subst -,_,$(notdir $@))
-tools/burnin: MODULE = ganeti.tools.burnin
-tools/ensure-dirs: MODULE = ganeti.tools.ensure_dirs
-tools/node-daemon-setup: MODULE = ganeti.tools.node_daemon_setup
-tools/prepare-node-join: MODULE = ganeti.tools.prepare_node_join
-tools/ssh-update: MODULE = ganeti.tools.ssh_update
-tools/node-cleanup: MODULE = ganeti.tools.node_cleanup
-tools/ssl-update: MODULE = ganeti.tools.ssl_update
+daemons/alcor-%: MODULE = alcor.server.$(patsubst alcor-%,%,$(notdir $@))
+daemons/alcor-watcher: MODULE = alcor.watcher
+scripts/%: MODULE = alcor.client.$(subst -,_,$(notdir $@))
+tools/burnin: MODULE = alcor.tools.burnin
+tools/ensure-dirs: MODULE = alcor.tools.ensure_dirs
+tools/node-daemon-setup: MODULE = alcor.tools.node_daemon_setup
+tools/prepare-node-join: MODULE = alcor.tools.prepare_node_join
+tools/ssh-update: MODULE = alcor.tools.ssh_update
+tools/node-cleanup: MODULE = alcor.tools.node_cleanup
+tools/ssl-update: MODULE = alcor.tools.ssl_update
 $(HS_BUILT_TEST_HELPERS): TESTROLE = $(patsubst test/hs/%,%,$@)
 
 $(PYTHON_BOOTSTRAP) $(gnt_scripts) $(gnt_python_sbin_SCRIPTS): Makefile | stamp-directories
@@ -4801,7 +4801,7 @@ $(HS_BUILT_TEST_HELPERS): Makefile
 	chmod u+x $@
 
 stamp-directories: Makefile
-	$(MAKE) $(AM_MAKEFLAGS) ganeti
+	$(MAKE) $(AM_MAKEFLAGS) alcor
 	@mkdir_p@ $(DIRS) $(BUILDTIME_DIR_AUTOCREATE)
 	touch $@
 
@@ -4816,8 +4816,8 @@ stamp-srclinks: Makefile | stamp-directories
 	done
 	touch $@
 
-.PHONY: ganeti
-ganeti:
+.PHONY: alcor
+alcor:
 	cd $(top_builddir) && test -h "$@" || { rm -f $@ && $(LN_S) lib $@; }
 
 .PHONY: check-dirs
@@ -4854,14 +4854,14 @@ check-local: check-dirs check-news $(GENERATED_FILES)
 	error= ; \
 	if [ "x`echo $(VERSION_SUFFIX)|grep 'alpha'`" == "x" ]; then \
 	  expver=$(VERSION_MAJOR).$(VERSION_MINOR); \
-	  if test "`head -n 1 $(top_srcdir)/README`" != "Ganeti $$expver"; then \
+	  if test "`head -n 1 $(top_srcdir)/README`" != "Alcor $$expver"; then \
 	    echo "Incorrect version in README, expected $$expver" >&2; \
 	    error=1; \
 	  fi; \
 	  for file in doc/iallocator.rst doc/hooks.rst doc/virtual-cluster.rst \
 	      doc/security.rst; do \
 	    if test "`sed -ne '4 p' $(top_srcdir)/$$file`" != \
-	      "Documents Ganeti version $$expver"; then \
+	      "Documents Alcor version $$expver"; then \
 	      echo "Incorrect version in $$file, expected $$expver" >&2; \
 	      error=1; \
 	    fi; \
@@ -4871,7 +4871,7 @@ check-local: check-dirs check-news $(GENERATED_FILES)
 	    error=1; \
 	  fi; \
 	  if test "`sed -ne '5 p' $(top_srcdir)/doc/design-draft.rst`" != \
-	    ".. Last updated for Ganeti $$expver"; then \
+	    ".. Last updated for Alcor $$expver"; then \
 	    echo "doc/design-draft.rst was not updated for version $$expver" >&2; \
 	    error=1; \
 	  fi; \
@@ -4895,7 +4895,7 @@ hs-tests: test/hs/htest
 	./test/hs/htest
 
 .PHONY: py-tests
-py-tests: $(python_tests) ganeti $(built_python_sources)
+py-tests: $(python_tests) alcor $(built_python_sources)
 	@if [ "$(PY_NODEV)" ]; then \
 	  echo "Error: cannot run unittests without the development" \
 	       " libraries (see devnotes.rst)" 1>&2; \
@@ -5029,18 +5029,18 @@ dist-release: dist
 	done
 
 install-exec-local:
-	@mkdir_p@ "$(DESTDIR)${localstatedir}/lib/ganeti" \
-	  "$(DESTDIR)${localstatedir}/log/ganeti" \
-	  "$(DESTDIR)${localstatedir}/run/ganeti"
+	@mkdir_p@ "$(DESTDIR)${localstatedir}/lib/alcor" \
+	  "$(DESTDIR)${localstatedir}/log/alcor" \
+	  "$(DESTDIR)${localstatedir}/run/alcor"
 	for dir in $(SYMLINK_TARGET_DIRS); do \
 	  @mkdir_p@  $(DESTDIR)$$dir; \
 	done
-	$(LN_S) -f $(sysconfdir)/ganeti/lib $(DESTDIR)$(defaultversiondir)
-	$(LN_S) -f $(sysconfdir)/ganeti/share $(DESTDIR)$(defaultversionedsharedir)
+	$(LN_S) -f $(sysconfdir)/alcor/lib $(DESTDIR)$(defaultversiondir)
+	$(LN_S) -f $(sysconfdir)/alcor/share $(DESTDIR)$(defaultversionedsharedir)
 	for prog in $(HS_BIN_ROLES); do \
 	  $(LN_S) -f $(defaultversiondir)$(BINDIR)/$$prog $(DESTDIR)$(BINDIR)/$$prog; \
 	done
-	$(LN_S) -f $(defaultversiondir)$(libdir)/ganeti/iallocators/hail $(DESTDIR)$(libdir)/ganeti/iallocators/hail
+	$(LN_S) -f $(defaultversiondir)$(libdir)/alcor/iallocators/hail $(DESTDIR)$(libdir)/alcor/iallocators/hail
 	for prog in $(all_sbin_scripts); do \
 	  $(LN_S) -f $(defaultversiondir)$(SBINDIR)/$$prog $(DESTDIR)$(SBINDIR)/$$prog; \
 	done
@@ -5048,13 +5048,13 @@ install-exec-local:
 	  $(LN_S) -f $(defaultversionedsharedir)/$$prog $(DESTDIR)$(SBINDIR)/$$prog; \
 	done
 	for prog in $(pkglib_python_basenames); do \
-	  $(LN_S) -f $(defaultversionedsharedir)/$$prog $(DESTDIR)$(libdir)/ganeti/$$prog; \
+	  $(LN_S) -f $(defaultversionedsharedir)/$$prog $(DESTDIR)$(libdir)/alcor/$$prog; \
 	done
 	for prog in $(tools_python_basenames); do \
-	  $(LN_S) -f $(defaultversionedsharedir)/$$prog $(DESTDIR)$(libdir)/ganeti/tools/$$prog; \
+	  $(LN_S) -f $(defaultversionedsharedir)/$$prog $(DESTDIR)$(libdir)/alcor/tools/$$prog; \
 	done
 	for prog in $(tools_basenames); do \
-	  $(LN_S) -f $(defaultversiondir)/$(libdir)/ganeti/tools/$$prog $(DESTDIR)$(libdir)/ganeti/tools/$$prog; \
+	  $(LN_S) -f $(defaultversiondir)/$(libdir)/alcor/tools/$$prog $(DESTDIR)$(libdir)/alcor/tools/$$prog; \
 	done
 	if ! test -n '$(ENABLE_MANPAGES)'; then \
 	  for man in $(manfullpath); do \
@@ -5062,10 +5062,10 @@ install-exec-local:
 	  done; \
 	fi
 	for prog in $(myexeclib_scripts_basenames); do \
-	  $(LN_S) -f $(defaultversiondir)$(libdir)/ganeti/$$prog $(DESTDIR)$(libdir)/ganeti/$$prog; \
+	  $(LN_S) -f $(defaultversiondir)$(libdir)/alcor/$$prog $(DESTDIR)$(libdir)/alcor/$$prog; \
 	done
-@INSTALL_SYMLINKS_TRUE@	$(LN_S) -f $(versionedsharedir) $(DESTDIR)$(sysconfdir)/ganeti/share
-@INSTALL_SYMLINKS_TRUE@	$(LN_S) -f $(versiondir) $(DESTDIR)$(sysconfdir)/ganeti/lib
+@INSTALL_SYMLINKS_TRUE@	$(LN_S) -f $(versionedsharedir) $(DESTDIR)$(sysconfdir)/alcor/share
+@INSTALL_SYMLINKS_TRUE@	$(LN_S) -f $(versiondir) $(DESTDIR)$(sysconfdir)/alcor/lib
 
 .PHONY: apidoc
 @WANT_HSAPIDOC_TRUE@apidoc: py-apidoc hs-apidoc
@@ -5102,7 +5102,7 @@ $(APIDOC_HS_DIR)/index.html: $(HS_LIBTESTBUILT_SRCS) Makefile
 	  $(HSCOLOUR) -css -anchor $$file > $(APIDOC_HS_DIR)/$$f_html ; \
 	done ; \
 	$(HADDOCK) --odir $(APIDOC_HS_DIR) --html --hoogle --ignore-all-exports -w \
-	  -t ganeti -p src/haddock-prologue \
+	  -t alcor -p src/haddock-prologue \
 	  --source-module="%{MODULE/.//}.html" \
 	  --source-entity="%{MODULE/.//}.html#%{NAME}" \
 	  $$OPTGHC \
@@ -5118,7 +5118,7 @@ TAGS: $(GENERATED_FILES)
 	-lcurl \
 	  $(HS_LIBTEST_SRCS)
 	find . -path './lib/*.py' -o -path './scripts/gnt-*' -o \
-	  -path './daemons/ganeti-*' -o -path './tools/*' -o \
+	  -path './daemons/alcor-*' -o -path './tools/*' -o \
 	  -path './qa/*.py' | \
 	  etags --etags-include=TAGS_hs -L -
 
@@ -5195,9 +5195,9 @@ apps/%.hs.stamp: Makefile
 	touch $@
 
 # Builds the cabal file
-ganeti.cabal: cabal/ganeti.template.cabal Makefile cabal/cabal-from-modules.py $(CABAL_EXECUTABLES_APPS_STAMPS)
+alcor.cabal: cabal/alcor.template.cabal Makefile cabal/cabal-from-modules.py $(CABAL_EXECUTABLES_APPS_STAMPS)
 	@echo $(subst /,.,$(patsubst %.hs,%,$(patsubst test/hs/%,%,$(patsubst src/%,%,$(HS_SRCS))))) \
-	  | $(PYTHON) $(abs_top_srcdir)/cabal/cabal-from-modules.py $(abs_top_srcdir)/cabal/ganeti.template.cabal > $@
+	  | $(PYTHON) $(abs_top_srcdir)/cabal/cabal-from-modules.py $(abs_top_srcdir)/cabal/alcor.template.cabal > $@
 
 	for p in $(CABAL_EXECUTABLES); do \
 	  echo                                   >> $@; \
@@ -5207,7 +5207,7 @@ ganeti.cabal: cabal/ganeti.template.cabal Makefile cabal/cabal-from-modules.py $
 	  echo "  default-language: Haskell2010" >> $@; \
 	  echo "  build-depends:"                >> $@; \
 	  echo "      base"                      >> $@; \
-	  echo "    , ganeti"                    >> $@; \
+	  echo "    , alcor"                    >> $@; \
 	  if [ $$p == test/hs/htest ]; then \
 	    echo "    , hslogger"                  >> $@; \
 	    echo "    , test-framework"            >> $@; \

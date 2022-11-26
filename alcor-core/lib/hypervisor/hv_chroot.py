@@ -37,23 +37,23 @@ import os.path
 import time
 import logging
 
-from ganeti import constants
-from ganeti import errors # pylint: disable=W0611
-from ganeti import utils
-from ganeti import objects
-from ganeti import pathutils
-from ganeti.hypervisor import hv_base
-from ganeti.errors import HypervisorError
+from alcor import constants
+from alcor import errors # pylint: disable=W0611
+from alcor import utils
+from alcor import objects
+from alcor import pathutils
+from alcor.hypervisor import hv_base
+from alcor.errors import HypervisorError
 
 
 class ChrootManager(hv_base.BaseHypervisor):
   """Chroot manager.
 
-  This not-really hypervisor allows ganeti to manage chroots. It has
+  This not-really hypervisor allows alcor to manage chroots. It has
   special behaviour and requirements on the OS definition and the node
   environemnt:
     - the start and stop of the chroot environment are done via a
-      script called ganeti-chroot located in the root directory of the
+      script called alcor-chroot located in the root directory of the
       first drive, which should be created by the OS definition
     - this script must accept the start and stop argument and, on
       shutdown, it should cleanly shutdown the daemons/processes
@@ -153,7 +153,7 @@ class ChrootManager(hv_base.BaseHypervisor):
     """Start an instance.
 
     For the chroot manager, we try to mount the block device and
-    execute '/ganeti-chroot start'.
+    execute '/alcor-chroot start'.
 
     """
     root_dir = self._InstanceDir(instance.name)
@@ -206,7 +206,7 @@ class ChrootManager(hv_base.BaseHypervisor):
     # Run the chroot stop script only once
     if not retry and not force:
       result = utils.RunCmd(timeout_cmd.extend(["chroot", root_dir,
-                                                "/ganeti-chroot", "stop"]))
+                                                "/alcor-chroot", "stop"]))
       if result.failed:
         raise HypervisorError("Can't run the chroot stop script: %s" %
                               result.output)

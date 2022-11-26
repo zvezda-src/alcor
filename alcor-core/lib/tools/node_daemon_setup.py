@@ -37,15 +37,15 @@ import optparse
 import sys
 import logging
 
-from ganeti import cli
-from ganeti import constants
-from ganeti import errors
-from ganeti import pathutils
-from ganeti import utils
-from ganeti import runtime
-from ganeti import ht
-from ganeti import ssconf
-from ganeti.tools import common
+from alcor import cli
+from alcor import constants
+from alcor import errors
+from alcor import pathutils
+from alcor import utils
+from alcor import runtime
+from alcor import ht
+from alcor import ssconf
+from alcor.tools import common
 
 
 _DATA_CHECK = ht.TStrictDict(False, True, {

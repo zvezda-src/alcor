@@ -31,7 +31,7 @@
 """Module implementing executing of a job as a separate process
 
 The complete protocol of initializing a job is described in the haskell
-module Ganeti.Query.Exec
+module Alcor.Query.Exec
 """
 
 import contextlib
@@ -41,15 +41,15 @@ import signal
 import sys
 import time
 
-from ganeti import mcpu
-from ganeti.server import masterd
-from ganeti.rpc import transport
-from ganeti import serializer
-from ganeti import utils
-from ganeti import pathutils
-from ganeti.utils import livelock
+from alcor import mcpu
+from alcor.server import masterd
+from alcor.rpc import transport
+from alcor import serializer
+from alcor import utils
+from alcor import pathutils
+from alcor.utils import livelock
 
-from ganeti.jqueue import _JobProcessor
+from alcor.jqueue import _JobProcessor
 
 
 def _SetupJob():
@@ -111,7 +111,7 @@ def main():
 
   try:
     logging.debug("Preparing the context and the configuration")
-    context = masterd.GanetiContext(llock)
+    context = masterd.AlcorContext(llock)
 
     logging.debug("Registering signal handlers")
 

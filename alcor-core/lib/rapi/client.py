@@ -28,7 +28,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-"""Ganeti RAPI client.
+"""Alcor RAPI client.
 
 @attention: To use the RAPI client, the application B{must} call
             C{pycurl.global_init} during initialization and
@@ -39,7 +39,7 @@
 
 """
 
-# No Ganeti-specific modules should be imported. The RAPI client is supposed to
+# No Alcor-specific modules should be imported. The RAPI client is supposed to
 # be standalone.
 
 import logging
@@ -189,8 +189,8 @@ class Error(Exception):
   pass
 
 
-class GanetiApiError(Error):
-  """Generic error raised from Ganeti API.
+class AlcorApiError(Error):
+  """Generic error raised from Alcor API.
 
   """
   def __init__(self, msg, code=None):
@@ -198,7 +198,7 @@ class GanetiApiError(Error):
     self.code = code
 
 
-class CertificateError(GanetiApiError):
+class CertificateError(AlcorApiError):
   """Raised when a problem is found with the SSL certificate.
 
   """
@@ -412,11 +412,11 @@ class _CompatIO(object):
     return self.buffer.seek(*args, **kwargs)
 
 
-class GanetiRapiClient(object): # pylint: disable=R0904
-  """Ganeti RAPI client.
+class AlcorRapiClient(object): # pylint: disable=R0904
+  """Alcor RAPI client.
 
   """
-  USER_AGENT = "Ganeti RAPI Client"
+  USER_AGENT = "Alcor RAPI Client"
   _json_encoder = simplejson.JSONEncoder(sort_keys=True)
 
   def __init__(self, host, port=GANETI_RAPI_PORT,
@@ -425,7 +425,7 @@ class GanetiRapiClient(object): # pylint: disable=R0904
     """Initializes this class.
 
     @type host: string
-    @param host: the ganeti cluster master to interact with
+    @param host: the alcor cluster master to interact with
     @type port: int
     @param port: the port on which the RAPI is running (default is 5080)
     @type username: string
@@ -542,7 +542,7 @@ class GanetiRapiClient(object): # pylint: disable=R0904
     @return: JSON-Decoded response
 
     @raises CertificateError: If an invalid SSL certificate is found
-    @raises GanetiApiError: If an invalid response is returned
+    @raises AlcorApiError: If an invalid response is returned
 
     """
     assert path.startswith("/")
@@ -583,7 +583,7 @@ class GanetiRapiClient(object): # pylint: disable=R0904
           raise CertificateError("SSL certificate error %s" % err,
                                  code=err.args[0])
 
-        raise GanetiApiError(str(err), code=err.args[0])
+        raise AlcorApiError(str(err), code=err.args[0])
     finally:
       # Reset settings to not keep references to large objects in memory
       # between requests
@@ -609,7 +609,7 @@ class GanetiRapiClient(object): # pylint: disable=R0904
       else:
         msg = str(response_content)
 
-      raise GanetiApiError(msg, code=http_code)
+      raise AlcorApiError(msg, code=http_code)
 
     return response_content
 
@@ -617,7 +617,7 @@ class GanetiRapiClient(object): # pylint: disable=R0904
     """Gets the Remote API version running on the cluster.
 
     @rtype: int
-    @return: Ganeti Remote API version
+    @return: Alcor Remote API version
 
     """
     return self._SendRequest(HTTP_GET, "/version", None, None)
@@ -632,7 +632,7 @@ class GanetiRapiClient(object): # pylint: disable=R0904
     try:
       return self._SendRequest(HTTP_GET, "/%s/features" % GANETI_RAPI_VERSION,
                                None, None)
-    except GanetiApiError as err:
+    except AlcorApiError as err:
       # Older RAPI servers don't support this resource
       if err.code == HTTP_NOT_FOUND:
         return []
@@ -640,7 +640,7 @@ class GanetiRapiClient(object): # pylint: disable=R0904
       raise
 
   def GetOperatingSystems(self, reason=None):
-    """Gets the Operating Systems running in the Ganeti cluster.
+    """Gets the Operating Systems running in the Alcor cluster.
 
     @rtype: list of str
     @return: operating systems
@@ -830,7 +830,7 @@ class GanetiRapiClient(object): # pylint: disable=R0904
     """
     conflicts = set(kwargs.keys()) & set(base.keys())
     if conflicts:
-      raise GanetiApiError("Required fields can not be specified as"
+      raise AlcorApiError("Required fields can not be specified as"
                            " keywords: %s" % ", ".join(conflicts))
 
     base.update((key, value) for key, value in kwargs.items()
@@ -928,7 +928,7 @@ class GanetiRapiClient(object): # pylint: disable=R0904
                                      **kwargs)
       body[_REQ_DATA_VERSION_FIELD] = 1
     else:
-      raise GanetiApiError("Server does not support new-style (version 1)"
+      raise AlcorApiError("Server does not support new-style (version 1)"
                            " instance creation requests")
 
     return self._SendRequest(HTTP_POST, "/%s/instances" % GANETI_RAPI_VERSION,
@@ -1261,7 +1261,7 @@ class GanetiRapiClient(object): # pylint: disable=R0904
 
     # Use old request format
     if osparams:
-      raise GanetiApiError("Server does not support specifying OS parameters"
+      raise AlcorApiError("Server does not support specifying OS parameters"
                            " for instance reinstallation")
 
     query = []
@@ -1641,7 +1641,7 @@ class GanetiRapiClient(object): # pylint: disable=R0904
   def EvacuateNode(self, node, iallocator=None, remote_node=None,
                    dry_run=False, early_release=None,
                    mode=None, accept_old=False, reason=None):
-    """Evacuates instances from a Ganeti node.
+    """Evacuates instances from a Alcor node.
 
     @type node: str
     @param node: node to evacuate
@@ -1667,12 +1667,12 @@ class GanetiRapiClient(object): # pylint: disable=R0904
       specified, then the actual move jobs were not submitted and the job IDs
       will be C{None}
 
-    @raises GanetiApiError: if an iallocator and remote_node are both
+    @raises AlcorApiError: if an iallocator and remote_node are both
         specified
 
     """
     if iallocator and remote_node:
-      raise GanetiApiError("Only one of iallocator or remote_node can be used")
+      raise AlcorApiError("Only one of iallocator or remote_node can be used")
 
     query = []
     _AppendDryRunIf(query, dry_run)
@@ -1692,13 +1692,13 @@ class GanetiRapiClient(object): # pylint: disable=R0904
       body = None
 
       if not accept_old:
-        raise GanetiApiError("Server is version 2.4 or earlier and caller does"
+        raise AlcorApiError("Server is version 2.4 or earlier and caller does"
                              " not accept old-style results (parameter"
                              " accept_old)")
 
       # Pre-2.5 servers can only evacuate secondaries
       if mode is not None and mode != NODE_EVAC_SEC:
-        raise GanetiApiError("Server can only evacuate secondary instances")
+        raise AlcorApiError("Server can only evacuate secondary instances")
 
       _AppendIf(query, iallocator, ("iallocator", iallocator))
       _AppendIf(query, remote_node, ("remote_node", remote_node))
@@ -1749,7 +1749,7 @@ class GanetiRapiClient(object): # pylint: disable=R0904
     else:
       # Use old request format
       if target_node is not None:
-        raise GanetiApiError("Server does not support specifying target node"
+        raise AlcorApiError("Server does not support specifying target node"
                              " for node migration")
 
       _AppendIf(query, mode is not None, ("mode", mode))

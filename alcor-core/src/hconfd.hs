@@ -1,4 +1,4 @@
-{-| Ganeti configuration query daemon
+{-| Alcor configuration query daemon
 
 -}
 
@@ -34,10 +34,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 module Main (main) where
 
-import qualified Ganeti.Confd.Server
-import Ganeti.Daemon
-import Ganeti.Runtime
-import qualified Ganeti.Constants as C
+import qualified Alcor.Confd.Server
+import Alcor.Daemon
+import Alcor.Runtime
+import qualified Alcor.Constants as C
 
 -- | Options list and functions.
 options :: [OptType]
@@ -53,7 +53,7 @@ options =
 -- | Main function.
 main :: IO ()
 main =
-  genericMain GanetiConfd options
-    Ganeti.Confd.Server.checkMain
-    Ganeti.Confd.Server.prepMain
-    Ganeti.Confd.Server.main
+  genericMain AlcorConfd options
+    Alcor.Confd.Server.checkMain
+    Alcor.Confd.Server.prepMain
+    Alcor.Confd.Server.main

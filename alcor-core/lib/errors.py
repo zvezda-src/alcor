@@ -28,11 +28,11 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-"""Ganeti exception handling.
+"""Alcor exception handling.
 
 """
 
-from ganeti import constants
+from alcor import constants
 
 
 ECODE_RESOLVER = constants.ERRORS_ECODE_RESOLVER
@@ -49,7 +49,7 @@ ECODE_ALL = constants.ERRORS_ECODE_ALL
 
 
 class GenericError(Exception):
-  """Base exception for Ganeti.
+  """Base exception for Alcor.
 
   """
 
@@ -260,7 +260,7 @@ class JobFileCorrupted(GenericError):
 class ResolverError(GenericError):
   """Host name cannot be resolved.
 
-  This is not a normal situation for Ganeti, as we rely on having a
+  This is not a normal situation for Alcor, as we rely on having a
   working resolver.
 
   The non-resolvable hostname is available as the first element of the
@@ -343,8 +343,8 @@ class InotifyError(GenericError):
   """
 
 
-class QuitGanetiException(Exception):
-  """Signal Ganeti that it must quit.
+class QuitAlcorException(Exception):
+  """Signal Alcor that it must quit.
 
   This is not necessarily an error (and thus not a subclass of
   GenericError), but it's an exceptional circumstance and it is thus
@@ -357,10 +357,10 @@ class QuitGanetiException(Exception):
 
   Examples::
 
-    # Return a result of "True" to the caller, but quit ganeti afterwards
-    raise QuitGanetiException(True, None)
-    # Send an error to the caller, and quit ganeti
-    raise QuitGanetiException(False, "Fatal safety violation, shutting down")
+    # Return a result of "True" to the caller, but quit alcor afterwards
+    raise QuitAlcorException(True, None)
+    # Send an error to the caller, and quit alcor
+    raise QuitAlcorException(False, "Fatal safety violation, shutting down")
 
   """
 
@@ -389,15 +389,15 @@ class JobQueueFull(JobQueueError):
 
 
 class ConfdMagicError(GenericError):
-  """A magic fourcc error in Ganeti confd.
+  """A magic fourcc error in Alcor confd.
 
-  Errors processing the fourcc in ganeti confd datagrams.
+  Errors processing the fourcc in alcor confd datagrams.
 
   """
 
 
 class ConfdClientError(GenericError):
-  """A magic fourcc error in Ganeti confd.
+  """A magic fourcc error in Alcor confd.
 
   Errors in the confd client library.
 
@@ -519,7 +519,7 @@ def EncodeException(err):
 
 
 def GetEncodedError(result):
-  """If this looks like an encoded Ganeti exception, return it.
+  """If this looks like an encoded Alcor exception, return it.
 
   This function tries to parse the passed argument and if it looks
   like an encoding done by EncodeException, it will return the class
@@ -529,7 +529,7 @@ def GetEncodedError(result):
   tlt = (tuple, list)
   if (isinstance(result, tlt) and len(result) == 2 and
       isinstance(result[1], tlt)):
-    # custom ganeti errors
+    # custom alcor errors
     errcls = GetErrorClass(result[0])
     if errcls:
       return (errcls, tuple(result[1]))
@@ -538,7 +538,7 @@ def GetEncodedError(result):
 
 
 def MaybeRaise(result):
-  """If this looks like an encoded Ganeti exception, raise it.
+  """If this looks like an encoded Alcor exception, raise it.
 
   This function tries to parse the passed argument and if it looks
   like an encoding done by EncodeException, it will re-raise it.

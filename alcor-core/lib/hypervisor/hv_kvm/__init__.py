@@ -56,23 +56,23 @@ except ImportError:
   psutil_err = "not found"
   psutil = None
 
-from ganeti import utils
-from ganeti import constants
-from ganeti import errors
-from ganeti import serializer
-from ganeti import objects
-from ganeti import uidpool
-from ganeti import ssconf
-from ganeti import netutils
-from ganeti import pathutils
-from ganeti.hypervisor import hv_base
-from ganeti.utils import wrapper as utils_wrapper
+from alcor import utils
+from alcor import constants
+from alcor import errors
+from alcor import serializer
+from alcor import objects
+from alcor import uidpool
+from alcor import ssconf
+from alcor import netutils
+from alcor import pathutils
+from alcor.hypervisor import hv_base
+from alcor.utils import wrapper as utils_wrapper
 
-from ganeti.hypervisor.hv_kvm.monitor import QmpConnection, QmpMessage, \
+from alcor.hypervisor.hv_kvm.monitor import QmpConnection, QmpMessage, \
                                              MonitorSocket
-from ganeti.hypervisor.hv_kvm.netdev import OpenTap
+from alcor.hypervisor.hv_kvm.netdev import OpenTap
 
-from ganeti.hypervisor.hv_kvm.validation import check_boot_parameters, \
+from alcor.hypervisor.hv_kvm.validation import check_boot_parameters, \
                                                 check_console_parameters, \
                                                 check_disk_cache_parameters, \
                                                 check_security_model,\
@@ -175,7 +175,7 @@ def _with_qmp(fn):
           break
       else:
         raise(RuntimeError("QMP decorator could not find"
-                           " a valid ganeti instance object"))
+                           " a valid alcor instance object"))
       filename = self._InstanceQmpMonitor(instance.name)# pylint: disable=W0212
       self.qmp = QmpConnection(filename)
     return fn(self, *args, **kwargs)
@@ -331,7 +331,7 @@ def _UpgradeSerializedRuntime(serialized_runtime):
   """Upgrade runtime data
 
   Remove any deprecated fields or change the format of the data.
-  The runtime files are not upgraded when Ganeti is upgraded, so the required
+  The runtime files are not upgraded when Alcor is upgraded, so the required
   modification have to be performed here.
 
   @type serialized_runtime: string
@@ -352,7 +352,7 @@ def _UpgradeSerializedRuntime(serialized_runtime):
     if "hvinfo" not in dev:
       dev["hvinfo"] = {}
       uuid = dev["uuid"]
-      # Ganeti used to save the PCI slot of paravirtual devices
+      # Alcor used to save the PCI slot of paravirtual devices
       # (virtio-blk-pci, virtio-net-pci) in runtime files during
       # _GenerateKVMRuntime() and HotAddDevice().
       # In this case we had a -device QEMU option in the command line with id,
@@ -623,14 +623,14 @@ class KVMHypervisor(hv_base.BaseHypervisor):
   # different than -drive is starting)
   _BOOT_RE = re.compile(r"^-drive\s([^-]|(?<!^)-)*,boot=on\|off", re.M | re.S)
   _UUID_RE = re.compile(r"^-uuid\s", re.M)
-  # The auto-read-only option is on the -blockdev, Ganeti uses this at -drive
+  # The auto-read-only option is on the -blockdev, Alcor uses this at -drive
   _AUTO_RO_RE = \
     re.compile(r"^-blockdev\s([^-]|(?<!^)-)*,auto-read-only=on\|off",
                re.M | re.S)
 
   # Slot 0 for Host bridge, Slot 1 for ISA bridge, Slot 2 for VGA controller
   # and the rest up to slot 11 will be used by QEMU implicitly.
-  # Ganeti will add disks and NICs from slot 12 onwards.
+  # Alcor will add disks and NICs from slot 12 onwards.
   # NOTE: This maps to the default PCI bus created by pc machine type
   # by default (pci.0). The q35 creates a PCIe bus that is not hotpluggable
   # and should be handled differently (pcie.0).
@@ -741,7 +741,7 @@ class KVMHypervisor(hv_base.BaseHypervisor):
         vcpus = int(arg_list.pop(0).split(",")[0])
 
     if instance is None:
-      raise errors.HypervisorError("Pid %s doesn't contain a ganeti kvm"
+      raise errors.HypervisorError("Pid %s doesn't contain a alcor kvm"
                                    " instance" % pid)
 
     return (instance, memory, vcpus)
@@ -1244,7 +1244,7 @@ class KVMHypervisor(hv_base.BaseHypervisor):
         dev_opts.extend(["-device", dev_val])
 
       # QEMU 4.0 introduced dynamic auto-read-only for file-backed drives. This
-      # is unhandled in Ganeti and breaks live migration with
+      # is unhandled in Alcor and breaks live migration with
       # security_model=user|pool, disable it here. See also
       # HotAddDevice/drive_add_fn which solves a similar problem for hotpluged
       # disks
@@ -1684,7 +1684,7 @@ class KVMHypervisor(hv_base.BaseHypervisor):
       kvm_cmd.extend(hvp[constants.HV_KVM_EXTRA].split(" "))
 
     def _generate_kvm_device(dev_type, dev):
-      """Helper for generating a kvm device out of a Ganeti device."""
+      """Helper for generating a kvm device out of a Alcor device."""
       kvm_devid = _GenerateDeviceKVMId(dev_type, dev)
       hv_dev_type = _DEVICE_TYPE[dev_type](hvp)
       dev.hvinfo = _GenerateDeviceHVInfo(dev_type, kvm_devid,
@@ -1755,7 +1755,7 @@ class KVMHypervisor(hv_base.BaseHypervisor):
     @type kvm_cmd: list of strings
     @param kvm_cmd: runcmd input for kvm
     @type tap_fds: list of int
-    @param tap_fds: fds of tap devices opened by Ganeti
+    @param tap_fds: fds of tap devices opened by Alcor
 
     """
     try:
@@ -1778,7 +1778,7 @@ class KVMHypervisor(hv_base.BaseHypervisor):
 
     For the case of the empty string, see L{OpenTap}
 
-    @type nic: ganeti.objects.NIC
+    @type nic: alcor.objects.NIC
     @param nic: NIC object for the name should be generated
 
     @rtype: string
@@ -1875,11 +1875,11 @@ class KVMHypervisor(hv_base.BaseHypervisor):
 
     """
     # Small _ExecuteKVMRuntime hv parameters programming howto:
-    #  - conf_hvp contains the parameters as configured on ganeti. they might
+    #  - conf_hvp contains the parameters as configured on alcor. they might
     #    have changed since the instance started; only use them if the change
     #    won't affect the inside of the instance (which hasn't been rebooted).
     #  - up_hvp contains the parameters as they were when the instance was
-    #    started, plus any new parameter which has been added between ganeti
+    #    started, plus any new parameter which has been added between alcor
     #    versions: it is paramount that those default to a value which won't
     #    affect the inside of the instance as well.
     conf_hvp = instance.hvparams

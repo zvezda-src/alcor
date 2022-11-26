@@ -35,27 +35,27 @@ import logging
 import os
 import time
 
-from ganeti import compat
-from ganeti import constants
-from ganeti import errors
-from ganeti import ht
-from ganeti import locking
-from ganeti.masterd import iallocator
-from ganeti import objects
-from ganeti import utils
-import ganeti.rpc.node as rpc
-from ganeti.cmdlib.base import LogicalUnit, NoHooksLU, Tasklet
-from ganeti.cmdlib.common import INSTANCE_DOWN, INSTANCE_NOT_RUNNING, \
+from alcor import compat
+from alcor import constants
+from alcor import errors
+from alcor import ht
+from alcor import locking
+from alcor.masterd import iallocator
+from alcor import objects
+from alcor import utils
+import alcor.rpc.node as rpc
+from alcor.cmdlib.base import LogicalUnit, NoHooksLU, Tasklet
+from alcor.cmdlib.common import INSTANCE_DOWN, INSTANCE_NOT_RUNNING, \
   AnnotateDiskParams, CheckIAllocatorOrNode, ExpandNodeUuidAndName, \
   ComputeIPolicyDiskSizesViolation, \
   CheckNodeOnline, CheckInstanceNodeGroups, CheckInstanceState, \
   IsExclusiveStorageEnabledNode, FindFaultyInstanceDisks, GetWantedNodes, \
   CheckDiskTemplateEnabled
-from ganeti.cmdlib.instance_utils import GetInstanceInfoText, \
+from alcor.cmdlib.instance_utils import GetInstanceInfoText, \
   CopyLockList, ReleaseLocks, CheckNodeVmCapable, \
   BuildInstanceHookEnvByObject, CheckNodeNotDrained, CheckTargetNodeIPolicy
 
-import ganeti.masterd.instance
+import alcor.masterd.instance
 
 
 _DISK_TEMPLATE_NAME_PREFIX = {
@@ -642,7 +642,7 @@ def GenerateDiskTemplate(
 
     elif template_name == constants.DT_GLUSTER:
       logical_id_fn = lambda _1, disk_index, _2: \
-        (file_driver, "ganeti/%s.%d" % (instance_uuid,
+        (file_driver, "alcor/%s.%d" % (instance_uuid,
                                         disk_index))
 
     elif template_name in constants.DTS_FILEBASED: # Gluster handled above
@@ -1780,7 +1780,7 @@ class LUInstanceGrowDisk(LogicalUnit):
     group_uuid = list(self.cfg.GetInstanceNodeGroups(self.op.instance_uuid,
                                                      primary_only=True))[0]
     group_info = self.cfg.GetNodeGroup(group_uuid)
-    ipolicy = ganeti.masterd.instance.CalculateGroupIPolicy(cluster,
+    ipolicy = alcor.masterd.instance.CalculateGroupIPolicy(cluster,
                                                             group_info)
 
     disks = self.cfg.GetInstanceDisks(self.op.instance_uuid)
@@ -2415,7 +2415,7 @@ class TLReplaceDisks(Tasklet):
       # We change the node, lets verify it still meets instance policy
       new_group_info = self.cfg.GetNodeGroup(self.remote_node_info.group)
       cluster = self.cfg.GetClusterInfo()
-      ipolicy = ganeti.masterd.instance.CalculateGroupIPolicy(cluster,
+      ipolicy = alcor.masterd.instance.CalculateGroupIPolicy(cluster,
                                                               new_group_info)
       CheckTargetNodeIPolicy(self.lu, ipolicy, self.instance,
                              self.remote_node_info, self.cfg,
@@ -3029,10 +3029,10 @@ class TemporaryDisk(object):
                shutdown_timeout=constants.DEFAULT_SHUTDOWN_TIMEOUT):
     """ Constructor storing arguments until used later.
 
-    @type lu: L{ganeti.cmdlib.base.LogicalUnit}
+    @type lu: L{alcor.cmdlib.base.LogicalUnit}
     @param lu: The LU within which this disk is created.
 
-    @type instance: L{ganeti.objects.Instance}
+    @type instance: L{alcor.objects.Instance}
     @param instance: The instance to which the disk should be added
 
     @type disks: list of triples (disk template, disk access mode, int)
@@ -3080,7 +3080,7 @@ class TemporaryDisk(object):
   def __enter__(self):
     """ Context manager entry function, creating the disk.
 
-    @rtype: L{ganeti.objects.Disk}
+    @rtype: L{alcor.objects.Disk}
     @return: The disk object created.
 
     """
@@ -3088,7 +3088,7 @@ class TemporaryDisk(object):
 
     new_disks = []
 
-    # The iv_name of the disk intentionally diverges from Ganeti's standards, as
+    # The iv_name of the disk intentionally diverges from Alcor's standards, as
     # this disk should be very temporary and its presence should be reported.
     # With the special iv_name, gnt-cluster verify detects the disk and warns
     # the user of its presence. Removing the disk restores the instance to its

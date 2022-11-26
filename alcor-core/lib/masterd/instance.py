@@ -38,13 +38,13 @@ import OpenSSL
 
 from hashlib import sha1
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import compat
-from ganeti import utils
-from ganeti import objects
-from ganeti import netutils
-from ganeti import pathutils
+from alcor import constants
+from alcor import errors
+from alcor import compat
+from alcor import utils
+from alcor import objects
+from alcor import netutils
+from alcor import pathutils
 
 
 class _ImportExportError(Exception):

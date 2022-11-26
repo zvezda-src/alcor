@@ -30,7 +30,7 @@
 """Node related commands"""
 
 # pylint: disable=W0401,W0613,W0614,C0103
-# W0401: Wildcard import ganeti.cli
+# W0401: Wildcard import alcor.cli
 # W0613: Unused argument, since all functions follow the same API
 # W0614: Unused import %s from wildcard import (since we need cli)
 # C0103: Invalid name gnt-node
@@ -38,21 +38,21 @@
 import itertools
 import errno
 
-from ganeti.cli import *
-from ganeti import cli
-from ganeti import bootstrap
-from ganeti import opcodes
-from ganeti import utils
-from ganeti import constants
-from ganeti import errors
-from ganeti import netutils
-from ganeti import pathutils
-from ganeti.rpc.node import RunWithRPC
-from ganeti import ssh
-from ganeti import compat
+from alcor.cli import *
+from alcor import cli
+from alcor import bootstrap
+from alcor import opcodes
+from alcor import utils
+from alcor import constants
+from alcor import errors
+from alcor import netutils
+from alcor import pathutils
+from alcor.rpc.node import RunWithRPC
+from alcor import ssh
+from alcor import compat
 
-from ganeti import confd
-from ganeti.confd import client as confd_client
+from alcor import confd
+from alcor.confd import client as confd_client
 
 #: default list of field for L{ListNodes}
 _LIST_DEF_FIELDS = [

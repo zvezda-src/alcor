@@ -40,8 +40,8 @@ try:
 except ImportError:
   import pyinotify
 
-from ganeti import daemon
-from ganeti import errors
+from alcor import daemon
+from alcor import errors
 
 
 # We contributed the AsyncNotifier class back to python-pyinotify, and it's
@@ -77,7 +77,7 @@ class AsyncNotifier(asyncore.file_dispatcher):
 
 
 class ErrorLoggingAsyncNotifier(AsyncNotifier,
-                                daemon.GanetiBaseAsyncoreDispatcher):
+                                daemon.AlcorBaseAsyncoreDispatcher):
   """An asyncnotifier that can survive errors in the callbacks.
 
   We define this as a separate class, since we don't want to make AsyncNotifier
@@ -184,7 +184,7 @@ class SingleFileEventHandler(FileEventHandlerBase):
   def process_IN_IGNORED(self, event):
     # Since we monitor a single file rather than the directory it resides in,
     # when that file is replaced with another one (which is what happens when
-    # utils.WriteFile, the most normal way of updating files in ganeti, is
+    # utils.WriteFile, the most normal way of updating files in alcor, is
     # called) we're going to receive an IN_IGNORED event from inotify, because
     # of the file removal (which is contextual with the replacement). In such a
     # case we'll need to create a watcher for the "new" file. This can be done
@@ -197,7 +197,7 @@ class SingleFileEventHandler(FileEventHandlerBase):
   # this overrides a method in pyinotify.ProcessEvent
   def process_IN_MODIFY(self, event):
     # This gets called when the monitored file is modified. Note that this
-    # doesn't usually happen in Ganeti, as most of the time we're just
+    # doesn't usually happen in Alcor, as most of the time we're just
     # replacing any file with a new one, at filesystem level, rather than
     # actually changing it. (see utils.WriteFile)
     logging.debug("Received 'modify' inotify event for %s", event.path)

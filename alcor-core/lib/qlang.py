@@ -45,9 +45,9 @@ import logging
 
 import pyparsing as pyp
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import utils
+from alcor import constants
+from alcor import errors
+from alcor import utils
 
 
 OP_OR = constants.QLANG_OP_OR

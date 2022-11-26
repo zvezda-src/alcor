@@ -40,19 +40,19 @@ from io import StringIO
 
 import pycurl
 
-from ganeti import errors
-from ganeti import opcodes
-from ganeti import http
-from ganeti import server
-from ganeti import utils
-from ganeti import compat
-from ganeti import luxi
-import ganeti.rpc.client as rpccl
-from ganeti import rapi
+from alcor import errors
+from alcor import opcodes
+from alcor import http
+from alcor import server
+from alcor import utils
+from alcor import compat
+from alcor import luxi
+import alcor.rpc.client as rpccl
+from alcor import rapi
 
-import ganeti.http.server # pylint: disable=W0611
-import ganeti.server.rapi # pylint: disable=W0611
-import ganeti.rapi.client # pylint: disable=W0611
+import alcor.http.server # pylint: disable=W0611
+import alcor.server.rapi # pylint: disable=W0611
+import alcor.rapi.client # pylint: disable=W0611
 
 
 _URI_RE = re.compile(r"https://(?P<host>.*):(?P<port>\d+)(?P<path>/.*)")
@@ -61,8 +61,8 @@ _URI_RE = re.compile(r"https://(?P<host>.*):(?P<port>\d+)(?P<path>/.*)")
 class VerificationError(Exception):
   """Dedicated error class for test utilities.
 
-  This class is used to hide all of Ganeti's internal exception, so that
-  external users of these utilities don't have to integrate Ganeti's exception
+  This class is used to hide all of Alcor's internal exception, so that
+  external users of these utilities don't have to integrate Alcor's exception
   hierarchy.
 
   """
@@ -79,14 +79,14 @@ def _GetOpById(op_id):
 
 
 def _HideInternalErrors(fn):
-  """Hides Ganeti-internal exceptions, see L{VerificationError}.
+  """Hides Alcor-internal exceptions, see L{VerificationError}.
 
   """
   def wrapper(*args, **kwargs):
     try:
       return fn(*args, **kwargs)
-    except (errors.GenericError, rapi.client.GanetiApiError) as err:
-      raise VerificationError("Unhandled Ganeti error: %s" % err)
+    except (errors.GenericError, rapi.client.AlcorApiError) as err:
+      raise VerificationError("Unhandled Alcor error: %s" % err)
 
   return wrapper
 
@@ -348,7 +348,7 @@ class InputTestClient(object):
   """Test version of RAPI client.
 
   Instances of this class can be used to test input arguments for RAPI client
-  calls. See L{rapi.client.GanetiRapiClient} for available methods and their
+  calls. See L{rapi.client.AlcorRapiClient} for available methods and their
   arguments. Functions can return C{NotImplemented} if all arguments are
   acceptable, but a LUXI request would be necessary to provide an actual return
   value. In case of an error, L{VerificationError} is raised.
@@ -378,7 +378,7 @@ class InputTestClient(object):
     handler = _RapiMock(user_fn, self._lcr)
 
     self._client = \
-      rapi.client.GanetiRapiClient("master.example.com",
+      rapi.client.AlcorRapiClient("master.example.com",
                                    username=username, password=password,
                                    curl_factory=lambda: FakeCurl(handler))
 

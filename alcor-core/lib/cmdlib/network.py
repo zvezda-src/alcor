@@ -30,14 +30,14 @@
 
 """Logical units dealing with networks."""
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import locking
-from ganeti import network
-from ganeti import objects
-from ganeti import utils
-from ganeti.cmdlib.base import LogicalUnit
-from ganeti.cmdlib.common import CheckNodeGroupInstances
+from alcor import constants
+from alcor import errors
+from alcor import locking
+from alcor import network
+from alcor import objects
+from alcor import utils
+from alcor.cmdlib.base import LogicalUnit
+from alcor.cmdlib.common import CheckNodeGroupInstances
 
 
 def _BuildNetworkHookEnv(name, subnet, gateway, network6, gateway6,

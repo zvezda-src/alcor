@@ -36,14 +36,14 @@ import socket
 import tempfile
 import time
 
-from ganeti import compat
-from ganeti import constants
-from ganeti import errors
-from ganeti import locking
-from ganeti import utils
-from ganeti.masterd import iallocator
-from ganeti.cmdlib.base import NoHooksLU
-from ganeti.cmdlib.common import ExpandInstanceUuidAndName, GetWantedNodes, \
+from alcor import compat
+from alcor import constants
+from alcor import errors
+from alcor import locking
+from alcor import utils
+from alcor.masterd import iallocator
+from alcor.cmdlib.base import NoHooksLU
+from alcor.cmdlib.common import ExpandInstanceUuidAndName, GetWantedNodes, \
   GetWantedInstances
 
 

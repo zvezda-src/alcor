@@ -46,10 +46,10 @@ import copy
 import logging
 import re
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import ht
-from ganeti import outils
+from alcor import constants
+from alcor import errors
+from alcor import ht
+from alcor import outils
 
 
 #: OP_ID conversion regular expression

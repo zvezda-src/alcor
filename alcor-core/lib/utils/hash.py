@@ -36,7 +36,7 @@ import hmac
 
 from hashlib import sha1
 
-from ganeti import compat
+from alcor import compat
 
 
 def Sha1Hmac(key, msg, salt=None):

@@ -38,14 +38,14 @@
 
 import logging
 
-from ganeti import luxi
-import ganeti.rpc.errors as rpcerr
-from ganeti import rapi
-from ganeti import http
-from ganeti import errors
-from ganeti import compat
-from ganeti import constants
-from ganeti import utils
+from alcor import luxi
+import alcor.rpc.errors as rpcerr
+from alcor import rapi
+from alcor import http
+from alcor import errors
+from alcor import compat
+from alcor import constants
+from alcor import utils
 
 
 # Dummy value to detect unchanged parameters

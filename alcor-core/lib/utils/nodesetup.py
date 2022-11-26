@@ -33,10 +33,10 @@
 
 from io import StringIO
 
-from ganeti import pathutils
+from alcor import pathutils
 
-from ganeti.utils import algo
-from ganeti.utils import io
+from alcor.utils import algo
+from alcor.utils import io
 
 
 def SetEtcHostsEntry(file_name, ip, hostname, aliases):

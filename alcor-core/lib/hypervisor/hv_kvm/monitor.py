@@ -42,10 +42,10 @@ import logging
 
 from bitarray import bitarray
 
-from ganeti import errors
-from ganeti import utils
-from ganeti import constants
-from ganeti import serializer
+from alcor import errors
+from alcor import utils
+from alcor import constants
+from alcor import serializer
 
 
 class QmpCommandNotSupported(errors.HypervisorError):
@@ -309,7 +309,7 @@ class QmpConnection(MonitorSocket):
     self.package = version_info[self._PACKAGE_KEY].strip()
 
     # This is needed because QMP can return more than one greetings
-    # see https://groups.google.com/d/msg/ganeti-devel/gZYcvHKDooU/SnukC8dgS5AJ
+    # see https://groups.google.com/d/msg/alcor-devel/gZYcvHKDooU/SnukC8dgS5AJ
     self._buf = b""
 
     # Let's put the monitor in command mode using the qmp_capabilities

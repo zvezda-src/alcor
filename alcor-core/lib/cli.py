@@ -43,23 +43,23 @@ import shlex
 from io import StringIO
 from optparse import (OptionParser, TitledHelpFormatter)
 
-from ganeti import utils
-from ganeti import errors
-from ganeti import constants
-from ganeti import opcodes
-import ganeti.rpc.errors as rpcerr
-from ganeti import ssh
-from ganeti import compat
-from ganeti import netutils
-from ganeti import qlang
-from ganeti import objects
-from ganeti import pathutils
-from ganeti import serializer
-import ganeti.cli_opts
+from alcor import utils
+from alcor import errors
+from alcor import constants
+from alcor import opcodes
+import alcor.rpc.errors as rpcerr
+from alcor import ssh
+from alcor import compat
+from alcor import netutils
+from alcor import qlang
+from alcor import objects
+from alcor import pathutils
+from alcor import serializer
+import alcor.cli_opts
 # Import constants
-from ganeti.cli_opts import *  # pylint: disable=W0401,W0614
+from alcor.cli_opts import *  # pylint: disable=W0401,W0614
 
-from ganeti.runtime import (GetClient)
+from alcor.runtime import (GetClient)
 
 
 __all__ = [
@@ -129,7 +129,7 @@ __all__ = [
   "SplitNodeOption",
   "CalculateOSNames",
   "ParseFields",
-  ] + ganeti.cli_opts.__all__ # Command line options
+  ] + alcor.cli_opts.__all__ # Command line options
 
 # Query result status for clients
 (QR_NORMAL,
@@ -1177,7 +1177,7 @@ def FormatError(err):
     obuf.write("Error while parsing query filter: %s\n" % err.args[0])
     obuf.write("\n".join(err.GetDetails()))
   elif isinstance(err, errors.GenericError):
-    obuf.write("Unhandled Ganeti error: %s" % msg)
+    obuf.write("Unhandled Alcor error: %s" % msg)
   elif isinstance(err, errors.JobSubmittedException):
     obuf.write("JobID: %s\n" % err.args[0])
     retcode = 0
@@ -1223,7 +1223,7 @@ def GenericMain(commands, override=None, aliases=None,
     (func, options, args) = _ParseArgs(binary, sys.argv, commands, aliases,
                                        env_override)
   except _ShowVersion:
-    ToStdout("%s (ganeti %s) %s", binary, constants.VCS_VERSION,
+    ToStdout("%s (alcor %s) %s", binary, constants.VCS_VERSION,
              constants.RELEASE_VERSION)
     return constants.EXIT_SUCCESS
   except _ShowUsage as err:
@@ -1299,7 +1299,7 @@ def ParseNicOption(optvalue):
 
 
 def FixHvParams(hvparams):
-  # In Ganeti 2.8.4 the separator for the usb_devices hvparam was changed from
+  # In Alcor 2.8.4 the separator for the usb_devices hvparam was changed from
   # comma to space because commas cannot be accepted on the command line
   # (they already act as the separator between different hvparams). Still,
   # RAPI should be able to accept commas for backwards compatibility.
@@ -2338,7 +2338,7 @@ def GetNodesSshPorts(nodes, cl):
   @param nodes: the names of nodes
   @type nodes: a list of strings
   @param cl: a client to use for the query
-  @type cl: L{ganeti.luxi.Client}
+  @type cl: L{alcor.luxi.Client}
   @return: the list of SSH ports corresponding to the nodes
   @rtype: a list of tuples
 
@@ -2354,7 +2354,7 @@ def GetNodeUUIDs(nodes, cl):
   @param nodes: the names of nodes
   @type nodes: a list of string
   @param cl: a client to use for the query
-  @type cl: L{ganeti.luxi.Client}
+  @type cl: L{alcor.luxi.Client}
   @return: the list of UUIDs corresponding to the nodes
   @rtype: a list of tuples
 

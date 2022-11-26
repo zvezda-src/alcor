@@ -31,7 +31,7 @@
 
 # Usage: upload node-{1,2,3}
 # it will upload the python libraries to
-# $prefix/lib/python2.X/dist-packages/ganeti and the command line utils to
+# $prefix/lib/python2.X/dist-packages/alcor and the command line utils to
 # $prefix/sbin. It needs passwordless root login to the nodes.
 
 set -e -u
@@ -94,7 +94,7 @@ fi
 # Make sure that directories will get correct permissions
 umask 0022
 
-# install ganeti as a real tree
+# install alcor as a real tree
 make $make_args install DESTDIR="$TXD"
 
 # at this point, make has been finished, so the configuration is
@@ -105,33 +105,33 @@ LIBDIR="$(echo @LIBDIR@ | $SED)"
 PKGLIBDIR="$(echo @PKGLIBDIR@ | $SED)"
 
 # copy additional needed files
-[ -f doc/examples/ganeti.initd ] && \
-install -D --mode=0755 doc/examples/ganeti.initd \
-  "$TXD/$SYSCONFDIR/init.d/ganeti"
+[ -f doc/examples/alcor.initd ] && \
+install -D --mode=0755 doc/examples/alcor.initd \
+  "$TXD/$SYSCONFDIR/init.d/alcor"
 
-[ -f doc/examples/ganeti.logrotate ] && \
-install -D --mode=0755 doc/examples/ganeti.logrotate \
-  "$TXD/$SYSCONFDIR/logrotate.d/ganeti"
+[ -f doc/examples/alcor.logrotate ] && \
+install -D --mode=0755 doc/examples/alcor.logrotate \
+  "$TXD/$SYSCONFDIR/logrotate.d/alcor"
 
-[ -f doc/examples/ganeti-master-role.ocf ] && \
-install -D --mode=0755 doc/examples/ganeti-master-role.ocf \
-  "$TXD/$LIBDIR/ocf/resource.d/ganeti/ganeti-master-role"
+[ -f doc/examples/alcor-master-role.ocf ] && \
+install -D --mode=0755 doc/examples/alcor-master-role.ocf \
+  "$TXD/$LIBDIR/ocf/resource.d/alcor/alcor-master-role"
 
-[ -f doc/examples/ganeti-node-role.ocf ] && \
-install -D --mode=0755 doc/examples/ganeti-node-role.ocf \
-  "$TXD/$LIBDIR/ocf/resource.d/ganeti/ganeti-node-role"
+[ -f doc/examples/alcor-node-role.ocf ] && \
+install -D --mode=0755 doc/examples/alcor-node-role.ocf \
+  "$TXD/$LIBDIR/ocf/resource.d/alcor/alcor-node-role"
 
-[ -f doc/examples/ganeti.default-debug -a -z "$NO_DEBUG" ] && \
-install -D --mode=0644 doc/examples/ganeti.default-debug \
-  "$TXD/$SYSCONFDIR/default/ganeti"
+[ -f doc/examples/alcor.default-debug -a -z "$NO_DEBUG" ] && \
+install -D --mode=0644 doc/examples/alcor.default-debug \
+  "$TXD/$SYSCONFDIR/default/alcor"
 
 [ -f doc/examples/bash_completion-debug ] && \
 install -D --mode=0644 doc/examples/bash_completion-debug \
-  "$TXD/$SYSCONFDIR/bash_completion.d/ganeti"
+  "$TXD/$SYSCONFDIR/bash_completion.d/alcor"
 
-if [ -f doc/examples/ganeti.cron -a -z "$NO_CRON" ]; then
-  install -D --mode=0644 doc/examples/ganeti.cron \
-    "$TXD/$SYSCONFDIR/cron.d/ganeti"
+if [ -f doc/examples/alcor.cron -a -z "$NO_CRON" ]; then
+  install -D --mode=0644 doc/examples/alcor.cron \
+    "$TXD/$SYSCONFDIR/cron.d/alcor"
 fi
 
 echo ---
@@ -153,8 +153,8 @@ wait
 
 if test -z "${NO_RESTART}"; then
   for host; do
-    echo Restarting ganeti-noded on ${host}...
-    ssh -oBatchMode=yes root@${host} $SYSCONFDIR/init.d/ganeti restart &
+    echo Restarting alcor-noded on ${host}...
+    ssh -oBatchMode=yes root@${host} $SYSCONFDIR/init.d/alcor restart &
   done
   wait
 fi

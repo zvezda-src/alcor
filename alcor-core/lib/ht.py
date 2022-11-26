@@ -34,11 +34,11 @@ import re
 import operator
 import ipaddress
 
-from ganeti import compat
-from ganeti import utils
-from ganeti import constants
-from ganeti import objects
-from ganeti.serializer import Private
+from alcor import compat
+from alcor import utils
+from alcor import constants
+from alcor import objects
+from alcor.serializer import Private
 
 _PAREN_RE = re.compile("^[a-zA-Z0-9_-]+$")
 

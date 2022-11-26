@@ -37,8 +37,8 @@ import threading
 import heapq
 import itertools
 
-from ganeti import compat
-from ganeti import errors
+from alcor import compat
+from alcor import errors
 
 
 _TERMINATE = object()

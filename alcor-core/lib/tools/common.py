@@ -39,13 +39,13 @@ from io import StringIO
 
 import OpenSSL
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import pathutils
-from ganeti import utils
-from ganeti import serializer
-from ganeti import ssconf
-from ganeti import ssh
+from alcor import constants
+from alcor import errors
+from alcor import pathutils
+from alcor import utils
+from alcor import serializer
+from alcor import ssconf
+from alcor import ssh
 
 
 def VerifyOptions(parser, opts, args):

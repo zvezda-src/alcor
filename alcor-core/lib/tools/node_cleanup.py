@@ -37,11 +37,11 @@ import optparse
 import sys
 import logging
 
-from ganeti import cli
-from ganeti import constants
-from ganeti import pathutils
-from ganeti import ssconf
-from ganeti import utils
+from alcor import cli
+from alcor import constants
+from alcor import pathutils
+from alcor import ssconf
+from alcor import utils
 
 
 def ParseOptions():

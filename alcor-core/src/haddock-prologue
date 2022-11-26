@@ -1,5 +1,5 @@
-This is the internal documentation for the Haskell components of Ganeti.
+This is the internal documentation for the Haskell components of Alcor.
 
-The @Ganeti.HTools@ subtree contain the htools-specific component
-(rebalancing, allocation, capacity), while the @Ganeti@ tree contains
+The @Alcor.HTools@ subtree contain the htools-specific component
+(rebalancing, allocation, capacity), while the @Alcor@ tree contains
 basic functionality and core components.

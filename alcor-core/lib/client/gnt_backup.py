@@ -30,16 +30,16 @@
 """Backup related commands"""
 
 # pylint: disable=W0401,W0613,W0614,C0103
-# W0401: Wildcard import ganeti.cli
+# W0401: Wildcard import alcor.cli
 # W0613: Unused argument, since all functions follow the same API
 # W0614: Unused import %s from wildcard import (since we need cli)
 # C0103: Invalid name gnt-backup
 
-from ganeti.cli import *
-from ganeti import opcodes
-from ganeti import constants
-from ganeti import errors
-from ganeti import qlang
+from alcor.cli import *
+from alcor import opcodes
+from alcor import constants
+from alcor import errors
+from alcor import qlang
 
 
 _LIST_DEF_FIELDS = ["node", "export"]
@@ -159,7 +159,7 @@ commands = {
   "list": (
     PrintExportList, ARGS_NONE,
     [NODE_LIST_OPT, NOHDR_OPT, SEP_OPT, USEUNITS_OPT, FIELDS_OPT, VERBOSE_OPT],
-    "", "Lists instance exports available in the ganeti cluster"),
+    "", "Lists instance exports available in the alcor cluster"),
   "list-fields": (
     ListExportFields, [ArgUnknown()],
     [NOHDR_OPT, SEP_OPT],

@@ -30,13 +30,13 @@
 
 """Logical units for queries."""
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import query
-from ganeti.cmdlib.base import NoHooksLU
-from ganeti.cmdlib.cluster import ClusterQuery
-from ganeti.cmdlib.misc import ExtStorageQuery
-from ganeti.cmdlib.operating_system import OsQuery
+from alcor import constants
+from alcor import errors
+from alcor import query
+from alcor.cmdlib.base import NoHooksLU
+from alcor.cmdlib.cluster import ClusterQuery
+from alcor.cmdlib.misc import ExtStorageQuery
+from alcor.cmdlib.operating_system import OsQuery
 
 
 #: Query type implementations

@@ -27,7 +27,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"""Utility functions for security features of Ganeti.
+"""Utility functions for security features of Alcor.
 
 """
 
@@ -38,11 +38,11 @@ import uuid as uuid_module
 
 import OpenSSL
 
-from ganeti.utils import io
-from ganeti.utils import x509
-from ganeti import constants
-from ganeti import errors
-from ganeti import pathutils
+from alcor.utils import io
+from alcor.utils import x509
+from alcor import constants
+from alcor import errors
+from alcor import pathutils
 
 
 def UuidToInt(uuid):
@@ -142,7 +142,7 @@ def IsCertificateSelfSigned(cert_filename):
 
   Note that this does not actually verify the signature, it simply
   compares the certificates common name and the issuer's common
-  name. This is sufficient, because now that Ganeti started creating
+  name. This is sufficient, because now that Alcor started creating
   non-self-signed client-certificates, it uses their hostnames
   as common names and thus they are distinguishable by common name
   from the server certificates.

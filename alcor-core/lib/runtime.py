@@ -37,13 +37,13 @@ import pwd
 import threading
 import platform
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import luxi
-from ganeti.rpc.errors import NoMasterError
-from ganeti import pathutils
-from ganeti import ssconf
-from ganeti import utils
+from alcor import constants
+from alcor import errors
+from alcor import luxi
+from alcor.rpc.errors import NoMasterError
+from alcor import pathutils
+from alcor import ssconf
+from alcor import utils
 
 
 _priv = None
@@ -82,7 +82,7 @@ def GetGid(group, _getgrnam):
 
 
 class GetentResolver(object):
-  """Resolves Ganeti uids and gids by name.
+  """Resolves Alcor uids and gids by name.
 
   @ivar masterd_uid: The resolved uid of the masterd user
   @ivar masterd_gid: The resolved gid of the masterd group
@@ -133,7 +133,7 @@ class GetentResolver(object):
     self.metad_uid = GetUid(constants.METAD_USER, _getpwnam)
     self.metad_gid = GetGid(constants.METAD_GROUP, _getgrnam)
 
-    # Misc Ganeti groups
+    # Misc Alcor groups
     self.daemons_gid = GetGid(constants.DAEMONS_GROUP, _getgrnam)
     self.admin_gid = GetGid(constants.ADMIN_GROUP, _getgrnam)
 
@@ -165,7 +165,7 @@ class GetentResolver(object):
     self._group2gid = utils.InvertDict(self._gid2group)
 
   def LookupUid(self, uid):
-    """Looks which Ganeti user belongs to this uid.
+    """Looks which Alcor user belongs to this uid.
 
     @param uid: The uid to lookup
     @returns The user name associated with that uid
@@ -174,10 +174,10 @@ class GetentResolver(object):
     try:
       return self._uid2user[uid]
     except KeyError:
-      raise errors.ConfigurationError("Unknown Ganeti uid '%d'" % uid)
+      raise errors.ConfigurationError("Unknown Alcor uid '%d'" % uid)
 
   def LookupGid(self, gid):
-    """Looks which Ganeti group belongs to this gid.
+    """Looks which Alcor group belongs to this gid.
 
     @param gid: The gid to lookup
     @returns The group name associated with that gid
@@ -186,7 +186,7 @@ class GetentResolver(object):
     try:
       return self._gid2group[gid]
     except KeyError:
-      raise errors.ConfigurationError("Unknown Ganeti gid '%d'" % gid)
+      raise errors.ConfigurationError("Unknown Alcor gid '%d'" % gid)
 
   def LookupUser(self, name):
     """Looks which uid belongs to this name.
@@ -198,7 +198,7 @@ class GetentResolver(object):
     try:
       return self._user2uid[name]
     except KeyError:
-      raise errors.ConfigurationError("Unknown Ganeti user '%s'" % name)
+      raise errors.ConfigurationError("Unknown Alcor user '%s'" % name)
 
   def LookupGroup(self, name):
     """Looks which gid belongs to this name.
@@ -210,7 +210,7 @@ class GetentResolver(object):
     try:
       return self._group2gid[name]
     except KeyError:
-      raise errors.ConfigurationError("Unknown Ganeti group '%s'" % name)
+      raise errors.ConfigurationError("Unknown Alcor group '%s'" % name)
 
 
 def GetEnts(resolver=GetentResolver):

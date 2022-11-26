@@ -34,7 +34,7 @@ A transport can send to and receive messages from some endpoint.
 
 """
 
-from ganeti.errors import LuxiError
+from alcor.errors import LuxiError
 
 
 class ProtocolError(LuxiError):

@@ -36,13 +36,13 @@ import logging
 import errno
 import os
 
-from ganeti import compat
-from ganeti import constants
-from ganeti import errors
-from ganeti import pathutils
-from ganeti import utils
-from ganeti.utils import io
-from ganeti.storage import base
+from alcor import compat
+from alcor import constants
+from alcor import errors
+from alcor import pathutils
+from alcor import utils
+from alcor.utils import io
+from alcor.storage import base
 
 
 class FileDeviceHelper(object):
@@ -54,7 +54,7 @@ class FileDeviceHelper(object):
 
     @param size: the size in MiBs the file should be truncated to.
     @param create_folders: create the directories for the path if necessary
-                           (using L{ganeti.utils.io.Makedirs})
+                           (using L{alcor.utils.io.Makedirs})
 
     @rtype: FileDeviceHelper
     @return: The FileDeviceHelper object representing the object.

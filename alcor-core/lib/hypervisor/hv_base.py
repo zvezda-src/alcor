@@ -51,10 +51,10 @@ import re
 import logging
 
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import objects
-from ganeti import utils
+from alcor import constants
+from alcor import errors
+from alcor import objects
+from alcor import utils
 
 
 def _IsCpuMaskWellFormed(cpu_mask):

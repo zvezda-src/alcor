@@ -35,11 +35,11 @@ import re
 
 import pyparsing as pyp
 
-from ganeti import constants
-from ganeti import utils
-from ganeti import errors
-from ganeti import compat
-from ganeti.storage import base
+from alcor import constants
+from alcor import utils
+from alcor import errors
+from alcor import compat
+from alcor.storage import base
 
 
 class DRBD8Status(object): # pylint: disable=R0902

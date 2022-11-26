@@ -39,9 +39,9 @@ import binascii
 from io import StringIO
 from hashlib import md5
 
-from ganeti import compat
-from ganeti import http
-from ganeti import utils
+from alcor import compat
+from alcor import http
+from alcor import utils
 
 # Digest types from RFC2617
 HTTP_BASIC_AUTH = "Basic"

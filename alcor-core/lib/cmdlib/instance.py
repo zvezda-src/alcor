@@ -33,30 +33,30 @@
 import logging
 import os
 
-from ganeti import compat
-from ganeti import constants
-from ganeti import errors
-from ganeti import locking
-from ganeti.masterd import iallocator
-from ganeti import masterd
-from ganeti import netutils
-from ganeti import objects
-from ganeti import utils
+from alcor import compat
+from alcor import constants
+from alcor import errors
+from alcor import locking
+from alcor.masterd import iallocator
+from alcor import masterd
+from alcor import netutils
+from alcor import objects
+from alcor import utils
 
-from ganeti.cmdlib.base import NoHooksLU, LogicalUnit, ResultWithJobs
+from alcor.cmdlib.base import NoHooksLU, LogicalUnit, ResultWithJobs
 
-from ganeti.cmdlib.common import \
+from alcor.cmdlib.common import \
   INSTANCE_NOT_RUNNING, CheckNodeOnline, \
   ShareAll, GetDefaultIAllocator, CheckInstanceNodeGroups, \
   LoadNodeEvacResult, \
   ExpandInstanceUuidAndName, \
   CheckInstanceState, ExpandNodeUuidAndName, \
   CheckDiskTemplateEnabled
-from ganeti.cmdlib.instance_storage import CreateDisks, \
+from alcor.cmdlib.instance_storage import CreateDisks, \
   ComputeDisks, \
   StartInstanceDisks, ShutdownInstanceDisks, \
   AssembleInstanceDisks
-from ganeti.cmdlib.instance_utils import \
+from alcor.cmdlib.instance_utils import \
   BuildInstanceHookEnvByObject,\
   CheckNodeNotDrained, RemoveInstance, CopyLockList, \
   CheckNodeVmCapable, CheckTargetNodeIPolicy, \
@@ -65,7 +65,7 @@ from ganeti.cmdlib.instance_utils import \
   CheckInstanceExistence, \
   CheckHostnameSane, CheckOpportunisticLocking, ComputeFullBeParams, \
   ComputeNics, CreateInstanceAllocRequest
-import ganeti.masterd.instance
+import alcor.masterd.instance
 
 
 class LUInstanceRename(LogicalUnit):
@@ -203,7 +203,7 @@ class LUInstanceRename(LogicalUnit):
                                                      old_file_storage_dir,
                                                      new_file_storage_dir)
       result.Raise("Could not rename on node %s directory '%s' to '%s'"
-                   " (but the instance has been renamed in Ganeti)" %
+                   " (but the instance has been renamed in Alcor)" %
                    (self.cfg.GetNodeName(renamed_inst.primary_node),
                     old_file_storage_dir, new_file_storage_dir))
 
@@ -223,7 +223,7 @@ class LUInstanceRename(LogicalUnit):
                                                  renamed_inst, old_name,
                                                  self.op.debug_level)
       result.Warn("Could not run OS rename script for instance %s on node %s"
-                  " (but the instance has been renamed in Ganeti)" %
+                  " (but the instance has been renamed in Alcor)" %
                   (renamed_inst.name,
                    self.cfg.GetNodeName(renamed_inst.primary_node)),
                   self.LogWarning)
@@ -416,7 +416,7 @@ class LUInstanceMove(LogicalUnit):
     CheckNodeNotDrained(self, target_node.uuid)
     CheckNodeVmCapable(self, target_node.uuid)
     group_info = self.cfg.GetNodeGroup(target_node.group)
-    ipolicy = ganeti.masterd.instance.CalculateGroupIPolicy(cluster, group_info)
+    ipolicy = alcor.masterd.instance.CalculateGroupIPolicy(cluster, group_info)
     CheckTargetNodeIPolicy(self, ipolicy, self.instance, target_node, self.cfg,
                            ignore=self.op.ignore_ipolicy)
 

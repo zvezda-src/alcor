@@ -36,8 +36,8 @@ import time
 import numbers
 import itertools
 
-from ganeti import compat
-from ganeti.utils import text
+from alcor import compat
+from alcor.utils import text
 
 
 _SORTER_GROUPS = 8

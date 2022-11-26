@@ -44,16 +44,16 @@ import time
 import functools
 from io import StringIO
 
-from ganeti import cli
-from ganeti import constants
-from ganeti import serializer
-from ganeti import utils
-from ganeti import bootstrap
-from ganeti import config
-from ganeti import pathutils
-from ganeti import netutils
+from alcor import cli
+from alcor import constants
+from alcor import serializer
+from alcor import utils
+from alcor import bootstrap
+from alcor import config
+from alcor import pathutils
+from alcor import netutils
 
-from ganeti.utils import version
+from alcor.utils import version
 
 
 #: Target major version we will upgrade to
@@ -152,11 +152,11 @@ class CfgUpgrade(object):
 
     self._AskUser()
 
-    # Check whether it's a Ganeti configuration directory
+    # Check whether it's a Alcor configuration directory
     if not (os.path.isfile(self.opts.CONFIG_DATA_PATH) and
             os.path.isfile(self.opts.SERVER_PEM_PATH) and
             os.path.isfile(self.opts.KNOWN_HOSTS_PATH)):
-      raise Error(("%s does not seem to be a Ganeti configuration"
+      raise Error(("%s does not seem to be a Alcor configuration"
                    " directory") % self.opts.data_dir)
 
     if not os.path.isdir(self.opts.conf_dir):
@@ -525,7 +525,7 @@ class CfgUpgrade(object):
       shared_file_storage_dir = cluster.get("shared_file_storage_dir")
       del cluster
 
-      logging.info("Ganeti 2.7 and later only allow whitelisted directories"
+      logging.info("Alcor 2.7 and later only allow whitelisted directories"
                    " for file storage; writing existing configuration values"
                    " into '%s'",
                    self.opts.FILE_STORAGE_PATHS_FILE)
@@ -789,7 +789,7 @@ class CfgUpgrade(object):
                     (DOWNGRADE_MAJOR, DOWNGRADE_MINOR))
       else:
         usertext = ("Please make sure you have read the upgrade notes for"
-                    " Ganeti %s (available in the UPGRADE file and included"
+                    " Alcor %s (available in the UPGRADE file and included"
                     " in other documentation formats). Continue with upgrading"
                     " configuration?" % constants.RELEASE_VERSION)
       if not cli.AskUser(usertext):

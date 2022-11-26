@@ -34,9 +34,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 module Main (main) where
 
-import Ganeti.Common
-import Ganeti.DataCollectors.CLI (genericOptions, defaultOptions)
-import Ganeti.DataCollectors.Program (personalities)
+import Alcor.Common
+import Alcor.DataCollectors.CLI (genericOptions, defaultOptions)
+import Alcor.DataCollectors.Program (personalities)
 
 -- | Simple main function.
 main :: IO ()

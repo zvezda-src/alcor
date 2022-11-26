@@ -28,7 +28,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-"""Converter tools between ovf and ganeti config file
+"""Converter tools between ovf and alcor config file
 
 """
 
@@ -60,14 +60,14 @@ try:
 except AttributeError:
   ParseError = None
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import utils
-from ganeti import pathutils
+from alcor import constants
+from alcor import errors
+from alcor import utils
+from alcor import pathutils
 
 
 # Schemas used in OVF format
-GANETI_SCHEMA = "http://ganeti"
+GANETI_SCHEMA = "http://alcor"
 OVF_SCHEMA = "http://schemas.dmtf.org/ovf/envelope/1"
 RASD_SCHEMA = ("http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/"
                "CIM_ResourceAllocationSettingData")
@@ -109,7 +109,7 @@ RASD_TYPE = {
 
 SCSI_SUBTYPE = "lsilogic"
 VS_TYPE = {
-  "ganeti": "ganeti-ovf",
+  "alcor": "alcor-ovf",
   "external": "vmx-04",
 }
 
@@ -393,7 +393,7 @@ class OVFReader(object):
     @rtype: string or None
     @return: name of the template
     """
-    find_template = ("{%s}GanetiSection/{%s}DiskTemplate" %
+    find_template = ("{%s}AlcorSection/{%s}DiskTemplate" %
                      (GANETI_SCHEMA, GANETI_SCHEMA))
     return self.tree.findtext(find_template)
 
@@ -405,7 +405,7 @@ class OVFReader(object):
       specified options
 
     """
-    hypervisor_search = ("{%s}GanetiSection/{%s}Hypervisor" %
+    hypervisor_search = ("{%s}AlcorSection/{%s}Hypervisor" %
                          (GANETI_SCHEMA, GANETI_SCHEMA))
     hypervisor_data = self.tree.find(hypervisor_search)
     if hypervisor_data is None:
@@ -426,7 +426,7 @@ class OVFReader(object):
 
     """
     results = {}
-    os_search = ("{%s}GanetiSection/{%s}OperatingSystem" %
+    os_search = ("{%s}AlcorSection/{%s}OperatingSystem" %
                  (GANETI_SCHEMA, GANETI_SCHEMA))
     os_data = self.tree.find(os_search)
     if os_data is not None:
@@ -475,7 +475,7 @@ class OVFReader(object):
       memory_count = constants.VALUE_AUTO
     results["memory"] = str(memory_count)
 
-    find_balance = ("{%s}GanetiSection/{%s}AutoBalance" %
+    find_balance = ("{%s}AlcorSection/{%s}AutoBalance" %
                     (GANETI_SCHEMA, GANETI_SCHEMA))
     balance = self.tree.findtext(find_balance, default=constants.VALUE_AUTO)
     results["auto_balance"] = balance
@@ -489,7 +489,7 @@ class OVFReader(object):
     @return: string of comma-separated tags for the instance
 
     """
-    find_tags = "{%s}GanetiSection/{%s}Tags" % (GANETI_SCHEMA, GANETI_SCHEMA)
+    find_tags = "{%s}AlcorSection/{%s}Tags" % (GANETI_SCHEMA, GANETI_SCHEMA)
     results = self.tree.findtext(find_tags)
     if results:
       return results
@@ -503,7 +503,7 @@ class OVFReader(object):
     @return: string containing the version number
 
     """
-    find_version = ("{%s}GanetiSection/{%s}Version" %
+    find_version = ("{%s}AlcorSection/{%s}Version" %
                     (GANETI_SCHEMA, GANETI_SCHEMA))
     return self.tree.findtext(find_version)
 
@@ -513,7 +513,7 @@ class OVFReader(object):
     The method gathers the data about networks used by OVF instance. It assumes
     that 'name' tag means something - in essence, if it contains one of the
     words 'bridged' or 'routed' then that will be the mode of this network in
-    Ganeti. The information about the network can be either in GanetiSection or
+    Alcor. The information about the network can be either in AlcorSection or
     VirtualHardwareSection.
 
     @rtype: dict
@@ -529,25 +529,25 @@ class OVFReader(object):
     for (counter, network_name) in enumerate(network_names):
       network_search = ("{%s}VirtualSystem/{%s}VirtualHardwareSection/{%s}Item"
                         % (OVF_SCHEMA, OVF_SCHEMA, OVF_SCHEMA))
-      ganeti_search = ("{%s}GanetiSection/{%s}Network/{%s}Nic" %
+      alcor_search = ("{%s}AlcorSection/{%s}Network/{%s}Nic" %
                        (GANETI_SCHEMA, GANETI_SCHEMA, GANETI_SCHEMA))
       network_match = ("{%s}Connection" % RASD_SCHEMA, network_name)
-      ganeti_match = ("{%s}name" % OVF_SCHEMA, network_name)
+      alcor_match = ("{%s}name" % OVF_SCHEMA, network_name)
       network_data = self._GetElementMatchingText(network_search, network_match)
-      network_ganeti_data = self._GetElementMatchingAttr(ganeti_search,
-                                                         ganeti_match)
+      network_alcor_data = self._GetElementMatchingAttr(alcor_search,
+                                                         alcor_match)
 
-      ganeti_data = {}
-      if network_ganeti_data is not None:
-        ganeti_data["mode"] = network_ganeti_data.findtext("{%s}Mode" %
+      alcor_data = {}
+      if network_alcor_data is not None:
+        alcor_data["mode"] = network_alcor_data.findtext("{%s}Mode" %
                                                            GANETI_SCHEMA)
-        ganeti_data["mac"] = network_ganeti_data.findtext("{%s}MACAddress" %
+        alcor_data["mac"] = network_alcor_data.findtext("{%s}MACAddress" %
                                                           GANETI_SCHEMA)
-        ganeti_data["ip"] = network_ganeti_data.findtext("{%s}IPAddress" %
+        alcor_data["ip"] = network_alcor_data.findtext("{%s}IPAddress" %
                                                          GANETI_SCHEMA)
-        ganeti_data["link"] = network_ganeti_data.findtext("{%s}Link" %
+        alcor_data["link"] = network_alcor_data.findtext("{%s}Link" %
                                                            GANETI_SCHEMA)
-        ganeti_data["network"] = network_ganeti_data.findtext("{%s}Net" %
+        alcor_data["network"] = network_alcor_data.findtext("{%s}Net" %
                                                               GANETI_SCHEMA)
       mac_data = None
       if network_data is not None:
@@ -555,15 +555,15 @@ class OVFReader(object):
 
       network_name = network_name.lower()
 
-      # First, some not Ganeti-specific information is collected
+      # First, some not Alcor-specific information is collected
       if constants.NIC_MODE_BRIDGED in network_name:
         results["nic%s_mode" % counter] = "bridged"
       elif constants.NIC_MODE_ROUTED in network_name:
         results["nic%s_mode" % counter] = "routed"
       results["nic%s_mac" % counter] = mac_data
 
-      # GanetiSection data overrides 'manually' collected data
-      for name, value in ganeti_data.items():
+      # AlcorSection data overrides 'manually' collected data
+      for name, value in alcor_data.items():
         results["nic%s_%s" % (counter, name)] = value
 
       # Bridged network has no IP - unless specifically stated otherwise
@@ -634,8 +634,8 @@ class OVFWriter(object):
     """Initialize the writer - set the top element.
 
     @type has_gnt_section: bool
-    @param has_gnt_section: if the Ganeti schema should be added - i.e. this
-      means that Ganeti section will be present
+    @param has_gnt_section: if the Alcor schema should be added - i.e. this
+      means that Alcor section will be present
 
     """
     env_attribs = {
@@ -648,7 +648,7 @@ class OVFWriter(object):
     }
     if has_gnt_section:
       env_attribs["xmlns:gnt"] = GANETI_SCHEMA
-      self.virtual_system_type = VS_TYPE["ganeti"]
+      self.virtual_system_type = VS_TYPE["alcor"]
     else:
       self.virtual_system_type = VS_TYPE["external"]
     self.tree = ET.Element("Envelope", attrib=env_attribs)
@@ -737,31 +737,31 @@ class OVFWriter(object):
       if name != "name":
         SubElementText(params, "gnt:%s" % name, value)
 
-  def SaveGanetiData(self, ganeti, networks):
-    """Convert Ganeti-specific information to GanetiSection.
+  def SaveAlcorData(self, alcor, networks):
+    """Convert Alcor-specific information to AlcorSection.
 
-    @type ganeti: dict
-    @param ganeti: dictionary of Ganeti-specific options from config.ini
+    @type alcor: dict
+    @param alcor: dictionary of Alcor-specific options from config.ini
     @type networks: list
     @param networks: list of dictionaries of network options form config.ini
 
     """
-    ganeti_section = ET.SubElement(self.tree, "gnt:GanetiSection")
+    alcor_section = ET.SubElement(self.tree, "gnt:AlcorSection")
 
-    SubElementText(ganeti_section, "gnt:Version", ganeti.get("version"))
-    SubElementText(ganeti_section, "gnt:DiskTemplate",
-                   ganeti.get("disk_template"))
-    SubElementText(ganeti_section, "gnt:AutoBalance",
-                   ganeti.get("auto_balance"))
-    SubElementText(ganeti_section, "gnt:Tags", ganeti.get("tags"))
+    SubElementText(alcor_section, "gnt:Version", alcor.get("version"))
+    SubElementText(alcor_section, "gnt:DiskTemplate",
+                   alcor.get("disk_template"))
+    SubElementText(alcor_section, "gnt:AutoBalance",
+                   alcor.get("auto_balance"))
+    SubElementText(alcor_section, "gnt:Tags", alcor.get("tags"))
 
-    osys = ET.SubElement(ganeti_section, "gnt:OperatingSystem")
-    self._SaveNameAndParams(osys, ganeti["os"])
+    osys = ET.SubElement(alcor_section, "gnt:OperatingSystem")
+    self._SaveNameAndParams(osys, alcor["os"])
 
-    hypervisor = ET.SubElement(ganeti_section, "gnt:Hypervisor")
-    self._SaveNameAndParams(hypervisor, ganeti["hypervisor"])
+    hypervisor = ET.SubElement(alcor_section, "gnt:Hypervisor")
+    self._SaveNameAndParams(hypervisor, alcor["hypervisor"])
 
-    network_section = ET.SubElement(ganeti_section, "gnt:Network")
+    network_section = ET.SubElement(alcor_section, "gnt:Network")
     for counter, network in enumerate(networks):
       network_name = "%s%s" % (network["mode"], counter)
       nic_attrib = {"ovf:name": network_name}
@@ -1027,7 +1027,7 @@ class Converter(object):
 
 
 class OVFImporter(Converter):
-  """Converter from OVF to Ganeti config file.
+  """Converter from OVF to Alcor config file.
 
   @type input_dir: string
   @ivar input_dir: directory in which the .ovf file resides
@@ -1055,7 +1055,7 @@ class OVFImporter(Converter):
   @type results_tags: string
   @ivar results_tags: string containing instance-specific tags
   @type results_version: string
-  @ivar results_version: version as required by Ganeti import
+  @ivar results_version: version as required by Alcor import
   @type results_network: dict
   @ivar results_network: network information gathered from .ovf file or command
     line arguments
@@ -1097,7 +1097,7 @@ class OVFImporter(Converter):
       if (os.path.commonprefix([pathutils.EXPORT_DIR, self.output_dir]) !=
           pathutils.EXPORT_DIR):
         logging.warning("Export path is not under %s directory, import to"
-                        " Ganeti using gnt-backup may fail",
+                        " Alcor using gnt-backup may fail",
                         pathutils.EXPORT_DIR)
     else:
       self.output_dir = pathutils.EXPORT_DIR
@@ -1512,7 +1512,7 @@ class ConfigParserWithDefaults(configparser.ConfigParser):
 
 
 class OVFExporter(Converter):
-  """Converter from Ganeti config file to OVF
+  """Converter from Alcor config file to OVF
 
   @type input_dir: string
   @ivar input_dir: directory in which the config.ini file resides
@@ -1540,8 +1540,8 @@ class OVFExporter(Converter):
   @ivar results_vcpus: number of VCPUs
   @type results_memory: string
   @ivar results_memory: RAM memory in MB
-  @type results_ganeti: dict
-  @ivar results_ganeti: dictionary of Ganeti-specific options from config.ini
+  @type results_alcor: dict
+  @ivar results_alcor: dictionary of Alcor-specific options from config.ini
 
   """
   def _ReadInputData(self, input_path):
@@ -1578,7 +1578,7 @@ class OVFExporter(Converter):
     """Parses name from command line options or config file.
 
     @rtype: string
-    @return: name of Ganeti instance
+    @return: name of Alcor instance
 
     @raise errors.OpPrereqError: if name of the instance is not provided
 
@@ -1622,11 +1622,11 @@ class OVFExporter(Converter):
                                  errors.ECODE_ENVIRON)
     return memory
 
-  def _ParseGaneti(self):
-    """Parses Ganeti data from config file.
+  def _ParseAlcor(self):
+    """Parses Alcor data from config file.
 
     @rtype: dictionary
-    @return: dictionary of Ganeti-specific options
+    @return: dictionary of Alcor-specific options
 
     """
     results = {}
@@ -1767,7 +1767,7 @@ class OVFExporter(Converter):
     self.results_vcpus = self._ParseVCPUs()
     self.results_memory = self._ParseMemory()
     if not self.options.ext_usage:
-      self.results_ganeti = self._ParseGaneti()
+      self.results_alcor = self._ParseAlcor()
     self.results_network = self._ParseNetworks()
     self.results_disk = self._ParseDisks()
 
@@ -1832,7 +1832,7 @@ class OVFExporter(Converter):
     self.ovf_writer.SaveDisksData(self.results_disk)
     self.ovf_writer.SaveNetworksData(self.results_network)
     if not self.options.ext_usage:
-      self.ovf_writer.SaveGanetiData(self.results_ganeti, self.results_network)
+      self.ovf_writer.SaveAlcorData(self.results_alcor, self.results_network)
 
     self.ovf_writer.SaveVirtualSystemData(self.results_name, self.results_vcpus,
                                           self.results_memory)

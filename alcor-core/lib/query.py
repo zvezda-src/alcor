@@ -65,18 +65,18 @@ import logging
 import operator
 import re
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import utils
-from ganeti import compat
-from ganeti import objects
-from ganeti import ht
-from ganeti import runtime
-from ganeti import qlang
-from ganeti import jstore
-from ganeti.hypervisor import hv_base
+from alcor import constants
+from alcor import errors
+from alcor import utils
+from alcor import compat
+from alcor import objects
+from alcor import ht
+from alcor import runtime
+from alcor import qlang
+from alcor import jstore
+from alcor.hypervisor import hv_base
 
-from ganeti.constants import (QFT_UNKNOWN, QFT_TEXT, QFT_BOOL, QFT_NUMBER,
+from alcor.constants import (QFT_UNKNOWN, QFT_TEXT, QFT_BOOL, QFT_NUMBER,
                               QFT_NUMBER_FLOAT, QFT_UNIT, QFT_TIMESTAMP,
                               QFT_OTHER, RS_NORMAL, RS_UNKNOWN, RS_NODATA,
                               RS_UNAVAIL, RS_OFFLINE)

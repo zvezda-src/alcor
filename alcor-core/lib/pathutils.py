@@ -32,18 +32,18 @@
 
 """
 
-from ganeti import _constants
-from ganeti import compat
-from ganeti import vcluster
+from alcor import _constants
+from alcor import compat
+from alcor import vcluster
 
 
 # Build-time constants
-DEFAULT_FILE_STORAGE_DIR = "/srv/ganeti/file-storage"
+DEFAULT_FILE_STORAGE_DIR = "/srv/alcor/file-storage"
 DEFAULT_FILE_STORAGE_DIR = vcluster.AddNodePrefix(DEFAULT_FILE_STORAGE_DIR)
-DEFAULT_SHARED_FILE_STORAGE_DIR = "/srv/ganeti/shared-file-storage"
+DEFAULT_SHARED_FILE_STORAGE_DIR = "/srv/alcor/shared-file-storage"
 DEFAULT_SHARED_FILE_STORAGE_DIR = \
     vcluster.AddNodePrefix(DEFAULT_SHARED_FILE_STORAGE_DIR)
-DEFAULT_GLUSTER_STORAGE_DIR = "/var/run/ganeti/gluster"
+DEFAULT_GLUSTER_STORAGE_DIR = "/var/run/alcor/gluster"
 DEFAULT_GLUSTER_STORAGE_DIR = \
     vcluster.AddNodePrefix(DEFAULT_GLUSTER_STORAGE_DIR)
 EXPORT_DIR = vcluster.AddNodePrefix(_constants.EXPORT_DIR)
@@ -72,14 +72,14 @@ CFGUPGRADE = _constants.PKGLIBDIR + "/tools/cfgupgrade"
 POST_UPGRADE = _constants.PKGLIBDIR + "/tools/post-upgrade"
 ENSURE_DIRS = _constants.PKGLIBDIR + "/ensure-dirs"
 # Script to configure the metadata virtual network interface with Xen
-XEN_VIF_METAD_SETUP = _constants.PKGLIBDIR + "/vif-ganeti-metad"
+XEN_VIF_METAD_SETUP = _constants.PKGLIBDIR + "/vif-alcor-metad"
 ETC_HOSTS = vcluster.ETC_HOSTS
 
 # Top-level paths
-DATA_DIR = LOCALSTATEDIR + "/lib/ganeti"
+DATA_DIR = LOCALSTATEDIR + "/lib/alcor"
 LOCK_DIR = LOCALSTATEDIR + "/lock"
-LOG_DIR = LOCALSTATEDIR + "/log/ganeti"
-RUN_DIR = LOCALSTATEDIR + "/run/ganeti"
+LOG_DIR = LOCALSTATEDIR + "/log/alcor"
+RUN_DIR = LOCALSTATEDIR + "/run/alcor"
 
 #: Script to configure master IP address
 DEFAULT_MASTER_SETUP_SCRIPT = TOOLSDIR + "/master-ip-setup"
@@ -88,7 +88,7 @@ SSH_HOST_DSA_PRIV = _constants.SSH_HOST_DSA_PRIV
 SSH_HOST_DSA_PUB = _constants.SSH_HOST_DSA_PUB
 SSH_HOST_RSA_PRIV = _constants.SSH_HOST_RSA_PRIV
 SSH_HOST_RSA_PUB = _constants.SSH_HOST_RSA_PUB
-SSH_PUB_KEYS = DATA_DIR + "/ganeti_pub_keys"
+SSH_PUB_KEYS = DATA_DIR + "/alcor_pub_keys"
 
 BDEV_CACHE_DIR = RUN_DIR + "/bdev-cache"
 DISK_LINKS_DIR = RUN_DIR + "/instance-disks"
@@ -103,7 +103,7 @@ UIDPOOL_LOCKDIR = RUN_DIR + "/uid-pool"
 LIVELOCK_DIR = RUN_DIR + "/livelocks"
 LUXID_MESSAGE_DIR = RUN_DIR + "/luxidmessages"
 
-SSCONF_LOCK_FILE = LOCK_DIR + "/ganeti-ssconf.lock"
+SSCONF_LOCK_FILE = LOCK_DIR + "/alcor-ssconf.lock"
 
 CLUSTER_CONF_FILE = DATA_DIR + "/config.data"
 LOCK_STATUS_FILE = DATA_DIR + "/locks.data"
@@ -118,7 +118,7 @@ RAPI_DATA_DIR = DATA_DIR + "/rapi"
 RAPI_USERS_FILE = RAPI_DATA_DIR + "/users"
 QUEUE_DIR = DATA_DIR + "/queue"
 INTENT_TO_UPGRADE = DATA_DIR + "/intent-to-upgrade"
-CONF_DIR = SYSCONFDIR + "/ganeti"
+CONF_DIR = SYSCONFDIR + "/alcor"
 XEN_IFUP_OS = CONF_DIR + "/xen-ifup-os"
 USER_SCRIPTS_DIR = CONF_DIR + "/scripts"
 VNC_PASSWORD_FILE = CONF_DIR + "/vnc-cluster-password"
@@ -134,11 +134,11 @@ NODED_CLIENT_CERT_FILE = DATA_DIR + "/client.pem"
 NODED_CERT_MODE = 0o440
 
 #: Locked in exclusive mode while noded verifies a remote command
-RESTRICTED_COMMANDS_LOCK_FILE = LOCK_DIR + "/ganeti-restricted-commands.lock"
+RESTRICTED_COMMANDS_LOCK_FILE = LOCK_DIR + "/alcor-restricted-commands.lock"
 
 #: Lock file for watcher, locked in shared mode by watcher; lock in exclusive
 # mode to block watcher (see L{cli._RunWhileDaemonsStoppedHelper.Call}
-WATCHER_LOCK_FILE = LOCK_DIR + "/ganeti-watcher.lock"
+WATCHER_LOCK_FILE = LOCK_DIR + "/alcor-watcher.lock"
 
 #: Status file for per-group watcher, locked in exclusive mode by watcher
 WATCHER_GROUP_STATE_FILE = DATA_DIR + "/watcher.%s.data"
@@ -154,13 +154,13 @@ WATCHER_PAUSEFILE = DATA_DIR + "/watcher.pause"
 EXTERNAL_MASTER_SETUP_SCRIPT = USER_SCRIPTS_DIR + "/master-ip-setup"
 
 #: LUXI socket used for job execution
-MASTER_SOCKET = SOCKET_DIR + "/ganeti-master"
+MASTER_SOCKET = SOCKET_DIR + "/alcor-master"
 #: LUXI socket used for queries only
-QUERY_SOCKET = SOCKET_DIR + "/ganeti-query"
+QUERY_SOCKET = SOCKET_DIR + "/alcor-query"
 #: WConfD socket
-WCONFD_SOCKET = SOCKET_DIR + "/ganeti-wconfd"
+WCONFD_SOCKET = SOCKET_DIR + "/alcor-wconfd"
 #: Metad socket
-METAD_SOCKET = SOCKET_DIR + "/ganeti-metad"
+METAD_SOCKET = SOCKET_DIR + "/alcor-metad"
 
 LOG_OS_DIR = LOG_DIR + "/os"
 LOG_ES_DIR = LOG_DIR + "/extstorage"

@@ -43,15 +43,15 @@ import resource
 
 from io import StringIO
 
-from ganeti import errors
-from ganeti import constants
-from ganeti import compat
+from alcor import errors
+from alcor import constants
+from alcor import compat
 
-from ganeti.utils import retry as utils_retry
-from ganeti.utils import wrapper as utils_wrapper
-from ganeti.utils import text as utils_text
-from ganeti.utils import io as utils_io
-from ganeti.utils import algo as utils_algo
+from alcor.utils import retry as utils_retry
+from alcor.utils import wrapper as utils_wrapper
+from alcor.utils import text as utils_text
+from alcor.utils import io as utils_io
+from alcor.utils import algo as utils_algo
 
 
 #: when set to True, L{RunCmd} is disabled

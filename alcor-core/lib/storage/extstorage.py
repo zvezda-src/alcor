@@ -37,12 +37,12 @@ import stat
 import os
 import logging
 
-from ganeti import utils
-from ganeti import errors
-from ganeti import constants
-from ganeti import objects
-from ganeti import pathutils
-from ganeti.storage import base
+from alcor import utils
+from alcor import errors
+from alcor import constants
+from alcor import objects
+from alcor import pathutils
+from alcor.storage import base
 
 
 class ExtStorageDevice(base.BlockDev):

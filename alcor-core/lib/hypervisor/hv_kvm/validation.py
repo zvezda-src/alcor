@@ -1,7 +1,7 @@
 #
 #
 
-# Copyright (C) 2022 the Ganeti project
+# Copyright (C) 2022 the Alcor project
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,10 +35,10 @@
 import re
 import pwd
 
-from ganeti import constants
-from ganeti import netutils
-from ganeti import errors
-from ganeti import utils
+from alcor import constants
+from alcor import netutils
+from alcor import errors
+from alcor import utils
 
 #: SPICE parameters which depend on L{constants.HV_KVM_SPICE_BIND}
 _SPICE_ADDITIONAL_PARAMS = frozenset([

@@ -35,8 +35,8 @@
 import re
 import fileinput
 
-from ganeti import query
-from ganeti.build import sphinx_ext
+from alcor import query
+from alcor.build import sphinx_ext
 
 
 _DOC_RE = re.compile(r"^@(?P<class>[A-Z_]+)_(?P<kind>[A-Z]+)@$")

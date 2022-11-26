@@ -33,22 +33,22 @@
 import logging
 import time
 
-from ganeti import constants
-from ganeti import errors
-from ganeti import locking
-from ganeti import hypervisor
-from ganeti.masterd import iallocator
-from ganeti import utils
-from ganeti.cmdlib.base import LogicalUnit, Tasklet
-from ganeti.cmdlib.common import ExpandInstanceUuidAndName, \
+from alcor import constants
+from alcor import errors
+from alcor import locking
+from alcor import hypervisor
+from alcor.masterd import iallocator
+from alcor import utils
+from alcor.cmdlib.base import LogicalUnit, Tasklet
+from alcor.cmdlib.common import ExpandInstanceUuidAndName, \
   CheckIAllocatorOrNode, ExpandNodeUuidAndName
-from ganeti.cmdlib.instance_storage import CheckDiskConsistency, \
+from alcor.cmdlib.instance_storage import CheckDiskConsistency, \
   ExpandCheckDisks, ShutdownInstanceDisks, AssembleInstanceDisks
-from ganeti.cmdlib.instance_utils import BuildInstanceHookEnvByObject, \
+from alcor.cmdlib.instance_utils import BuildInstanceHookEnvByObject, \
   CheckTargetNodeIPolicy, ReleaseLocks, CheckNodeNotDrained, \
   CopyLockList, CheckNodeFreeMemory, CheckInstanceBridgesExist
 
-import ganeti.masterd.instance
+import alcor.masterd.instance
 
 
 def _ExpandNamesForMigration(lu):
@@ -353,7 +353,7 @@ class TLMigrateInstance(Tasklet):
       # Check that the target node is correct in terms of instance policy
       nodeinfo = self.cfg.GetNodeInfo(self.target_node_uuid)
       group_info = self.cfg.GetNodeGroup(nodeinfo.group)
-      ipolicy = ganeti.masterd.instance.CalculateGroupIPolicy(cluster,
+      ipolicy = alcor.masterd.instance.CalculateGroupIPolicy(cluster,
                                                               group_info)
       CheckTargetNodeIPolicy(self.lu, ipolicy, self.instance, nodeinfo,
                              self.cfg, ignore=self.ignore_ipolicy)
@@ -398,7 +398,7 @@ class TLMigrateInstance(Tasklet):
                                    errors.ECODE_INVAL)
       nodeinfo = self.cfg.GetNodeInfo(target_node_uuid)
       group_info = self.cfg.GetNodeGroup(nodeinfo.group)
-      ipolicy = ganeti.masterd.instance.CalculateGroupIPolicy(cluster,
+      ipolicy = alcor.masterd.instance.CalculateGroupIPolicy(cluster,
                                                               group_info)
       CheckTargetNodeIPolicy(self.lu, ipolicy, self.instance, nodeinfo,
                              self.cfg, ignore=self.ignore_ipolicy)
