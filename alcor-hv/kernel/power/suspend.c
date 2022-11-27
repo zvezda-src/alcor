@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * kernel/power/suspend.c - Suspend to RAM and standby functionality.
- *
- * Copyright (c) 2003 Patrick Mochel
- * Copyright (c) 2003 Open Source Development Lab
- * Copyright (c) 2009 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
- */
 
 #define pr_fmt(fmt) "PM: " fmt
 
@@ -61,12 +53,6 @@ static DECLARE_SWAIT_QUEUE_HEAD(s2idle_wait_head);
 enum s2idle_states __read_mostly s2idle_state;
 static DEFINE_RAW_SPINLOCK(s2idle_lock);
 
-/**
- * pm_suspend_default_s2idle - Check if suspend-to-idle is the default suspend.
- *
- * Return 'true' if suspend-to-idle has been selected as the default system
- * suspend method.
- */
 bool pm_suspend_default_s2idle(void)
 {
 	return mem_sleep_current == PM_SUSPEND_TO_IDLE;
@@ -120,14 +106,6 @@ static void s2idle_loop(void)
 	pm_pr_dbg("suspend-to-idle\n");
 
 	/*
-	 * Suspend-to-idle equals:
-	 * frozen processes + suspended devices + idle processors.
-	 * Thus s2idle_enter() should be called right after all devices have
-	 * been suspended.
-	 *
-	 * Wakeups during the noirq suspend of devices may be spurious, so try
-	 * to avoid them upfront.
-	 */
 	for (;;) {
 		if (s2idle_ops && s2idle_ops->wake) {
 			if (s2idle_ops->wake())
@@ -158,11 +136,6 @@ EXPORT_SYMBOL_GPL(s2idle_wake);
 static bool valid_state(suspend_state_t state)
 {
 	/*
-	 * The PM_SUSPEND_STANDBY and PM_SUSPEND_MEM states require low-level
-	 * support and need to be valid to the low-level implementation.
-	 *
-	 * No ->valid() or ->enter() callback implies that none are valid.
-	 */
 	return suspend_ops && suspend_ops->valid && suspend_ops->valid(state) &&
 		suspend_ops->enter;
 }
@@ -173,9 +146,6 @@ void __init pm_states_init(void)
 	pm_states[PM_SUSPEND_MEM] = pm_labels[PM_SUSPEND_MEM];
 	pm_states[PM_SUSPEND_TO_IDLE] = pm_labels[PM_SUSPEND_TO_IDLE];
 	/*
-	 * Suspend-to-idle should be supported even without any suspend_ops,
-	 * initialize mem_sleep_states[] accordingly here.
-	 */
 	mem_sleep_states[PM_SUSPEND_TO_IDLE] = mem_sleep_labels[PM_SUSPEND_TO_IDLE];
 }
 
@@ -194,10 +164,6 @@ static int __init mem_sleep_default_setup(char *str)
 }
 __setup("mem_sleep_default=", mem_sleep_default_setup);
 
-/**
- * suspend_set_ops - Set the global suspend method table.
- * @ops: Suspend operations to use.
- */
 void suspend_set_ops(const struct platform_suspend_ops *ops)
 {
 	lock_system_sleep();
@@ -220,14 +186,6 @@ void suspend_set_ops(const struct platform_suspend_ops *ops)
 }
 EXPORT_SYMBOL_GPL(suspend_set_ops);
 
-/**
- * suspend_valid_only_mem - Generic memory-only valid callback.
- * @state: Target system sleep state.
- *
- * Platform drivers that implement mem suspend only and only need to check for
- * that in their .valid() callback can use this instead of rolling their own
- * .valid() callback.
- */
 int suspend_valid_only_mem(suspend_state_t state)
 {
 	return state == PM_SUSPEND_MEM;
@@ -333,14 +291,6 @@ static int suspend_test(int level)
 	return 0;
 }
 
-/**
- * suspend_prepare - Prepare for entering system sleep state.
- * @state: Target system sleep state.
- *
- * Common code run for every system sleep state that can be entered (except for
- * hibernation).  Run suspend notifiers, allocate the "suspend" console and
- * freeze processes.
- */
 static int suspend_prepare(suspend_state_t state)
 {
 	int error;
@@ -368,25 +318,16 @@ static int suspend_prepare(suspend_state_t state)
 	return error;
 }
 
-/* default implementation */
 void __weak arch_suspend_disable_irqs(void)
 {
 	local_irq_disable();
 }
 
-/* default implementation */
 void __weak arch_suspend_enable_irqs(void)
 {
 	local_irq_enable();
 }
 
-/**
- * suspend_enter - Make the system enter the given sleep state.
- * @state: System sleep state to enter.
- * @wakeup: Returns information that the sleep state should not be re-entered.
- *
- * This function should be called after devices have been suspended.
- */
 static int suspend_enter(suspend_state_t state, bool *wakeup)
 {
 	int error;
@@ -468,10 +409,6 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 	return error;
 }
 
-/**
- * suspend_devices_and_enter - Suspend devices and enter system sleep state.
- * @state: System sleep state to enter.
- */
 int suspend_devices_and_enter(suspend_state_t state)
 {
 	int error;
@@ -522,12 +459,6 @@ int suspend_devices_and_enter(suspend_state_t state)
 	goto Resume_devices;
 }
 
-/**
- * suspend_finish - Clean up before finishing the suspend sequence.
- *
- * Call platform code to clean up, restart processes, and free the console that
- * we've allocated. This routine is not called for hibernation.
- */
 static void suspend_finish(void)
 {
 	suspend_thaw_processes();
@@ -535,14 +466,6 @@ static void suspend_finish(void)
 	pm_restore_console();
 }
 
-/**
- * enter_state - Do common work needed to enter system sleep state.
- * @state: System sleep state to enter.
- *
- * Make sure that no one else is trying to put the system into a sleep state.
- * Fail if that's not the case.  Otherwise, prepare for system suspend, make the
- * system enter the given sleep state and clean up after wakeup.
- */
 static int enter_state(suspend_state_t state)
 {
 	int error;
@@ -594,13 +517,6 @@ static int enter_state(suspend_state_t state)
 	return error;
 }
 
-/**
- * pm_suspend - Externally visible function for suspending the system.
- * @state: System sleep state to enter.
- *
- * Check if the value of @state represents one of the supported states,
- * execute enter_state() and update system suspend statistics.
- */
 int pm_suspend(suspend_state_t state)
 {
 	int error;

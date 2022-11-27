@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * This is a good place to put board specific reboot fixups.
- *
- * List of supported fixups:
- * geode-gx1/cs5530a - Jaya Kumar <jayalk@intworks.biz>
- * geode-gx/lx/cs5536 - Andres Salomon <dilinger@debian.org>
- *
- */
 
 #include <asm/delay.h>
 #include <linux/pci.h>
@@ -60,9 +51,6 @@ struct device_fixup {
 	void (*reboot_fixup)(struct pci_dev *);
 };
 
-/*
- * PCI ids solely used for fixups_table go here
- */
 #define PCI_DEVICE_ID_INTEL_CE4100	0x0708
 
 static const struct device_fixup fixups_table[] = {
@@ -73,12 +61,6 @@ static const struct device_fixup fixups_table[] = {
 { PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CE4100, ce4100_reset },
 };
 
-/*
- * we see if any fixup is available for our current hardware. if there
- * is a fixup, we call it and we expect to never return from it. if we
- * do return, we keep looking and then eventually fall back to the
- * standard mach_reboot on return.
- */
 void mach_reboot_fixups(void)
 {
 	const struct device_fixup *cur;

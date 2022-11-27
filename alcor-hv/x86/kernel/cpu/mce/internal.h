@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __X86_MCE_INTERNAL_H__
 #define __X86_MCE_INTERNAL_H__
 
@@ -86,12 +85,6 @@ static inline int apei_clear_mce(u64 record_id)
 }
 #endif
 
-/*
- * We consider records to be equivalent if bank+status+addr+misc all match.
- * This is only used when the system is going down because of a fatal error
- * to avoid cluttering the console log with essentially repeated information.
- * In normal processing all errors seen are logged.
- */
 static inline bool mce_cmp(struct mce *m1, struct mce *m2)
 {
 	return m1->bank != m2->bank ||
@@ -138,23 +131,12 @@ DECLARE_PER_CPU_READ_MOSTLY(unsigned int, mce_num_banks);
 
 struct mce_vendor_flags {
 	/*
-	 * Indicates that overflow conditions are not fatal, when set.
-	 */
 	__u64 overflow_recov	: 1,
 
 	/*
-	 * (AMD) SUCCOR stands for S/W UnCorrectable error COntainment and
-	 * Recovery. It indicates support for data poisoning in HW and deferred
-	 * error interrupts.
-	 */
 	succor			: 1,
 
 	/*
-	 * (AMD) SMCA: This bit indicates support for Scalable MCA which expands
-	 * the register space for each MCA bank and also increases number of
-	 * banks. Also, to accommodate the new banks and registers, the MCA
-	 * register space is moved to a new MSR range.
-	 */
 	smca			: 1,
 
 	/* AMD-style error thresholding banks present. */
@@ -184,7 +166,6 @@ enum mca_msr {
 	MCA_MISC,
 };
 
-/* Decide whether to add MCE record to MCE event pool or filter it out. */
 extern bool filter_mce(struct mce *m);
 
 #ifdef CONFIG_X86_MCE_AMD

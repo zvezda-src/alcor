@@ -5,33 +5,6 @@
 {-# LANGUAGE CPP #-}
 
 {-
-
-Copyright (C) 2011, 2012 Google Inc.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-1. Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in the
-documentation and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 -}
 
 module Alcor.Daemon
@@ -316,7 +289,6 @@ setupDaemonFDs logfile = do
 defaultBindAddr :: Int                  -- ^ The port we want
                 -> Result Socket.Family -- ^ The cluster IP family
                 -> IO (Result (Socket.Family, Socket.SockAddr))
-#if MIN_VERSION_network(2,7,0)
 defaultBindAddr _ (Bad m) = return (Bad m)
 defaultBindAddr port (Ok fam) = do
   addrs <- getAddrInfo (Just defaultHints { addrFamily = fam
@@ -326,7 +298,6 @@ defaultBindAddr port (Ok fam) = do
   return $ case addrs of
     a:_ -> Ok $ (fam, addrAddress a)
     [] -> Bad $ "Cannot resolve default listening addres?!"
-#else
 defaultBindAddr port (Ok Socket.AF_INET) =
   return $ Ok (Socket.AF_INET,
       Socket.SockAddrInet (fromIntegral port) Socket.iNADDR_ANY)
@@ -335,7 +306,6 @@ defaultBindAddr port (Ok Socket.AF_INET6) =
       Socket.SockAddrInet6 (fromIntegral port) 0 Socket.iN6ADDR_ANY 0)
 defaultBindAddr _ fam =
   return $ Bad $ "Unsupported address family: " ++ show fam
-#endif
 
 -- | Based on the options, compute the socket address to use for the
 -- daemon.

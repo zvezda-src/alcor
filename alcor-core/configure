@@ -1,6 +1,4 @@
-#! /bin/sh
 
-# Be more Bourne compatible
 DUALCASE=1; export DUALCASE # for MKS sh
 if test -n "${ZSH_VERSION+set}" && (emulate sh) >/dev/null 2>&1; then :
   emulate sh
@@ -22,12 +20,9 @@ fi
 as_nl='
 '
 export as_nl
-# Printing a long string crashes Solaris 7 /usr/bin/printf.
 as_echo='\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\'
 as_echo=$as_echo$as_echo$as_echo$as_echo$as_echo
 as_echo=$as_echo$as_echo$as_echo$as_echo$as_echo$as_echo
-# Prefer a ksh shell builtin over an external printf program on Solaris,
-# but without wasting forks for bash or zsh.
 if test -z "$BASH_VERSION$ZSH_VERSION" \
     && (test "X`print -r -- $as_echo`" = "X$as_echo") 2>/dev/null; then
   as_echo='print -r --'
@@ -57,7 +52,6 @@ else
   as_echo='sh -c $as_echo_body as_echo'
 fi
 
-# The user is always right.
 if test "${PATH_SEPARATOR+set}" != set; then
   PATH_SEPARATOR=:
   (PATH='/bin;/bin'; FPATH=$PATH; sh -c :) >/dev/null 2>&1 && {
@@ -67,14 +61,8 @@ if test "${PATH_SEPARATOR+set}" != set; then
 fi
 
 
-# IFS
-# We need space, tab and new line, in precisely that order.  Quoting is
-# there to prevent editors from complaining about space-tab.
-# (If _AS_PATH_WALK were called with IFS unset, it would disable word
-# splitting by setting IFS to empty value.)
 IFS=" ""	$as_nl"
 
-# Find who we are.  Look in the path if we contain no directory separator.
 as_myself=
 case $0 in #((
   *[\\/]* ) as_myself=$0 ;;
@@ -89,8 +77,6 @@ IFS=$as_save_IFS
 
      ;;
 esac
-# We did not find ourselves, most probably we were run as `sh COMMAND'
-# in which case we are not to be found in the path.
 if test "x$as_myself" = x; then
   as_myself=$0
 fi
@@ -99,10 +85,6 @@ if test ! -f "$as_myself"; then
   exit 1
 fi
 
-# Unset variables that we do not need and which cause bugs (e.g. in
-# pre-3.0 UWIN ksh).  But do not cause bugs in bash 2.01; the "|| exit 1"
-# suppresses any "Segmentation fault" message there.  '((' could
-# trigger a bug in pdksh 5.2.14.
 for as_var in BASH_ENV ENV MAIL MAILPATH
 do eval test x\${$as_var+set} = xset \
   && ( (unset $as_var) || exit 1) >/dev/null 2>&1 && unset $as_var || :
@@ -111,23 +93,17 @@ PS1='$ '
 PS2='> '
 PS4='+ '
 
-# NLS nuisances.
 LC_ALL=C
 export LC_ALL
 LANGUAGE=C
 export LANGUAGE
 
-# CDPATH.
 (unset CDPATH) >/dev/null 2>&1 && unset CDPATH
 
-# Use a proper internal environment variable to ensure we don't fall
   # into an infinite loop, continuously re-executing ourselves.
   if test x"${_as_can_reexec}" != xno && test "x$CONFIG_SHELL" != x; then
     _as_can_reexec=no; export _as_can_reexec;
     # We cannot yet assume a decent shell, so we have to provide a
-# neutralization value for shells without unset; and this also
-# works around shells that cannot unset nonexistent variables.
-# Preserve -v and -x to the replacement shell.
 BASH_ENV=/dev/null
 ENV=/dev/null
 (unset BASH_ENV) >/dev/null 2>&1 && unset BASH_ENV ENV
@@ -138,8 +114,6 @@ case $- in # ((((
   * ) as_opts= ;;
 esac
 exec $CONFIG_SHELL $as_opts "$as_myself" ${1+"$@"}
-# Admittedly, this is quite paranoid, since all the known shells bail
-# out after a failed `exec'.
 $as_echo "$0: could not re-execute with $CONFIG_SHELL" >&2
 as_fn_exit 255
   fi
@@ -225,9 +199,6 @@ IFS=$as_save_IFS
       if test "x$CONFIG_SHELL" != x; then :
   export CONFIG_SHELL
              # We cannot yet assume a decent shell, so we have to provide a
-# neutralization value for shells without unset; and this also
-# works around shells that cannot unset nonexistent variables.
-# Preserve -v and -x to the replacement shell.
 BASH_ENV=/dev/null
 ENV=/dev/null
 (unset BASH_ENV) >/dev/null 2>&1 && unset BASH_ENV ENV
@@ -238,8 +209,6 @@ case $- in # ((((
   * ) as_opts= ;;
 esac
 exec $CONFIG_SHELL $as_opts "$as_myself" ${1+"$@"}
-# Admittedly, this is quite paranoid, since all the known shells bail
-# out after a failed `exec'.
 $as_echo "$0: could not re-execute with $CONFIG_SHELL" >&2
 exit 255
 fi
@@ -263,33 +232,20 @@ fi
 fi
 SHELL=${CONFIG_SHELL-/bin/sh}
 export SHELL
-# Unset more variables known to interfere with behavior of common tools.
 CLICOLOR_FORCE= GREP_OPTIONS=
 unset CLICOLOR_FORCE GREP_OPTIONS
 
-## --------------------- ##
-## M4sh Shell Functions. ##
-## --------------------- ##
-# as_fn_unset VAR
-# ---------------
-# Portably unset VAR.
 as_fn_unset ()
 {
   { eval $1=; unset $1;}
 }
 as_unset=as_fn_unset
 
-# as_fn_set_status STATUS
-# -----------------------
-# Set $? to STATUS, without forking.
 as_fn_set_status ()
 {
   return $1
 } # as_fn_set_status
 
-# as_fn_exit STATUS
-# -----------------
-# Exit the shell with STATUS, even in a "trap 0" or "set -e" context.
 as_fn_exit ()
 {
   set +e
@@ -297,9 +253,6 @@ as_fn_exit ()
   exit $1
 } # as_fn_exit
 
-# as_fn_mkdir_p
-# -------------
-# Create "$as_dir" as a directory, including parents if necessary.
 as_fn_mkdir_p ()
 {
 
@@ -345,19 +298,10 @@ $as_echo X"$as_dir" |
 
 } # as_fn_mkdir_p
 
-# as_fn_executable_p FILE
-# -----------------------
-# Test if FILE is an executable regular file.
 as_fn_executable_p ()
 {
   test -f "$1" && test -x "$1"
 } # as_fn_executable_p
-# as_fn_append VAR VALUE
-# ----------------------
-# Append the text in VALUE to the end of the definition contained in VAR. Take
-# advantage of any shell optimizations that allow amortized linear growth over
-# repeated appends, instead of the typical quadratic growth present in naive
-# implementations.
 if (eval "as_var=1; as_var+=2; test x\$as_var = x12") 2>/dev/null; then :
   eval 'as_fn_append ()
   {
@@ -370,11 +314,6 @@ else
   }
 fi # as_fn_append
 
-# as_fn_arith ARG...
-# ------------------
-# Perform arithmetic evaluation on the ARGs, and store the result in the
-# global $as_val. Take advantage of shells that can avoid forks. The arguments
-# must be portable across $(()) and expr.
 if (eval "test \$(( 1 + 1 )) = 2") 2>/dev/null; then :
   eval 'as_fn_arith ()
   {
@@ -388,11 +327,6 @@ else
 fi # as_fn_arith
 
 
-# as_fn_error STATUS ERROR [LINENO LOG_FD]
-# ----------------------------------------
-# Output "`basename $0`: error: ERROR" to stderr. If LINENO and LOG_FD are
-# provided, also output the error to LOG_FD, referencing LINENO. Then exit the
-# script with STATUS, using 1 if that was 0.
 as_fn_error ()
 {
   as_status=$1; test $as_status -eq 0 && as_status=1
@@ -442,7 +376,6 @@ $as_echo X/"$0" |
 	  }
 	  s/.*/./; q'`
 
-# Avoid depending upon Character Ranges.
 as_cr_letters='abcdefghijklmnopqrstuvwxyz'
 as_cr_LETTERS='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 as_cr_Letters=$as_cr_letters$as_cr_LETTERS
@@ -535,24 +468,16 @@ fi
 as_test_x='test -x'
 as_executable_p=as_fn_executable_p
 
-# Sed expression to map a string onto a valid CPP name.
 as_tr_cpp="eval sed 'y%*$as_cr_letters%P$as_cr_LETTERS%;s%[^_$as_cr_alnum]%_%g'"
 
-# Sed expression to map a string onto a valid variable name.
 as_tr_sh="eval sed 'y%*+%pp%;s%[^_$as_cr_alnum]%_%g'"
 
 
 test -n "$DJDIR" || exec 7<&0 </dev/null
 exec 6>&1
 
-# Name of the host.
-# hostname on some systems (SVR3.2, old GNU/Linux) returns a bogus exit status,
-# so uname gets run too.
 ac_hostname=`(hostname || uname -n) 2>/dev/null | sed 1q`
 
-#
-# Initializations.
-#
 ac_default_prefix=/usr/local
 ac_clean_files=
 ac_config_libobj_dir=.
@@ -562,7 +487,6 @@ subdirs=
 MFLAGS=
 MAKEFLAGS=
 
-# Identity of this package.
 PACKAGE_NAME='alcor'
 PACKAGE_TARNAME='alcor'
 PACKAGE_VERSION='3.1.0~alpha1'
@@ -844,13 +768,10 @@ FAKEROOT_PATH
 PYTHON'
 
 
-# Initialize some variables set by options.
 ac_init_help=
 ac_init_version=false
 ac_unrecognized_opts=
 ac_unrecognized_sep=
-# The variables have the same names as the options, with
-# dashes changed to underlines.
 cache_file=/dev/null
 exec_prefix=NONE
 no_create=
@@ -866,12 +787,6 @@ verbose=
 x_includes=NONE
 x_libraries=NONE
 
-# Installation directory options.
-# These are left unexpanded so users can "make install exec_prefix=/foo"
-# and all the variables that are supposed to be based on exec_prefix
-# by default will actually change.
-# Use braces instead of parens because sh, perl, etc. also accept them.
-# (The list follows the same order as the GNU Coding Standards.)
 bindir='${exec_prefix}/bin'
 sbindir='${exec_prefix}/sbin'
 libexecdir='${exec_prefix}/libexec'
@@ -1275,7 +1190,6 @@ if test -n "$ac_unrecognized_opts"; then
   esac
 fi
 
-# Check all directory arguments for consistency.
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
@@ -1296,14 +1210,10 @@ do
   as_fn_error $? "expected an absolute directory name for --$ac_var: $ac_val"
 done
 
-# There might be people who depend on the old broken behavior: `$host'
-# used to hold the argument of --host etc.
-# FIXME: To remove some day.
 build=$build_alias
 host=$host_alias
 target=$target_alias
 
-# FIXME: To remove some day.
 if test "x$host_alias" != x; then
   if test "x$build_alias" = x; then
     cross_compiling=maybe
@@ -1326,7 +1236,6 @@ test "X$ac_ls_di" = "X$ac_pwd_ls_di" ||
   as_fn_error $? "pwd does not report name of working directory"
 
 
-# Find the source files, if location was not specified.
 if test -z "$srcdir"; then
   ac_srcdir_defaulted=yes
   # Try the directory containing this script, then the parent directory.
@@ -1368,13 +1277,9 @@ ac_msg="sources are in $srcdir, but \`cd $srcdir' does not work"
 ac_abs_confdir=`(
 	cd "$srcdir" && test -r "./$ac_unique_file" || as_fn_error $? "$ac_msg"
 	pwd)`
-# When building in place, set srcdir=.
 if test "$ac_abs_confdir" = "$ac_pwd"; then
   srcdir=.
 fi
-# Remove unnecessary trailing slashes from srcdir.
-# Double slashes in file names in object file debugging info
-# mess up M-x gdb in Emacs.
 case $srcdir in
 */) srcdir=`expr "X$srcdir" : 'X\(.*[^/]\)' \| "X$srcdir" : 'X\(.*\)'`;;
 esac
@@ -1385,9 +1290,6 @@ for ac_var in $ac_precious_vars; do
   eval ac_cv_env_${ac_var}_value=\$${ac_var}
 done
 
-#
-# Report the --help message.
-#
 if test "$ac_init_help" = "long"; then
   # Omit some internal or obsolete options to make the list less imposing.
   # This message is too long to be a string in the A/UX 3.1 sh.
@@ -1623,7 +1525,6 @@ case "$ac_dir" in
 esac
 ac_abs_top_builddir=$ac_pwd
 ac_abs_builddir=$ac_pwd$ac_dir_suffix
-# for backward compatibility:
 ac_top_builddir=$ac_top_build_prefix
 
 case $srcdir in
@@ -1670,9 +1571,6 @@ _ACEOF
   exit
 fi
 
-## ------------------------ ##
-## Autoconf initialization. ##
-## ------------------------ ##
 cat >config.log <<_ACEOF
 This file contains any messages produced by compilers while
 running configure, to aid debugging if configure makes a mistake.
@@ -1686,9 +1584,6 @@ _ACEOF
 exec 5>>config.log
 {
 cat <<_ASUNAME
-## --------- ##
-## Platform. ##
-## --------- ##
 
 hostname = `(hostname || uname -n) 2>/dev/null | sed 1q`
 uname -m = `(uname -m) 2>/dev/null || echo unknown`
@@ -1723,18 +1618,10 @@ IFS=$as_save_IFS
 cat >&5 <<_ACEOF
 
 
-## ----------- ##
-## Core tests. ##
-## ----------- ##
 
 _ACEOF
 
 
-# Keep a trace of the command line.
-# Strip out --no-create and --no-recursion so they do not pile up.
-# Strip out --silent because we don't want to record it for future runs.
-# Also quote any args containing shell meta-characters.
-# Make two passes to allow for proper duplicate-argument suppression.
 ac_configure_args=
 ac_configure_args0=
 ac_configure_args1=
@@ -1778,19 +1665,12 @@ done
 { ac_configure_args0=; unset ac_configure_args0;}
 { ac_configure_args1=; unset ac_configure_args1;}
 
-# When interrupted or exit'd, cleanup temporary files, and complete
-# config.log.  We remove comments because anyway the quotes in there
-# would cause problems or look ugly.
-# WARNING: Use '\'' to represent an apostrophe within the trap.
-# WARNING: Do not start the trap code with a newline, due to a FreeBSD 4.0 bug.
 trap 'exit_status=$?
   # Save into config.log some information that might help in debugging.
   {
     echo
 
     $as_echo "## ---------------- ##
-## Cache variables. ##
-## ---------------- ##"
     echo
     # The following way of writing the cache mishandles newlines in values,
 (
@@ -1825,8 +1705,6 @@ $as_echo "$as_me: WARNING: cache variable $ac_var contains a newline" >&2;} ;;
     echo
 
     $as_echo "## ----------------- ##
-## Output variables. ##
-## ----------------- ##"
     echo
     for ac_var in $ac_subst_vars
     do
@@ -1840,8 +1718,6 @@ $as_echo "$as_me: WARNING: cache variable $ac_var contains a newline" >&2;} ;;
 
     if test -n "$ac_subst_files"; then
       $as_echo "## ------------------- ##
-## File substitutions. ##
-## ------------------- ##"
       echo
       for ac_var in $ac_subst_files
       do
@@ -1856,8 +1732,6 @@ $as_echo "$as_me: WARNING: cache variable $ac_var contains a newline" >&2;} ;;
 
     if test -s confdefs.h; then
       $as_echo "## ----------- ##
-## confdefs.h. ##
-## ----------- ##"
       echo
       cat confdefs.h
       echo
@@ -1875,40 +1749,30 @@ for ac_signal in 1 2 13 15; do
 done
 ac_signal=0
 
-# confdefs.h avoids OS command line length limits that DEFS can exceed.
 rm -f -r conftest* confdefs.h
 
 $as_echo "/* confdefs.h */" > confdefs.h
 
-# Predefined preprocessor variables.
 
 cat >>confdefs.h <<_ACEOF
-#define PACKAGE_NAME "$PACKAGE_NAME"
 _ACEOF
 
 cat >>confdefs.h <<_ACEOF
-#define PACKAGE_TARNAME "$PACKAGE_TARNAME"
 _ACEOF
 
 cat >>confdefs.h <<_ACEOF
-#define PACKAGE_VERSION "$PACKAGE_VERSION"
 _ACEOF
 
 cat >>confdefs.h <<_ACEOF
-#define PACKAGE_STRING "$PACKAGE_STRING"
 _ACEOF
 
 cat >>confdefs.h <<_ACEOF
-#define PACKAGE_BUGREPORT "$PACKAGE_BUGREPORT"
 _ACEOF
 
 cat >>confdefs.h <<_ACEOF
-#define PACKAGE_URL "$PACKAGE_URL"
 _ACEOF
 
 
-# Let the site file select an alternate cache file if it wants to.
-# Prefer an explicitly selected file to automatically selected ones.
 ac_site_file1=NONE
 ac_site_file2=NONE
 if test -n "$CONFIG_SITE"; then
@@ -1957,8 +1821,6 @@ $as_echo "$as_me: creating cache $cache_file" >&6;}
   >$cache_file
 fi
 
-# Check that the precious variables saved in the cache have kept the same
-# value.
 ac_cache_corrupted=false
 for ac_var in $ac_precious_vars; do
   eval ac_old_set=\$ac_cv_env_${ac_var}_set
@@ -2014,9 +1876,6 @@ $as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
 $as_echo "$as_me: error: changes in the environment can compromise the build" >&2;}
   as_fn_error $? "run \`make distclean' and/or \`rm $cache_file' and start over" "$LINENO" 5
 fi
-## -------------------- ##
-## Main body of script. ##
-## -------------------- ##
 
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
@@ -2045,10 +1904,6 @@ if test -z "$ac_aux_dir"; then
   as_fn_error $? "cannot find install-sh, install.sh, or shtool in autotools \"$srcdir\"/autotools" "$LINENO" 5
 fi
 
-# These three variables are undocumented and unsupported,
-# and are intended to be withdrawn in a future Autoconf release.
-# They can cause serious problems if a builder's source tree is in a directory
-# whose full name contains unusual characters.
 ac_config_guess="$SHELL $ac_aux_dir/config.guess"  # Please don't use this var.
 ac_config_sub="$SHELL $ac_aux_dir/config.sub"  # Please don't use this var.
 ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
@@ -2057,20 +1912,6 @@ ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
 
 am__api_version='1.16'
 
-# Find a good install program.  We prefer a C program (faster),
-# so one script is as good as another.  But avoid the broken or
-# incompatible versions:
-# SysV /etc/install, /usr/sbin/install
-# SunOS /usr/etc/install
-# IRIX /sbin/install
-# AIX /bin/install
-# AmigaOS /C/install, which installs bootblocks on floppy discs
-# AIX 4 /usr/bin/installbsd, which doesn't work without a -g flag
-# AFS /usr/afsws/bin/install, which mishandles nonexistent args
-# SVR4 /usr/ucb/install, which tries to use the nonexistent group "staff"
-# OS/2's system install, which has a completely different semantic
-# ./install, which can be erroneously created by make from ./install.sh.
-# Reject install programs that cannot install multiple files.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for a BSD-compatible install" >&5
 $as_echo_n "checking for a BSD-compatible install... " >&6; }
 if test -z "$INSTALL"; then
@@ -2142,8 +1983,6 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $INSTALL" >&5
 $as_echo "$INSTALL" >&6; }
 
-# Use test -z because SunOS4 sh mishandles braces in ${var-val}.
-# It thinks the first close brace ends the variable substitution.
 test -z "$INSTALL_PROGRAM" && INSTALL_PROGRAM='${INSTALL}'
 
 test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL}'
@@ -2152,8 +1991,6 @@ test -z "$INSTALL_DATA" && INSTALL_DATA='${INSTALL} -m 644'
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether build environment is sane" >&5
 $as_echo_n "checking whether build environment is sane... " >&6; }
-# Reject unsafe characters in $srcdir or the absolute working directory
-# name.  Accept space and tab only in the latter.
 am_lf='
 '
 case `pwd` in
@@ -2165,11 +2002,6 @@ case $srcdir in
     as_fn_error $? "unsafe srcdir value: '$srcdir'" "$LINENO" 5;;
 esac
 
-# Do 'set' in a subshell so we don't clobber the current shell's
-# arguments.  Must try -L first in case configure is actually a
-# symlink; some systems play weird games with the mod time of symlinks
-# (eg FreeBSD returns the mod time of the symlink's containing
-# directory).
 if (
    am_has_slept=no
    for am_try in 1 2; do
@@ -2207,8 +2039,6 @@ Check your system clock" "$LINENO" 5
 fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-# If we didn't sleep, we still need to ensure time stamps of config.status and
-# generated files are strictly newer.
 am_sleep_pid=
 if grep 'slept: no' conftest.file >/dev/null 2>&1; then
   ( sleep 1 ) &
@@ -2219,15 +2049,11 @@ rm -f conftest.file
 
 test "$program_prefix" != NONE &&
   program_transform_name="s&^&$program_prefix&;$program_transform_name"
-# Use a double $ so make ignores it.
 test "$program_suffix" != NONE &&
   program_transform_name="s&\$&$program_suffix&;$program_transform_name"
-# Double any \ or $.
-# By default was `s,x,x', remove it if useless.
 ac_script='s/[\\$]/&&/g;s/;s,x,x,$//'
 program_transform_name=`$as_echo "$program_transform_name" | sed "$ac_script"`
 
-# Expand $ac_aux_dir to an absolute path.
 am_aux_dir=`cd "$ac_aux_dir" && pwd`
 
 if test x"${MISSING+set}" != xset; then
@@ -2238,7 +2064,6 @@ if test x"${MISSING+set}" != xset; then
     MISSING="\${SHELL} $am_aux_dir/missing" ;;
   esac
 fi
-# Use eval to expand $SHELL
 if eval "$MISSING --is-lightweight"; then
   am_missing_run="$MISSING "
 else
@@ -2256,10 +2081,6 @@ if test x"${install_sh+set}" != xset; then
   esac
 fi
 
-# Installed binaries are usually stripped using 'strip' when the user
-# run "make install-strip".  However 'strip' might not be the right
-# tool to use in cross-compilation environments, therefore Automake
-# will honor the 'STRIP' environment variable to overrule this program.
 if test "$cross_compiling" != no; then
   if test -n "$ac_tool_prefix"; then
   # Extract the first word of "${ac_tool_prefix}strip", so it can be a program name with args.
@@ -2452,7 +2273,6 @@ SHELL = /bin/sh
 all:
 	@echo '@@@%%%=$(MAKE)=@@@%%%'
 _ACEOF
-# GNU make sometimes prints "make[1]: Entering ...", which would confuse us.
 case `${MAKE-make} -f conftest.make 2>/dev/null` in
   *@@@%%%=?*=@@@%%%*)
     eval ac_cv_prog_make_${ac_make}_set=yes;;
@@ -2480,7 +2300,6 @@ else
 fi
 rmdir .tst 2>/dev/null
 
-# Check whether --enable-silent-rules was given.
 if test "${enable_silent_rules+set}" = set; then :
   enableval=$enable_silent_rules;
 fi
@@ -2529,7 +2348,6 @@ if test "`cd $srcdir && pwd`" != "`pwd`"; then
   fi
 fi
 
-# test whether we have cygpath
 if test -z "$CYGPATH_W"; then
   if (cygpath --version) >/dev/null 2>/dev/null; then
     CYGPATH_W='cygpath -w'
@@ -2539,21 +2357,17 @@ if test -z "$CYGPATH_W"; then
 fi
 
 
-# Define the identity of the package.
  PACKAGE='alcor'
  VERSION='3.1.0~alpha1'
 
 
 cat >>confdefs.h <<_ACEOF
-#define PACKAGE "$PACKAGE"
 _ACEOF
 
 
 cat >>confdefs.h <<_ACEOF
-#define VERSION "$VERSION"
 _ACEOF
 
-# Some tools Automake needs.
 
 ACLOCAL=${ACLOCAL-"${am_missing_run}aclocal-${am__api_version}"}
 
@@ -2569,23 +2383,13 @@ AUTOHEADER=${AUTOHEADER-"${am_missing_run}autoheader"}
 
 MAKEINFO=${MAKEINFO-"${am_missing_run}makeinfo"}
 
-# For better backward compatibility.  To be removed once Automake 1.9.x
-# dies out for good.  For more background, see:
-# <https://lists.gnu.org/archive/html/automake/2012-07/msg00001.html>
-# <https://lists.gnu.org/archive/html/automake/2012-07/msg00014.html>
 mkdir_p='$(MKDIR_P)'
 
-# We need awk for the "check" target (and possibly the TAP driver).  The
-# system "awk" is bad on some platforms.
-# Always define AMTAR for backward compatibility.  Yes, it's still used
-# in the wild :-(  We should find a proper way to deprecate it ...
 AMTAR='$${TAR-tar}'
 
 
-# We'll loop over all known methods to create a tar archive until one works.
 _am_tools='gnutar plaintar pax cpio none'
 
-# The POSIX 1988 'ustar' format is defined with fixed-size fields.
       # There is notably a 21 bits limit for the UID and the GID.  In fact,
       # the 'pax' utility can hang on bigger UID/GID (see automake bug#8343
       # and bug#13588).
@@ -2708,14 +2512,6 @@ $as_echo "$am_cv_prog_tar_ustar" >&6; }
 
 
 
-# POSIX will say in a future version that running "rm -f" with no argument
-# is OK; and we want to be able to make that assumption in our Makefile
-# recipes.  So use an aggressive probe to check that the usage we want is
-# actually supported "in the wild" to an acceptable degree.
-# See automake bug#10828.
-# To make any issue more visible, cause the running configure to be aborted
-# by default if the 'rm' program in use doesn't match our expectations; the
-# user can still override this though.
 if rm -f && rm -fr && rm -rf; then : OK; else
   cat >&2 <<'END'
 Oops!
@@ -2792,8 +2588,6 @@ SBINDIR=$sbindir
 MANDIR=$mandir
 
 
-# --enable-versionfull
-# Check whether --enable-versionfull was given.
 if test "${enable_versionfull+set}" = set; then :
   enableval=$enable_versionfull; if test "$enableval" != no; then
       USE_VERSION_FULL=yes
@@ -2817,8 +2611,6 @@ else
 fi
 
 
-# --enable-symlinks
-# Check whether --enable-symlinks was given.
 if test "${enable_symlinks+set}" = set; then :
   enableval=$enable_symlinks; if test "$enableval" != yes; then
       INSTALL_SYMLINKS=no
@@ -2842,8 +2634,6 @@ else
 fi
 
 
-# --enable-haskell-profiling
-# Check whether --enable-haskell-profiling was given.
 if test "${enable_haskell_profiling+set}" = set; then :
   enableval=$enable_haskell_profiling; if test "$enableval" != yes; then
       HPROFILE=no
@@ -2867,8 +2657,6 @@ else
 fi
 
 
-# --enable-haskell-coverage
-# Check whether --enable-haskell-coverage was given.
 if test "${enable_haskell_coverage+set}" = set; then :
   enableval=$enable_haskell_coverage; if test "$enableval" != yes; then
       HCOVERAGE=no
@@ -2892,8 +2680,6 @@ else
 fi
 
 
-# --enable-haskell-tests
-# Check whether --enable-haskell-tests was given.
 if test "${enable_haskell_tests+set}" = set; then :
   enableval=$enable_haskell_tests; if test "$enableval" != yes; then
       HTEST=no
@@ -2917,8 +2703,6 @@ else
 fi
 
 
-# --enable-developer-mode
-# Check whether --enable-developer-mode was given.
 if test "${enable_developer_mode+set}" = set; then :
   enableval=$enable_developer_mode; if test "$enableval" != no; then
       DEVELOPER_MODE=yes
@@ -2942,9 +2726,7 @@ else
 fi
 
 
-# --with-haskell-flags=
 
-# Check whether --with-haskell-flags was given.
 if test "${with_haskell_flags+set}" = set; then :
   withval=$with_haskell_flags; hextra_configure="$withval"
 else
@@ -2954,9 +2736,7 @@ fi
 HEXTRA_CONFIGURE=$hextra_configure
 
 
-# --with-sshd-restart-command=...
 
-# Check whether --with-sshd-restart-command was given.
 if test "${with_sshd_restart_command+set}" = set; then :
   withval=$with_sshd_restart_command; sshd_restart_command="$withval"
 else
@@ -2966,9 +2746,7 @@ fi
 SSHD_RESTART_COMMAND=$sshd_restart_command
 
 
-# --with-export-dir=...
 
-# Check whether --with-export-dir was given.
 if test "${with_export_dir+set}" = set; then :
   withval=$with_export_dir; export_dir="$withval"
 else
@@ -2978,9 +2756,7 @@ fi
 EXPORT_DIR=$export_dir
 
 
-# --with-backup-dir=...
 
-# Check whether --with-backup-dir was given.
 if test "${with_backup_dir+set}" = set; then :
   withval=$with_backup_dir; backup_dir="$withval"
    USE_BACKUP_DIR=yes
@@ -3002,9 +2778,7 @@ else
 fi
 
 
-# --with-ssh-config-dir=...
 
-# Check whether --with-ssh-config-dir was given.
 if test "${with_ssh_config_dir+set}" = set; then :
   withval=$with_ssh_config_dir; ssh_config_dir="$withval"
 else
@@ -3014,9 +2788,7 @@ fi
 SSH_CONFIG_DIR=$ssh_config_dir
 
 
-# --with-xen-config-dir=...
 
-# Check whether --with-xen-config-dir was given.
 if test "${with_xen_config_dir+set}" = set; then :
   withval=$with_xen_config_dir; xen_config_dir="$withval"
 else
@@ -3026,9 +2798,7 @@ fi
 XEN_CONFIG_DIR=$xen_config_dir
 
 
-# --with-os-search-path=...
 
-# Check whether --with-os-search-path was given.
 if test "${with_os_search_path+set}" = set; then :
   withval=$with_os_search_path; os_search_path="$withval"
 else
@@ -3038,9 +2808,7 @@ fi
 OS_SEARCH_PATH=$os_search_path
 
 
-# --with-extstorage-search-path=...
 
-# Check whether --with-extstorage-search-path was given.
 if test "${with_extstorage_search_path+set}" = set; then :
   withval=$with_extstorage_search_path; es_search_path="$withval"
 else
@@ -3050,9 +2818,7 @@ fi
 ES_SEARCH_PATH=$es_search_path
 
 
-# --with-iallocator-search-path=...
 
-# Check whether --with-iallocator-search-path was given.
 if test "${with_iallocator_search_path+set}" = set; then :
   withval=$with_iallocator_search_path; iallocator_search_path="$withval"
 else
@@ -3062,9 +2828,7 @@ fi
 IALLOCATOR_SEARCH_PATH=$iallocator_search_path
 
 
-# --with-default-vg=...
 
-# Check whether --with-default-vg was given.
 if test "${with_default_vg+set}" = set; then :
   withval=$with_default_vg; default_vg="$withval"
 else
@@ -3074,9 +2838,7 @@ fi
 DEFAULT_VG=$default_vg
 
 
-# --with-default-bridge=...
 
-# Check whether --with-default-bridge was given.
 if test "${with_default_bridge+set}" = set; then :
   withval=$with_default_bridge; default_bridge="$withval"
 else
@@ -3086,9 +2848,7 @@ fi
 DEFAULT_BRIDGE=$default_bridge
 
 
-# --with-xen-bootloader=...
 
-# Check whether --with-xen-bootloader was given.
 if test "${with_xen_bootloader+set}" = set; then :
   withval=$with_xen_bootloader; xen_bootloader="$withval"
 else
@@ -3098,9 +2858,7 @@ fi
 XEN_BOOTLOADER=$xen_bootloader
 
 
-# --with-xen-kernel=...
 
-# Check whether --with-xen-kernel was given.
 if test "${with_xen_kernel+set}" = set; then :
   withval=$with_xen_kernel; xen_kernel="$withval"
 else
@@ -3110,9 +2868,7 @@ fi
 XEN_KERNEL=$xen_kernel
 
 
-# --with-xen-initrd=...
 
-# Check whether --with-xen-initrd was given.
 if test "${with_xen_initrd+set}" = set; then :
   withval=$with_xen_initrd; xen_initrd="$withval"
 else
@@ -3122,9 +2878,7 @@ fi
 XEN_INITRD=$xen_initrd
 
 
-# --with-kvm-kernel=...
 
-# Check whether --with-kvm-kernel was given.
 if test "${with_kvm_kernel+set}" = set; then :
   withval=$with_kvm_kernel; kvm_kernel="$withval"
 else
@@ -3134,9 +2888,7 @@ fi
 KVM_KERNEL=$kvm_kernel
 
 
-# --with-kvm-path=...
 
-# Check whether --with-kvm-path was given.
 if test "${with_kvm_path+set}" = set; then :
   withval=$with_kvm_path; kvm_path="$withval"
 else
@@ -3146,9 +2898,7 @@ fi
 KVM_PATH=$kvm_path
 
 
-# --with-lvm-stripecount=...
 
-# Check whether --with-lvm-stripecount was given.
 if test "${with_lvm_stripecount+set}" = set; then :
   withval=$with_lvm_stripecount; lvm_stripecount="$withval"
 else
@@ -3158,9 +2908,7 @@ fi
 LVM_STRIPECOUNT=$lvm_stripecount
 
 
-# --with-ssh-login-user=...
 
-# Check whether --with-ssh-login-user was given.
 if test "${with_ssh_login_user+set}" = set; then :
   withval=$with_ssh_login_user; ssh_login_user="$withval"
 else
@@ -3170,9 +2918,7 @@ fi
 SSH_LOGIN_USER=$ssh_login_user
 
 
-# --with-ssh-console-user=...
 
-# Check whether --with-ssh-console-user was given.
 if test "${with_ssh_console_user+set}" = set; then :
   withval=$with_ssh_console_user; ssh_console_user="$withval"
 else
@@ -3182,9 +2928,7 @@ fi
 SSH_CONSOLE_USER=$ssh_console_user
 
 
-# --with-default-user=...
 
-# Check whether --with-default-user was given.
 if test "${with_default_user+set}" = set; then :
   withval=$with_default_user; user_default="$withval"
 else
@@ -3192,9 +2936,7 @@ else
 fi
 
 
-# --with-default-group=...
 
-# Check whether --with-default-group was given.
 if test "${with_default_group+set}" = set; then :
   withval=$with_default_group; group_default="$withval"
 else
@@ -3202,9 +2944,7 @@ else
 fi
 
 
-# --with-user-prefix=...
 
-# Check whether --with-user-prefix was given.
 if test "${with_user_prefix+set}" = set; then :
   withval=$with_user_prefix; user_masterd="${withval}masterd";
    user_metad="${withval}metad";
@@ -3248,9 +2988,7 @@ MOND_USER=$user_mond
 METAD_USER=$user_metad
 
 
-# --with-group-prefix=...
 
-# Check whether --with-group-prefix was given.
 if test "${with_group_prefix+set}" = set; then :
   withval=$with_group_prefix; group_rapi="${withval}rapi";
    group_admin="${withval}admin";
@@ -3302,7 +3040,6 @@ MOND_GROUP=$group_mond
 METAD_GROUP=$group_metad
 
 
-# Print the config to the user
 { $as_echo "$as_me:${as_lineno-$LINENO}: Running alcor-masterd as $group_masterd:$group_masterd" >&5
 $as_echo "$as_me: Running alcor-masterd as $group_masterd:$group_masterd" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: Running alcor-metad as $group_metad:$group_metad" >&5
@@ -3320,8 +3057,6 @@ $as_echo "$as_me: Group for daemons is $group_daemons" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: Group for clients is $group_admin" >&5
 $as_echo "$as_me: Group for clients is $group_admin" >&6;}
 
-# --enable-drbd-barriers
-# Check whether --enable-drbd-barriers was given.
 if test "${enable_drbd_barriers+set}" = set; then :
   enableval=$enable_drbd_barriers; if test "$enableval" != no; then
       DRBD_BARRIERS=n
@@ -3342,8 +3077,6 @@ DRBD_BARRIERS=$DRBD_BARRIERS
 DRBD_NO_META_FLUSH=$DRBD_NO_META_FLUSH
 
 
-# --enable-syslog[=no/yes/only]
-# Check whether --enable-syslog was given.
 if test "${enable_syslog+set}" = set; then :
   enableval=$enable_syslog; case "$enableval" in
       no)
@@ -3372,8 +3105,6 @@ fi
 SYSLOG_USAGE=$SYSLOG
 
 
-# --enable-restricted-commands[=no/yes]
-# Check whether --enable-restricted-commands was given.
 if test "${enable_restricted_commands+set}" = set; then :
   enableval=$enable_restricted_commands; if test "$enableval" = no; then
       enable_restricted_commands=False
@@ -3388,9 +3119,7 @@ fi
 ENABLE_RESTRICTED_COMMANDS=$enable_restricted_commands
 
 
-# --with-disk-separator=...
 
-# Check whether --with-disk-separator was given.
 if test "${with_disk_separator+set}" = set; then :
   withval=$with_disk_separator; disk_separator="$withval"
 else
@@ -3400,7 +3129,6 @@ fi
 DISK_SEPARATOR=$disk_separator
 
 
-# Check common programs
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether ln -s works" >&5
 $as_echo_n "checking whether ln -s works... " >&6; }
@@ -3414,7 +3142,6 @@ $as_echo "no, using $LN_S" >&6; }
 fi
 
 
-# check if ln is the GNU version of ln (and hence supports -T)
 if ln --version 2> /dev/null | head -1 | grep -q GNU
 then
   HAS_GNU_LN=True
@@ -3424,9 +3151,7 @@ else
 
 fi
 
-# Check for the ip command
 
-# Extract the first word of "ip", so it can be a program name with args.
 set dummy ip; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -3471,9 +3196,7 @@ then
   as_fn_error $? "ip command not found" "$LINENO" 5
 fi
 
-# Check for pandoc
 
-# Extract the first word of "pandoc", so it can be a program name with args.
 set dummy pandoc; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -3519,9 +3242,7 @@ then
 $as_echo "$as_me: WARNING: pandoc not found, man pages rebuild will not be possible" >&2;}
 fi
 
-# Check for python-sphinx
 
-# Extract the first word of "sphinx-build", so it can be a program name with args.
 set dummy sphinx-build; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -3588,7 +3309,6 @@ else
 fi
 
 
-# Check whether --enable-manpages-in-doc was given.
 if test "${enable_manpages_in_doc+set}" = set; then :
   enableval=$enable_manpages_in_doc; case "$enableval" in
       yes) manpages_in_doc=yes ;;
@@ -3617,9 +3337,7 @@ if test -z "$SPHINX" -a -n "$manpages_in_doc"; then
   as_fn_error $? "Including man pages in HTML documentation requires sphinx" "$LINENO" 5
 fi
 
-# Check for graphviz (dot)
 
-# Extract the first word of "dot", so it can be a program name with args.
 set dummy dot; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -3665,9 +3383,7 @@ then
 $as_echo "$as_me: WARNING: dot (from the graphviz suite) not found, documentation rebuild not possible" >&2;}
 fi
 
-# Check for pylint
 
-# Extract the first word of "pylint3", so it can be a program name with args.
 set dummy pylint3; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -3766,9 +3482,7 @@ $as_echo "$as_me: WARNING: pylint 1.x found, checking code will not be possible.
   fi
 fi
 
-# Check for pycodestyle, formerly pep8
 
-# Extract the first word of "pycodestyle", so it can be a program name with args.
 set dummy pycodestyle; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -3822,7 +3536,6 @@ else
 fi
 
 
-# Check for python3-coverage
 
 for ac_prog in python3-coverage coverage
 do
@@ -3875,9 +3588,7 @@ then
 $as_echo "$as_me: WARNING: python-coverage or coverage not found, evaluating Python test coverage will not be possible" >&2;}
 fi
 
-# Check for socat
 
-# Extract the first word of "socat", so it can be a program name with args.
 set dummy socat; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -3922,9 +3633,7 @@ then
   as_fn_error $? "socat not found" "$LINENO" 5
 fi
 
-# Check for qemu-img
 
-# Extract the first word of "qemu-img", so it can be a program name with args.
 set dummy qemu-img; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -3971,7 +3680,6 @@ $as_echo "$as_me: WARNING: qemu-img not found, using ovfconverter will not be po
 fi
 
 ENABLE_MOND=
-# Check whether --enable-monitoring was given.
 if test "${enable_monitoring+set}" = set; then :
   enableval=$enable_monitoring;
 else
@@ -3979,9 +3687,7 @@ else
 fi
 
 
-# --enable-metadata
 ENABLE_METADATA=
-# Check whether --enable-metadata was given.
 if test "${enable_metadata+set}" = set; then :
   enableval=$enable_metadata;
 else
@@ -3989,9 +3695,7 @@ else
 fi
 
 
-# Check for ghc
 
-# Extract the first word of "ghc", so it can be a program name with args.
 set dummy ghc; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -4041,7 +3745,6 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking checking for extra GHC flags" >&5
 $as_echo_n "checking checking for extra GHC flags... " >&6; }
 GHC_BYVERSION_FLAGS=
-# check for GHC supported flags that vary across versions
 for flag in -fwarn-incomplete-uni-patterns; do
   if $GHC -e '0' $flag >/dev/null 2>/dev/null; then
    GHC_BYVERSION_FLAGS="$GHC_BYVERSION_FLAGS $flag"
@@ -4051,9 +3754,7 @@ done
 $as_echo "$GHC_BYVERSION_FLAGS" >&6; }
 
 
-# Check for ghc-pkg
 
-# Extract the first word of "ghc-pkg", so it can be a program name with args.
 set dummy ghc-pkg; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -4100,9 +3801,7 @@ as_fn_error $? "ghc-pkg not found, compilation will not be possible
 See \`config.log' for more details" "$LINENO" 5; }
 fi
 
-# Check for cabal
 
-# Extract the first word of "cabal", so it can be a program name with args.
 set dummy cabal; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -4160,7 +3859,6 @@ fi
 $as_echo "$CABAL_CONFIGURE_CMD" >&6; }
 
 
-# check for standard modules
 
 
     if test -z $GHC_PKG; then
@@ -4708,7 +4406,6 @@ See \`config.log' for more details" "$LINENO" 5; }
 
 
 
-#extra modules for monitoring daemon functionality; also needed for tests
 MONITORING_PKG=
 
     if test -z $GHC_PKG; then
@@ -4798,7 +4495,6 @@ else
 fi
 
 
-# extra modules for metad functionality; also needed for tests
 METAD_PKG=
 
     if test -z $GHC_PKG; then
@@ -4850,7 +4546,6 @@ else
 fi
 
 
-# network socket split package
 
     if test -z $GHC_PKG; then
         as_fn_error $? "GHC_PKG not defined" "$LINENO" 5
@@ -4883,7 +4578,6 @@ else
 fi
 
 
-# development modules
 
     if test -z $GHC_PKG; then
         as_fn_error $? "GHC_PKG not defined" "$LINENO" 5
@@ -5050,10 +4744,8 @@ else
 fi
 
 
-# Check for HsColour
 HS_APIDOC=no
 
-# Extract the first word of "HsColour", so it can be a program name with args.
 set dummy HsColour; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -5098,9 +4790,7 @@ if test -z "$HSCOLOUR"; then
 $as_echo "$as_me: WARNING: HsColour not found, htools API documentation will not be generated" >&2;}
 fi
 
-# Check for haddock
 
-# Extract the first word of "haddock", so it can be a program name with args.
 set dummy haddock; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -5149,9 +4839,7 @@ if test -n "$HADDOCK" && test -n "$HSCOLOUR"; then
 fi
 
 
-# Check for hlint
 
-# Extract the first word of "hlint", so it can be a program name with args.
 set dummy hlint; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -5221,9 +4909,7 @@ else
 fi
 
 
-# Check for fakeroot
 
-# Extract the first word of "fakeroot", so it can be a program name with args.
 set dummy fakeroot; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -5277,7 +4963,6 @@ fi
 
 
 SOCAT_USE_ESCAPE=
-# Check whether --enable-socat-escape was given.
 if test "${enable_socat_escape+set}" = set; then :
   enableval=$enable_socat_escape; if test "$enableval" = yes; then
       SOCAT_USE_ESCAPE=True
@@ -5300,7 +4985,6 @@ fi
 
 
 SOCAT_USE_COMPRESS=
-# Check whether --enable-socat-compress was given.
 if test "${enable_socat_compress+set}" = set; then :
   enableval=$enable_socat_compress; if test "$enableval" = yes; then
       SOCAT_USE_COMPRESS=True
@@ -5333,10 +5017,6 @@ fi
 
 
 
-# Check for Python
-# We need a Python3 interpreter, version at least 3.6.
-# We  tune _AM_PYTHON_INTERPRETER_LIST to first check interpreters that are
-# likely interpreters for Python 3.
 
 
 
@@ -5349,12 +5029,8 @@ fi
       { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether $PYTHON version is >= 3.6" >&5
 $as_echo_n "checking whether $PYTHON version is >= 3.6... " >&6; }
       prog="import sys
-# split strings by '.' and convert to numeric.  Append some zeros
-# because we need at least 4 digits for the hex conversion.
-# map returns an iterator in Python 3.0 and a list in 2.x
 minver = list(map(int, '3.6'.split('.'))) + [0, 0, 0]
 minverhex = 0
-# xrange is not present in Python 3.0 and range returns an iterator
 for i in list(range(0, 4)): minverhex = (minverhex << 8) + minver[i]
 sys.exit(sys.hexversion < minverhex)"
   if { echo "$as_me:$LINENO: $PYTHON -c "$prog"" >&5
@@ -5382,12 +5058,8 @@ else
 	for am_cv_pathless_PYTHON in python3 python3.8 python3.7 python3.6 python none; do
 	  test "$am_cv_pathless_PYTHON" = none && break
 	  prog="import sys
-# split strings by '.' and convert to numeric.  Append some zeros
-# because we need at least 4 digits for the hex conversion.
-# map returns an iterator in Python 3.0 and a list in 2.x
 minver = list(map(int, '3.6'.split('.'))) + [0, 0, 0]
 minverhex = 0
-# xrange is not present in Python 3.0 and range returns an iterator
 for i in list(range(0, 4)): minverhex = (minverhex << 8) + minver[i]
 sys.exit(sys.hexversion < minverhex)"
   if { echo "$as_me:$LINENO: $am_cv_pathless_PYTHON -c "$prog"" >&5
@@ -5489,16 +5161,12 @@ $as_echo "$am_cv_python_platform" >&6; }
   # Just factor out some code duplication.
   am_python_setup_sysconfig="\
 import sys
-# Prefer sysconfig over distutils.sysconfig, for better compatibility
-# with python 3.x.  See automake bug#10227.
 try:
     import sysconfig
 except ImportError:
     can_use_sysconfig = 0
 else:
     can_use_sysconfig = 1
-# Can't use sysconfig in CPython 2.7, since it's broken in virtualenvs:
-# <https://github.com/pypa/virtualenv/issues/118>
 try:
     from platform import python_implementation
     if python_implementation() == 'CPython' and sys.version[:3] == '2.7':
@@ -5808,7 +5476,6 @@ $as_echo "no" >&6; }
 	fi
 
 
-# Development-only Python modules
 PY_NODEV=
 
     if test -z $PYTHON;
@@ -5902,26 +5569,9 @@ ac_config_files="$ac_config_files Makefile"
 
 
 cat >confcache <<\_ACEOF
-# This file is a shell script that caches the results of configure
-# tests run on this system so they can be shared between configure
-# scripts and configure runs, see configure's option --config-cache.
-# It is not useful on other systems.  If it contains results you don't
-# want to keep, you may remove or edit it.
-#
-# config.status only pays attention to the cache file if you give it
-# the --recheck option to rerun configure.
-#
-# `ac_cv_env_foo' variables (set or unset) will be overridden when
-# loading this file, other *unset* `ac_cv_foo' will be assigned the
-# following values.
 
 _ACEOF
 
-# The following way of writing the cache mishandles newlines in values,
-# but we know of no workaround that is simple, portable, and efficient.
-# So, we kill variables containing newlines.
-# Ultrix sh set writes to stderr and can't be redirected directly,
-# and sets the high bit in the cache file unless we assign to the vars.
 (
   for ac_var in `(set) 2>&1 | sed -n 's/^\([a-zA-Z_][a-zA-Z0-9_]*\)=.*/\1/p'`; do
     eval ac_val=\$$ac_var
@@ -5988,16 +5638,8 @@ fi
 rm -f confcache
 
 test "x$prefix" = xNONE && prefix=$ac_default_prefix
-# Let make expand exec_prefix.
 test "x$exec_prefix" = xNONE && exec_prefix='${prefix}'
 
-# Transform confdefs.h into DEFS.
-# Protect against shell expansion while executing Makefile rules.
-# Protect against Makefile macro expansion.
-#
-# If the first sed substitution is executed (which looks for macros that
-# take arguments), then branch to the quote section.  Otherwise,
-# look for a macro that doesn't take arguments.
 ac_script='
 :mline
 /\\$/{
@@ -6144,11 +5786,6 @@ ac_clean_files="$ac_clean_files $CONFIG_STATUS"
 $as_echo "$as_me: creating $CONFIG_STATUS" >&6;}
 as_write_fail=0
 cat >$CONFIG_STATUS <<_ASEOF || as_write_fail=1
-#! $SHELL
-# Generated by $as_me.
-# Run this file to recreate the current configuration.
-# Compiler output produced by configure, useful for debugging
-# configure, is in config.log if it exists.
 
 debug=false
 ac_cs_recheck=false
@@ -6158,11 +5795,7 @@ SHELL=\${CONFIG_SHELL-$SHELL}
 export SHELL
 _ASEOF
 cat >>$CONFIG_STATUS <<\_ASEOF || as_write_fail=1
-## -------------------- ##
-## M4sh Initialization. ##
-## -------------------- ##
 
-# Be more Bourne compatible
 DUALCASE=1; export DUALCASE # for MKS sh
 if test -n "${ZSH_VERSION+set}" && (emulate sh) >/dev/null 2>&1; then :
   emulate sh
@@ -6184,12 +5817,9 @@ fi
 as_nl='
 '
 export as_nl
-# Printing a long string crashes Solaris 7 /usr/bin/printf.
 as_echo='\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\'
 as_echo=$as_echo$as_echo$as_echo$as_echo$as_echo
 as_echo=$as_echo$as_echo$as_echo$as_echo$as_echo$as_echo
-# Prefer a ksh shell builtin over an external printf program on Solaris,
-# but without wasting forks for bash or zsh.
 if test -z "$BASH_VERSION$ZSH_VERSION" \
     && (test "X`print -r -- $as_echo`" = "X$as_echo") 2>/dev/null; then
   as_echo='print -r --'
@@ -6219,7 +5849,6 @@ else
   as_echo='sh -c $as_echo_body as_echo'
 fi
 
-# The user is always right.
 if test "${PATH_SEPARATOR+set}" != set; then
   PATH_SEPARATOR=:
   (PATH='/bin;/bin'; FPATH=$PATH; sh -c :) >/dev/null 2>&1 && {
@@ -6229,14 +5858,8 @@ if test "${PATH_SEPARATOR+set}" != set; then
 fi
 
 
-# IFS
-# We need space, tab and new line, in precisely that order.  Quoting is
-# there to prevent editors from complaining about space-tab.
-# (If _AS_PATH_WALK were called with IFS unset, it would disable word
-# splitting by setting IFS to empty value.)
 IFS=" ""	$as_nl"
 
-# Find who we are.  Look in the path if we contain no directory separator.
 as_myself=
 case $0 in #((
   *[\\/]* ) as_myself=$0 ;;
@@ -6251,8 +5874,6 @@ IFS=$as_save_IFS
 
      ;;
 esac
-# We did not find ourselves, most probably we were run as `sh COMMAND'
-# in which case we are not to be found in the path.
 if test "x$as_myself" = x; then
   as_myself=$0
 fi
@@ -6261,10 +5882,6 @@ if test ! -f "$as_myself"; then
   exit 1
 fi
 
-# Unset variables that we do not need and which cause bugs (e.g. in
-# pre-3.0 UWIN ksh).  But do not cause bugs in bash 2.01; the "|| exit 1"
-# suppresses any "Segmentation fault" message there.  '((' could
-# trigger a bug in pdksh 5.2.14.
 for as_var in BASH_ENV ENV MAIL MAILPATH
 do eval test x\${$as_var+set} = xset \
   && ( (unset $as_var) || exit 1) >/dev/null 2>&1 && unset $as_var || :
@@ -6273,21 +5890,14 @@ PS1='$ '
 PS2='> '
 PS4='+ '
 
-# NLS nuisances.
 LC_ALL=C
 export LC_ALL
 LANGUAGE=C
 export LANGUAGE
 
-# CDPATH.
 (unset CDPATH) >/dev/null 2>&1 && unset CDPATH
 
 
-# as_fn_error STATUS ERROR [LINENO LOG_FD]
-# ----------------------------------------
-# Output "`basename $0`: error: ERROR" to stderr. If LINENO and LOG_FD are
-# provided, also output the error to LOG_FD, referencing LINENO. Then exit the
-# script with STATUS, using 1 if that was 0.
 as_fn_error ()
 {
   as_status=$1; test $as_status -eq 0 && as_status=1
@@ -6300,17 +5910,11 @@ as_fn_error ()
 } # as_fn_error
 
 
-# as_fn_set_status STATUS
-# -----------------------
-# Set $? to STATUS, without forking.
 as_fn_set_status ()
 {
   return $1
 } # as_fn_set_status
 
-# as_fn_exit STATUS
-# -----------------
-# Exit the shell with STATUS, even in a "trap 0" or "set -e" context.
 as_fn_exit ()
 {
   set +e
@@ -6318,20 +5922,11 @@ as_fn_exit ()
   exit $1
 } # as_fn_exit
 
-# as_fn_unset VAR
-# ---------------
-# Portably unset VAR.
 as_fn_unset ()
 {
   { eval $1=; unset $1;}
 }
 as_unset=as_fn_unset
-# as_fn_append VAR VALUE
-# ----------------------
-# Append the text in VALUE to the end of the definition contained in VAR. Take
-# advantage of any shell optimizations that allow amortized linear growth over
-# repeated appends, instead of the typical quadratic growth present in naive
-# implementations.
 if (eval "as_var=1; as_var+=2; test x\$as_var = x12") 2>/dev/null; then :
   eval 'as_fn_append ()
   {
@@ -6344,11 +5939,6 @@ else
   }
 fi # as_fn_append
 
-# as_fn_arith ARG...
-# ------------------
-# Perform arithmetic evaluation on the ARGs, and store the result in the
-# global $as_val. Take advantage of shells that can avoid forks. The arguments
-# must be portable across $(()) and expr.
 if (eval "test \$(( 1 + 1 )) = 2") 2>/dev/null; then :
   eval 'as_fn_arith ()
   {
@@ -6400,7 +5990,6 @@ $as_echo X/"$0" |
 	  }
 	  s/.*/./; q'`
 
-# Avoid depending upon Character Ranges.
 as_cr_letters='abcdefghijklmnopqrstuvwxyz'
 as_cr_LETTERS='ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 as_cr_Letters=$as_cr_letters$as_cr_LETTERS
@@ -6448,9 +6037,6 @@ rm -f conf$$ conf$$.exe conf$$.dir/conf$$.file conf$$.file
 rmdir conf$$.dir 2>/dev/null
 
 
-# as_fn_mkdir_p
-# -------------
-# Create "$as_dir" as a directory, including parents if necessary.
 as_fn_mkdir_p ()
 {
 
@@ -6503,9 +6089,6 @@ else
 fi
 
 
-# as_fn_executable_p FILE
-# -----------------------
-# Test if FILE is an executable regular file.
 as_fn_executable_p ()
 {
   test -f "$1" && test -x "$1"
@@ -6513,24 +6096,16 @@ as_fn_executable_p ()
 as_test_x='test -x'
 as_executable_p=as_fn_executable_p
 
-# Sed expression to map a string onto a valid CPP name.
 as_tr_cpp="eval sed 'y%*$as_cr_letters%P$as_cr_LETTERS%;s%[^_$as_cr_alnum]%_%g'"
 
-# Sed expression to map a string onto a valid variable name.
 as_tr_sh="eval sed 'y%*+%pp%;s%[^_$as_cr_alnum]%_%g'"
 
 
 exec 6>&1
-## ----------------------------------- ##
-## Main body of $CONFIG_STATUS script. ##
-## ----------------------------------- ##
 _ASEOF
 test $as_write_fail = 0 && chmod +x $CONFIG_STATUS || ac_write_fail=1
 
 cat >>$CONFIG_STATUS <<\_ACEOF || ac_write_fail=1
-# Save the log message, to keep $0 and so on meaningful, and to
-# report actual input values of CONFIG_FILES etc. instead of their
-# values after options handling.
 ac_log="
 This file was extended by alcor $as_me 3.1.0~alpha1, which was
 generated by GNU Autoconf 2.69.  Invocation command line was
@@ -6553,7 +6128,6 @@ esac
 
 
 cat >>$CONFIG_STATUS <<_ACEOF || ac_write_fail=1
-# Files that config.status was made for.
 config_files="$ac_config_files"
 
 _ACEOF
@@ -6602,7 +6176,6 @@ test -n "\$AWK" || AWK=awk
 _ACEOF
 
 cat >>$CONFIG_STATUS <<\_ACEOF || ac_write_fail=1
-# The default lists apply if the user does not specify any file.
 ac_need_defaults=:
 while test $# != 0
 do
@@ -6683,7 +6256,6 @@ exec 5>>config.log
 {
   echo
   sed 'h;s/./-/g;s/^.../## /;s/...$/ ##/;p;x;p;x' <<_ASBOX
-## Running $as_me. ##
 _ASBOX
   $as_echo "$ac_log"
 } >&5
@@ -6694,7 +6266,6 @@ _ACEOF
 
 cat >>$CONFIG_STATUS <<\_ACEOF || ac_write_fail=1
 
-# Handling of arguments.
 for ac_config_target in $ac_config_targets
 do
   case $ac_config_target in
@@ -6705,20 +6276,10 @@ do
 done
 
 
-# If the user did not use the arguments to specify the items to instantiate,
-# then the envvar interface is used.  Set only those that are not.
-# We use the long form for the default assignment because of an extremely
-# bizarre bug on SunOS 4.1.3.
 if $ac_need_defaults; then
   test "${CONFIG_FILES+set}" = set || CONFIG_FILES=$config_files
 fi
 
-# Have a temporary directory for convenience.  Make it in the build tree
-# simply because there is no reason against having it here, and in addition,
-# creating and moving files from /tmp can sometimes cause problems.
-# Hook for its removal unless debugging.
-# Note that there is a small window in which the directory will not be cleaned:
-# after its creation but before its name has been assigned to `$tmp'.
 $debug ||
 {
   tmp= ac_tmp=
@@ -6728,7 +6289,6 @@ $debug ||
 ' 0
   trap 'as_fn_exit 1' 1 2 13 15
 }
-# Create a (secure) tmp directory for tmp files.
 
 {
   tmp=`(umask 077 && mktemp -d "./confXXXXXX") 2>/dev/null` &&
@@ -6740,16 +6300,10 @@ $debug ||
 } || as_fn_error $? "cannot create a temporary directory in ." "$LINENO" 5
 ac_tmp=$tmp
 
-# Set up the scripts for CONFIG_FILES section.
-# No need to generate them if there are no CONFIG_FILES.
-# This happens for instance with `./config.status config.h'.
 if test -n "$CONFIG_FILES"; then
 
 
 ac_cr=`echo X | tr X '\015'`
-# On cygwin, bash can eat \r inside `` if the user requested igncr.
-# But we know of no other shell where ac_cr would be empty at this
-# point, so we can use a bashism as a fallback.
 if test "x$ac_cr" = x; then
   eval ac_cr=\$\'\\r\'
 fi
@@ -6872,10 +6426,6 @@ fi < "$ac_tmp/subs1.awk" > "$ac_tmp/subs.awk" \
   || as_fn_error $? "could not setup config files machinery" "$LINENO" 5
 _ACEOF
 
-# VPATH may cause trouble with some makes, so we remove sole $(srcdir),
-# ${srcdir} and @srcdir@ entries from VPATH if srcdir is ".", strip leading and
-# trailing colons and then remove the whole line if VPATH becomes empty
-# (actually we leave an empty line to preserve line numbers).
 if test "x$srcdir" = x.; then
   ac_vpsub='/^[	 ]*VPATH[	 ]*=[	 ]*/{
 h
@@ -7007,7 +6557,6 @@ case "$ac_dir" in
 esac
 ac_abs_top_builddir=$ac_pwd
 ac_abs_builddir=$ac_pwd$ac_dir_suffix
-# for backward compatibility:
 ac_top_builddir=$ac_top_build_prefix
 
 case $srcdir in
@@ -7045,8 +6594,6 @@ ac_abs_srcdir=$ac_abs_top_srcdir$ac_dir_suffix
 _ACEOF
 
 cat >>$CONFIG_STATUS <<\_ACEOF || ac_write_fail=1
-# If the template does not know about datarootdir, expand it.
-# FIXME: This hack should be removed a few years after 2.60.
 ac_datarootdir_hack=; ac_datarootdir_seen=
 ac_sed_dataroot='
 /datarootdir/ {
@@ -7075,9 +6622,6 @@ cat >>$CONFIG_STATUS <<_ACEOF || ac_write_fail=1
 esac
 _ACEOF
 
-# Neutralize VPATH when `$srcdir' = `.'.
-# Shell code in configure.ac might set extrasub.
-# FIXME: do we really want to maintain this feature?
 cat >>$CONFIG_STATUS <<_ACEOF || ac_write_fail=1
 ac_sed_extra="$ac_vpsub
 $extrasub
@@ -7134,14 +6678,6 @@ test $ac_write_fail = 0 ||
   as_fn_error $? "write failure creating $CONFIG_STATUS" "$LINENO" 5
 
 
-# configure is writing to config.log, and then calls config.status.
-# config.status does its own redirection, appending to config.log.
-# Unfortunately, on DOS this fails, as config.log is still kept open
-# by configure, so config.status won't be able to write to it; its
-# output is simply discarded.  So we exec the FD to /dev/null,
-# effectively closing config.log, so it can be properly (re)opened and
-# appended to by config.status.  When coming back to configure, we
-# need to make the FD available again.
 if test "$no_create" != yes; then
   ac_cs_success=:
   ac_config_status_args=

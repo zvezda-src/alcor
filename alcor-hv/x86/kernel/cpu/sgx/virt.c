@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Device driver to expose SGX enclave memory to KVM guests.
- *
- * Copyright(c) 2021 Intel Corporation.
- */
 
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
@@ -23,10 +17,6 @@ struct sgx_vepc {
 	struct mutex lock;
 };
 
-/*
- * Temporary SECS pages that cannot be EREMOVE'd due to having child in other
- * virtual EPC instances, and the lock to protect it.
- */
 static struct mutex zombie_secs_pages_lock;
 static struct list_head zombie_secs_pages;
 
@@ -114,14 +104,6 @@ static int sgx_vepc_mmap(struct file *file, struct vm_area_struct *vma)
 static int sgx_vepc_remove_page(struct sgx_epc_page *epc_page)
 {
 	/*
-	 * Take a previously guest-owned EPC page and return it to the
-	 * general EPC page pool.
-	 *
-	 * Guests can not be trusted to have left this page in a good
-	 * state, so run EREMOVE on the page unconditionally.  In the
-	 * case that a guest properly EREMOVE'd this page, a superfluous
-	 * EREMOVE is harmless.
-	 */
 	return __eremove(sgx_get_epc_virt_addr(epc_page));
 }
 
@@ -130,17 +112,6 @@ static int sgx_vepc_free_page(struct sgx_epc_page *epc_page)
 	int ret = sgx_vepc_remove_page(epc_page);
 	if (ret) {
 		/*
-		 * Only SGX_CHILD_PRESENT is expected, which is because of
-		 * EREMOVE'ing an SECS still with child, in which case it can
-		 * be handled by EREMOVE'ing the SECS again after all pages in
-		 * virtual EPC have been EREMOVE'd. See comments in below in
-		 * sgx_vepc_release().
-		 *
-		 * The user of virtual EPC (KVM) needs to guarantee there's no
-		 * logical processor is still running in the enclave in guest,
-		 * otherwise EREMOVE will get SGX_ENCLAVE_ACT which cannot be
-		 * handled here.
-		 */
 		WARN_ONCE(ret != SGX_CHILD_PRESENT, EREMOVE_ERROR_MESSAGE,
 			  ret, ret);
 		return ret;
@@ -164,12 +135,6 @@ static long sgx_vepc_remove_all(struct sgx_vepc *vepc)
 				failures++;
 			} else {
 				/*
-				 * Report errors due to #GP or SGX_ENCLAVE_ACT; do not
-				 * WARN, as userspace can induce said failures by
-				 * calling the ioctl concurrently on multiple vEPCs or
-				 * while one or more CPUs is running the enclave.  Only
-				 * a #PF on EREMOVE indicates a kernel/hardware issue.
-				 */
 				WARN_ON_ONCE(encls_faulted(ret) &&
 					     ENCLS_TRAPNR(ret) != X86_TRAP_GP);
 				return -EBUSY;
@@ -179,9 +144,6 @@ static long sgx_vepc_remove_all(struct sgx_vepc *vepc)
 	}
 
 	/*
-	 * Return the number of SECS pages that failed to be removed, so
-	 * userspace knows that it has to retry.
-	 */
 	return failures;
 }
 
@@ -195,11 +157,6 @@ static int sgx_vepc_release(struct inode *inode, struct file *file)
 
 	xa_for_each(&vepc->page_array, index, entry) {
 		/*
-		 * Remove all normal, child pages.  sgx_vepc_free_page()
-		 * will fail if EREMOVE fails, but this is OK and expected on
-		 * SECS pages.  Those can only be EREMOVE'd *after* all their
-		 * child pages. Retries below will clean them up.
-		 */
 		if (sgx_vepc_free_page(entry))
 			continue;
 
@@ -207,17 +164,9 @@ static int sgx_vepc_release(struct inode *inode, struct file *file)
 	}
 
 	/*
-	 * Retry EREMOVE'ing pages.  This will clean up any SECS pages that
-	 * only had children in this 'epc' area.
-	 */
 	xa_for_each(&vepc->page_array, index, entry) {
 		epc_page = entry;
 		/*
-		 * An EREMOVE failure here means that the SECS page still
-		 * has children.  But, since all children in this 'sgx_vepc'
-		 * have been removed, the SECS page must have a child on
-		 * another instance.
-		 */
 		if (sgx_vepc_free_page(epc_page))
 			list_add_tail(&epc_page->list, &secs_pages);
 
@@ -225,20 +174,9 @@ static int sgx_vepc_release(struct inode *inode, struct file *file)
 	}
 
 	/*
-	 * SECS pages are "pinned" by child pages, and "unpinned" once all
-	 * children have been EREMOVE'd.  A child page in this instance
-	 * may have pinned an SECS page encountered in an earlier release(),
-	 * creating a zombie.  Since some children were EREMOVE'd above,
-	 * try to EREMOVE all zombies in the hopes that one was unpinned.
-	 */
 	mutex_lock(&zombie_secs_pages_lock);
 	list_for_each_entry_safe(epc_page, tmp, &zombie_secs_pages, list) {
 		/*
-		 * Speculatively remove the page from the list of zombies,
-		 * if the page is successfully EREMOVE'd it will be added to
-		 * the list of free pages.  If EREMOVE fails, throw the page
-		 * on the local list, which will be spliced on at the end.
-		 */
 		list_del(&epc_page->list);
 
 		if (sgx_vepc_free_page(epc_page))
@@ -314,36 +252,12 @@ int __init sgx_vepc_init(void)
 	return misc_register(&sgx_vepc_dev);
 }
 
-/**
- * sgx_virt_ecreate() - Run ECREATE on behalf of guest
- * @pageinfo:	Pointer to PAGEINFO structure
- * @secs:	Userspace pointer to SECS page
- * @trapnr:	trap number injected to guest in case of ECREATE error
- *
- * Run ECREATE on behalf of guest after KVM traps ECREATE for the purpose
- * of enforcing policies of guest's enclaves, and return the trap number
- * which should be injected to guest in case of any ECREATE error.
- *
- * Return:
- * -  0:	ECREATE was successful.
- * - <0:	on error.
- */
 int sgx_virt_ecreate(struct sgx_pageinfo *pageinfo, void __user *secs,
 		     int *trapnr)
 {
 	int ret;
 
 	/*
-	 * @secs is an untrusted, userspace-provided address.  It comes from
-	 * KVM and is assumed to be a valid pointer which points somewhere in
-	 * userspace.  This can fault and call SGX or other fault handlers when
-	 * userspace mapping @secs doesn't exist.
-	 *
-	 * Add a WARN() to make sure @secs is already valid userspace pointer
-	 * from caller (KVM), who should already have handled invalid pointer
-	 * case (for instance, made by malicious guest).  All other checks,
-	 * such as alignment of @secs, are deferred to ENCLS itself.
-	 */
 	if (WARN_ON_ONCE(!access_ok(secs, PAGE_SIZE)))
 		return -EINVAL;
 
@@ -368,10 +282,6 @@ static int __sgx_virt_einit(void __user *sigstruct, void __user *token,
 	int ret;
 
 	/*
-	 * Make sure all userspace pointers from caller (KVM) are valid.
-	 * All other checks deferred to ENCLS itself.  Also see comment
-	 * for @secs in sgx_virt_ecreate().
-	 */
 #define SGX_EINITTOKEN_SIZE	304
 	if (WARN_ON_ONCE(!access_ok(sigstruct, sizeof(struct sgx_sigstruct)) ||
 			 !access_ok(token, SGX_EINITTOKEN_SIZE) ||
@@ -385,23 +295,6 @@ static int __sgx_virt_einit(void __user *sigstruct, void __user *token,
 	return ret;
 }
 
-/**
- * sgx_virt_einit() - Run EINIT on behalf of guest
- * @sigstruct:		Userspace pointer to SIGSTRUCT structure
- * @token:		Userspace pointer to EINITTOKEN structure
- * @secs:		Userspace pointer to SECS page
- * @lepubkeyhash:	Pointer to guest's *virtual* SGX_LEPUBKEYHASH MSR values
- * @trapnr:		trap number injected to guest in case of EINIT error
- *
- * Run EINIT on behalf of guest after KVM traps EINIT. If SGX_LC is available
- * in host, SGX driver may rewrite the hardware values at wish, therefore KVM
- * needs to update hardware values to guest's virtual MSR values in order to
- * ensure EINIT is executed with expected hardware values.
- *
- * Return:
- * -  0:	EINIT was successful.
- * - <0:	on error.
- */
 int sgx_virt_einit(void __user *sigstruct, void __user *token,
 		   void __user *secs, u64 *lepubkeyhash, int *trapnr)
 {

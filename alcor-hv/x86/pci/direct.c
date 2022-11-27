@@ -1,18 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * direct.c - Low-level direct PCI config space access
- */
 
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/dmi.h>
 #include <asm/pci_x86.h>
 
-/*
- * Functions for accessing PCI base (first 256 bytes) and extended
- * (4096 bytes per PCI function) configuration space with type 1
- * accesses.
- */
 
 #define PCI_CONF1_ADDRESS(bus, devfn, reg) \
 	(0x80000000 | ((reg & 0xF00) << 16) | (bus << 16) \
@@ -86,9 +77,6 @@ const struct pci_raw_ops pci_direct_conf1 = {
 };
 
 
-/*
- * Functions for accessing PCI configuration space with type 2 accesses
- */
 
 #define PCI_CONF2_ADDRESS(dev, reg)	(u16)(0xC000 | (dev << 8) | reg)
 
@@ -182,16 +170,6 @@ static const struct pci_raw_ops pci_direct_conf2 = {
 };
 
 
-/*
- * Before we decide to use direct hardware access mechanisms, we try to do some
- * trivial checks to ensure it at least _seems_ to be working -- we just test
- * whether bus 00 contains a host bridge (this is similar to checking
- * techniques used in XFree86, but ours should be more reliable since we
- * attempt to make use of direct access hints provided by the PCI BIOS).
- *
- * This should be close to trivial, but it isn't, because there are buggy
- * chipsets (yes, you guessed it, by Intel and Compaq) that have no class ID.
- */
 static int __init pci_sanity_check(const struct pci_raw_ops *o)
 {
 	u32 x = 0;

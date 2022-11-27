@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ARCH_SGX_DRIVER_H__
 #define __ARCH_SGX_DRIVER_H__
 

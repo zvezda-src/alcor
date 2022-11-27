@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * kernel/power/main.c - PM subsystem core functionality.
- *
- * Copyright (c) 2003 Patrick Mochel
- * Copyright (c) 2003 Open Source Development Lab
- */
 
 #include <linux/export.h>
 #include <linux/kobject.h>
@@ -31,21 +24,6 @@ EXPORT_SYMBOL_GPL(lock_system_sleep);
 void unlock_system_sleep(void)
 {
 	/*
-	 * Don't use freezer_count() because we don't want the call to
-	 * try_to_freeze() here.
-	 *
-	 * Reason:
-	 * Fundamentally, we just don't need it, because freezing condition
-	 * doesn't come into effect until we release the
-	 * system_transition_mutex lock, since the freezer always works with
-	 * system_transition_mutex held.
-	 *
-	 * More importantly, in the case of hibernation,
-	 * unlock_system_sleep() gets called in snapshot_read() and
-	 * snapshot_write() when the freezing condition is still in effect.
-	 * Which means, if we use try_to_freeze() here, it would make them
-	 * enter the refrigerator, thus causing hibernation to lockup.
-	 */
 	current->flags &= ~PF_FREEZER_SKIP;
 	mutex_unlock(&system_transition_mutex);
 }
@@ -64,7 +42,6 @@ void ksys_sync_helper(void)
 }
 EXPORT_SYMBOL_GPL(ksys_sync_helper);
 
-/* Routines for PM-transition notifications */
 
 static BLOCKING_NOTIFIER_HEAD(pm_chain_head);
 
@@ -94,7 +71,6 @@ int pm_notifier_call_chain(unsigned long val)
 	return blocking_notifier_call_chain(&pm_chain_head, val, NULL);
 }
 
-/* If set, devices may be suspended and resumed asynchronously. */
 int pm_async_enabled = 1;
 
 static ssize_t pm_async_show(struct kobject *kobj, struct kobj_attribute *attr,
@@ -194,12 +170,6 @@ static ssize_t mem_sleep_store(struct kobject *kobj, struct kobj_attribute *attr
 
 power_attr(mem_sleep);
 
-/*
- * sync_on_suspend: invoke ksys_sync_helper() before suspend.
- *
- * show() returns whether ksys_sync_helper() is invoked before suspend.
- * store() accepts 0 or 1.  0 disables ksys_sync_helper() and 1 enables it.
- */
 bool sync_on_suspend_enabled = !IS_ENABLED(CONFIG_SUSPEND_SKIP_SYNC);
 
 static ssize_t sync_on_suspend_show(struct kobject *kobj,
@@ -466,12 +436,6 @@ late_initcall(pm_debugfs_init);
 #endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_PM_SLEEP_DEBUG
-/*
- * pm_print_times: print time taken by devices to suspend and resume.
- *
- * show() returns whether printing of suspend and resume times is enabled.
- * store() accepts 0 or 1.  0 disables printing and 1 enables it.
- */
 bool pm_print_times_enabled;
 
 static ssize_t pm_print_times_show(struct kobject *kobj,
@@ -554,17 +518,6 @@ static inline void pm_print_times_init(void) {}
 
 struct kobject *power_kobj;
 
-/*
- * state - control system sleep states.
- *
- * show() returns available sleep state labels, which may be "mem", "standby",
- * "freeze" and "disk" (hibernation).
- * See Documentation/admin-guide/pm/sleep-states.rst for a description of
- * what they mean.
- *
- * store() accepts one of those strings, translates it into the proper
- * enumerated value, and initiates a suspend transition.
- */
 static ssize_t state_show(struct kobject *kobj, struct kobj_attribute *attr,
 			  char *buf)
 {
@@ -647,33 +600,6 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
 power_attr(state);
 
 #ifdef CONFIG_PM_SLEEP
-/*
- * The 'wakeup_count' attribute, along with the functions defined in
- * drivers/base/power/wakeup.c, provides a means by which wakeup events can be
- * handled in a non-racy way.
- *
- * If a wakeup event occurs when the system is in a sleep state, it simply is
- * woken up.  In turn, if an event that would wake the system up from a sleep
- * state occurs when it is undergoing a transition to that sleep state, the
- * transition should be aborted.  Moreover, if such an event occurs when the
- * system is in the working state, an attempt to start a transition to the
- * given sleep state should fail during certain period after the detection of
- * the event.  Using the 'state' attribute alone is not sufficient to satisfy
- * these requirements, because a wakeup event may occur exactly when 'state'
- * is being written to and may be delivered to user space right before it is
- * frozen, so the event will remain only partially processed until the system is
- * woken up by another event.  In particular, it won't cause the transition to
- * a sleep state to be aborted.
- *
- * This difficulty may be overcome if user space uses 'wakeup_count' before
- * writing to 'state'.  It first should read from 'wakeup_count' and store
- * the read value.  Then, after carrying out its own preparations for the system
- * transition to a sleep state, it should write the stored value to
- * 'wakeup_count'.  If that fails, at least one wakeup event has occurred since
- * 'wakeup_count' was read and 'state' should not be written to.  Otherwise, it
- * is allowed to write to 'state', but the transition will be aborted if there
- * are any wakeup events detected after 'wakeup_count' was written to.
- */
 
 static ssize_t wakeup_count_show(struct kobject *kobj,
 				struct kobj_attribute *attr,

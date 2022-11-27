@@ -1,13 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_STRING_64_H
 #define _ASM_X86_STRING_64_H
 
 #ifdef __KERNEL__
 #include <linux/jump_label.h>
 
-/* Written 2002 by Andi Kleen */
 
-/* Even with __builtin_ the compiler may decide to use the out of line
    function. */
 
 #define __HAVE_ARCH_MEMCPY 1
@@ -66,10 +63,6 @@ int strcmp(const char *cs, const char *ct);
 
 #if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
 
-/*
- * For files that not instrumented (e.g. mm/slub.c) we
- * should use not instrumented version of mem* functions.
- */
 
 #undef memcpy
 #define memcpy(dst, src, len) __memcpy(dst, src, len)

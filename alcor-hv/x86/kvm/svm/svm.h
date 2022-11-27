@@ -1,16 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Kernel-based Virtual Machine driver for Linux
- *
- * AMD SVM support
- *
- * Copyright (C) 2006 Qumranet, Inc.
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
- *
- * Authors:
- *   Yaniv Kamay  <yaniv@qumranet.com>
- *   Avi Kivity   <avi@qumranet.com>
- */
 
 #ifndef __SVM_SVM_H
 #define __SVM_SVM_H
@@ -44,11 +31,6 @@ enum avic_modes {
 
 extern enum avic_modes avic_mode;
 
-/*
- * Clean bits in VMCB.
- * VMCB_ALL_CLEAN_MASK might also need to
- * be updated if this enum is modified.
- */
 enum {
 	VMCB_INTERCEPTS, /* Intercept vectors, TSC offset,
 			    pause filter count */
@@ -77,7 +59,6 @@ enum {
 	(1U << VMCB_LBR) | (1U << VMCB_AVIC) |			\
 	(1U << VMCB_SW))
 
-/* TPR and CR2 are always written before VMRUN */
 #define VMCB_ALWAYS_DIRTY_MASK	((1U << VMCB_INTR) | (1U << VMCB_CR2))
 
 struct kvm_sev_info {
@@ -172,20 +153,11 @@ struct svm_nested_state {
 	struct vmcb_ctrl_area_cached ctl;
 
 	/*
-	 * Note: this struct is not kept up-to-date while L2 runs; it is only
-	 * valid within nested_svm_vmrun.
-	 */
 	struct vmcb_save_area_cached save;
 
 	bool initialized;
 
 	/*
-	 * Indicates whether MSR bitmap for L2 needs to be rebuilt due to
-	 * changes in MSR bitmap for L1 or switching to a different L2. Note,
-	 * this flag can only be used reliably in conjunction with a paravirt L1
-	 * which informs L0 whether any changes to MSR bitmap for L2 were done
-	 * on its side.
-	 */
 	bool force_msr_bitmap_recalc;
 };
 
@@ -223,10 +195,6 @@ struct vcpu_svm {
 
 	u64 tsc_ratio_msr;
 	/*
-	 * Contains guest-controlled bits of VIRT_SPEC_CTRL, which will be
-	 * translated into the appropriate L2_CFG bits on the host to
-	 * perform speculative control.
-	 */
 	u64 virt_spec_ctrl;
 
 	u32 *msrpm;
@@ -259,11 +227,6 @@ struct vcpu_svm {
 	u64 *avic_physical_id_cache;
 
 	/*
-	 * Per-vcpu list of struct amd_svm_iommu_ir:
-	 * This is used mainly to store interrupt remapping information used
-	 * when update the vcpu affinity. This avoids the need to scan for
-	 * IRTE and try to match ga_tag in the IOMMU driver.
-	 */
 	struct list_head ir_list;
 	spinlock_t ir_list_lock;
 
@@ -353,14 +316,6 @@ static __always_inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 	return container_of(vcpu, struct vcpu_svm, vcpu);
 }
 
-/*
- * Only the PDPTRs are loaded on demand into the shadow MMU.  All other
- * fields are synchronized on VM-Exit, because accessing the VMCB is cheap.
- *
- * CR3 might be out of date in the VMCB but it is not marked dirty; instead,
- * KVM_REQ_LOAD_MMU_PGD is always requested when the cached vcpu->arch.cr3
- * is changed.  svm_load_mmu_pgd() then syncs the new CR3 value into the VMCB.
- */
 #define SVM_REGS_LAZY_LOAD_SET	(1 << VCPU_EXREG_PDPTR)
 
 static inline void vmcb_set_intercept(struct vmcb_control_area *control, u32 bit)
@@ -532,7 +487,6 @@ static inline bool is_x2apic_msrpm_offset(u32 offset)
 	       (msr < (APIC_BASE_MSR + 0x100));
 }
 
-/* svm.c */
 #define MSR_INVALID				0xffffffffU
 
 #define DEBUGCTL_RESERVED_BITS (~(0x3fULL))
@@ -561,7 +515,6 @@ void svm_set_x2apic_msr_interception(struct vcpu_svm *svm, bool disable);
 void svm_complete_interrupt_delivery(struct kvm_vcpu *vcpu, int delivery_mode,
 				     int trig_mode, int vec);
 
-/* nested.c */
 
 #define NESTED_EXIT_HOST	0	/* Exit handled on host level */
 #define NESTED_EXIT_DONE	1	/* Exit caused nested vmexit  */
@@ -625,7 +578,6 @@ void svm_switch_vmcb(struct vcpu_svm *svm, struct kvm_vmcb_info *target_vmcb);
 
 extern struct kvm_x86_nested_ops svm_nested_ops;
 
-/* avic.c */
 
 bool avic_hardware_setup(struct kvm_x86_ops *ops);
 int avic_ga_log_notifier(u32 ga_tag);
@@ -649,7 +601,6 @@ unsigned long avic_vcpu_get_apicv_inhibit_reasons(struct kvm_vcpu *vcpu);
 void avic_set_virtual_apic_mode(struct kvm_vcpu *vcpu);
 
 
-/* sev.c */
 
 #define GHCB_VERSION_MAX	1ULL
 #define GHCB_VERSION_MIN	1ULL
@@ -681,7 +632,6 @@ void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector);
 void sev_es_prepare_switch_to_guest(struct sev_es_save_area *hostsa);
 void sev_es_unmap_ghcb(struct vcpu_svm *svm);
 
-/* vmenter.S */
 
 void __svm_sev_es_vcpu_run(unsigned long vmcb_pa);
 void __svm_vcpu_run(unsigned long vmcb_pa, unsigned long *regs);

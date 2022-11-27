@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * queue_stack_maps.c: BPF queue and stack maps
- *
- * Copyright (c) 2018 Politecnico di Torino
- */
 #include <linux/bpf.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -43,7 +37,6 @@ static bool queue_stack_map_is_full(struct bpf_queue_stack *qs)
 	return head == qs->tail;
 }
 
-/* Called from syscall */
 static int queue_stack_map_alloc_check(union bpf_attr *attr)
 {
 	if (!bpf_capable())
@@ -89,7 +82,6 @@ static struct bpf_map *queue_stack_map_alloc(union bpf_attr *attr)
 	return &qs->map;
 }
 
-/* Called when map->refcnt goes to zero, either from workqueue or from syscall */
 static void queue_stack_map_free(struct bpf_map *map)
 {
 	struct bpf_queue_stack *qs = bpf_queue_stack(map);
@@ -157,31 +149,26 @@ out:
 	return err;
 }
 
-/* Called from syscall or from eBPF program */
 static int queue_map_peek_elem(struct bpf_map *map, void *value)
 {
 	return __queue_map_get(map, value, false);
 }
 
-/* Called from syscall or from eBPF program */
 static int stack_map_peek_elem(struct bpf_map *map, void *value)
 {
 	return __stack_map_get(map, value, false);
 }
 
-/* Called from syscall or from eBPF program */
 static int queue_map_pop_elem(struct bpf_map *map, void *value)
 {
 	return __queue_map_get(map, value, true);
 }
 
-/* Called from syscall or from eBPF program */
 static int stack_map_pop_elem(struct bpf_map *map, void *value)
 {
 	return __stack_map_get(map, value, true);
 }
 
-/* Called from syscall or from eBPF program */
 static int queue_stack_map_push_elem(struct bpf_map *map, void *value,
 				     u64 flags)
 {
@@ -222,26 +209,22 @@ out:
 	return err;
 }
 
-/* Called from syscall or from eBPF program */
 static void *queue_stack_map_lookup_elem(struct bpf_map *map, void *key)
 {
 	return NULL;
 }
 
-/* Called from syscall or from eBPF program */
 static int queue_stack_map_update_elem(struct bpf_map *map, void *key,
 				       void *value, u64 flags)
 {
 	return -EINVAL;
 }
 
-/* Called from syscall or from eBPF program */
 static int queue_stack_map_delete_elem(struct bpf_map *map, void *key)
 {
 	return -EINVAL;
 }
 
-/* Called from syscall */
 static int queue_stack_map_get_next_key(struct bpf_map *map, void *key,
 					void *next_key)
 {

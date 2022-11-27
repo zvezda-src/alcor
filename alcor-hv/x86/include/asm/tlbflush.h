@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_TLBFLUSH_H
 #define _ASM_X86_TLBFLUSH_H
 
@@ -21,19 +20,16 @@ void __flush_tlb_all(void);
 void cr4_update_irqsoff(unsigned long set, unsigned long clear);
 unsigned long cr4_read_shadow(void);
 
-/* Set in this cpu's CR4. */
 static inline void cr4_set_bits_irqsoff(unsigned long mask)
 {
 	cr4_update_irqsoff(mask, 0);
 }
 
-/* Clear in this cpu's CR4. */
 static inline void cr4_clear_bits_irqsoff(unsigned long mask)
 {
 	cr4_update_irqsoff(0, mask);
 }
 
-/* Set in this cpu's CR4. */
 static inline void cr4_set_bits(unsigned long mask)
 {
 	unsigned long flags;
@@ -43,7 +39,6 @@ static inline void cr4_set_bits(unsigned long mask)
 	local_irq_restore(flags);
 }
 
-/* Clear in this cpu's CR4. */
 static inline void cr4_clear_bits(unsigned long mask)
 {
 	unsigned long flags;
@@ -54,10 +49,6 @@ static inline void cr4_clear_bits(unsigned long mask)
 }
 
 #ifndef MODULE
-/*
- * 6 because 6 should be plenty and struct tlb_state will fit in two cache
- * lines.
- */
 #define TLB_NR_DYN_ASIDS	6
 
 struct tlb_context {
@@ -67,16 +58,6 @@ struct tlb_context {
 
 struct tlb_state {
 	/*
-	 * cpu_tlbstate.loaded_mm should match CR3 whenever interrupts
-	 * are on.  This means that it may not match current->active_mm,
-	 * which will contain the previous user mm when we're in lazy TLB
-	 * mode even if we've already switched back to swapper_pg_dir.
-	 *
-	 * During switch_mm_irqs_off(), loaded_mm will be set to
-	 * LOADED_MM_SWITCHING during the brief interrupts-off window
-	 * when CR3 and loaded_mm would otherwise be inconsistent.  This
-	 * is for nmi_uaccess_okay()'s benefit.
-	 */
 	struct mm_struct *loaded_mm;
 
 #define LOADED_MM_SWITCHING ((struct mm_struct *)1UL)
@@ -91,68 +72,21 @@ struct tlb_state {
 	u16 next_asid;
 
 	/*
-	 * If set we changed the page tables in such a way that we
-	 * needed an invalidation of all contexts (aka. PCIDs / ASIDs).
-	 * This tells us to go invalidate all the non-loaded ctxs[]
-	 * on the next context switch.
-	 *
-	 * The current ctx was kept up-to-date as it ran and does not
-	 * need to be invalidated.
-	 */
 	bool invalidate_other;
 
 	/*
-	 * Mask that contains TLB_NR_DYN_ASIDS+1 bits to indicate
-	 * the corresponding user PCID needs a flush next time we
-	 * switch to it; see SWITCH_TO_USER_CR3.
-	 */
 	unsigned short user_pcid_flush_mask;
 
 	/*
-	 * Access to this CR4 shadow and to H/W CR4 is protected by
-	 * disabling interrupts when modifying either one.
-	 */
 	unsigned long cr4;
 
 	/*
-	 * This is a list of all contexts that might exist in the TLB.
-	 * There is one per ASID that we use, and the ASID (what the
-	 * CPU calls PCID) is the index into ctxts.
-	 *
-	 * For each context, ctx_id indicates which mm the TLB's user
-	 * entries came from.  As an invariant, the TLB will never
-	 * contain entries that are out-of-date as when that mm reached
-	 * the tlb_gen in the list.
-	 *
-	 * To be clear, this means that it's legal for the TLB code to
-	 * flush the TLB without updating tlb_gen.  This can happen
-	 * (for now, at least) due to paravirt remote flushes.
-	 *
-	 * NB: context 0 is a bit special, since it's also used by
-	 * various bits of init code.  This is fine -- code that
-	 * isn't aware of PCID will end up harmlessly flushing
-	 * context 0.
-	 */
 	struct tlb_context ctxs[TLB_NR_DYN_ASIDS];
 };
 DECLARE_PER_CPU_ALIGNED(struct tlb_state, cpu_tlbstate);
 
 struct tlb_state_shared {
 	/*
-	 * We can be in one of several states:
-	 *
-	 *  - Actively using an mm.  Our CPU's bit will be set in
-	 *    mm_cpumask(loaded_mm) and is_lazy == false;
-	 *
-	 *  - Not using a real mm.  loaded_mm == &init_mm.  Our CPU's bit
-	 *    will not be set in mm_cpumask(&init_mm) and is_lazy == false.
-	 *
-	 *  - Lazily using a real mm.  loaded_mm != &init_mm, our bit
-	 *    is set in mm_cpumask(loaded_mm), but is_lazy == true.
-	 *    We're heuristically guessing that the CR3 load we
-	 *    skipped more than makes up for the overhead added by
-	 *    lazy mode.
-	 */
 	bool is_lazy;
 };
 DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state_shared, cpu_tlbstate_shared);
@@ -160,7 +94,6 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state_shared, cpu_tlbstate_shared);
 bool nmi_uaccess_okay(void);
 #define nmi_uaccess_okay nmi_uaccess_okay
 
-/* Initialize cr4 shadow for this CPU. */
 static inline void cr4_init_shadow(void)
 {
 	this_cpu_write(cpu_tlbstate.cr4, __read_cr4());
@@ -171,36 +104,8 @@ extern u32 *trampoline_cr4_features;
 
 extern void initialize_tlbstate_and_flush(void);
 
-/*
- * TLB flushing:
- *
- *  - flush_tlb_all() flushes all processes TLBs
- *  - flush_tlb_mm(mm) flushes the specified mm context TLB's
- *  - flush_tlb_page(vma, vmaddr) flushes one page
- *  - flush_tlb_range(vma, start, end) flushes a range of pages
- *  - flush_tlb_kernel_range(start, end) flushes a range of kernel pages
- *  - flush_tlb_multi(cpumask, info) flushes TLBs on multiple cpus
- *
- * ..but the i386 has somewhat limited tlb flushing capabilities,
- * and page-granular flushes are available only on i486 and up.
- */
 struct flush_tlb_info {
 	/*
-	 * We support several kinds of flushes.
-	 *
-	 * - Fully flush a single mm.  .mm will be set, .end will be
-	 *   TLB_FLUSH_ALL, and .new_tlb_gen will be the tlb_gen to
-	 *   which the IPI sender is trying to catch us up.
-	 *
-	 * - Partially flush a single mm.  .mm will be set, .start and
-	 *   .end will indicate the range, and .new_tlb_gen will be set
-	 *   such that the changes between generation .new_tlb_gen-1 and
-	 *   .new_tlb_gen are entirely contained in the indicated range.
-	 *
-	 * - Fully flush all mms whose tlb_gens have been updated.  .mm
-	 *   will be NULL, .end will be TLB_FLUSH_ALL, and .new_tlb_gen
-	 *   will be zero.
-	 */
 	struct mm_struct	*mm;
 	unsigned long		start;
 	unsigned long		end;
@@ -243,11 +148,6 @@ static inline void flush_tlb_page(struct vm_area_struct *vma, unsigned long a)
 static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
 {
 	/*
-	 * Bump the generation count.  This also serves as a full barrier
-	 * that synchronizes with switch_mm(): callers are required to order
-	 * their read of mm_cpumask after their writes to the paging
-	 * structures.
-	 */
 	return atomic64_inc_return(&mm->context.tlb_gen);
 }
 
@@ -265,11 +165,6 @@ static inline bool pte_flags_need_flush(unsigned long oldflags,
 					bool ignore_access)
 {
 	/*
-	 * Flags that require a flush when cleared but not when they are set.
-	 * Only include flags that would not trigger spurious page-faults.
-	 * Non-present entries are not cached. Hardware would set the
-	 * dirty/access bit if needed without a fault.
-	 */
 	const pteval_t flush_on_clear = _PAGE_DIRTY | _PAGE_PRESENT |
 					_PAGE_ACCESSED;
 	const pteval_t software_flags = _PAGE_SOFTW1 | _PAGE_SOFTW2 |
@@ -291,9 +186,6 @@ static inline bool pte_flags_need_flush(unsigned long oldflags,
 		diff &= ~_PAGE_ACCESSED;
 
 	/*
-	 * Did any of the 'flush_on_clear' flags was clleared set from between
-	 * 'oldflags' and 'newflags'?
-	 */
 	if (diff & oldflags & flush_on_clear)
 		return true;
 
@@ -311,10 +203,6 @@ static inline bool pte_flags_need_flush(unsigned long oldflags,
 	return false;
 }
 
-/*
- * pte_needs_flush() checks whether permissions were demoted and require a
- * flush. It should only be used for userspace PTEs.
- */
 static inline bool pte_needs_flush(pte_t oldpte, pte_t newpte)
 {
 	/* !PRESENT -> * ; no need for flush */
@@ -326,18 +214,11 @@ static inline bool pte_needs_flush(pte_t oldpte, pte_t newpte)
 		return true;
 
 	/*
-	 * check PTE flags; ignore access-bit; see comment in
-	 * ptep_clear_flush_young().
-	 */
 	return pte_flags_need_flush(pte_flags(oldpte), pte_flags(newpte),
 				    true);
 }
 #define pte_needs_flush pte_needs_flush
 
-/*
- * huge_pmd_needs_flush() checks whether permissions were demoted and require a
- * flush. It should only be used for userspace huge PMDs.
- */
 static inline bool huge_pmd_needs_flush(pmd_t oldpmd, pmd_t newpmd)
 {
 	/* !PRESENT -> * ; no need for flush */
@@ -349,9 +230,6 @@ static inline bool huge_pmd_needs_flush(pmd_t oldpmd, pmd_t newpmd)
 		return true;
 
 	/*
-	 * check PMD flags; do not ignore access-bit; see
-	 * pmdp_clear_flush_young().
-	 */
 	return pte_flags_need_flush(pmd_flags(oldpmd), pmd_flags(newpmd),
 				    false);
 }

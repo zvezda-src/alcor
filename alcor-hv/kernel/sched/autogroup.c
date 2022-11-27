@@ -1,8 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
 
-/*
- * Auto-group scheduling implementation:
- */
 
 unsigned int __read_mostly sysctl_sched_autogroup_enabled = 1;
 static struct autogroup autogroup_default;
@@ -100,12 +96,6 @@ static inline struct autogroup *autogroup_create(void)
 	ag->tg = tg;
 #ifdef CONFIG_RT_GROUP_SCHED
 	/*
-	 * Autogroup RT tasks are redirected to the root task group
-	 * so we don't have to move tasks around upon policy change,
-	 * or flail around trying to allocate bandwidth on the fly.
-	 * A bandwidth exception in __sched_setscheduler() allows
-	 * the policy change to proceed.
-	 */
 	free_rt_sched_group(tg);
 	tg->rt_se = root_task_group.rt_se;
 	tg->rt_rq = root_task_group.rt_rq;
@@ -131,13 +121,6 @@ bool task_wants_autogroup(struct task_struct *p, struct task_group *tg)
 	if (tg != &root_task_group)
 		return false;
 	/*
-	 * If we race with autogroup_move_group() the caller can use the old
-	 * value of signal->autogroup but in this case sched_move_task() will
-	 * be called again before autogroup_kref_put().
-	 *
-	 * However, there is no way sched_autogroup_exit_task() could tell us
-	 * to avoid autogroup->tg, so we abuse PF_EXITING flag for this case.
-	 */
 	if (p->flags & PF_EXITING)
 		return false;
 
@@ -147,10 +130,6 @@ bool task_wants_autogroup(struct task_struct *p, struct task_group *tg)
 void sched_autogroup_exit_task(struct task_struct *p)
 {
 	/*
-	 * We are going to call exit_notify() and autogroup_move_group() can't
-	 * see this thread after that: we can no longer use signal->autogroup.
-	 * See the PF_EXITING check in task_wants_autogroup().
-	 */
 	sched_move_task(p);
 }
 
@@ -171,16 +150,6 @@ autogroup_move_group(struct task_struct *p, struct autogroup *ag)
 
 	p->signal->autogroup = autogroup_kref_get(ag);
 	/*
-	 * We can't avoid sched_move_task() after we changed signal->autogroup,
-	 * this process can already run with task_group() == prev->tg or we can
-	 * race with cgroup code which can read autogroup = prev under rq->lock.
-	 * In the latter case for_each_thread() can not miss a migrating thread,
-	 * cpu_cgroup_attach() must not be possible after cgroup_exit() and it
-	 * can't be removed from thread list, we hold ->siglock.
-	 *
-	 * If an exiting thread was already removed from thread list we rely on
-	 * sched_autogroup_exit_task().
-	 */
 	for_each_thread(p, t)
 		sched_move_task(t);
 
@@ -188,7 +157,6 @@ autogroup_move_group(struct task_struct *p, struct autogroup *ag)
 	autogroup_kref_put(prev);
 }
 
-/* Allocates GFP_KERNEL, cannot be called under any spinlock: */
 void sched_autogroup_create_attach(struct task_struct *p)
 {
 	struct autogroup *ag = autogroup_create();
@@ -200,7 +168,6 @@ void sched_autogroup_create_attach(struct task_struct *p)
 }
 EXPORT_SYMBOL(sched_autogroup_create_attach);
 
-/* Cannot be called under siglock. Currently has no users: */
 void sched_autogroup_detach(struct task_struct *p)
 {
 	autogroup_move_group(p, &autogroup_default);

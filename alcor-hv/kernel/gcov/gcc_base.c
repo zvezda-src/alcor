@@ -1,14 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include "gcov.h"
 
-/*
- * __gcov_init is called by gcc-generated constructor code for each object
- * file compiled with -fprofile-arcs.
- */
 void __gcov_init(struct gcov_info *info)
 {
 	static unsigned int gcov_version;
@@ -17,15 +12,9 @@ void __gcov_init(struct gcov_info *info)
 	if (gcov_version == 0) {
 		gcov_version = gcov_info_version(info);
 		/*
-		 * Printing gcc's version magic may prove useful for debugging
-		 * incompatibility reports.
-		 */
 		pr_info("version magic: 0x%x\n", gcov_version);
 	}
 	/*
-	 * Add new profiling data structure to list and inform event
-	 * listener.
-	 */
 	gcov_info_link(info);
 	if (gcov_events_enabled)
 		gcov_event(GCOV_ADD, info);
@@ -33,10 +22,6 @@ void __gcov_init(struct gcov_info *info)
 }
 EXPORT_SYMBOL(__gcov_init);
 
-/*
- * These functions may be referenced by gcc-generated profiling code but serve
- * no function for kernel profiling.
- */
 void __gcov_flush(void)
 {
 	/* Unused. */

@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Glue Code for the AVX assembler implementation of the Cast5 Cipher
- *
- * Copyright (C) 2012 Johannes Goetzfried
- *     <Johannes.Goetzfried@informatik.stud.uni-erlangen.de>
- */
 
 #include <crypto/algapi.h>
 #include <crypto/cast5.h>

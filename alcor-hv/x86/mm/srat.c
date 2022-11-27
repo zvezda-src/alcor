@@ -1,14 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * ACPI 3.0 based NUMA setup
- * Copyright 2004 Andi Kleen, SuSE Labs.
- *
- * Reads the ACPI SRAT table to figure out what memory belongs to which CPUs.
- *
- * Called from acpi_numa_init while reading the SRAT and SLIT tables.
- * Assumes all memory regions belonging to a single proximity domain
- * are in one chunk. Holes between them will be included in the node.
- */
 
 #include <linux/kernel.h>
 #include <linux/acpi.h>
@@ -23,7 +12,6 @@
 #include <asm/apic.h>
 #include <asm/uv/uv.h>
 
-/* Callback for Proximity Domain -> x2APIC mapping */
 void __init
 acpi_numa_x2apic_affinity_init(struct acpi_srat_x2apic_cpu_affinity *pa)
 {
@@ -62,7 +50,6 @@ acpi_numa_x2apic_affinity_init(struct acpi_srat_x2apic_cpu_affinity *pa)
 	       pxm, apic_id, node);
 }
 
-/* Callback for Proximity Domain -> LAPIC mapping */
 void __init
 acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 {

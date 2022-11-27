@@ -1,13 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (C) 2021 VMware Inc, Steven Rostedt <rostedt@goodmis.org>
- */
 #include <linux/spinlock.h>
 #include <linux/irq_work.h>
 #include <linux/slab.h>
 #include "trace.h"
 
-/* See pid_list.h for details */
 
 static inline union lower_chunk *get_lower_chunk(struct trace_pid_list *pid_list)
 {
@@ -24,9 +19,6 @@ static inline union lower_chunk *get_lower_chunk(struct trace_pid_list *pid_list
 	WARN_ON_ONCE(pid_list->free_lower_chunks < 0);
 	chunk->next = NULL;
 	/*
-	 * If a refill needs to happen, it can not happen here
-	 * as the scheduler run queue locks are held.
-	 */
 	if (pid_list->free_lower_chunks <= CHUNK_REALLOC)
 		irq_work_queue(&pid_list->refill_irqwork);
 
@@ -48,9 +40,6 @@ static inline union upper_chunk *get_upper_chunk(struct trace_pid_list *pid_list
 	WARN_ON_ONCE(pid_list->free_upper_chunks < 0);
 	chunk->next = NULL;
 	/*
-	 * If a refill needs to happen, it can not happen here
-	 * as the scheduler run queue locks are held.
-	 */
 	if (pid_list->free_upper_chunks <= CHUNK_REALLOC)
 		irq_work_queue(&pid_list->refill_irqwork);
 
@@ -80,11 +69,6 @@ static inline void put_upper_chunk(struct trace_pid_list *pid_list,
 static inline bool upper_empty(union upper_chunk *chunk)
 {
 	/*
-	 * If chunk->data has no lower chunks, it will be the same
-	 * as a zeroed bitmask. Use find_first_bit() to test it
-	 * and if it doesn't find any bits set, then the array
-	 * is empty.
-	 */
 	int bit = find_first_bit((unsigned long *)chunk->data,
 				 sizeof(chunk->data) * 8);
 	return bit >= sizeof(chunk->data) * 8;
@@ -100,9 +84,6 @@ static inline int pid_split(unsigned int pid, unsigned int *upper1,
 	if (unlikely(pid >= MAX_PID))
 		return -1;
 
-	*upper1 = (pid >> UPPER1_SHIFT) & UPPER_MASK;
-	*upper2 = (pid >> UPPER2_SHIFT) & UPPER_MASK;
-	*lower = pid & LOWER_MASK;
 
 	return 0;
 }
@@ -115,17 +96,6 @@ static inline unsigned int pid_join(unsigned int upper1,
 		(lower & LOWER_MASK);
 }
 
-/**
- * trace_pid_list_is_set - test if the pid is set in the list
- * @pid_list: The pid list to test
- * @pid: The pid to see if set in the list.
- *
- * Tests if @pid is set in the @pid_list. This is usually called
- * from the scheduler when a task is scheduled. Its pid is checked
- * if it should be traced or not.
- *
- * Return true if the pid is in the list, false otherwise.
- */
 bool trace_pid_list_is_set(struct trace_pid_list *pid_list, unsigned int pid)
 {
 	union upper_chunk *upper_chunk;
@@ -154,17 +124,6 @@ bool trace_pid_list_is_set(struct trace_pid_list *pid_list, unsigned int pid)
 	return ret;
 }
 
-/**
- * trace_pid_list_set - add a pid to the list
- * @pid_list: The pid list to add the @pid to.
- * @pid: The pid to add.
- *
- * Adds @pid to @pid_list. This is usually done explicitly by a user
- * adding a task to be traced, or indirectly by the fork function
- * when children should be traced and a task's pid is in the list.
- *
- * Return 0 on success, negative otherwise.
- */
 int trace_pid_list_set(struct trace_pid_list *pid_list, unsigned int pid)
 {
 	union upper_chunk *upper_chunk;
@@ -207,17 +166,6 @@ int trace_pid_list_set(struct trace_pid_list *pid_list, unsigned int pid)
 	return ret;
 }
 
-/**
- * trace_pid_list_clear - remove a pid from the list
- * @pid_list: The pid list to remove the @pid from.
- * @pid: The pid to remove.
- *
- * Removes @pid from @pid_list. This is usually done explicitly by a user
- * removing tasks from tracing, or indirectly by the exit function
- * when a task that is set to be traced exits.
- *
- * Return 0 on success, negative otherwise.
- */
 int trace_pid_list_clear(struct trace_pid_list *pid_list, unsigned int pid)
 {
 	union upper_chunk *upper_chunk;
@@ -258,18 +206,6 @@ int trace_pid_list_clear(struct trace_pid_list *pid_list, unsigned int pid)
 	return 0;
 }
 
-/**
- * trace_pid_list_next - return the next pid in the list
- * @pid_list: The pid list to examine.
- * @pid: The pid to start from
- * @next: The pointer to place the pid that is set starting from @pid.
- *
- * Looks for the next consecutive pid that is in @pid_list starting
- * at the pid specified by @pid. If one is set (including @pid), then
- * that pid is placed into @next.
- *
- * Return 0 when a pid is found, -1 if there are no more pids included.
- */
 int trace_pid_list_next(struct trace_pid_list *pid_list, unsigned int pid,
 			unsigned int *next)
 {
@@ -310,20 +246,9 @@ int trace_pid_list_next(struct trace_pid_list *pid_list, unsigned int pid,
 	if (upper1 > UPPER_MASK)
 		return -1;
 
-	*next = pid_join(upper1, upper2, lower);
 	return 0;
 }
 
-/**
- * trace_pid_list_first - return the first pid in the list
- * @pid_list: The pid list to examine.
- * @pid: The pointer to place the pid first found pid that is set.
- *
- * Looks for the first pid that is set in @pid_list, and places it
- * into @pid if found.
- *
- * Return 0 when a pid is found, -1 if there are no pids set.
- */
 int trace_pid_list_first(struct trace_pid_list *pid_list, unsigned int *pid)
 {
 	return trace_pid_list_next(pid_list, 0, pid);
@@ -387,27 +312,12 @@ static void pid_list_refill_irq(struct irq_work *iwork)
 	raw_spin_unlock(&pid_list->lock);
 
 	/*
-	 * On success of allocating all the chunks, both counters
-	 * will be less than zero. If they are not, then an allocation
-	 * failed, and we should not try again.
-	 */
 	if (upper_count >= 0 || lower_count >= 0)
 		return;
 	/*
-	 * When the locks were released, free chunks could have
-	 * been used and allocation needs to be done again. Might as
-	 * well allocate it now.
-	 */
 	goto again;
 }
 
-/**
- * trace_pid_list_alloc - create a new pid_list
- *
- * Allocates a new pid_list to store pids into.
- *
- * Returns the pid_list on success, NULL otherwise.
- */
 struct trace_pid_list *trace_pid_list_alloc(void)
 {
 	struct trace_pid_list *pid_list;
@@ -449,11 +359,6 @@ struct trace_pid_list *trace_pid_list_alloc(void)
 	return pid_list;
 }
 
-/**
- * trace_pid_list_free - Frees an allocated pid_list.
- *
- * Frees the memory for a pid_list that was allocated.
- */
 void trace_pid_list_free(struct trace_pid_list *pid_list)
 {
 	union upper_chunk *upper;

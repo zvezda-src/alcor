@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/entry-kvm.h>
 #include <linux/kvm_host.h>
@@ -33,13 +32,6 @@ int xfer_to_guest_mode_handle_work(struct kvm_vcpu *vcpu)
 	unsigned long ti_work;
 
 	/*
-	 * This is invoked from the outer guest loop with interrupts and
-	 * preemption enabled.
-	 *
-	 * KVM invokes xfer_to_guest_mode_work_pending() with interrupts
-	 * disabled in the inner loop before going into guest mode. No need
-	 * to disable interrupts here.
-	 */
 	ti_work = read_thread_flags();
 	if (!(ti_work & XFER_TO_GUEST_MODE_WORK))
 		return 0;

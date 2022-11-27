@@ -1,8 +1,3 @@
-/*
- * Automatically generated C representation of wip automaton
- * For further information about this format, see kernel documentation:
- *   Documentation/trace/rv/deterministic_automata.rst
- */
 
 enum states_wip {
 	preemptive_wip = 0,

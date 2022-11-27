@@ -1,13 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- *	Copyright (C) 1992, 1998 Linus Torvalds, Ingo Molnar
- *
- * This file contains the lowest level x86-specific interrupt
- * entry, irq-stacks and irq statistics code. All the remaining
- * irq logic is done by the generic kernel/irq/ code and
- * by the x86-specific irq controller code. (e.g. i8259.c and
- * io_apic.c.)
- */
 
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
@@ -28,7 +18,6 @@
 
 int sysctl_panic_on_stackoverflow __read_mostly;
 
-/* Debugging check for stack overflow: is there less than 1KB free? */
 static int check_stack_overflow(void)
 {
 	long sp;
@@ -80,11 +69,6 @@ static inline int execute_on_irq_stack(int overflow, struct irq_desc *desc)
 	irqstk = __this_cpu_read(hardirq_stack_ptr);
 
 	/*
-	 * this is where we switch to the IRQ stack. However, if we are
-	 * already using the IRQ stack (because we interrupted a hardirq
-	 * handler) we can't do that and just have to keep using the
-	 * current stack (which is the irq stack already after all)
-	 */
 	if (unlikely(curstk == irqstk))
 		return 0;
 
@@ -92,7 +76,6 @@ static inline int execute_on_irq_stack(int overflow, struct irq_desc *desc)
 
 	/* Save the next esp at the bottom of the stack */
 	prev_esp = (u32 *)irqstk;
-	*prev_esp = current_stack_pointer;
 
 	if (unlikely(overflow))
 		call_on_stack(print_stack_overflow, isp);
@@ -107,9 +90,6 @@ static inline int execute_on_irq_stack(int overflow, struct irq_desc *desc)
 	return 1;
 }
 
-/*
- * Allocate per-cpu stacks for hardirq and softirq processing
- */
 int irq_init_percpu_irqstack(unsigned int cpu)
 {
 	int node = cpu_to_node(cpu);
@@ -145,7 +125,6 @@ void do_softirq_own_stack(void)
 
 	/* Push the previous esp onto the stack */
 	prev_esp = (u32 *)irqstk;
-	*prev_esp = current_stack_pointer;
 
 	call_on_stack(__do_softirq, isp);
 }

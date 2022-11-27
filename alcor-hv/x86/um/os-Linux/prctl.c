@@ -1,7 +1,3 @@
-/*
- * Copyright (C) 2007 Jeff Dike (jdike@{addtoit.com,linux.intel.com})
- * Licensed under the GPL
- */
 
 #include <sys/ptrace.h>
 #include <asm/ptrace.h>

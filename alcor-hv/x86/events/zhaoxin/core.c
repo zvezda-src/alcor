@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Zhaoxin PMU; like Intel Architectural PerfMon-v2
- */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -18,9 +14,6 @@
 
 #include "../perf_event.h"
 
-/*
- * Zhaoxin PerfMon, used on zxc and later.
- */
 static u64 zx_pmon_event_map[PERF_COUNT_HW_MAX] __read_mostly = {
 
 	[PERF_COUNT_HW_CPU_CYCLES]        = 0x0082,
@@ -279,8 +272,6 @@ static inline void zhaoxin_pmu_ack_status(u64 ack)
 static inline void zxc_pmu_ack_status(u64 ack)
 {
 	/*
-	 * ZXC needs global control enabled in order to clear status bits.
-	 */
 	zhaoxin_pmu_enable_all(0);
 	zhaoxin_pmu_ack_status(ack);
 	zhaoxin_pmu_disable_all();
@@ -316,10 +307,6 @@ static void zhaoxin_pmu_enable_fixed(struct hw_perf_event *hwc)
 	u64 ctrl_val, bits, mask;
 
 	/*
-	 * Enable IRQ generation (0x8),
-	 * and enable ring-3 counting (0x2) and ring-0 counting (0x1)
-	 * if requested:
-	 */
 	bits = 0x8ULL;
 	if (hwc->config & ARCH_PERFMON_EVENTSEL_USR)
 		bits |= 0x2;
@@ -347,10 +334,6 @@ static void zhaoxin_pmu_enable_event(struct perf_event *event)
 	__x86_pmu_enable_event(hwc, ARCH_PERFMON_EVENTSEL_ENABLE);
 }
 
-/*
- * This handler is triggered by the local APIC, so the APIC IRQ handling
- * rules apply:
- */
 static int zhaoxin_pmu_handle_irq(struct pt_regs *regs)
 {
 	struct perf_sample_data data;
@@ -375,9 +358,6 @@ again:
 	inc_irq_stat(apic_perf_irqs);
 
 	/*
-	 * CondChgd bit 63 doesn't mean any overflow status. Ignore
-	 * and clear the bit.
-	 */
 	if (__test_and_clear_bit(63, (unsigned long *)&status)) {
 		if (!status)
 			goto done;
@@ -402,8 +382,6 @@ again:
 	}
 
 	/*
-	 * Repeat if there is more work to be done:
-	 */
 	status = zhaoxin_pmu_get_status();
 	if (status)
 		goto again;
@@ -471,8 +449,6 @@ static const struct x86_pmu zhaoxin_pmu __initconst = {
 	.max_events		= ARRAY_SIZE(zx_pmon_event_map),
 	.apic			= 1,
 	/*
-	 * For zxd/zxe, read/write operation for PMCx MSR is 48 bits.
-	 */
 	.max_period		= (1ULL << 47) - 1,
 	.get_event_constraints	= zhaoxin_get_event_constraints,
 
@@ -514,9 +490,6 @@ __init int zhaoxin_pmu_init(void)
 	pr_info("Welcome to zhaoxin pmu!\n");
 
 	/*
-	 * Check whether the Architectural PerfMon supports
-	 * hw_event or not.
-	 */
 	cpuid(10, &eax.full, &ebx.full, &unused, &edx.full);
 
 	if (eax.split.mask_length < ARCH_PERFMON_EVENTS_COUNT - 1)

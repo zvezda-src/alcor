@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright © 2019 Oracle and/or its affiliates. All rights reserved.
- * Copyright © 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
- *
- * KVM Xen emulation
- */
 
 #include "x86.h"
 #include "xen.h"
@@ -53,9 +46,6 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 			goto out;
 
 		/*
-		 * This code mirrors kvm_write_wall_clock() except that it writes
-		 * directly through the pfn cache and doesn't mark the page dirty.
-		 */
 		wall_nsec = ktime_get_real_ns() - get_kvmclock_ns(kvm);
 
 		/* It could be invalid again already, so we need to check */
@@ -97,7 +87,6 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 
 	wc->nsec = do_div(wall_nsec,  1000000000);
 	wc->sec = (u32)wall_nsec;
-	*wc_sec_hi = wall_nsec >> 32;
 	smp_wmb();
 
 	wc->version = wc_version + 1;
@@ -181,9 +170,6 @@ static void kvm_xen_update_runstate(struct kvm_vcpu *v, int state)
 		vx->current_runstate = RUNSTATE_offline;
 
 	/*
-	 * Time waiting for the scheduler isn't "stolen" if the
-	 * vCPU wasn't running anyway.
-	 */
 	if (vx->current_runstate == RUNSTATE_running) {
 		u64 steal_ns = run_delay - vx->last_steal;
 
@@ -233,15 +219,6 @@ void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 	}
 
 	/*
-	 * The only difference between 32-bit and 64-bit versions of the
-	 * runstate struct us the alignment of uint64_t in 32-bit, which
-	 * means that the 64-bit version has an additional 4 bytes of
-	 * padding after the first field 'state'.
-	 *
-	 * So we use 'int __user *user_state' to point to the state field,
-	 * and 'uint64_t __user *user_times' for runstate_entry_time. So
-	 * the actual array of time[] in each state starts at user_times[1].
-	 */
 	BUILD_BUG_ON(offsetof(struct vcpu_runstate_info, state) != 0);
 	BUILD_BUG_ON(offsetof(struct compat_vcpu_runstate_info, state) != 0);
 	BUILD_BUG_ON(sizeof(struct compat_vcpu_runstate_info) != 0x2c);
@@ -262,9 +239,6 @@ void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 						  state_entry_time);
 
 	/*
-	 * First write the updated state_entry_time at the appropriate
-	 * location determined by 'offset'.
-	 */
 	BUILD_BUG_ON(sizeof_field(struct vcpu_runstate_info, state_entry_time) !=
 		     sizeof(user_times[0]));
 	BUILD_BUG_ON(sizeof_field(struct compat_vcpu_runstate_info, state_entry_time) !=
@@ -274,9 +248,6 @@ void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 	smp_wmb();
 
 	/*
-	 * Next, write the new runstate. This is in the *same* place
-	 * for 32-bit and 64-bit guests, asserted here for paranoia.
-	 */
 	BUILD_BUG_ON(offsetof(struct vcpu_runstate_info, state) !=
 		     offsetof(struct compat_vcpu_runstate_info, state));
 	BUILD_BUG_ON(sizeof_field(struct vcpu_runstate_info, state) !=
@@ -284,12 +255,8 @@ void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 	BUILD_BUG_ON(sizeof_field(struct compat_vcpu_runstate_info, state) !=
 		     sizeof(vx->current_runstate));
 
-	*user_state = vx->current_runstate;
 
 	/*
-	 * Write the actual runstate times immediately after the
-	 * runstate_entry_time.
-	 */
 	BUILD_BUG_ON(offsetof(struct vcpu_runstate_info, state_entry_time) !=
 		     offsetof(struct vcpu_runstate_info, time) - sizeof(u64));
 	BUILD_BUG_ON(offsetof(struct compat_vcpu_runstate_info, state_entry_time) !=
@@ -303,9 +270,6 @@ void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, int state)
 	smp_wmb();
 
 	/*
-	 * Finally, clear the XEN_RUNSTATE_UPDATE bit in the guest's
-	 * runstate_entry_time field.
-	 */
 	user_times[0] &= ~XEN_RUNSTATE_UPDATE;
 	smp_wmb();
 
@@ -330,13 +294,6 @@ static void kvm_xen_inject_vcpu_vector(struct kvm_vcpu *v)
 	WARN_ON_ONCE(!kvm_irq_delivery_to_apic_fast(v->kvm, NULL, &irq, &r, NULL));
 }
 
-/*
- * On event channel delivery, the vcpu_info may not have been accessible.
- * In that case, there are bits in vcpu->arch.xen.evtchn_pending_sel which
- * need to be marked into the vcpu_info (and evtchn_upcall_pending set).
- * Do so now that we can sleep in the context of the vCPU to bring the
- * page in, and refresh the pfn cache for it.
- */
 void kvm_xen_inject_pending_events(struct kvm_vcpu *v)
 {
 	unsigned long evtchn_pending_sel = READ_ONCE(v->arch.xen.evtchn_pending_sel);
@@ -347,10 +304,6 @@ void kvm_xen_inject_pending_events(struct kvm_vcpu *v)
 		return;
 
 	/*
-	 * Yes, this is an open-coded loop. But that's just what put_user()
-	 * does anyway. Page it in and retry the instruction. We're just a
-	 * little more honest about it.
-	 */
 	read_lock_irqsave(&gpc->lock, flags);
 	while (!kvm_gfn_to_pfn_cache_check(v->kvm, gpc, gpc->gpa,
 					   sizeof(struct vcpu_info))) {
@@ -404,9 +357,6 @@ int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
 	u8 rc = 0;
 
 	/*
-	 * If the global upcall vector (HVMIRQ_callback_vector) is set and
-	 * the vCPU's evtchn_upcall_pending flag is set, the IRQ is pending.
-	 */
 
 	/* No need for compat handling here */
 	BUILD_BUG_ON(offsetof(struct vcpu_info, evtchn_upcall_pending) !=
@@ -422,22 +372,12 @@ int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
 		read_unlock_irqrestore(&gpc->lock, flags);
 
 		/*
-		 * This function gets called from kvm_vcpu_block() after setting the
-		 * task to TASK_INTERRUPTIBLE, to see if it needs to wake immediately
-		 * from a HLT. So we really mustn't sleep. If the page ended up absent
-		 * at that point, just return 1 in order to trigger an immediate wake,
-		 * and we'll end up getting called again from a context where we *can*
-		 * fault in the page and wait for it.
-		 */
 		if (in_atomic() || !task_is_running(current))
 			return 1;
 
 		if (kvm_gfn_to_pfn_cache_refresh(v->kvm, gpc, gpc->gpa,
 						 sizeof(struct vcpu_info))) {
 			/*
-			 * If this failed, userspace has screwed up the
-			 * vcpu_info mapping. No interrupts for you.
-			 */
 			return 0;
 		}
 		read_lock_irqsave(&gpc->lock, flags);
@@ -849,11 +789,6 @@ int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 	vcpu->kvm->arch.xen.long_mode = lm;
 
 	/*
-	 * If Xen hypercall intercept is enabled, fill the hypercall
-	 * page with VMCALL/VMMCALL instructions since that's what
-	 * we catch. Else the VMM has provided the hypercall pages
-	 * with instructions of its own choosing, so use those.
-	 */
 	if (kvm_xen_hypercall_enabled(kvm)) {
 		u8 instructions[32];
 		int i;
@@ -882,9 +817,6 @@ int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 		}
 	} else {
 		/*
-		 * Note, truncation is a non-issue as 'lm' is guaranteed to be
-		 * false for a 32-bit kernel, i.e. when hva_t is only 4 bytes.
-		 */
 		hva_t blob_addr = lm ? kvm->arch.xen_hvm_config.blob_addr_64
 				     : kvm->arch.xen_hvm_config.blob_addr_32;
 		u8 blob_size = lm ? kvm->arch.xen_hvm_config.blob_size_64
@@ -918,9 +850,6 @@ int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc)
 		return -EINVAL;
 
 	/*
-	 * With hypercall interception the kernel generates its own
-	 * hypercall page so it must not be provided.
-	 */
 	if ((xhc->flags & KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL) &&
 	    (xhc->blob_addr_32 || xhc->blob_addr_64 ||
 	     xhc->blob_size_32 || xhc->blob_size_64))
@@ -1069,7 +998,6 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 	}
 
 	vcpu->arch.xen.poll_evtchn = 0;
-	*r = 0;
 out:
 	/* Really, this is only needed in case of timeout */
 	clear_bit(vcpu->vcpu_idx, vcpu->kvm->arch.xen.poll_mask);
@@ -1133,12 +1061,6 @@ static bool kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, bool longmode, int cmd,
 		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 
 		/*
-		 * The only difference for 32-bit compat is the 4 bytes of
-		 * padding after the interesting part of the structure. So
-		 * for a faithful emulation of Xen we have to *try* to copy
-		 * the padding and return -EFAULT if we can't. Otherwise we
-		 * might as well just have copied the 12-byte 32-bit struct.
-		 */
 		BUILD_BUG_ON(offsetof(struct compat_vcpu_set_singleshot_timer, timeout_abs_ns) !=
 			     offsetof(struct vcpu_set_singleshot_timer, timeout_abs_ns));
 		BUILD_BUG_ON(sizeof_field(struct compat_vcpu_set_singleshot_timer, timeout_abs_ns) !=
@@ -1208,7 +1130,6 @@ static bool kvm_xen_hcall_set_timer_op(struct kvm_vcpu *vcpu, uint64_t timeout,
 		kvm_xen_stop_timer(vcpu);
 	}
 
-	*r = 0;
 	return true;
 }
 
@@ -1318,16 +1239,6 @@ static void kvm_xen_check_poller(struct kvm_vcpu *vcpu, int port)
 	}
 }
 
-/*
- * The return value from this function is propagated to kvm_set_irq() API,
- * so it returns:
- *  < 0   Interrupt was ignored (masked or not delivered for other reasons)
- *  = 0   Interrupt was coalesced (previous irq is still pending)
- *  > 0   Number of CPUs interrupt was delivered to
- *
- * It is also called directly from kvm_arch_set_irq_inatomic(), where the
- * only check on its return value is a comparison with -EWOULDBLOCK'.
- */
 int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 {
 	struct gfn_to_pfn_cache *gpc = &kvm->arch.xen.shinfo_cache;
@@ -1375,12 +1286,6 @@ int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 	}
 
 	/*
-	 * If this port wasn't already set, and if it isn't masked, then
-	 * we try to set the corresponding bit in the in-kernel shadow of
-	 * evtchn_pending_sel for the target vCPU. And if *that* wasn't
-	 * already set, then we kick the vCPU in question to write to the
-	 * *real* evtchn_pending_sel in its own guest vcpu_info struct.
-	 */
 	if (test_and_set_bit(xe->port, pending_bits)) {
 		rc = 0; /* It was already raised */
 	} else if (test_bit(xe->port, mask_bits)) {
@@ -1395,9 +1300,6 @@ int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 		read_lock_irqsave(&gpc->lock, flags);
 		if (!kvm_gfn_to_pfn_cache_check(kvm, gpc, gpc->gpa, sizeof(struct vcpu_info))) {
 			/*
-			 * Could not access the vcpu_info. Set the bit in-kernel
-			 * and prod the vCPU to deliver it for itself.
-			 */
 			if (!test_and_set_bit(port_word_bit, &vcpu->arch.xen.evtchn_pending_sel))
 				kick_vcpu = true;
 			goto out_rcu;
@@ -1448,9 +1350,6 @@ static int kvm_xen_set_evtchn(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 
 	if (current->mm != kvm->mm) {
 		/*
-		 * If not on a thread which already belongs to this KVM,
-		 * we'd better be in the irqfd workqueue.
-		 */
 		if (WARN_ON_ONCE(current->mm))
 			return -EINVAL;
 
@@ -1459,29 +1358,9 @@ static int kvm_xen_set_evtchn(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 	}
 
 	/*
-	 * For the irqfd workqueue, using the main kvm->lock mutex is
-	 * fine since this function is invoked from kvm_set_irq() with
-	 * no other lock held, no srcu. In future if it will be called
-	 * directly from a vCPU thread (e.g. on hypercall for an IPI)
-	 * then it may need to switch to using a leaf-node mutex for
-	 * serializing the shared_info mapping.
-	 */
 	mutex_lock(&kvm->lock);
 
 	/*
-	 * It is theoretically possible for the page to be unmapped
-	 * and the MMU notifier to invalidate the shared_info before
-	 * we even get to use it. In that case, this looks like an
-	 * infinite loop. It was tempting to do it via the userspace
-	 * HVA instead... but that just *hides* the fact that it's
-	 * an infinite loop, because if a fault occurs and it waits
-	 * for the page to come back, it can *still* immediately
-	 * fault and have to wait again, repeatedly.
-	 *
-	 * Conversely, the page could also have been reinstated by
-	 * another thread before we even obtain the mutex above, so
-	 * check again *first* before remapping it.
-	 */
 	do {
 		struct gfn_to_pfn_cache *gpc = &kvm->arch.xen.shinfo_cache;
 		int idx;
@@ -1503,7 +1382,6 @@ static int kvm_xen_set_evtchn(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 	return rc;
 }
 
-/* This is the version called from kvm_set_irq() as the .set function */
 static int evtchn_set_fn(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm,
 			 int irq_source_id, int level, bool line_status)
 {
@@ -1513,10 +1391,6 @@ static int evtchn_set_fn(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm
 	return kvm_xen_set_evtchn(&e->xen_evtchn, kvm);
 }
 
-/*
- * Set up an event channel interrupt from the KVM IRQ routing table.
- * Used for e.g. PIRQ from passed through physical devices.
- */
 int kvm_xen_setup_evtchn(struct kvm *kvm,
 			 struct kvm_kernel_irq_routing_entry *e,
 			 const struct kvm_irq_routing_entry *ue)
@@ -1532,13 +1406,6 @@ int kvm_xen_setup_evtchn(struct kvm *kvm,
 		return -EINVAL;
 
 	/*
-	 * Xen gives us interesting mappings from vCPU index to APIC ID,
-	 * which means kvm_get_vcpu_by_id() has to iterate over all vCPUs
-	 * to find it. Do that once at setup time, instead of every time.
-	 * But beware that on live update / live migration, the routing
-	 * table might be reinstated before the vCPU threads have finished
-	 * recreating their vCPUs.
-	 */
 	vcpu = kvm_get_vcpu_by_id(kvm, ue->u.xen_evtchn.vcpu);
 	if (vcpu)
 		e->xen_evtchn.vcpu_idx = vcpu->vcpu_idx;
@@ -1553,9 +1420,6 @@ int kvm_xen_setup_evtchn(struct kvm *kvm,
 	return 0;
 }
 
-/*
- * Explicit event sending from userspace with KVM_XEN_HVM_EVTCHN_SEND ioctl.
- */
 int kvm_xen_hvm_evtchn_send(struct kvm *kvm, struct kvm_irq_routing_xen_evtchn *uxe)
 {
 	struct kvm_xen_evtchn e;
@@ -1576,18 +1440,12 @@ int kvm_xen_hvm_evtchn_send(struct kvm *kvm, struct kvm_irq_routing_xen_evtchn *
 	ret = kvm_xen_set_evtchn(&e, kvm);
 
 	/*
-	 * None of that 'return 1 if it actually got delivered' nonsense.
-	 * We don't care if it was masked (-ENOTCONN) either.
-	 */
 	if (ret > 0 || ret == -ENOTCONN)
 		ret = 0;
 
 	return ret;
 }
 
-/*
- * Support for *outbound* event channel events via the EVTCHNOP_send hypercall.
- */
 struct evtchnfd {
 	u32 send_port;
 	u32 type;
@@ -1600,9 +1458,6 @@ struct evtchnfd {
 	} deliver;
 };
 
-/*
- * Update target vCPU or priority for a registered sending channel.
- */
 static int kvm_xen_eventfd_update(struct kvm *kvm,
 				  struct kvm_xen_hvm_attr *data)
 {
@@ -1624,9 +1479,6 @@ static int kvm_xen_eventfd_update(struct kvm *kvm,
 		return -EINVAL;
 
 	/*
-	 * Port cannot change, and if it's zero that was an eventfd
-	 * which can't be changed either.
-	 */
 	if (!evtchnfd->deliver.port.port ||
 	    evtchnfd->deliver.port.port != data->u.evtchn.deliver.port.port)
 		return -EINVAL;
@@ -1645,10 +1497,6 @@ static int kvm_xen_eventfd_update(struct kvm *kvm,
 	return 0;
 }
 
-/*
- * Configure the target (eventfd or local port delivery) for sending on
- * a given event channel.
- */
 static int kvm_xen_eventfd_assign(struct kvm *kvm,
 				  struct kvm_xen_hvm_attr *data)
 {
@@ -1809,7 +1657,6 @@ static bool kvm_xen_hcall_evtchn_send(struct kvm_vcpu *vcpu, u64 param, u64 *r)
 		eventfd_signal(evtchnfd->deliver.eventfd.ctx, 1);
 	}
 
-	*r = 0;
 	return true;
 }
 

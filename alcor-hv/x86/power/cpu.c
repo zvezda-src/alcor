@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Suspend support specific for i386/x86-64.
- *
- * Copyright (c) 2007 Rafael J. Wysocki <rjw@sisk.pl>
- * Copyright (c) 2002 Pavel Machek <pavel@ucw.cz>
- * Copyright (c) 2001 Patrick Mochel <mochel@osdl.org>
- */
 
 #include <linux/suspend.h>
 #include <linux/export.h>
@@ -59,22 +51,6 @@ static void msr_restore_context(struct saved_context *ctxt)
 	}
 }
 
-/**
- * __save_processor_state() - Save CPU registers before creating a
- *                             hibernation image and before restoring
- *                             the memory state from it
- * @ctxt: Structure to store the registers contents in.
- *
- * NOTE: If there is a CPU register the modification of which by the
- * boot kernel (ie. the kernel used for loading the hibernation image)
- * might affect the operations of the restored target kernel (ie. the one
- * saved in the hibernation image), then its contents must be saved by this
- * function.  In other words, if kernel A is hibernated and different
- * kernel B is used for loading the hibernation image into memory, the
- * kernel A's __save_processor_state() function must save all registers
- * needed by kernel A, so that it can operate correctly after the resume
- * regardless of what kernel B does in the meantime.
- */
 static void __save_processor_state(struct saved_context *ctxt)
 {
 #ifdef CONFIG_X86_32
@@ -83,16 +59,9 @@ static void __save_processor_state(struct saved_context *ctxt)
 	kernel_fpu_begin();
 
 	/*
-	 * descriptor tables
-	 */
 	store_idt(&ctxt->idt);
 
 	/*
-	 * We save it here, but restore it only in the hibernate case.
-	 * For ACPI S3 resume, this is loaded via 'early_gdt_desc' in 64-bit
-	 * mode in "secondary_startup_64". In 32-bit mode it is done via
-	 * 'pmode_gdt' in wakeup_start.
-	 */
 	ctxt->gdt_desc.size = GDT_SIZE - 1;
 	ctxt->gdt_desc.address = (unsigned long)get_cpu_gdt_rw(smp_processor_id());
 
@@ -100,8 +69,6 @@ static void __save_processor_state(struct saved_context *ctxt)
 
 	/* XMM0..XMM15 should be handled by kernel_fpu_begin(). */
 	/*
-	 * segment registers
-	 */
 	savesegment(gs, ctxt->gs);
 #ifdef CONFIG_X86_64
 	savesegment(fs, ctxt->fs);
@@ -117,8 +84,6 @@ static void __save_processor_state(struct saved_context *ctxt)
 #endif
 
 	/*
-	 * control registers
-	 */
 	ctxt->cr0 = read_cr0();
 	ctxt->cr2 = read_cr2();
 	ctxt->cr3 = __read_cr3();
@@ -128,7 +93,6 @@ static void __save_processor_state(struct saved_context *ctxt)
 	msr_save_context(ctxt);
 }
 
-/* Needed by apm.c */
 void save_processor_state(void)
 {
 	__save_processor_state(&saved_context);
@@ -141,8 +105,6 @@ EXPORT_SYMBOL(save_processor_state);
 static void do_fpu_end(void)
 {
 	/*
-	 * Restore FPU regs if necessary.
-	 */
 	kernel_fpu_end();
 }
 
@@ -155,12 +117,6 @@ static void fix_processor_context(void)
 #endif
 
 	/*
-	 * We need to reload TR, which requires that we change the
-	 * GDT entry to indicate "available" first.
-	 *
-	 * XXX: This could probably all be replaced by a call to
-	 * force_reload_TR().
-	 */
 	set_tss_desc(cpu, &get_cpu_entry_area(cpu)->tss.x86_tss);
 
 #ifdef CONFIG_X86_64
@@ -183,14 +139,6 @@ static void fix_processor_context(void)
 	load_fixmap_gdt(cpu);
 }
 
-/**
- * __restore_processor_state() - Restore the contents of CPU registers saved
- *                               by __save_processor_state()
- * @ctxt: Structure to load the registers contents from.
- *
- * The asm code that gets us here will have restored a usable GDT, although
- * it will be pointing to the wrong alias.
- */
 static void notrace __restore_processor_state(struct saved_context *ctxt)
 {
 	struct cpuinfo_x86 *c;
@@ -198,14 +146,11 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	if (ctxt->misc_enable_saved)
 		wrmsrl(MSR_IA32_MISC_ENABLE, ctxt->misc_enable);
 	/*
-	 * control registers
-	 */
 	/* cr4 was introduced in the Pentium CPU */
 #ifdef CONFIG_X86_32
 	if (ctxt->cr4)
 		__write_cr4(ctxt->cr4);
 #else
-/* CONFIG X86_64 */
 	wrmsrl(MSR_EFER, ctxt->efer);
 	__write_cr4(ctxt->cr4);
 #endif
@@ -217,17 +162,11 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	load_idt(&ctxt->idt);
 
 	/*
-	 * Just in case the asm code got us here with the SS, DS, or ES
-	 * out of sync with the GDT, update them.
-	 */
 	loadsegment(ss, __KERNEL_DS);
 	loadsegment(ds, __USER_DS);
 	loadsegment(es, __USER_DS);
 
 	/*
-	 * Restore percpu access.  Percpu access can happen in exception
-	 * handlers or in complicated helpers like load_gs_index().
-	 */
 #ifdef CONFIG_X86_64
 	wrmsrl(MSR_GS_BASE, ctxt->kernelmode_gs_base);
 #else
@@ -238,9 +177,6 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	fix_processor_context();
 
 	/*
-	 * Now that we have descriptor tables fully restored and working
-	 * exception handling, restore the usermode segments.
-	 */
 #ifdef CONFIG_X86_64
 	loadsegment(ds, ctxt->es);
 	loadsegment(es, ctxt->es);
@@ -248,10 +184,6 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	load_gs_index(ctxt->gs);
 
 	/*
-	 * Restore FSBASE and GSBASE after restoring the selectors, since
-	 * restoring the selectors clobbers the bases.  Keep in mind
-	 * that MSR_KERNEL_GS_BASE is horribly misnamed.
-	 */
 	wrmsrl(MSR_FS_BASE, ctxt->fs_base);
 	wrmsrl(MSR_KERNEL_GS_BASE, ctxt->usermode_gs_base);
 #else
@@ -271,13 +203,9 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	microcode_bsp_resume();
 
 	/*
-	 * This needs to happen after the microcode has been updated upon resume
-	 * because some of the MSRs are "emulated" in microcode.
-	 */
 	msr_restore_context(ctxt);
 }
 
-/* Needed by apm.c */
 void notrace restore_processor_state(void)
 {
 	__restore_processor_state(&saved_context);
@@ -300,21 +228,6 @@ int hibernate_resume_nonboot_cpu_disable(void)
 	int ret;
 
 	/*
-	 * Ensure that MONITOR/MWAIT will not be used in the "play dead" loop
-	 * during hibernate image restoration, because it is likely that the
-	 * monitored address will be actually written to at that time and then
-	 * the "dead" CPU will attempt to execute instructions again, but the
-	 * address in its instruction pointer may not be possible to resolve
-	 * any more at that point (the page tables used by it previously may
-	 * have been overwritten by hibernate image data).
-	 *
-	 * First, make sure that we wake up all the potentially disabled SMT
-	 * threads which have been initially brought up and then put into
-	 * mwait/cpuidle sleep.
-	 * Those will be put to proper (not interfering with hibernation
-	 * resume) sleep afterwards, and the resumed kernel will decide itself
-	 * what to do with them.
-	 */
 	ret = cpuhp_smt_enable();
 	if (ret)
 		return ret;
@@ -325,11 +238,6 @@ int hibernate_resume_nonboot_cpu_disable(void)
 }
 #endif
 
-/*
- * When bsp_check() is called in hibernate and suspend, cpu hotplug
- * is disabled already. So it's unnecessary to handle race condition between
- * cpumask query and cpu hotplug.
- */
 static int bsp_check(void)
 {
 	if (cpumask_first(cpu_online_mask) != 0) {
@@ -353,37 +261,11 @@ static int bsp_pm_callback(struct notifier_block *nb, unsigned long action,
 #ifdef CONFIG_DEBUG_HOTPLUG_CPU0
 	case PM_RESTORE_PREPARE:
 		/*
-		 * When system resumes from hibernation, online CPU0 because
-		 * 1. it's required for resume and
-		 * 2. the CPU was online before hibernation
-		 */
 		if (!cpu_online(0))
 			_debug_hotplug_cpu(0, 1);
 		break;
 	case PM_POST_RESTORE:
 		/*
-		 * When a resume really happens, this code won't be called.
-		 *
-		 * This code is called only when user space hibernation software
-		 * prepares for snapshot device during boot time. So we just
-		 * call _debug_hotplug_cpu() to restore to CPU0's state prior to
-		 * preparing the snapshot device.
-		 *
-		 * This works for normal boot case in our CPU0 hotplug debug
-		 * mode, i.e. CPU0 is offline and user mode hibernation
-		 * software initializes during boot time.
-		 *
-		 * If CPU0 is online and user application accesses snapshot
-		 * device after boot time, this will offline CPU0 and user may
-		 * see different CPU0 state before and after accessing
-		 * the snapshot device. But hopefully this is not a case when
-		 * user debugging CPU0 hotplug. Even if users hit this case,
-		 * they can easily online CPU0 back.
-		 *
-		 * To simplify this debug code, we only consider normal boot
-		 * case. Otherwise we need to remember CPU0's state and restore
-		 * to that state and resolve racy conditions etc.
-		 */
 		_debug_hotplug_cpu(0, 0);
 		break;
 #endif
@@ -396,10 +278,6 @@ static int bsp_pm_callback(struct notifier_block *nb, unsigned long action,
 static int __init bsp_pm_check_init(void)
 {
 	/*
-	 * Set this bsp_pm_callback as lower priority than
-	 * cpu_hotplug_pm_callback. So cpu_hotplug_pm_callback will be called
-	 * earlier to disable cpu hotplug before bsp online check.
-	 */
 	pm_notifier(bsp_pm_callback, -INT_MAX);
 	return 0;
 }
@@ -423,9 +301,6 @@ static int msr_build_context(const u32 *msr_id, const int num)
 
 	if (saved_msrs->array) {
 		/*
-		 * Multiple callbacks can invoke this function, so copy any
-		 * MSR save requests from previous invocations.
-		 */
 		memcpy(msr_array, saved_msrs->array,
 		       sizeof(struct saved_msr) * saved_msrs->num);
 
@@ -445,16 +320,6 @@ static int msr_build_context(const u32 *msr_id, const int num)
 	return 0;
 }
 
-/*
- * The following sections are a quirk framework for problematic BIOSen:
- * Sometimes MSRs are modified by the BIOSen after suspended to
- * RAM, this might cause unexpected behavior after wakeup.
- * Thus we save/restore these specified MSRs across suspend/resume
- * in order to work around it.
- *
- * For any further problematic BIOSen/platforms,
- * please add your own function similar to msr_initialize_bdw.
- */
 static int msr_initialize_bdw(const struct dmi_system_id *d)
 {
 	/* Add any extra MSR ids into this array. */

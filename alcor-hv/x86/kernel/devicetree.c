@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Architecture specific OF callbacks.
- */
 #include <linux/export.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
@@ -41,9 +37,6 @@ void __init add_dtb(u64 data)
 	initial_dtb = data + offsetof(struct setup_data, data);
 }
 
-/*
- * CE4100 ids. Will be moved to machine_device_initcall() once we have it.
- */
 static struct of_device_id __initdata ce4100_ids[] = {
 	{ .compatible = "intel,ce4100-cp", },
 	{ .compatible = "isa", },

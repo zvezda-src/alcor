@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include "cgroup-internal.h"
 
 #include <linux/sched/task.h>
@@ -7,7 +6,6 @@
 #include <linux/proc_ns.h>
 
 
-/* cgroup namespaces */
 
 static struct ucounts *inc_cgroup_namespaces(struct user_namespace *ns)
 {

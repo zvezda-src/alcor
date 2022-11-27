@@ -1,34 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * PREEMPT_RT substitution for spin/rw_locks
- *
- * spinlocks and rwlocks on RT are based on rtmutexes, with a few twists to
- * resemble the non RT semantics:
- *
- * - Contrary to plain rtmutexes, spinlocks and rwlocks are state
- *   preserving. The task state is saved before blocking on the underlying
- *   rtmutex, and restored when the lock has been acquired. Regular wakeups
- *   during that time are redirected to the saved state so no wake up is
- *   missed.
- *
- * - Non RT spin/rwlocks disable preemption and eventually interrupts.
- *   Disabling preemption has the side effect of disabling migration and
- *   preventing RCU grace periods.
- *
- *   The RT substitutions explicitly disable migration and take
- *   rcu_read_lock() across the lock held section.
- */
 #include <linux/spinlock.h>
 #include <linux/export.h>
 
 #define RT_MUTEX_BUILD_SPINLOCKS
 #include "rtmutex.c"
 
-/*
- * __might_resched() skips the state check as rtlocks are state
- * preserving. Take RCU nesting into account as spin/read/write_lock() can
- * legitimately nest into an RCU read side critical section.
- */
 #define RTLOCK_RESCHED_OFFSETS						\
 	(rcu_preempt_depth() << MIGHT_RESCHED_RCU_SHIFT)
 
@@ -84,11 +59,6 @@ void __sched rt_spin_unlock(spinlock_t *lock)
 }
 EXPORT_SYMBOL(rt_spin_unlock);
 
-/*
- * Wait for the lock to get unlocked: instead of polling for an unlock
- * (like raw spinlocks do), lock and unlock, to force the kernel to
- * schedule if there's contention:
- */
 void __sched rt_spin_lock_unlock(spinlock_t *lock)
 {
 	spin_lock(lock);
@@ -142,9 +112,6 @@ void __rt_spin_lock_init(spinlock_t *lock, const char *name,
 EXPORT_SYMBOL(__rt_spin_lock_init);
 #endif
 
-/*
- * RT-specific reader/writer locks
- */
 #define rwbase_set_and_save_current_state(state)	\
 	current_save_and_set_rtlock_wait_state()
 
@@ -188,9 +155,6 @@ static __always_inline int  rwbase_rtmutex_trylock(struct rt_mutex_base *rtm)
 	schedule_rtlock()
 
 #include "rwbase_rt.c"
-/*
- * The common functions which get wrapped into the rwlock API.
- */
 int __sched rt_read_trylock(rwlock_t *rwlock)
 {
 	int ret;

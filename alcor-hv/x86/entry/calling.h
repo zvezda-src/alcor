@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/jump_label.h>
 #include <asm/unwind_hints.h>
 #include <asm/cpufeatures.h>
@@ -10,60 +9,9 @@
 #include <asm/msr.h>
 #include <asm/nospec-branch.h>
 
-/*
-
- x86 function call convention, 64-bit:
- -------------------------------------
-  arguments           |  callee-saved      | extra caller-saved | return
- [callee-clobbered]   |                    | [callee-clobbered] |
- ---------------------------------------------------------------------------
- rdi rsi rdx rcx r8-9 | rbx rbp [*] r12-15 | r10-11             | rax, rdx [**]
-
- ( rsp is obviously invariant across normal function calls. (gcc can 'merge'
-   functions when it sees tail-call optimization possibilities) rflags is
-   clobbered. Leftover arguments are passed over the stack frame.)
-
- [*]  In the frame-pointers case rbp is fixed to the stack frame.
-
- [**] for struct return values wider than 64 bits the return convention is a
-      bit more complex: up to 128 bits width we return small structures
-      straight in rax, rdx. For structures larger than that (3 words or
-      larger) the caller puts a pointer to an on-stack return struct
-      [allocated in the caller's stack frame] into the first argument - i.e.
-      into rdi. All other arguments shift up by one in this case.
-      Fortunately this case is rare in the kernel.
-
-For 32-bit we have the following conventions - kernel is built with
--mregparm=3 and -freg-struct-return:
-
- x86 function calling convention, 32-bit:
- ----------------------------------------
-  arguments         | callee-saved        | extra caller-saved | return
- [callee-clobbered] |                     | [callee-clobbered] |
- -------------------------------------------------------------------------
- eax edx ecx        | ebx edi esi ebp [*] | <none>             | eax, edx [**]
-
- ( here too esp is obviously invariant across normal function calls. eflags
-   is clobbered. Leftover arguments are passed over the stack frame. )
-
- [*]  In the frame-pointers case ebp is fixed to the stack frame.
-
- [**] We build with -freg-struct-return, which on 32-bit means similar
-      semantics as on 64-bit: edx can be used for a second return value
-      (i.e. covering integer and structure sizes up to 64 bits) - after that
-      it gets more complex and more expensive: 3-word or larger struct returns
-      get done in the caller's frame and the pointer to the return struct goes
-      into regparm0, i.e. eax - the other arguments shift up and the
-      function's register parameters degenerate to regparm=2 in essence.
-
-*/
 
 #ifdef CONFIG_X86_64
 
-/*
- * 64-bit system call stack frame layout defines and helpers,
- * for assembly code:
- */
 
 .macro PUSH_REGS rdx=%rdx rcx=%rcx rax=%rax save_ret=0
 	.if \save_ret
@@ -96,11 +44,6 @@ For 32-bit we have the following conventions - kernel is built with
 
 .macro CLEAR_REGS
 	/*
-	 * Sanitize registers of values that a speculation attack might
-	 * otherwise want to exploit. The lower registers are likely clobbered
-	 * well before they could be put to use in a speculative execution
-	 * gadget.
-	 */
 	xorl	%esi,  %esi	/* nospec si  */
 	xorl	%edx,  %edx	/* nospec dx  */
 	xorl	%ecx,  %ecx	/* nospec cx  */
@@ -144,10 +87,6 @@ For 32-bit we have the following conventions - kernel is built with
 
 #ifdef CONFIG_PAGE_TABLE_ISOLATION
 
-/*
- * PAGE_TABLE_ISOLATION PGDs are 8k.  Flip bit 12 to switch between the two
- * halves:
- */
 #define PTI_USER_PGTABLE_BIT		PAGE_SHIFT
 #define PTI_USER_PGTABLE_MASK		(1 << PTI_USER_PGTABLE_BIT)
 #define PTI_USER_PCID_BIT		X86_CR3_PTI_PCID_USER_BIT
@@ -182,8 +121,6 @@ For 32-bit we have the following conventions - kernel is built with
 	ALTERNATIVE "jmp .Lwrcr3_\@", "", X86_FEATURE_PCID
 
 	/*
-	 * Test if the ASID needs a flush.
-	 */
 	movq	\scratch_reg, \scratch_reg2
 	andq	$(0x7FF), \scratch_reg		/* mask ASID */
 	bt	\scratch_reg, THIS_CPU_user_pcid_flush_mask
@@ -220,10 +157,6 @@ For 32-bit we have the following conventions - kernel is built with
 	movq	%cr3, \scratch_reg
 	movq	\scratch_reg, \save_reg
 	/*
-	 * Test the user pagetable bit. If set, then the user page tables
-	 * are active. If clear CR3 already has the kernel page table
-	 * active.
-	 */
 	bt	$PTI_USER_PGTABLE_BIT, \scratch_reg
 	jnc	.Ldone_\@
 
@@ -239,16 +172,10 @@ For 32-bit we have the following conventions - kernel is built with
 	ALTERNATIVE "jmp .Lwrcr3_\@", "", X86_FEATURE_PCID
 
 	/*
-	 * KERNEL pages can always resume with NOFLUSH as we do
-	 * explicit flushes.
-	 */
 	bt	$PTI_USER_PGTABLE_BIT, \save_reg
 	jnc	.Lnoflush_\@
 
 	/*
-	 * Check if there's a pending flush for the user ASID we're
-	 * about to set.
-	 */
 	movq	\save_reg, \scratch_reg
 	andq	$(0x7FF), \scratch_reg
 	bt	\scratch_reg, THIS_CPU_user_pcid_flush_mask
@@ -262,9 +189,6 @@ For 32-bit we have the following conventions - kernel is built with
 
 .Lwrcr3_\@:
 	/*
-	 * The CR3 write could be avoided when not changing its value,
-	 * but would require a CR3 read *and* a scratch register.
-	 */
 	movq	\save_reg, %cr3
 .Lend_\@:
 .endm
@@ -284,18 +208,6 @@ For 32-bit we have the following conventions - kernel is built with
 
 #endif
 
-/*
- * IBRS kernel mitigation for Spectre_v2.
- *
- * Assumes full context is established (PUSH_REGS, CR3 and GS) and it clobbers
- * the regs it uses (AX, CX, DX). Must be called before the first RET
- * instruction (NOTE! UNTRAIN_RET includes a RET instruction)
- *
- * The optional argument is used to save/restore the current value,
- * which is used on the paranoid paths.
- *
- * Assumes x86_spec_ctrl_{base,current} to have SPEC_CTRL_IBRS set.
- */
 .macro IBRS_ENTER save_reg
 #ifdef CONFIG_CPU_IBRS_ENTRY
 	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_KERNEL_IBRS
@@ -321,10 +233,6 @@ For 32-bit we have the following conventions - kernel is built with
 #endif
 .endm
 
-/*
- * Similar to IBRS_ENTER, requires KERNEL GS,CR3 and clobbers (AX, CX, DX)
- * regs. Must be called after the last RET.
- */
 .macro IBRS_EXIT save_reg
 #ifdef CONFIG_CPU_IBRS_ENTRY
 	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_KERNEL_IBRS
@@ -344,16 +252,6 @@ For 32-bit we have the following conventions - kernel is built with
 #endif
 .endm
 
-/*
- * Mitigate Spectre v1 for conditional swapgs code paths.
- *
- * FENCE_SWAPGS_USER_ENTRY is used in the user entry swapgs code path, to
- * prevent a speculative swapgs when coming from kernel space.
- *
- * FENCE_SWAPGS_KERNEL_ENTRY is used in the kernel entry non-swapgs code path,
- * to prevent the swapgs from getting speculatively skipped when coming from
- * user space.
- */
 .macro FENCE_SWAPGS_USER_ENTRY
 	ALTERNATIVE "", "lfence", X86_FEATURE_FENCE_SWAPGS_USER
 .endm
@@ -388,25 +286,11 @@ For 32-bit we have the following conventions - kernel is built with
 
 #ifdef CONFIG_SMP
 
-/*
- * CPU/node NR is loaded from the limit (size) field of a special segment
- * descriptor entry in GDT.
- */
 .macro LOAD_CPU_AND_NODE_SEG_LIMIT reg:req
 	movq	$__CPUNODE_SEG, \reg
 	lsl	\reg, \reg
 .endm
 
-/*
- * Fetch the per-CPU GSBASE value for this processor and put it in @reg.
- * We normally use %gs for accessing per-CPU data, but we are setting up
- * %gs here and obviously can not use %gs itself to access per-CPU data.
- *
- * Do not use RDPID, because KVM loads guest's TSC_AUX on vm-entry and
- * may not restore the host's value until the CPU returns to userspace.
- * Thus the kernel would consume a guest's TSC_AUX if an NMI arrives
- * while running KVM's run loop.
- */
 .macro GET_PERCPU_BASE reg:req
 	LOAD_CPU_AND_NODE_SEG_LIMIT \reg
 	andq	$VDSO_CPUNODE_MASK, \reg

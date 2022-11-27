@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/export.h>
 #include <linux/types.h>
 #include <linux/bits.h>
@@ -10,11 +9,6 @@ not_visible(struct kobject *kobj, struct attribute *attr, int i)
 	return 0;
 }
 
-/*
- * Accepts msr[] array with non populated entries as long as either
- * msr[i].msr is 0 or msr[i].grp is NULL. Note that the default sysfs
- * visibility is visible when group->is_visible callback is set.
- */
 unsigned long
 perf_msr_probe(struct perf_msr *msr, int cnt, bool zero, void *data)
 {

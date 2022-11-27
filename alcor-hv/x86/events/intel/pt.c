@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Intel(R) Processor Trace PMU driver for perf
- * Copyright (c) 2013-2014, Intel Corporation.
- *
- * Intel PT is specified in the Intel Architecture Instruction Set Extensions
- * Programming Reference:
- * http://software.intel.com/en-us/intel-isa-extensions
- */
 
 #undef DEBUG
 
@@ -31,17 +22,6 @@ static DEFINE_PER_CPU(struct pt, pt_ctx);
 
 static struct pt_pmu pt_pmu;
 
-/*
- * Capabilities of Intel PT hardware, such as number of address bits or
- * supported output schemes, are cached and exported to userspace as "caps"
- * attribute group of pt pmu device
- * (/sys/bus/event_source/devices/intel_pt/caps/) so that userspace can store
- * relevant bits together with intel_pt traces.
- *
- * These are necessary for both trace decoding (payloads_lip, contains address
- * width encoded in IP-related packets), and event configuration (bitmasks with
- * permitted values for certain bit fields).
- */
 #define PT_CAP(_n, _l, _r, _m)						\
 	[PT_CAP_ ## _n] = { .name = __stringify(_n), .leaf = _l,	\
 			    .reg = _r, .mask = _m }
@@ -197,10 +177,6 @@ static int __init pt_pmu_hw_init(void)
 	pt_pmu.max_nonturbo_ratio = (reg & 0xff00) >> 8;
 
 	/*
-	 * if available, read in TSC to core crystal clock ratio,
-	 * otherwise, zero for numerator stands for "not enumerated"
-	 * as per SDM
-	 */
 	if (boot_cpu_data.cpuid_level >= CPUID_TSC_LEAF) {
 		u32 eax, ebx, ecx, edx;
 
@@ -225,10 +201,6 @@ static int __init pt_pmu_hw_init(void)
 
 	if (boot_cpu_has(X86_FEATURE_VMX)) {
 		/*
-		 * Intel SDM, 36.5 "Tracing post-VMXON" says that
-		 * "IA32_VMX_MISC[bit 14]" being 1 means PT can trace
-		 * post-VMXON.
-		 */
 		rdmsrl(MSR_IA32_VMX_MISC, reg);
 		if (reg & BIT(14))
 			pt_pmu.vmx = true;
@@ -287,14 +259,6 @@ fail:
 #define RTIT_CTL_PTW	(RTIT_CTL_PTW_EN	| \
 			 RTIT_CTL_FUP_ON_PTW)
 
-/*
- * Bit 0 (TraceEn) in the attr.config is meaningless as the
- * corresponding bit in the RTIT_CTL can only be controlled
- * by the driver; therefore, repurpose it to mean: pass
- * through the bit that was previously assumed to be always
- * on for PT, thereby allowing the user to *not* set it if
- * they so wish. See also pt_event_valid() and pt_config().
- */
 #define RTIT_CTL_PASSTHROUGH RTIT_CTL_TRACEEN
 
 #define PT_CONFIG_MASK (RTIT_CTL_TRACEEN	| \
@@ -336,12 +300,6 @@ static bool pt_event_valid(struct perf_event *event)
 
 	if (config & RTIT_CTL_MTC) {
 		/*
-		 * In the unlikely case that CPUID lists valid mtc periods,
-		 * but not the mtc capability, drop out here.
-		 *
-		 * Spec says that setting mtc period bits while mtc bit in
-		 * CPUID is 0 will #GP, so better safe than sorry.
-		 */
 		if (!intel_pt_validate_hw_cap(PT_CAP_mtc))
 			return false;
 
@@ -379,28 +337,13 @@ static bool pt_event_valid(struct perf_event *event)
 	}
 
 	/*
-	 * Setting bit 0 (TraceEn in RTIT_CTL MSR) in the attr.config
-	 * clears the assumption that BranchEn must always be enabled,
-	 * as was the case with the first implementation of PT.
-	 * If this bit is not set, the legacy behavior is preserved
-	 * for compatibility with the older userspace.
-	 *
-	 * Re-using bit 0 for this purpose is fine because it is never
-	 * directly set by the user; previous attempts at setting it in
-	 * the attr.config resulted in -EINVAL.
-	 */
 	if (config & RTIT_CTL_PASSTHROUGH) {
 		/*
-		 * Disallow not setting BRANCH_EN where BRANCH_EN is
-		 * always required.
-		 */
 		if (pt_pmu.branch_en_always_on &&
 		    !(config & RTIT_CTL_BRANCH_EN))
 			return false;
 	} else {
 		/*
-		 * Disallow BRANCH_EN without the PASSTHROUGH.
-		 */
 		if (config & RTIT_CTL_BRANCH_EN)
 			return false;
 	}
@@ -408,10 +351,6 @@ static bool pt_event_valid(struct perf_event *event)
 	return true;
 }
 
-/*
- * PT configuration helpers
- * These all are cpu affine and operate on a local PT
- */
 
 static void pt_config_start(struct perf_event *event)
 {
@@ -427,7 +366,6 @@ static void pt_config_start(struct perf_event *event)
 	WRITE_ONCE(event->hw.config, ctl);
 }
 
-/* Address ranges and their corresponding msr configuration registers */
 static const struct pt_address_range {
 	unsigned long	msr_a;
 	unsigned long	msr_b;
@@ -471,13 +409,6 @@ static u64 pt_config_filters(struct perf_event *event)
 		struct pt_filter *filter = &filters->filter[range];
 
 		/*
-		 * Note, if the range has zero start/end addresses due
-		 * to its dynamic object not being loaded yet, we just
-		 * go ahead and program zeroed range, which will simply
-		 * produce no data. Note^2: if executable code at 0x0
-		 * is a concern, we can set up an "invalid" configuration
-		 * such as msr_b < msr_a.
-		 */
 
 		/* avoid redundant msr writes */
 		if (pt->filters.filter[range].msr_a != filter->msr_a) {
@@ -514,12 +445,6 @@ static void pt_config(struct perf_event *event)
 		reg |= RTIT_CTL_TOPA;
 
 	/*
-	 * Previously, we had BRANCH_EN on by default, but now that PT has
-	 * grown features outside of branch tracing, it is useful to allow
-	 * the user to disable it. Setting bit 0 in the event's attr.config
-	 * allows BRANCH_EN to pass through instead of being always on. See
-	 * also the comment in pt_event_valid().
-	 */
 	if (event->attr.config & BIT(0)) {
 		reg |= event->attr.config & RTIT_CTL_BRANCH_EN;
 	} else {
@@ -553,24 +478,9 @@ static void pt_config_stop(struct perf_event *event)
 	WRITE_ONCE(event->hw.config, ctl);
 
 	/*
-	 * A wrmsr that disables trace generation serializes other PT
-	 * registers and causes all data packets to be written to memory,
-	 * but a fence is required for the data to become globally visible.
-	 *
-	 * The below WMB, separating data store and aux_head store matches
-	 * the consumer's RMB that separates aux_head load and data load.
-	 */
 	wmb();
 }
 
-/**
- * struct topa - ToPA metadata
- * @list:	linkage to struct pt_buffer's list of tables
- * @offset:	offset of the first entry in this table in the buffer
- * @size:	total size of all entries in this table
- * @last:	index of the last initialized entry in this table
- * @z_count:	how many times the first entry repeats
- */
 struct topa {
 	struct list_head	list;
 	u64			offset;
@@ -579,19 +489,10 @@ struct topa {
 	unsigned int		z_count;
 };
 
-/*
- * Keep ToPA table-related metadata on the same page as the actual table,
- * taking up a few words from the top
- */
 
 #define TENTS_PER_PAGE	\
 	((PAGE_SIZE - sizeof(struct topa)) / sizeof(struct topa_entry))
 
-/**
- * struct topa_page - page-sized ToPA table with metadata at the top
- * @table:	actual ToPA table entries, as understood by PT hardware
- * @topa:	metadata
- */
 struct topa_page {
 	struct topa_entry	table[TENTS_PER_PAGE];
 	struct topa		topa;
@@ -612,7 +513,6 @@ static inline phys_addr_t topa_pfn(struct topa *topa)
 	return PFN_DOWN(virt_to_phys(topa_to_page(topa)));
 }
 
-/* make -1 stand for the last table entry */
 #define TOPA_ENTRY(t, i)				\
 	((i) == -1					\
 		? &topa_to_page(t)->table[(t)->last]	\
@@ -647,13 +547,6 @@ static void pt_config_buffer(struct pt_buffer *buf)
 	}
 }
 
-/**
- * topa_alloc() - allocate page-sized ToPA table
- * @cpu:	CPU on which to allocate.
- * @gfp:	Allocation flags.
- *
- * Return:	On success, return the pointer to ToPA table page.
- */
 static struct topa *topa_alloc(int cpu, gfp_t gfp)
 {
 	int node = cpu_to_node(cpu);
@@ -668,9 +561,6 @@ static struct topa *topa_alloc(int cpu, gfp_t gfp)
 	tp->topa.last = 0;
 
 	/*
-	 * In case of singe-entry ToPA, always put the self-referencing END
-	 * link as the 2nd entry in the table
-	 */
 	if (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries)) {
 		TOPA_ENTRY(&tp->topa, 1)->base = page_to_phys(p) >> TOPA_SHIFT;
 		TOPA_ENTRY(&tp->topa, 1)->end = 1;
@@ -679,24 +569,11 @@ static struct topa *topa_alloc(int cpu, gfp_t gfp)
 	return &tp->topa;
 }
 
-/**
- * topa_free() - free a page-sized ToPA table
- * @topa:	Table to deallocate.
- */
 static void topa_free(struct topa *topa)
 {
 	free_page((unsigned long)topa);
 }
 
-/**
- * topa_insert_table() - insert a ToPA table into a buffer
- * @buf:	 PT buffer that's being extended.
- * @topa:	 New topa table to be inserted.
- *
- * If it's the first table in this buffer, set up buffer's pointers
- * accordingly; otherwise, add a END=1 link entry to @topa to the current
- * "last" table and adjust the last table pointer to @topa.
- */
 static void topa_insert_table(struct pt_buffer *buf, struct topa *topa)
 {
 	struct topa *last = buf->last;
@@ -720,10 +597,6 @@ static void topa_insert_table(struct pt_buffer *buf, struct topa *topa)
 	TOPA_ENTRY(last, -1)->end = 1;
 }
 
-/**
- * topa_table_full() - check if a ToPA table is filled up
- * @topa:	ToPA table.
- */
 static bool topa_table_full(struct topa *topa)
 {
 	/* single-entry ToPA is a special case */
@@ -733,16 +606,6 @@ static bool topa_table_full(struct topa *topa)
 	return topa->last == TENTS_PER_PAGE - 1;
 }
 
-/**
- * topa_insert_pages() - create a list of ToPA tables
- * @buf:	PT buffer being initialized.
- * @gfp:	Allocation flags.
- *
- * This initializes a list of ToPA tables with entries from
- * the data_pages provided by rb_alloc_aux().
- *
- * Return:	0 on success or error code.
- */
 static int topa_insert_pages(struct pt_buffer *buf, int cpu, gfp_t gfp)
 {
 	struct topa *topa = buf->last;
@@ -782,10 +645,6 @@ static int topa_insert_pages(struct pt_buffer *buf, int cpu, gfp_t gfp)
 	return 0;
 }
 
-/**
- * pt_topa_dump() - print ToPA tables and their entries
- * @buf:	PT buffer.
- */
 static void pt_topa_dump(struct pt_buffer *buf)
 {
 	struct topa *topa;
@@ -815,12 +674,6 @@ static void pt_topa_dump(struct pt_buffer *buf)
 	}
 }
 
-/**
- * pt_buffer_advance() - advance to the next output region
- * @buf:	PT buffer.
- *
- * Advance the current pointers in the buffer to the next ToPA entry.
- */
 static void pt_buffer_advance(struct pt_buffer *buf)
 {
 	buf->output_off = 0;
@@ -836,12 +689,6 @@ static void pt_buffer_advance(struct pt_buffer *buf)
 	}
 }
 
-/**
- * pt_update_head() - calculate current offsets and sizes
- * @pt:		Per-cpu pt context.
- *
- * Update buffer's current write pointer position and data size.
- */
 static void pt_update_head(struct pt *pt)
 {
 	struct pt_buffer *buf = perf_get_aux(&pt->handle);
@@ -871,28 +718,16 @@ static void pt_update_head(struct pt *pt)
 	}
 }
 
-/**
- * pt_buffer_region() - obtain current output region's address
- * @buf:	PT buffer.
- */
 static void *pt_buffer_region(struct pt_buffer *buf)
 {
 	return phys_to_virt(TOPA_ENTRY(buf->cur, buf->cur_idx)->base << TOPA_SHIFT);
 }
 
-/**
- * pt_buffer_region_size() - obtain current output region's size
- * @buf:	PT buffer.
- */
 static size_t pt_buffer_region_size(struct pt_buffer *buf)
 {
 	return TOPA_ENTRY_SIZE(buf->cur, buf->cur_idx);
 }
 
-/**
- * pt_handle_status() - take care of possible status conditions
- * @pt:		Per-cpu pt context.
- */
 static void pt_handle_status(struct pt *pt)
 {
 	struct pt_buffer *buf = perf_get_aux(&pt->handle);
@@ -911,10 +746,6 @@ static void pt_handle_status(struct pt *pt)
 		status &= ~RTIT_STATUS_STOPPED;
 
 		/*
-		 * On systems that only do single-entry ToPA, hitting STOP
-		 * means we are already losing data; need to let the decoder
-		 * know.
-		 */
 		if (!buf->single &&
 		    (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries) ||
 		     buf->output_off == pt_buffer_region_size(buf))) {
@@ -925,9 +756,6 @@ static void pt_handle_status(struct pt *pt)
 	}
 
 	/*
-	 * Also on single-entry ToPA implementations, interrupt will come
-	 * before the output reaches its output region's boundary.
-	 */
 	if (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries) &&
 	    !buf->snapshot &&
 	    pt_buffer_region_size(buf) - buf->output_off <= TOPA_PMI_MARGIN) {
@@ -946,12 +774,6 @@ static void pt_handle_status(struct pt *pt)
 	wrmsrl(MSR_IA32_RTIT_STATUS, status);
 }
 
-/**
- * pt_read_offset() - translate registers into buffer pointers
- * @buf:	PT buffer.
- *
- * Set buffer's output pointers from MSR values.
- */
 static void pt_read_offset(struct pt_buffer *buf)
 {
 	struct pt *pt = this_cpu_ptr(&pt_ctx);
@@ -979,32 +801,22 @@ pt_topa_entry_for_page(struct pt_buffer *buf, unsigned int pg)
 	unsigned int idx, cur_pg = 0, z_pg = 0, start_idx = 0;
 
 	/*
-	 * Indicates a bug in the caller.
-	 */
 	if (WARN_ON_ONCE(pg >= buf->nr_pages))
 		return NULL;
 
 	/*
-	 * First, find the ToPA table where @pg fits. With high
-	 * order allocations, there shouldn't be many of these.
-	 */
 	list_for_each_entry(topa, &buf->tables, list) {
 		if (topa->offset + topa->size > pg << PAGE_SHIFT)
 			goto found;
 	}
 
 	/*
-	 * Hitting this means we have a problem in the ToPA
-	 * allocation code.
-	 */
 	WARN_ON_ONCE(1);
 
 	return NULL;
 
 found:
 	/*
-	 * Indicates a problem in the ToPA allocation code.
-	 */
 	if (WARN_ON_ONCE(topa->last == -1))
 		return NULL;
 
@@ -1016,17 +828,12 @@ found:
 	}
 
 	/*
-	 * Multiple entries at the beginning of the table have the same size,
-	 * ideally all of them; if @pg falls there, the search is done.
-	 */
 	if (pg >= cur_pg && pg < cur_pg + z_pg) {
 		idx = (pg - cur_pg) / TOPA_ENTRY_PAGES(topa, 0);
 		return &tp->table[idx];
 	}
 
 	/*
-	 * Otherwise, slow path: iterate through the remaining entries.
-	 */
 	for (idx = start_idx, cur_pg += z_pg; idx < topa->last; idx++) {
 		if (cur_pg + TOPA_ENTRY_PAGES(topa, idx) > pg)
 			return &tp->table[idx];
@@ -1035,8 +842,6 @@ found:
 	}
 
 	/*
-	 * Means we couldn't find a ToPA entry in the table that does match.
-	 */
 	WARN_ON_ONCE(1);
 
 	return NULL;
@@ -1064,19 +869,6 @@ pt_topa_prev_entry(struct pt_buffer *buf, struct topa_entry *te)
 	return &tp->table[topa->last - 1];
 }
 
-/**
- * pt_buffer_reset_markers() - place interrupt and stop bits in the buffer
- * @buf:	PT buffer.
- * @handle:	Current output handle.
- *
- * Place INT and STOP marks to prevent overwriting old data that the consumer
- * hasn't yet collected and waking up the consumer after a certain fraction of
- * the buffer has filled up. Only needed and sensible for non-snapshot counters.
- *
- * This obviously relies on buf::head to figure out buffer markers, so it has
- * to be called after pt_buffer_reset_offsets() and before the hardware tracing
- * is enabled.
- */
 static int pt_buffer_reset_markers(struct pt_buffer *buf,
 				   struct perf_output_handle *handle)
 
@@ -1144,21 +936,6 @@ static int pt_buffer_reset_markers(struct pt_buffer *buf,
 	return 0;
 }
 
-/**
- * pt_buffer_reset_offsets() - adjust buffer's write pointers from aux_head
- * @buf:	PT buffer.
- * @head:	Write pointer (aux_head) from AUX buffer.
- *
- * Find the ToPA table and entry corresponding to given @head and set buffer's
- * "current" pointers accordingly. This is done after we have obtained the
- * current aux_head position from a successful call to perf_aux_output_begin()
- * to make sure the hardware is writing to the right place.
- *
- * This function modifies buf::{cur,cur_idx,output_off} that will be programmed
- * into PT msrs when the tracing is enabled and buf::head and buf::data_size,
- * which are used to determine INT and STOP markers' locations by a subsequent
- * call to pt_buffer_reset_markers().
- */
 static void pt_buffer_reset_offsets(struct pt_buffer *buf, unsigned long head)
 {
 	struct topa_page *cur_tp;
@@ -1184,10 +961,6 @@ static void pt_buffer_reset_offsets(struct pt_buffer *buf, unsigned long head)
 	local_set(&buf->data_size, 0);
 }
 
-/**
- * pt_buffer_fini_topa() - deallocate ToPA structure of a buffer
- * @buf:	PT buffer.
- */
 static void pt_buffer_fini_topa(struct pt_buffer *buf)
 {
 	struct topa *topa, *iter;
@@ -1197,19 +970,10 @@ static void pt_buffer_fini_topa(struct pt_buffer *buf)
 
 	list_for_each_entry_safe(topa, iter, &buf->tables, list) {
 		/*
-		 * right now, this is in free_aux() path only, so
-		 * no need to unlink this table from the list
-		 */
 		topa_free(topa);
 	}
 }
 
-/**
- * pt_buffer_init_topa() - initialize ToPA table for pt buffer
- * @buf:	PT buffer.
- * @size:	Total size of all regions within this ToPA.
- * @gfp:	Allocation flags.
- */
 static int pt_buffer_init_topa(struct pt_buffer *buf, int cpu,
 			       unsigned long nr_pages, gfp_t gfp)
 {
@@ -1246,11 +1010,6 @@ static int pt_buffer_try_single(struct pt_buffer *buf, int nr_pages)
 	int ret = -ENOTSUPP, order = 0;
 
 	/*
-	 * We can use single range output mode
-	 * + in snapshot mode, where we don't need interrupts;
-	 * + if the hardware supports it;
-	 * + if the entire buffer is one contiguous allocation.
-	 */
 	if (!buf->snapshot)
 		goto out;
 
@@ -1270,18 +1029,6 @@ out:
 	return ret;
 }
 
-/**
- * pt_buffer_setup_aux() - set up topa tables for a PT buffer
- * @cpu:	Cpu on which to allocate, -1 means current.
- * @pages:	Array of pointers to buffer pages passed from perf core.
- * @nr_pages:	Number of pages in the buffer.
- * @snapshot:	If this is a snapshot/overwrite counter.
- *
- * This is a pmu::setup_aux callback that sets up ToPA tables and all the
- * bookkeeping for an AUX buffer.
- *
- * Return:	Our private PT buffer structure.
- */
 static void *
 pt_buffer_setup_aux(struct perf_event *event, void **pages,
 		    int nr_pages, bool snapshot)
@@ -1293,9 +1040,6 @@ pt_buffer_setup_aux(struct perf_event *event, void **pages,
 		return NULL;
 
 	/*
-	 * Only support AUX sampling in snapshot mode, where we don't
-	 * generate NMIs.
-	 */
 	if (event->attr.aux_sample_size && !snapshot)
 		return NULL;
 
@@ -1327,10 +1071,6 @@ pt_buffer_setup_aux(struct perf_event *event, void **pages,
 	return buf;
 }
 
-/**
- * pt_buffer_free_aux() - perf AUX deallocation path callback
- * @data:	PT buffer.
- */
 static void pt_buffer_free_aux(void *data)
 {
 	struct pt_buffer *buf = data;
@@ -1367,7 +1107,6 @@ static void pt_addr_filters_fini(struct perf_event *event)
 }
 
 #ifdef CONFIG_X86_64
-/* Clamp to a canonical address greater-than-or-equal-to the address given */
 static u64 clamp_to_ge_canonical_addr(u64 vaddr, u8 vaddr_bits)
 {
 	return __is_canonical_address(vaddr, vaddr_bits) ?
@@ -1375,7 +1114,6 @@ static u64 clamp_to_ge_canonical_addr(u64 vaddr, u8 vaddr_bits)
 	       -BIT_ULL(vaddr_bits - 1);
 }
 
-/* Clamp to a canonical address less-than-or-equal-to the address given */
 static u64 clamp_to_le_canonical_addr(u64 vaddr, u8 vaddr_bits)
 {
 	return __is_canonical_address(vaddr, vaddr_bits) ?
@@ -1394,9 +1132,6 @@ static int pt_event_addr_filters_validate(struct list_head *filters)
 
 	list_for_each_entry(filter, filters, entry) {
 		/*
-		 * PT doesn't support single address triggers and
-		 * 'start' filters.
-		 */
 		if (!filter->size ||
 		    filter->action == PERF_ADDR_FILTER_ACTION_START)
 			return -EOPNOTSUPP;
@@ -1433,13 +1168,6 @@ static void pt_event_addr_filters_sync(struct perf_event *event)
 			else
 				b = a + n;
 			/*
-			 * Apply the offset. 64-bit addresses written to the
-			 * MSRs must be canonical, but the range can encompass
-			 * non-canonical addresses. Since software cannot
-			 * execute at non-canonical addresses, adjusting to
-			 * canonical addresses does not affect the result of the
-			 * address filter.
-			 */
 			msr_a = clamp_to_ge_canonical_addr(a, boot_cpu_data.x86_virt_bits);
 			msr_b = clamp_to_le_canonical_addr(b, boot_cpu_data.x86_virt_bits);
 			if (msr_b < msr_a)
@@ -1458,9 +1186,6 @@ static void pt_event_addr_filters_sync(struct perf_event *event)
 	filters->nr_filters = range;
 }
 
-/**
- * intel_pt_interrupt() - PT PMI handler
- */
 void intel_pt_interrupt(void)
 {
 	struct pt *pt = this_cpu_ptr(&pt_ctx);
@@ -1468,10 +1193,6 @@ void intel_pt_interrupt(void)
 	struct perf_event *event = pt->handle.event;
 
 	/*
-	 * There may be a dangling PT bit in the interrupt status register
-	 * after PT has been disabled by pt_event_stop(). Make sure we don't
-	 * do anything (particularly, re-enable) for this event here.
-	 */
 	if (!READ_ONCE(pt->handle_nmi))
 		return;
 
@@ -1525,18 +1246,10 @@ void intel_pt_handle_vmx(int on)
 		return;
 
 	/*
-	 * VMXON will clear RTIT_CTL.TraceEn; we need to make
-	 * sure to not try to set it while VMX is on. Disable
-	 * interrupts to avoid racing with pmu callbacks;
-	 * concurrent PMI should be handled fine.
-	 */
 	local_irq_save(flags);
 	WRITE_ONCE(pt->vmx_on, on);
 
 	/*
-	 * If an AUX transaction is in progress, it will contain
-	 * gap(s), so flag it PARTIAL to inform the user.
-	 */
 	event = pt->handle.event;
 	if (event)
 		perf_aux_output_flag(&pt->handle,
@@ -1550,9 +1263,6 @@ void intel_pt_handle_vmx(int on)
 }
 EXPORT_SYMBOL_GPL(intel_pt_handle_vmx);
 
-/*
- * PMU callbacks
- */
 
 static void pt_event_start(struct perf_event *event, int mode)
 {
@@ -1589,9 +1299,6 @@ static void pt_event_stop(struct perf_event *event, int mode)
 	struct pt *pt = this_cpu_ptr(&pt_ctx);
 
 	/*
-	 * Protect against the PMI racing with disabling wrmsr,
-	 * see comment in intel_pt_interrupt().
-	 */
 	WRITE_ONCE(pt->handle_nmi, 0);
 
 	pt_config_stop(event);
@@ -1637,15 +1344,10 @@ static long pt_event_snapshot_aux(struct perf_event *event,
 		return 0;
 
 	/*
-	 * Sampling is only allowed on snapshot events;
-	 * see pt_buffer_setup_aux().
-	 */
 	if (WARN_ON_ONCE(!buf->snapshot))
 		return 0;
 
 	/*
-	 * Here, handle_nmi tells us if the tracing is on
-	 */
 	if (READ_ONCE(pt->handle_nmi))
 		pt_config_stop(event);
 
@@ -1660,10 +1362,6 @@ static long pt_event_snapshot_aux(struct perf_event *event,
 	ret = perf_output_copy_aux(&pt->handle, handle, from, to);
 
 	/*
-	 * If the tracing was on when we turned up, restart it.
-	 * Compiler barrier not needed as we couldn't have been
-	 * preempted by anything that touches pt->handle_nmi.
-	 */
 	if (pt->handle_nmi)
 		pt_config_start(event);
 

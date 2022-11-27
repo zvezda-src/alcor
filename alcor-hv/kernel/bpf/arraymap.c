@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2011-2014 PLUMgrid, http://plumgrid.com
- * Copyright (c) 2016,2017 Facebook
- */
 #include <linux/bpf.h>
 #include <linux/btf.h>
 #include <linux/err.h>
@@ -48,7 +44,6 @@ static int bpf_array_alloc_percpu(struct bpf_array *array)
 	return 0;
 }
 
-/* Called from syscall */
 int array_map_alloc_check(union bpf_attr *attr)
 {
 	bool percpu = attr->map_type == BPF_MAP_TYPE_PERCPU_ARRAY;
@@ -159,7 +154,6 @@ static void *array_map_elem_ptr(struct bpf_array* array, u32 index)
 	return array->value + (u64)array->elem_size * index;
 }
 
-/* Called from syscall or from eBPF program */
 static void *array_map_lookup_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
@@ -181,7 +175,6 @@ static int array_map_direct_value_addr(const struct bpf_map *map, u64 *imm,
 	if (off >= map->value_size)
 		return -EINVAL;
 
-	*imm = (unsigned long)array->value;
 	return 0;
 }
 
@@ -197,11 +190,9 @@ static int array_map_direct_value_meta(const struct bpf_map *map, u64 imm,
 	if (imm < base || imm >= base + range)
 		return -ENOENT;
 
-	*off = imm - base;
 	return 0;
 }
 
-/* emit BPF instructions equivalent to C code of array_map_lookup_elem() */
 static int array_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
@@ -214,8 +205,6 @@ static int array_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
 	if (map->map_flags & BPF_F_INNER_MAP)
 		return -EOPNOTSUPP;
 
-	*insn++ = BPF_ALU64_IMM(BPF_ADD, map_ptr, offsetof(struct bpf_array, value));
-	*insn++ = BPF_LDX_MEM(BPF_W, ret, index, 0);
 	if (!map->bypass_spec_v1) {
 		*insn++ = BPF_JMP_IMM(BPF_JGE, ret, map->max_entries, 4);
 		*insn++ = BPF_ALU32_IMM(BPF_AND, ret, array->index_mask);
@@ -228,13 +217,9 @@ static int array_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
 	} else {
 		*insn++ = BPF_ALU64_IMM(BPF_MUL, ret, elem_size);
 	}
-	*insn++ = BPF_ALU64_REG(BPF_ADD, ret, map_ptr);
-	*insn++ = BPF_JMP_IMM(BPF_JA, 0, 0, 1);
-	*insn++ = BPF_MOV64_IMM(ret, 0);
 	return insn - insn_buf;
 }
 
-/* Called from eBPF program */
 static void *percpu_array_map_lookup_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
@@ -286,7 +271,6 @@ int bpf_percpu_array_copy(struct bpf_map *map, void *key, void *value)
 	return 0;
 }
 
-/* Called from syscall */
 static int array_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
@@ -301,7 +285,6 @@ static int array_map_get_next_key(struct bpf_map *map, void *key, void *next_key
 	if (index == array->map.max_entries - 1)
 		return -ENOENT;
 
-	*next = index + 1;
 	return 0;
 }
 
@@ -313,7 +296,6 @@ static void check_and_free_fields(struct bpf_array *arr, void *val)
 		bpf_map_free_kptrs(&arr->map, val);
 }
 
-/* Called from syscall or from eBPF program */
 static int array_map_update_elem(struct bpf_map *map, void *key, void *value,
 				 u64 map_flags)
 {
@@ -390,7 +372,6 @@ int bpf_percpu_array_update(struct bpf_map *map, void *key, void *value,
 	return 0;
 }
 
-/* Called from syscall or from eBPF program */
 static int array_map_delete_elem(struct bpf_map *map, void *key)
 {
 	return -EINVAL;
@@ -414,7 +395,6 @@ static void array_map_free_timers(struct bpf_map *map)
 		bpf_timer_cancel_and_free(array_map_elem_ptr(array, i) + map->timer_off);
 }
 
-/* Called when map->refcnt goes to zero, either from workqueue or from syscall */
 static void array_map_free(struct bpf_map *map)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
@@ -782,7 +762,6 @@ static void *fd_array_map_lookup_elem(struct bpf_map *map, void *key)
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
-/* only called from syscall */
 int bpf_fd_array_map_lookup_elem(struct bpf_map *map, void *key, u32 *value)
 {
 	void **elem, *ptr;
@@ -802,7 +781,6 @@ int bpf_fd_array_map_lookup_elem(struct bpf_map *map, void *key, u32 *value)
 	return ret;
 }
 
-/* only called from syscall */
 int bpf_fd_array_map_update_elem(struct bpf_map *map, struct file *map_file,
 				 void *key, void *value, u64 map_flags)
 {
@@ -887,7 +865,6 @@ static u32 prog_fd_array_sys_lookup_elem(void *ptr)
 	return ((struct bpf_prog *)ptr)->aux->id;
 }
 
-/* decrement refcnt of all bpf_progs that are stored in this map */
 static void bpf_fd_array_map_clear(struct bpf_map *map)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
@@ -1124,11 +1101,6 @@ static void prog_array_map_free(struct bpf_map *map)
 	fd_array_map_free(map);
 }
 
-/* prog_array->aux->{type,jited} is a runtime binding.
- * Doing static check alone in the verifier is not enough.
- * Thus, prog_array_map cannot be used as an inner_map
- * and map_meta_equal is not implemented.
- */
 const struct bpf_map_ops prog_array_map_ops = {
 	.map_alloc_check = fd_array_map_alloc_check,
 	.map_alloc = prog_array_map_alloc,
@@ -1332,8 +1304,6 @@ static int array_of_map_gen_lookup(struct bpf_map *map,
 	const int map_ptr = BPF_REG_1;
 	const int index = BPF_REG_2;
 
-	*insn++ = BPF_ALU64_IMM(BPF_ADD, map_ptr, offsetof(struct bpf_array, value));
-	*insn++ = BPF_LDX_MEM(BPF_W, ret, index, 0);
 	if (!map->bypass_spec_v1) {
 		*insn++ = BPF_JMP_IMM(BPF_JGE, ret, map->max_entries, 6);
 		*insn++ = BPF_ALU32_IMM(BPF_AND, ret, array->index_mask);
@@ -1344,11 +1314,6 @@ static int array_of_map_gen_lookup(struct bpf_map *map,
 		*insn++ = BPF_ALU64_IMM(BPF_LSH, ret, ilog2(elem_size));
 	else
 		*insn++ = BPF_ALU64_IMM(BPF_MUL, ret, elem_size);
-	*insn++ = BPF_ALU64_REG(BPF_ADD, ret, map_ptr);
-	*insn++ = BPF_LDX_MEM(BPF_DW, ret, ret, 0);
-	*insn++ = BPF_JMP_IMM(BPF_JEQ, ret, 0, 1);
-	*insn++ = BPF_JMP_IMM(BPF_JA, 0, 0, 1);
-	*insn++ = BPF_MOV64_IMM(ret, 0);
 
 	return insn - insn_buf;
 }

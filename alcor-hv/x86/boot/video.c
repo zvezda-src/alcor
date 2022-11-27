@@ -1,15 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* -*- linux-c -*- ------------------------------------------------------- *
- *
- *   Copyright (C) 1991, 1992 Linus Torvalds
- *   Copyright 2007 rPath, Inc. - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author H. Peter Anvin
- *
- * ----------------------------------------------------------------------- */
 
-/*
- * Select video mode
- */
 
 #include <uapi/asm/boot.h>
 
@@ -52,12 +41,6 @@ static void store_video_mode(void)
 	boot_params.screen_info.orig_video_page = oreg.bh;
 }
 
-/*
- * Store the video mode parameters for later usage by the kernel.
- * This is done by asking the BIOS except for the rows/columns
- * parameters in the default 80x25 mode -- these are set directly,
- * because some very obscure BIOSes supply insane values.
- */
 static void store_mode_params(void)
 {
 	u16 font_size;
@@ -229,7 +212,6 @@ static unsigned int mode_menu(void)
 	}
 }
 
-/* Save screen content to the heap */
 static struct saved_screen {
 	int x, y;
 	int curx, cury;

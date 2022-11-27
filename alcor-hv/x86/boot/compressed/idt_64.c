@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
 #include <asm/trap_pf.h>
 #include <asm/segment.h>
 #include <asm/trapnr.h>
@@ -21,13 +20,11 @@ static void set_idt_entry(int vector, void (*handler)(void))
 	memcpy(&boot_idt[vector], &entry, sizeof(entry));
 }
 
-/* Have this here so we don't need to include <asm/desc.h> */
 static void load_boot_idt(const struct desc_ptr *dtr)
 {
 	asm volatile("lidt %0"::"m" (*dtr));
 }
 
-/* Setup IDT before kernel jumping to  .Lrelocated */
 void load_stage1_idt(void)
 {
 	boot_idt_desc.address = (unsigned long)boot_idt;
@@ -39,23 +36,6 @@ void load_stage1_idt(void)
 	load_boot_idt(&boot_idt_desc);
 }
 
-/*
- * Setup IDT after kernel jumping to  .Lrelocated.
- *
- * initialize_identity_maps() needs a #PF handler to be setup
- * in order to be able to fault-in identity mapping ranges; see
- * do_boot_page_fault().
- *
- * This #PF handler setup needs to happen in load_stage2_idt() where the
- * IDT is loaded and there the #VC IDT entry gets setup too.
- *
- * In order to be able to handle #VCs, one needs a GHCB which
- * gets setup with an already set up pagetable, which is done in
- * initialize_identity_maps(). And there's the catch 22: the boot #VC
- * handler do_boot_stage2_vc() needs to call early_setup_ghcb() itself
- * (and, especially set_page_decrypted()) because the SEV-ES setup code
- * cannot initialize a GHCB as there's no #PF handler yet...
- */
 void load_stage2_idt(void)
 {
 	boot_idt_desc.address = (unsigned long)boot_idt;
@@ -72,9 +52,6 @@ void load_stage2_idt(void)
 void cleanup_exception_handling(void)
 {
 	/*
-	 * Flush GHCB from cache and map it encrypted again when running as
-	 * SEV-ES guest.
-	 */
 	sev_es_shutdown_ghcb();
 
 	/* Set a null-idt, disabling #PF and #VC handling */

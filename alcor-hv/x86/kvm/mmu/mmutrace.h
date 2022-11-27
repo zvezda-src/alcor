@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #if !defined(_TRACE_KVMMMU_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_KVMMMU_H
 
@@ -61,9 +60,6 @@ TRACE_DEFINE_ENUM(RET_PF_INVALID);
 TRACE_DEFINE_ENUM(RET_PF_FIXED);
 TRACE_DEFINE_ENUM(RET_PF_SPURIOUS);
 
-/*
- * A pagetable walk has started
- */
 TRACE_EVENT(
 	kvm_mmu_pagetable_walk,
 	TP_PROTO(u64 addr, u32 pferr),
@@ -84,7 +80,6 @@ TRACE_EVENT(
 );
 
 
-/* We just walked a paging element */
 TRACE_EVENT(
 	kvm_mmu_paging_element,
 	TP_PROTO(u64 pte, int level),
@@ -121,7 +116,6 @@ DECLARE_EVENT_CLASS(kvm_mmu_set_bit_class,
 	TP_printk("gpa %llx", __entry->gpa)
 );
 
-/* We set a pte accessed bit */
 DEFINE_EVENT(kvm_mmu_set_bit_class, kvm_mmu_set_accessed_bit,
 
 	TP_PROTO(unsigned long table_gfn, unsigned index, unsigned size),
@@ -129,7 +123,6 @@ DEFINE_EVENT(kvm_mmu_set_bit_class, kvm_mmu_set_accessed_bit,
 	TP_ARGS(table_gfn, index, size)
 );
 
-/* We set a pte dirty bit */
 DEFINE_EVENT(kvm_mmu_set_bit_class, kvm_mmu_set_dirty_bit,
 
 	TP_PROTO(unsigned long table_gfn, unsigned index, unsigned size),
@@ -447,5 +440,4 @@ TRACE_EVENT(
 #undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_FILE mmutrace
 
-/* This part must be outside protection */
 #include <trace/define_trace.h>

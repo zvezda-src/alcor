@@ -1,18 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_HW_IRQ_H
 #define _ASM_X86_HW_IRQ_H
 
-/*
- * (C) 1992, 1993 Linus Torvalds, (C) 1997 Ingo Molnar
- *
- * moved some of the old arch/i386/kernel/irq.h to here. VY
- *
- * IRQ/IPI changes taken from work by Thomas Radke
- * <tomsoft@informatik.tu-chemnitz.de>
- *
- * hacked by Andi Kleen for x86-64.
- * unified by tglx
- */
 
 #include <asm/irq_vectors.h>
 
@@ -59,19 +47,6 @@ struct uv_alloc_info {
 
 };
 
-/**
- * irq_alloc_info - X86 specific interrupt allocation info
- * @type:	X86 specific allocation type
- * @flags:	Flags for allocation tweaks
- * @devid:	Device ID for allocations
- * @hwirq:	Associated hw interrupt number in the domain
- * @mask:	CPU mask for vector allocation
- * @desc:	Pointer to msi descriptor
- * @data:	Allocation specific data
- *
- * @ioapic:	IOAPIC specific allocation data
- * @uv:		UV specific allocation data
-*/
 struct irq_alloc_info {
 	enum irq_alloc_type	type;
 	u32			flags;
@@ -110,7 +85,6 @@ static inline void lock_vector_lock(void) {}
 static inline void unlock_vector_lock(void) {}
 #endif	/* CONFIG_X86_LOCAL_APIC */
 
-/* Statistics */
 extern atomic_t irq_err_count;
 extern atomic_t irq_mis_count;
 

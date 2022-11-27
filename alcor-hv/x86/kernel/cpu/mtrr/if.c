@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/capability.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
@@ -84,12 +83,6 @@ mtrr_file_del(unsigned long base, unsigned long size,
 	return reg;
 }
 
-/*
- * seq_file can seek but we ignore it.
- *
- * Format of control line:
- *    "base=%Lx size=%Lx type=%s" or "disable=%d"
- */
 static ssize_t
 mtrr_write(struct file *file, const char __user *buf, size_t len, loff_t * ppos)
 {

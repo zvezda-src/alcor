@@ -1,21 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
-/*
- * RCU segmented callback lists, internal-to-rcu header file
- *
- * Copyright IBM Corporation, 2017
- *
- * Authors: Paul E. McKenney <paulmck@linux.ibm.com>
- */
 
 #include <linux/rcu_segcblist.h>
 
-/* Return number of callbacks in the specified callback list. */
 static inline long rcu_cblist_n_cbs(struct rcu_cblist *rclp)
 {
 	return READ_ONCE(rclp->len);
 }
 
-/* Return number of callbacks in segmented callback list by summing seglen. */
 long rcu_segcblist_n_segment_cbs(struct rcu_segcblist *rsclp);
 
 void rcu_cblist_init(struct rcu_cblist *rclp);
@@ -25,25 +15,11 @@ void rcu_cblist_flush_enqueue(struct rcu_cblist *drclp,
 			      struct rcu_head *rhp);
 struct rcu_head *rcu_cblist_dequeue(struct rcu_cblist *rclp);
 
-/*
- * Is the specified rcu_segcblist structure empty?
- *
- * But careful!  The fact that the ->head field is NULL does not
- * necessarily imply that there are no callbacks associated with
- * this structure.  When callbacks are being invoked, they are
- * removed as a group.  If callback invocation must be preempted,
- * the remaining callbacks will be added back to the list.  Either
- * way, the counts are updated later.
- *
- * So it is often the case that rcu_segcblist_n_cbs() should be used
- * instead.
- */
 static inline bool rcu_segcblist_empty(struct rcu_segcblist *rsclp)
 {
 	return !READ_ONCE(rsclp->head);
 }
 
-/* Return number of callbacks in segmented callback list. */
 static inline long rcu_segcblist_n_cbs(struct rcu_segcblist *rsclp)
 {
 #ifdef CONFIG_RCU_NOCB_CPU
@@ -71,19 +47,11 @@ static inline bool rcu_segcblist_test_flags(struct rcu_segcblist *rsclp,
 	return READ_ONCE(rsclp->flags) & flags;
 }
 
-/*
- * Is the specified rcu_segcblist enabled, for example, not corresponding
- * to an offline CPU?
- */
 static inline bool rcu_segcblist_is_enabled(struct rcu_segcblist *rsclp)
 {
 	return rcu_segcblist_test_flags(rsclp, SEGCBLIST_ENABLED);
 }
 
-/*
- * Is the specified rcu_segcblist NOCB offloaded (or in the middle of the
- * [de]offloading process)?
- */
 static inline bool rcu_segcblist_is_offloaded(struct rcu_segcblist *rsclp)
 {
 	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU) &&
@@ -102,20 +70,11 @@ static inline bool rcu_segcblist_completely_offloaded(struct rcu_segcblist *rscl
 	return false;
 }
 
-/*
- * Are all segments following the specified segment of the specified
- * rcu_segcblist structure empty of callbacks?  (The specified
- * segment might well contain callbacks.)
- */
 static inline bool rcu_segcblist_restempty(struct rcu_segcblist *rsclp, int seg)
 {
 	return !READ_ONCE(*READ_ONCE(rsclp->tails[seg]));
 }
 
-/*
- * Is the specified segment of the specified rcu_segcblist structure
- * empty of callbacks?
- */
 static inline bool rcu_segcblist_segempty(struct rcu_segcblist *rsclp, int seg)
 {
 	if (seg == RCU_DONE_TAIL)

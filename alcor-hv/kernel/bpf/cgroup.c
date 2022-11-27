@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Functions to manage eBPF programs attached to cgroups
- *
- * Copyright (c) 2016 Daniel Mack
- */
 
 #include <linux/kernel.h>
 #include <linux/atomic.h>
@@ -24,9 +18,6 @@
 DEFINE_STATIC_KEY_ARRAY_FALSE(cgroup_bpf_enabled_key, MAX_CGROUP_BPF_ATTACH_TYPE);
 EXPORT_SYMBOL(cgroup_bpf_enabled_key);
 
-/* __always_inline is necessary to prevent indirect call through run_prog
- * function pointer.
- */
 static __always_inline int
 bpf_prog_run_array_cg(const struct cgroup_bpf *cgrp,
 		      enum cgroup_bpf_attach_type atype,
@@ -256,22 +247,12 @@ static void bpf_cgroup_storages_link(struct bpf_cgroup_storage *storages[],
 		bpf_cgroup_storage_link(storages[stype], cgrp, attach_type);
 }
 
-/* Called when bpf_cgroup_link is auto-detached from dying cgroup.
- * It drops cgroup and bpf_prog refcounts, and marks bpf_link as defunct. It
- * doesn't free link memory, which will eventually be done by bpf_link's
- * release() callback, when its last FD is closed.
- */
 static void bpf_cgroup_link_auto_detach(struct bpf_cgroup_link *link)
 {
 	cgroup_put(link->cgroup);
 	link->cgroup = NULL;
 }
 
-/**
- * cgroup_bpf_release() - put references of all bpf programs and
- *                        release all cgroup bpf data
- * @work: work structure embedded into the cgroup to modify
- */
 static void cgroup_bpf_release(struct work_struct *work)
 {
 	struct cgroup *p, *cgrp = container_of(work, struct cgroup,
@@ -324,11 +305,6 @@ static void cgroup_bpf_release(struct work_struct *work)
 	cgroup_put(cgrp);
 }
 
-/**
- * cgroup_bpf_release_fn() - callback used to schedule releasing
- *                           of bpf cgroup data
- * @ref: percpu ref counter structure
- */
 static void cgroup_bpf_release_fn(struct percpu_ref *ref)
 {
 	struct cgroup *cgrp = container_of(ref, struct cgroup, bpf.refcnt);
@@ -337,9 +313,6 @@ static void cgroup_bpf_release_fn(struct percpu_ref *ref)
 	queue_work(system_wq, &cgrp->bpf.release_work);
 }
 
-/* Get underlying bpf_prog of bpf_prog_list entry, regardless if it's through
- * link or direct prog.
- */
 static struct bpf_prog *prog_list_prog(struct bpf_prog_list *pl)
 {
 	if (pl->prog)
@@ -349,9 +322,6 @@ static struct bpf_prog *prog_list_prog(struct bpf_prog_list *pl)
 	return NULL;
 }
 
-/* count number of elements in the list.
- * it's slow but the list cannot be long
- */
 static u32 prog_list_length(struct hlist_head *head)
 {
 	struct bpf_prog_list *pl;
@@ -365,10 +335,6 @@ static u32 prog_list_length(struct hlist_head *head)
 	return cnt;
 }
 
-/* if parent has non-overridable prog attached,
- * disallow attaching new programs to the descendent cgroup.
- * if parent has overridable or multi-prog, allow attaching
- */
 static bool hierarchy_allows_attach(struct cgroup *cgrp,
 				    enum cgroup_bpf_attach_type atype)
 {
@@ -392,12 +358,6 @@ static bool hierarchy_allows_attach(struct cgroup *cgrp,
 	return true;
 }
 
-/* compute a chain of effective programs for a given cgroup:
- * start from the list of programs in this cgroup and add
- * all parent programs.
- * Note that parent's F_ALLOW_OVERRIDE-type program is yielding
- * to programs in this cgroup
- */
 static int compute_effective_progs(struct cgroup *cgrp,
 				   enum cgroup_bpf_attach_type atype,
 				   struct bpf_prog_array **array)
@@ -438,7 +398,6 @@ static int compute_effective_progs(struct cgroup *cgrp,
 		}
 	} while ((p = cgroup_parent(p)));
 
-	*array = progs;
 	return 0;
 }
 
@@ -454,15 +413,8 @@ static void activate_effective_progs(struct cgroup *cgrp,
 	bpf_prog_array_free(old_array);
 }
 
-/**
- * cgroup_bpf_inherit() - inherit effective programs from parent
- * @cgrp: the cgroup to modify
- */
 int cgroup_bpf_inherit(struct cgroup *cgrp)
 {
-/* has to use marco instead of const int, since compiler thinks
- * that array below is variable length
- */
 #define	NR ARRAY_SIZE(cgrp->bpf.effective)
 	struct bpf_prog_array *arrays[NR] = {};
 	struct cgroup *p;
@@ -591,19 +543,6 @@ static struct bpf_prog_list *find_attach_entry(struct hlist_head *progs,
 	return NULL;
 }
 
-/**
- * __cgroup_bpf_attach() - Attach the program or the link to a cgroup, and
- *                         propagate the change to descendants
- * @cgrp: The cgroup which descendants to traverse
- * @prog: A program to attach
- * @link: A link to attach
- * @replace_prog: Previously attached program to replace if BPF_F_REPLACE is set
- * @type: Type of attach operation
- * @flags: Option flags
- *
- * Exactly one of @prog or @link can be non-null.
- * Must be called with cgroup_mutex held.
- */
 static int __cgroup_bpf_attach(struct cgroup *cgrp,
 			       struct bpf_prog *prog, struct bpf_prog *replace_prog,
 			       struct bpf_cgroup_link *link,
@@ -735,9 +674,6 @@ static int cgroup_bpf_attach(struct cgroup *cgrp,
 	return ret;
 }
 
-/* Swap updated BPF program for given link in effective program arrays across
- * all descendant cgroups. This function is guaranteed to succeed.
- */
 static void replace_effective_prog(struct cgroup *cgrp,
 				   enum cgroup_bpf_attach_type atype,
 				   struct bpf_cgroup_link *link)
@@ -780,15 +716,6 @@ found:
 	}
 }
 
-/**
- * __cgroup_bpf_replace() - Replace link's program and propagate the change
- *                          to descendants
- * @cgrp: The cgroup which descendants to traverse
- * @link: A link for which to replace BPF program
- * @type: Type of attach operation
- *
- * Must be called with cgroup_mutex held.
- */
 static int __cgroup_bpf_replace(struct cgroup *cgrp,
 				struct bpf_cgroup_link *link,
 				struct bpf_prog *new_prog)
@@ -879,16 +806,6 @@ static struct bpf_prog_list *find_detach_entry(struct hlist_head *progs,
 	return ERR_PTR(-ENOENT);
 }
 
-/**
- * purge_effective_progs() - After compute_effective_progs fails to alloc new
- *                           cgrp->bpf.inactive table we can recover by
- *                           recomputing the array in place.
- *
- * @cgrp: The cgroup which descendants to travers
- * @prog: A program to detach or NULL
- * @link: A link to detach or NULL
- * @atype: Type of detach operation
- */
 static void purge_effective_progs(struct cgroup *cgrp, struct bpf_prog *prog,
 				  struct bpf_cgroup_link *link,
 				  enum cgroup_bpf_attach_type atype)
@@ -933,17 +850,6 @@ found:
 	}
 }
 
-/**
- * __cgroup_bpf_detach() - Detach the program or link from a cgroup, and
- *                         propagate the change to descendants
- * @cgrp: The cgroup which descendants to traverse
- * @prog: A program to detach or NULL
- * @link: A link to detach or NULL
- * @type: Type of detach operation
- *
- * At most one of @prog or @link can be non-NULL.
- * Must be called with cgroup_mutex held.
- */
 static int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 			       struct bpf_cgroup_link *link, enum bpf_attach_type type)
 {
@@ -1013,7 +919,6 @@ static int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 	return ret;
 }
 
-/* Must be called with cgroup_mutex held to avoid races. */
 static int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
 			      union bpf_attr __user *uattr)
 {
@@ -1320,29 +1225,6 @@ int cgroup_bpf_prog_query(const union bpf_attr *attr,
 	return ret;
 }
 
-/**
- * __cgroup_bpf_run_filter_skb() - Run a program for packet filtering
- * @sk: The socket sending or receiving traffic
- * @skb: The skb that is being sent or received
- * @type: The type of program to be executed
- *
- * If no socket is passed, or the socket is not of type INET or INET6,
- * this function does nothing and returns 0.
- *
- * The program type passed in via @type must be suitable for network
- * filtering. No further check is performed to assert that.
- *
- * For egress packets, this function can return:
- *   NET_XMIT_SUCCESS    (0)	- continue with packet output
- *   NET_XMIT_DROP       (1)	- drop packet and notify TCP to call cwr
- *   NET_XMIT_CN         (2)	- continue with packet output and notify TCP
- *				  to call cwr
- *   -err			- drop packet
- *
- * For ingress packets, this function will return -EPERM if any
- * attached program was found and if it returned != 1 during execution.
- * Otherwise 0 is returned.
- */
 int __cgroup_bpf_run_filter_skb(struct sock *sk,
 				struct sk_buff *skb,
 				enum cgroup_bpf_attach_type atype)
@@ -1411,19 +1293,6 @@ int __cgroup_bpf_run_filter_skb(struct sock *sk,
 }
 EXPORT_SYMBOL(__cgroup_bpf_run_filter_skb);
 
-/**
- * __cgroup_bpf_run_filter_sk() - Run a program on a sock
- * @sk: sock structure to manipulate
- * @type: The type of program to be executed
- *
- * socket is passed is expected to be of type INET or INET6.
- *
- * The program type passed in via @type must be suitable for sock
- * filtering. No further check is performed to assert that.
- *
- * This function will return %-EPERM if any if an attached program was found
- * and if it returned != 1 during execution. In all other cases, 0 is returned.
- */
 int __cgroup_bpf_run_filter_sk(struct sock *sk,
 			       enum cgroup_bpf_attach_type atype)
 {
@@ -1434,21 +1303,6 @@ int __cgroup_bpf_run_filter_sk(struct sock *sk,
 }
 EXPORT_SYMBOL(__cgroup_bpf_run_filter_sk);
 
-/**
- * __cgroup_bpf_run_filter_sock_addr() - Run a program on a sock and
- *                                       provided by user sockaddr
- * @sk: sock struct that will use sockaddr
- * @uaddr: sockaddr struct provided by user
- * @type: The type of program to be executed
- * @t_ctx: Pointer to attach type specific context
- * @flags: Pointer to u32 which contains higher bits of BPF program
- *         return value (OR'ed together).
- *
- * socket is expected to be of type INET or INET6.
- *
- * This function will return %-EPERM if an attached program is found and
- * returned value != 1 during execution. In all other cases, 0 is returned.
- */
 int __cgroup_bpf_run_filter_sock_addr(struct sock *sk,
 				      struct sockaddr *uaddr,
 				      enum cgroup_bpf_attach_type atype,
@@ -1480,22 +1334,6 @@ int __cgroup_bpf_run_filter_sock_addr(struct sock *sk,
 }
 EXPORT_SYMBOL(__cgroup_bpf_run_filter_sock_addr);
 
-/**
- * __cgroup_bpf_run_filter_sock_ops() - Run a program on a sock
- * @sk: socket to get cgroup from
- * @sock_ops: bpf_sock_ops_kern struct to pass to program. Contains
- * sk with connection information (IP addresses, etc.) May not contain
- * cgroup info if it is a req sock.
- * @type: The type of program to be executed
- *
- * socket passed is expected to be of type INET or INET6.
- *
- * The program type passed in via @type must be suitable for sock_ops
- * filtering. No further check is performed to assert that.
- *
- * This function will return %-EPERM if any if an attached program was found
- * and if it returned != 1 during execution. In all other cases, 0 is returned.
- */
 int __cgroup_bpf_run_filter_sock_ops(struct sock *sk,
 				     struct bpf_sock_ops_kern *sock_ops,
 				     enum cgroup_bpf_attach_type atype)
@@ -1622,27 +1460,6 @@ const struct bpf_verifier_ops cg_dev_verifier_ops = {
 	.is_valid_access	= cgroup_dev_is_valid_access,
 };
 
-/**
- * __cgroup_bpf_run_filter_sysctl - Run a program on sysctl
- *
- * @head: sysctl table header
- * @table: sysctl table
- * @write: sysctl is being read (= 0) or written (= 1)
- * @buf: pointer to buffer (in and out)
- * @pcount: value-result argument: value is size of buffer pointed to by @buf,
- *	result is size of @new_buf if program set new value, initial value
- *	otherwise
- * @ppos: value-result argument: value is position at which read from or write
- *	to sysctl is happening, result is new position if program overrode it,
- *	initial value otherwise
- * @type: type of program to be executed
- *
- * Program is run when sysctl is being accessed, either read or written, and
- * can allow or deny such access.
- *
- * This function will return %-EPERM if an attached program is found and
- * returned value != 1 during execution. In all other cases 0 is returned.
- */
 int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
 				   struct ctl_table *table, int write,
 				   char **buf, size_t *pcount, loff_t *ppos,
@@ -1959,8 +1776,6 @@ static ssize_t sysctl_cpy_dir(const struct ctl_dir *dir, char **bufp,
 	ret = strscpy(*bufp, dir->header.ctl_table[0].procname, *lenp);
 	if (ret < 0)
 		return ret;
-	*bufp += ret;
-	*lenp -= ret;
 	ret += tmp_ret;
 
 	/* Avoid leading slash. */
@@ -1970,8 +1785,6 @@ static ssize_t sysctl_cpy_dir(const struct ctl_dir *dir, char **bufp,
 	tmp_ret = strscpy(*bufp, "/", *lenp);
 	if (tmp_ret < 0)
 		return tmp_ret;
-	*bufp += tmp_ret;
-	*lenp -= tmp_ret;
 
 	return ret + tmp_ret;
 }

@@ -1,27 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- */
 
-/*
- * Copyright (C) 2004 Amit S. Kale <amitkale@linsyssoft.com>
- * Copyright (C) 2000-2001 VERITAS Software Corporation.
- * Copyright (C) 2002 Andi Kleen, SuSE Labs
- * Copyright (C) 2004 LinSysSoft Technologies Pvt. Ltd.
- * Copyright (C) 2007 MontaVista Software, Inc.
- * Copyright (C) 2007-2008 Jason Wessel, Wind River Systems, Inc.
- */
-/****************************************************************************
- *  Contributor:     Lake Stevens Instrument Division$
- *  Written by:      Glenn Engel $
- *  Updated by:	     Amit Kale<akale@veritas.com>
- *  Updated by:	     Tom Rini <trini@kernel.crashing.org>
- *  Updated by:	     Jason Wessel <jason.wessel@windriver.com>
- *  Modified for 386 by Jim Kingdon, Cygnus Support.
- *  Original kgdb, compatibility with 2.1.xx kernel by
- *  David Grothe <dave@gcom.com>
- *  Integrated into 2.2.5 kernel by Tigran Aivazian <tigran@sco.com>
- *  X86_64 changes from Andi Kleen's patch merged by Jim Houston
- */
 #include <linux/spinlock.h>
 #include <linux/kdebug.h>
 #include <linux/string.h>
@@ -127,18 +104,6 @@ char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
 	return dbg_reg_def[regno].name;
 }
 
-/**
- *	sleeping_thread_to_gdb_regs - Convert ptrace regs to GDB regs
- *	@gdb_regs: A pointer to hold the registers in the order GDB wants.
- *	@p: The &struct task_struct of the desired process.
- *
- *	Convert the register values of the sleeping process in @p to
- *	the format that GDB expects.
- *	This function is called when kgdb does not have access to the
- *	&struct pt_regs and therefore it should fill the gdb registers
- *	@gdb_regs with what has	been saved in &struct thread_struct
- *	thread field during switch_to.
- */
 void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 {
 #ifndef CONFIG_X86_32
@@ -264,9 +229,6 @@ static int hw_break_release_slot(int breakno)
 		pevent = per_cpu_ptr(breakinfo[breakno].pev, cpu);
 		if (dbg_release_bp_slot(*pevent))
 			/*
-			 * The debugger is responsible for handing the retry on
-			 * remove failure.
-			 */
 			return -1;
 	}
 	return 0;
@@ -370,14 +332,6 @@ kgdb_set_hw_break(unsigned long addr, int len, enum kgdb_bptype bptype)
 	return 0;
 }
 
-/**
- *	kgdb_disable_hw_debug - Disable hardware debugging while we in kgdb.
- *	@regs: Current &struct pt_regs.
- *
- *	This function will be called if the particular architecture must
- *	disable hardware debugging while it is processing gdb packets or
- *	handling exception.
- */
 static void kgdb_disable_hw_debug(struct pt_regs *regs)
 {
 	int i;
@@ -403,39 +357,12 @@ static void kgdb_disable_hw_debug(struct pt_regs *regs)
 }
 
 #ifdef CONFIG_SMP
-/**
- *	kgdb_roundup_cpus - Get other CPUs into a holding pattern
- *
- *	On SMP systems, we need to get the attention of the other CPUs
- *	and get them be in a known state.  This should do what is needed
- *	to get the other CPUs to call kgdb_wait(). Note that on some arches,
- *	the NMI approach is not used for rounding up all the CPUs. For example,
- *	in case of MIPS, smp_call_function() is used to roundup CPUs.
- *
- *	On non-SMP systems, this is not called.
- */
 void kgdb_roundup_cpus(void)
 {
 	apic_send_IPI_allbutself(NMI_VECTOR);
 }
 #endif
 
-/**
- *	kgdb_arch_handle_exception - Handle architecture specific GDB packets.
- *	@e_vector: The error vector of the exception that happened.
- *	@signo: The signal number of the exception that happened.
- *	@err_code: The error code of the exception that happened.
- *	@remcomInBuffer: The buffer of the packet we have read.
- *	@remcomOutBuffer: The buffer of %BUFMAX bytes to write a packet into.
- *	@linux_regs: The &struct pt_regs of the current process.
- *
- *	This function MUST handle the 'c' and 's' command packets,
- *	as well packets to set / remove a hardware breakpoint, if used.
- *	If there are additional packets which the hardware needs to handle,
- *	they are handled here.  The code should return -1 if it wants to
- *	process more packets, and a %0 or %1 if it wants to exit from the
- *	kgdb callback.
- */
 int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 			       char *remcomInBuffer, char *remcomOutBuffer,
 			       struct pt_regs *linux_regs)
@@ -475,17 +402,11 @@ static inline int
 single_step_cont(struct pt_regs *regs, struct die_args *args)
 {
 	/*
-	 * Single step exception from kernel space to user space so
-	 * eat the exception and continue the process:
-	 */
 	printk(KERN_ERR "KGDB: trap/step from kernel to user space, "
 			"resuming...\n");
 	kgdb_arch_handle_exception(args->trapnr, args->signr,
 				   args->err, "c", "", regs);
 	/*
-	 * Reset the BS bit in dr6 (pointed by args->err) to
-	 * denote completion of processing
-	 */
 	(*(unsigned long *)ERR_PTR(args->err)) &= ~DR_STEP;
 
 	return NOTIFY_STOP;
@@ -588,12 +509,6 @@ static struct notifier_block kgdb_notifier = {
 	.notifier_call	= kgdb_notify,
 };
 
-/**
- *	kgdb_arch_init - Perform any architecture specific initialization.
- *
- *	This function will handle the initialization of any architecture
- *	specific callbacks.
- */
 int kgdb_arch_init(void)
 {
 	int retval;
@@ -642,10 +557,6 @@ void kgdb_arch_late(void)
 	struct perf_event **pevent;
 
 	/*
-	 * Pre-allocate the hw breakpoint instructions in the non-atomic
-	 * portion of kgdb because this operation requires mutexs to
-	 * complete.
-	 */
 	hw_breakpoint_init(&attr);
 	attr.bp_addr = (unsigned long)kgdb_arch_init;
 	attr.bp_len = HW_BREAKPOINT_LEN_1;
@@ -674,12 +585,6 @@ void kgdb_arch_late(void)
 	}
 }
 
-/**
- *	kgdb_arch_exit - Perform any architecture specific uninitalization.
- *
- *	This function will handle the uninitalization of any architecture
- *	specific callbacks, for dynamic registration and unregistration.
- */
 void kgdb_arch_exit(void)
 {
 	int i;
@@ -694,19 +599,6 @@ void kgdb_arch_exit(void)
 	unregister_die_notifier(&kgdb_notifier);
 }
 
-/**
- *
- *	kgdb_skipexception - Bail out of KGDB when we've been triggered.
- *	@exception: Exception vector number
- *	@regs: Current &struct pt_regs.
- *
- *	On some architectures we need to skip a breakpoint exception when
- *	it occurs after a breakpoint has been removed.
- *
- * Skip an int3 exception when it occurs after a breakpoint has been
- * removed. Backtrack eip by 1 since the int3 would have caused it to
- * increment by 1.
- */
 int kgdb_skipexception(int exception, struct pt_regs *regs)
 {
 	if (exception == 3 && kgdb_isremovedbreak(regs->ip - 1)) {
@@ -742,9 +634,6 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 	if (!err)
 		return err;
 	/*
-	 * It is safe to call text_poke_kgdb() because normal kernel execution
-	 * is stopped on all cores, so long as the text_mutex is not locked.
-	 */
 	if (mutex_is_locked(&text_mutex))
 		return -EBUSY;
 	text_poke_kgdb((void *)bpt->bpt_addr, arch_kgdb_ops.gdb_bpt_instr,
@@ -759,9 +648,6 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
 	if (bpt->type != BP_POKE_BREAKPOINT)
 		goto knl_write;
 	/*
-	 * It is safe to call text_poke_kgdb() because normal kernel execution
-	 * is stopped on all cores, so long as the text_mutex is not locked.
-	 */
 	if (mutex_is_locked(&text_mutex))
 		goto knl_write;
 	text_poke_kgdb((void *)bpt->bpt_addr, bpt->saved_instr,

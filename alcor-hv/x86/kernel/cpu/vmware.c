@@ -1,25 +1,3 @@
-/*
- * VMware Detection code.
- *
- * Copyright (C) 2008, VMware, Inc.
- * Author : Alok N Kataria <akataria@vmware.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
- *
- */
 
 #include <linux/dmi.h>
 #include <linux/init.h>
@@ -204,17 +182,6 @@ static bool vmware_is_stealclock_available(void)
 	return __stealclock_disable() != STEALCLOCK_NOT_AVAILABLE;
 }
 
-/**
- * vmware_steal_clock() - read the per-cpu steal clock
- * @cpu:            the cpu number whose steal clock we want to read
- *
- * The function reads the steal clock if we are on a 64-bit system, otherwise
- * reads it in parts, checking that the high part didn't change in the
- * meantime.
- *
- * Return:
- *      The steal clock reading in ns.
- */
 static uint64_t vmware_steal_clock(int cpu)
 {
 	struct vmware_steal_time *steal = &per_cpu(vmw_steal_time, cpu);
@@ -363,18 +330,6 @@ static void __init vmware_paravirt_ops_setup(void)
 #define vmware_paravirt_ops_setup() do {} while (0)
 #endif
 
-/*
- * VMware hypervisor takes care of exporting a reliable TSC to the guest.
- * Still, due to timing difference when running on virtual cpus, the TSC can
- * be marked as unstable in some cases. For example, the TSC sync check at
- * bootup can fail due to a marginal offset between vcpus' TSCs (though the
- * TSCs do not drift from each other).  Also, the ACPI PM timer clocksource
- * is not suitable as a watchdog when running on a hypervisor because the
- * kernel may miss a wrap of the counter if the vcpu is descheduled for a
- * long time. To skip these checks at runtime we set these capability bits,
- * so that the kernel could just trust the hypervisor with providing a
- * reliable virtual TSC that is suitable for timekeeping.
- */
 static void __init vmware_set_capabilities(void)
 {
 	setup_force_cpu_cap(X86_FEATURE_CONSTANT_TSC);
@@ -439,13 +394,6 @@ static u8 __init vmware_select_hypercall(void)
 		       CPUID_VMWARE_FEATURES_ECX_VMCALL));
 }
 
-/*
- * While checking the dmi string information, just checking the product
- * serial key should be enough, as this will always have a VMware
- * specific string when running under VMware hypervisor.
- * If !boot_cpu_has(X86_FEATURE_HYPERVISOR), vmware_hypercall_mode
- * intentionally defaults to 0.
- */
 static uint32_t __init vmware_platform(void)
 {
 	if (boot_cpu_has(X86_FEATURE_HYPERVISOR)) {
@@ -471,7 +419,6 @@ static uint32_t __init vmware_platform(void)
 	return 0;
 }
 
-/* Checks if hypervisor supports x2apic without VT-D interrupt remapping. */
 static bool __init vmware_legacy_x2apic_available(void)
 {
 	uint32_t eax, ebx, ecx, edx;

@@ -1,17 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_ASM_X86_VM86_H
 #define _UAPI_ASM_X86_VM86_H
 
-/*
- * I'm guessing at the VIF/VIP flag usage, but hope that this is how
- * the Pentium uses them. Linux will return from vm86 mode when both
- * VIF and VIP is set.
- *
- * On a Pentium, we could probably optimize the virtual flags directly
- * in the eflags register instead of doing it "by hand" in vflags...
- *
- * Linus
- */
 
 #include <asm/processor-flags.h>
 
@@ -24,9 +13,6 @@
 #define CPU_486		4
 #define CPU_586		5
 
-/*
- * Return values for the 'vm86()' system call
- */
 #define VM86_TYPE(retval)	((retval) & 0xff)
 #define VM86_ARG(retval)	((retval) >> 8)
 
@@ -37,15 +23,9 @@
 #define VM86_STI	3	/* sti/popf/iret instruction enabled
 				   virtual interrupts */
 
-/*
- * Additional return values when invoking new vm86()
- */
 #define VM86_PICRETURN	4	/* return due to pending PIC request */
 #define VM86_TRAP	6	/* return due to DOS-debugger request */
 
-/*
- * function codes when invoking new vm86()
- */
 #define VM86_PLUS_INSTALL_CHECK	0
 #define VM86_ENTER		1
 #define VM86_ENTER_NO_BYPASS	2
@@ -54,16 +34,8 @@
 #define VM86_GET_IRQ_BITS	5
 #define VM86_GET_AND_RESET_IRQ	6
 
-/*
- * This is the stack-layout seen by the user space program when we have
- * done a translation of "SAVE_ALL" from vm86 mode. The real kernel layout
- * is 'kernel_vm86_regs' (see below).
- */
 
 struct vm86_regs {
-/*
- * normal regs, with special meaning for the segment descriptors..
- */
 	long ebx;
 	long ecx;
 	long edx;
@@ -81,9 +53,6 @@ struct vm86_regs {
 	long eflags;
 	long esp;
 	unsigned short ss, __ssh;
-/*
- * these are specific to v86 mode:
- */
 	unsigned short es, __esh;
 	unsigned short ds, __dsh;
 	unsigned short fs, __fsh;
@@ -103,9 +72,6 @@ struct vm86_struct {
 	struct revectored_struct int21_revectored;
 };
 
-/*
- * flags masks
- */
 #define VM86_SCREEN_BITMAP	0x0001        /* no longer supported */
 
 struct vm86plus_info_struct {

@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Glue Code for AVX assembler version of Twofish Cipher
- *
- * Copyright (C) 2012 Johannes Goetzfried
- *     <Johannes.Goetzfried@informatik.stud.uni-erlangen.de>
- *
- * Copyright © 2013 Jussi Kivilinna <jussi.kivilinna@iki.fi>
- */
 
 #include <linux/module.h>
 #include <linux/types.h>
@@ -21,7 +12,6 @@
 
 #define TWOFISH_PARALLEL_BLOCKS 8
 
-/* 8-way parallel cipher functions */
 asmlinkage void twofish_ecb_enc_8way(const void *ctx, u8 *dst, const u8 *src);
 asmlinkage void twofish_ecb_dec_8way(const void *ctx, u8 *dst, const u8 *src);
 

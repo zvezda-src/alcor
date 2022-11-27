@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_MSHYPER_H
 #define _ASM_X86_MSHYPER_H
 
@@ -74,7 +73,6 @@ static inline u64 hv_do_hypercall(u64 control, void *input, void *output)
 	return hv_status;
 }
 
-/* Fast hypercall with 8 bytes of input and no output */
 static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
 {
 	u64 hv_status, control = (u64)code | HV_HYPERCALL_FAST_BIT;
@@ -105,7 +103,6 @@ static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
 		return hv_status;
 }
 
-/* Fast hypercall with 16 bytes of input */
 static inline u64 hv_do_fast_hypercall16(u16 code, u64 input1, u64 input2)
 {
 	u64 hv_status, control = (u64)code | HV_HYPERCALL_FAST_BIT;

@@ -1,14 +1,10 @@
-#!/bin/bash
 
-# Helper for running things in a temporary directory; used for docs
-# building, unittests, etc.
 
 set -e
 
 tmpdir=$(mktemp -d -t gntbuild.XXXXXXXX)
 trap "rm -rf $tmpdir" EXIT
 
-# fully copy items
 cp -r autotools daemons scripts lib tools qa $tmpdir
 
 if [[ -z "$COPY_DOC" ]]; then

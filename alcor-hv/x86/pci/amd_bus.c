@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/topology.h>
@@ -25,12 +24,6 @@ struct amd_hostbridge {
 	u32 device;
 };
 
-/*
- * IMPORTANT NOTE:
- * hb_probes[] and early_root_info_init() is in maintenance mode.
- * It only supports K8, Fam10h, Fam11h, and Fam15h_00h-0fh .
- * Future processor will rely on information in ACPI.
- */
 static struct amd_hostbridge hb_probes[] __initdata = {
 	{ 0, 0x18, 0x1100 }, /* K8 */
 	{ 0, 0x18, 0x1200 }, /* Family10h */
@@ -51,12 +44,6 @@ static struct pci_root_info __init *find_pci_root_info(int node, int link)
 	return NULL;
 }
 
-/**
- * early_root_info_init()
- * called before pcibios_scan_root and pci_scan_bus
- * fills the mp_bus_to_cpumask array based according
- * to the LDT Bus Number Registers found in the northbridge.
- */
 static int __init early_root_info_init(void)
 {
 	int i;
@@ -107,10 +94,6 @@ static int __init early_root_info_init(void)
 		return 0;
 
 	/*
-	 * We should learn topology and routing information from _PXM and
-	 * _CRS methods in the ACPI namespace.  We extract node numbers
-	 * here to work around BIOSes that don't supply _PXM.
-	 */
 	for (i = 0; i < AMD_NB_F1_CONFIG_MAP_RANGES; i++) {
 		int min_bus;
 		int max_bus;
@@ -130,13 +113,6 @@ static int __init early_root_info_init(void)
 	}
 
 	/*
-	 * The following code extracts routing information for use on old
-	 * systems where Linux doesn't automatically use host bridge _CRS
-	 * methods (or when the user specifies "pci=nocrs").
-	 *
-	 * We only do this through Fam11h, because _CRS should be enough on
-	 * newer systems.
-	 */
 	if (boot_cpu_data.x86 > 0x11)
 		return 0;
 
@@ -237,9 +213,6 @@ static int __init early_root_info_init(void)
 		printk(KERN_DEBUG "node %d link %d: mmio [%llx, %llx]",
 		       node, link, start, end);
 		/*
-		 * some sick allocation would have range overlap with fam10h
-		 * mmconf range, so need to update start and end.
-		 */
 		if (fam10h_mmconf_end) {
 			int changed = 0;
 			u64 endx = 0;
@@ -297,9 +270,6 @@ static int __init early_root_info_init(void)
 	}
 
 	/*
-	 * add left over mmio range to def node/link ?
-	 * that is tricky, just record range in from start_min to 4G
-	 */
 	info = find_pci_root_info(def_node, def_link);
 	if (info) {
 		for (i = 0; i < RANGE_NUM; i++) {

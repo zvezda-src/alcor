@@ -1,35 +1,6 @@
-/*
- * Written by: Matthew Dobson, IBM Corporation
- *
- * Copyright (C) 2002, IBM Corp.
- *
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * Send feedback to <colpatch@us.ibm.com>
- */
 #ifndef _ASM_X86_TOPOLOGY_H
 #define _ASM_X86_TOPOLOGY_H
 
-/*
- * to preserve the visibility of NUMA_NO_NODE definition,
- * moved to there from here.  May be used independent of
- * CONFIG_NUMA.
- */
 #include <linux/numa.h>
 
 #ifdef CONFIG_NUMA
@@ -38,13 +9,9 @@
 #include <asm/mpspec.h>
 #include <asm/percpu.h>
 
-/* Mappings between logical cpu number and node number */
 DECLARE_EARLY_PER_CPU(int, x86_cpu_to_node_map);
 
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
-/*
- * override generic percpu implementation of cpu_to_node
- */
 extern int __cpu_to_node(int cpu);
 #define cpu_to_node __cpu_to_node
 
@@ -52,7 +19,6 @@ extern int early_cpu_to_node(int cpu);
 
 #else	/* !CONFIG_DEBUG_PER_CPU_MAPS */
 
-/* Same function but used if called before per_cpu areas are setup */
 static inline int early_cpu_to_node(int cpu)
 {
 	return early_per_cpu(x86_cpu_to_node_map, cpu);
@@ -60,13 +26,11 @@ static inline int early_cpu_to_node(int cpu)
 
 #endif /* !CONFIG_DEBUG_PER_CPU_MAPS */
 
-/* Mappings between node number and cpus on that node. */
 extern cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
 
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
 extern const struct cpumask *cpumask_of_node(int node);
 #else
-/* Returns a pointer to the cpumask of CPUs on Node 'node'. */
 static inline const struct cpumask *cpumask_of_node(int node)
 {
 	return node_to_cpumask_map[node];
@@ -86,9 +50,6 @@ static inline int numa_node_id(void)
 {
 	return 0;
 }
-/*
- * indicate override:
- */
 #define numa_node_id numa_node_id
 
 static inline int early_cpu_to_node(int cpu)
@@ -173,13 +134,10 @@ extern bool x86_topology_update;
 DECLARE_PER_CPU_READ_MOSTLY(int, sched_core_priority);
 extern unsigned int __read_mostly sysctl_sched_itmt_enabled;
 
-/* Interface to set priority of a cpu */
 void sched_set_itmt_core_prio(int prio, int core_cpu);
 
-/* Interface to notify scheduler that system supports ITMT */
 int sched_set_itmt_support(void);
 
-/* Interface to notify scheduler that system revokes ITMT support */
 void sched_clear_itmt_support(void);
 
 #else /* CONFIG_SCHED_MC_PRIO */

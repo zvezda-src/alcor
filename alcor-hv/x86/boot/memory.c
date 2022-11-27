@@ -1,15 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* -*- linux-c -*- ------------------------------------------------------- *
- *
- *   Copyright (C) 1991, 1992 Linus Torvalds
- *   Copyright 2007 rPath, Inc. - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author H. Peter Anvin
- *
- * ----------------------------------------------------------------------- */
 
-/*
- * Memory detection code
- */
 
 #include "boot.h"
 
@@ -29,18 +18,6 @@ static void detect_memory_e820(void)
 	ireg.di  = (size_t)&buf;
 
 	/*
-	 * Note: at least one BIOS is known which assumes that the
-	 * buffer pointed to by one e820 call is the same one as
-	 * the previous call, and only changes modified fields.  Therefore,
-	 * we use a temporary buffer and copy the results entry by entry.
-	 *
-	 * This routine deliberately does not try to account for
-	 * ACPI 3+ extended attributes.  This is because there are
-	 * BIOSes in the field which report zero for the valid bit for
-	 * all ranges, and we don't currently make any use of the
-	 * other attribute bits.  Revisit this if we see the extended
-	 * attribute bits deployed in a meaningful way in the future.
-	 */
 
 	do {
 		intcall(0x15, &ireg, &oreg);
@@ -92,12 +69,6 @@ static void detect_memory_e801(void)
 		boot_params.alt_mem_k = (oreg.bx << 6) + oreg.ax;
 	} else {
 		/*
-		 * This ignores memory above 16MB if we have a memory
-		 * hole there.  If someone actually finds a machine
-		 * with a memory hole at 16MB and no support for
-		 * 0E820h they should probably generate a fake e820
-		 * map.
-		 */
 		boot_params.alt_mem_k = oreg.ax;
 	}
 }

@@ -1,16 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- *	Precise Delay Loops for i386
- *
- *	Copyright (C) 1993 Linus Torvalds
- *	Copyright (C) 1997 Martin Mares <mj@atrey.karlin.mff.cuni.cz>
- *	Copyright (C) 2008 Jiri Hladky <hladky _dot_ jiri _at_ gmail _dot_ com>
- *
- *	The __delay function must _NOT_ be inlined as its execution time
- *	depends wildly on alignment on many x86 processors. The additional
- *	jump magic is needed to get the timing stable on all the CPU's
- *	we have to worry about.
- */
 
 #include <linux/export.h>
 #include <linux/sched.h>
@@ -29,14 +16,9 @@
 
 static void delay_loop(u64 __loops);
 
-/*
- * Calibration and selection of the delay mechanism happens only once
- * during boot.
- */
 static void (*delay_fn)(u64) __ro_after_init = delay_loop;
 static void (*delay_halt_fn)(u64 start, u64 cycles) __ro_after_init;
 
-/* simple loop based delay: */
 static void delay_loop(u64 __loops)
 {
 	unsigned long loops = (unsigned long)__loops;
@@ -59,7 +41,6 @@ static void delay_loop(u64 __loops)
 	);
 }
 
-/* TSC based delay: */
 static void delay_tsc(u64 cycles)
 {
 	u64 bclock, now;
@@ -79,14 +60,6 @@ static void delay_tsc(u64 cycles)
 		preempt_disable();
 
 		/*
-		 * It is possible that we moved to another CPU, and
-		 * since TSC's are per-cpu we need to calculate
-		 * that. The delay must guarantee that we wait "at
-		 * least" the amount of time. Being moved to another
-		 * CPU could make the wait longer but we just need to
-		 * make sure we waited long enough. Rebalance the
-		 * counter for this CPU.
-		 */
 		if (unlikely(cpu != smp_processor_id())) {
 			cycles -= (now - bclock);
 			cpu = smp_processor_id();
@@ -96,12 +69,6 @@ static void delay_tsc(u64 cycles)
 	preempt_enable();
 }
 
-/*
- * On Intel the TPAUSE instruction waits until any of:
- * 1) the TSC counter exceeds the value provided in EDX:EAX
- * 2) global timeout in IA32_UMWAIT_CONTROL is exceeded
- * 3) an external interrupt occurs
- */
 static void delay_halt_tpause(u64 start, u64 cycles)
 {
 	u64 until = start + cycles;
@@ -111,49 +78,26 @@ static void delay_halt_tpause(u64 start, u64 cycles)
 	edx = upper_32_bits(until);
 
 	/*
-	 * Hard code the deeper (C0.2) sleep state because exit latency is
-	 * small compared to the "microseconds" that usleep() will delay.
-	 */
 	__tpause(TPAUSE_C02_STATE, edx, eax);
 }
 
-/*
- * On some AMD platforms, MWAITX has a configurable 32-bit timer, that
- * counts with TSC frequency. The input value is the number of TSC cycles
- * to wait. MWAITX will also exit when the timer expires.
- */
 static void delay_halt_mwaitx(u64 unused, u64 cycles)
 {
 	u64 delay;
 
 	delay = min_t(u64, MWAITX_MAX_WAIT_CYCLES, cycles);
 	/*
-	 * Use cpu_tss_rw as a cacheline-aligned, seldomly accessed per-cpu
-	 * variable as the monitor target.
-	 */
 	 __monitorx(raw_cpu_ptr(&cpu_tss_rw), 0, 0);
 
 	/*
-	 * AMD, like Intel, supports the EAX hint and EAX=0xf means, do not
-	 * enter any deep C-state and we use it here in delay() to minimize
-	 * wakeup latency.
-	 */
 	__mwaitx(MWAITX_DISABLE_CSTATES, delay, MWAITX_ECX_TIMER_ENABLE);
 }
 
-/*
- * Call a vendor specific function to delay for a given amount of time. Because
- * these functions may return earlier than requested, check for actual elapsed
- * time and call again until done.
- */
 static void delay_halt(u64 __cycles)
 {
 	u64 start, end, cycles = __cycles;
 
 	/*
-	 * Timer value of 0 causes MWAITX to wait indefinitely, unless there
-	 * is a store on the memory monitored by MONITORX.
-	 */
 	if (!cycles)
 		return;
 

@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Simple stack backtrace regression test module
- *
- * (C) Copyright 2008 Intel Corporation
- * Author: Arjan van de Ven <arjan@linux.intel.com>
- */
 
 #include <linux/completion.h>
 #include <linux/delay.h>

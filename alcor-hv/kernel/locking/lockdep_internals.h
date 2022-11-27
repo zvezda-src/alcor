@@ -1,15 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- * kernel/lockdep_internals.h
- *
- * Runtime locking correctness validator
- *
- * lockdep subsystem internal functions and variables.
- */
 
-/*
- * Lock-class usage-state bits:
- */
 enum lock_usage_bit {
 #define LOCKDEP_STATE(__STATE)		\
 	LOCK_USED_IN_##__STATE,		\
@@ -23,16 +12,12 @@ enum lock_usage_bit {
 	LOCK_USAGE_STATES,
 };
 
-/* states after LOCK_USED_READ are not traced and printed */
 static_assert(LOCK_TRACE_STATES == LOCK_USAGE_STATES);
 
 #define LOCK_USAGE_READ_MASK 1
 #define LOCK_USAGE_DIR_MASK  2
 #define LOCK_USAGE_STATE_MASK (~(LOCK_USAGE_READ_MASK | LOCK_USAGE_DIR_MASK))
 
-/*
- * Usage-state bitmasks:
- */
 #define __LOCKF(__STATE)	LOCKF_##__STATE = (1 << LOCK_##__STATE),
 
 enum {
@@ -77,23 +62,7 @@ static const unsigned long LOCKF_USED_IN_IRQ_READ =
 #define LOCKF_IRQ (LOCKF_ENABLED_IRQ | LOCKF_USED_IN_IRQ)
 #define LOCKF_IRQ_READ (LOCKF_ENABLED_IRQ_READ | LOCKF_USED_IN_IRQ_READ)
 
-/*
- * CONFIG_LOCKDEP_SMALL is defined for sparc. Sparc requires .text,
- * .data and .bss to fit in required 32MB limit for the kernel. With
- * CONFIG_LOCKDEP we could go over this limit and cause system boot-up problems.
- * So, reduce the static allocations for lockdeps related structures so that
- * everything fits in current required size limit.
- */
 #ifdef CONFIG_LOCKDEP_SMALL
-/*
- * MAX_LOCKDEP_ENTRIES is the maximum number of lock dependencies
- * we track.
- *
- * We use the per-lock dependency maps in two ways: we grow it by adding
- * every to-be-taken lock to all currently held lock's own dependency
- * table (if it's not there yet), and we check it for lock order
- * conflicts and deadlocks.
- */
 #define MAX_LOCKDEP_ENTRIES	16384UL
 #define MAX_LOCKDEP_CHAINS_BITS	15
 #define MAX_STACK_TRACE_ENTRIES	262144UL
@@ -103,17 +72,10 @@ static const unsigned long LOCKF_USED_IN_IRQ_READ =
 
 #define MAX_LOCKDEP_CHAINS_BITS	CONFIG_LOCKDEP_CHAINS_BITS
 
-/*
- * Stack-trace: tightly packed array of stack backtrace
- * addresses. Protected by the hash_lock.
- */
 #define MAX_STACK_TRACE_ENTRIES	(1UL << CONFIG_LOCKDEP_STACK_TRACE_BITS)
 #define STACK_TRACE_HASH_SIZE	(1 << CONFIG_LOCKDEP_STACK_TRACE_HASH_BITS)
 #endif
 
-/*
- * Bit definitions for lock_chain.irq_context
- */
 #define LOCK_CHAIN_SOFTIRQ_CONTEXT	(1 << 0)
 #define LOCK_CHAIN_HARDIRQ_CONTEXT	(1 << 1)
 
@@ -178,11 +140,6 @@ lockdep_count_backward_deps(struct lock_class *class)
 #ifdef CONFIG_DEBUG_LOCKDEP
 
 #include <asm/local.h>
-/*
- * Various lockdep statistics.
- * We want them per cpu as they are often accessed in fast path
- * and we want to avoid too much cache bouncing.
- */
 struct lockdep_stats {
 	unsigned long  chain_lookup_hits;
 	unsigned int   chain_lookup_misses;
@@ -202,8 +159,6 @@ struct lockdep_stats {
 	unsigned int   nr_find_usage_backwards_checks;
 
 	/*
-	 * Per lock class locking operation stat counts
-	 */
 	unsigned long lock_class_ops[MAX_LOCKDEP_KEYS];
 };
 

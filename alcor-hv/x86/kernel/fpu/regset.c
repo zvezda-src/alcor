@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * FPU register's regset abstraction, for ptrace, core dumps, etc.
- */
 #include <linux/sched/task_stack.h>
 #include <linux/vmalloc.h>
 
@@ -14,11 +10,6 @@
 #include "legacy.h"
 #include "xstate.h"
 
-/*
- * The xstateregs_active() routine is the same as the regset_fpregs_active() routine,
- * as the "regset->n" for the xstate regset will be updated based on the feature
- * capabilities supported by the xsave.
- */
 int regset_fpregs_active(struct task_struct *target, const struct user_regset *regset)
 {
 	return regset->n;
@@ -32,36 +23,15 @@ int regset_xregset_fpregs_active(struct task_struct *target, const struct user_r
 		return 0;
 }
 
-/*
- * The regset get() functions are invoked from:
- *
- *   - coredump to dump the current task's fpstate. If the current task
- *     owns the FPU then the memory state has to be synchronized and the
- *     FPU register state preserved. Otherwise fpstate is already in sync.
- *
- *   - ptrace to dump fpstate of a stopped task, in which case the registers
- *     have already been saved to fpstate on context switch.
- */
 static void sync_fpstate(struct fpu *fpu)
 {
 	if (fpu == &current->thread.fpu)
 		fpu_sync_fpstate(fpu);
 }
 
-/*
- * Invalidate cached FPU registers before modifying the stopped target
- * task's fpstate.
- *
- * This forces the target task on resume to restore the FPU registers from
- * modified fpstate. Otherwise the task might skip the restore and operate
- * with the cached FPU registers which discards the modifications.
- */
 static void fpu_force_restore(struct fpu *fpu)
 {
 	/*
-	 * Only stopped child tasks can be used to modify the FPU
-	 * state in the fpstate buffer:
-	 */
 	WARN_ON_FPU(fpu == &current->thread.fpu);
 
 	__fpu_invalidate_fpregs_state(fpu);
@@ -150,8 +120,6 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 		return -ENODEV;
 
 	/*
-	 * A whole standard-format XSAVE buffer is needed:
-	 */
 	if (pos != 0 || count != fpu_user_cfg.max_size)
 		return -EFAULT;
 
@@ -176,9 +144,6 @@ out:
 
 #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
 
-/*
- * FPU tag word conversions.
- */
 
 static inline unsigned short twd_i387_to_fxsr(unsigned short twd)
 {
@@ -242,9 +207,6 @@ static inline u32 twd_fxsr_to_i387(struct fxregs_state *fxsave)
 	return ret;
 }
 
-/*
- * FXSR floating point environment conversions.
- */
 
 static void __convert_from_fxsr(struct user_i387_ia32_struct *env,
 				struct task_struct *tsk,
@@ -262,9 +224,6 @@ static void __convert_from_fxsr(struct user_i387_ia32_struct *env,
 	env->fip = fxsave->rip;
 	env->foo = fxsave->rdp;
 	/*
-	 * should be actually ds/cs at fpu exception time, but
-	 * that information is not available in 64bit mode.
-	 */
 	env->fcs = task_pt_regs(tsk)->cs;
 	if (tsk == current) {
 		savesegment(ds, env->fos);
@@ -374,9 +333,6 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 		memcpy(&fpu->fpstate->regs.fsave, &env, sizeof(env));
 
 	/*
-	 * Update the header bit in the xsave header, indicating the
-	 * presence of FP.
-	 */
 	if (cpu_feature_enabled(X86_FEATURE_XSAVE))
 		fpu->fpstate->regs.xsave.header.xfeatures |= XFEATURE_MASK_FP;
 

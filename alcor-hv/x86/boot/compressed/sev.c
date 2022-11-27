@@ -1,15 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * AMD Encrypted Register State Support
- *
- * Author: Joerg Roedel <jroedel@suse.de>
- */
 
-/*
- * misc.h needs to be first because it knows how to include the other kernel
- * headers in the pre-decompression code in a way that does not break
- * compilation.
- */
 #include "misc.h"
 
 #include <asm/pgtable_types.h>
@@ -28,10 +17,6 @@
 struct ghcb boot_ghcb_page __aligned(PAGE_SIZE);
 struct ghcb *boot_ghcb;
 
-/*
- * Copy a version of this function here - insn-eval.c can't be used in
- * pre-decompression code.
- */
 static bool insn_has_rep_prefix(struct insn *insn)
 {
 	insn_byte_t p;
@@ -47,10 +32,6 @@ static bool insn_has_rep_prefix(struct insn *insn)
 	return false;
 }
 
-/*
- * Only a dummy for insn_get_seg_base() - Early boot-code is 64bit only and
- * doesn't use segments.
- */
 static unsigned long insn_get_seg_base(struct pt_regs *regs, int seg_reg_idx)
 {
 	return 0UL;
@@ -110,11 +91,9 @@ static enum es_result vc_read_mem(struct es_em_ctxt *ctxt,
 
 #define __BOOT_COMPRESSED
 
-/* Basic instruction decoding support needed */
 #include "../../lib/inat.c"
 #include "../../lib/insn.c"
 
-/* Include code for early handlers */
 #include "../../kernel/sev-shared.c"
 
 static inline bool sev_snp_enabled(void)
@@ -130,9 +109,6 @@ static void __page_state_change(unsigned long paddr, enum psc_op op)
 		return;
 
 	/*
-	 * If private -> shared then invalidate the page before requesting the
-	 * state change in the RMP table.
-	 */
 	if (op == SNP_PAGE_STATE_SHARED && pvalidate(paddr, RMP_PG_SIZE_4K, 0))
 		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_PVALIDATE);
 
@@ -146,9 +122,6 @@ static void __page_state_change(unsigned long paddr, enum psc_op op)
 		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_PSC);
 
 	/*
-	 * Now that page state is changed in the RMP table, validate it so that it is
-	 * consistent with the RMP entry.
-	 */
 	if (op == SNP_PAGE_STATE_PRIVATE && pvalidate(paddr, RMP_PG_SIZE_4K, 1))
 		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_PVALIDATE);
 }
@@ -192,18 +165,10 @@ void sev_es_shutdown_ghcb(void)
 		error("SEV-ES CPU Features missing.");
 
 	/*
-	 * GHCB Page must be flushed from the cache and mapped encrypted again.
-	 * Otherwise the running kernel will see strange cache effects when
-	 * trying to use that page.
-	 */
 	if (set_page_encrypted((unsigned long)&boot_ghcb_page))
 		error("Can't map GHCB page encrypted");
 
 	/*
-	 * GHCB page is mapped encrypted again and flushed from the cache.
-	 * Mark it non-present now to catch bugs when #VC exceptions trigger
-	 * after this point.
-	 */
 	if (set_page_non_present((unsigned long)&boot_ghcb_page))
 		error("Can't unmap GHCB page");
 }
@@ -256,15 +221,6 @@ static void enforce_vmpl0(void)
 	int err;
 
 	/*
-	 * RMPADJUST modifies RMP permissions of a lesser-privileged (numerically
-	 * higher) privilege level. Here, clear the VMPL1 permission mask of the
-	 * GHCB page. If the guest is not running at VMPL0, this will fail.
-	 *
-	 * If the guest is running at VMPL0, it will succeed. Even if that operation
-	 * modifies permission bits, it is still ok to do so currently because Linux
-	 * SNP guests are supported only on VMPL0 so VMPL1 or higher permission masks
-	 * changing is a don't-care.
-	 */
 	attrs = 1;
 	if (rmpadjust((unsigned long)&boot_ghcb_page, RMP_PG_SIZE_4K, attrs))
 		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_NOT_VMPL0);
@@ -277,9 +233,6 @@ void sev_enable(struct boot_params *bp)
 	bool snp;
 
 	/*
-	 * Setup/preliminary detection of SNP. This will be sanity-checked
-	 * against CPUID/MSR values later.
-	 */
 	snp = snp_init(bp);
 
 	/* Check for the SME/SEV support leaf */
@@ -290,13 +243,6 @@ void sev_enable(struct boot_params *bp)
 		return;
 
 	/*
-	 * Check for the SME/SEV feature:
-	 *   CPUID Fn8000_001F[EAX]
-	 *   - Bit 0 - Secure Memory Encryption support
-	 *   - Bit 1 - Secure Encrypted Virtualization support
-	 *   CPUID Fn8000_001F[EBX]
-	 *   - Bits 5:0 - Pagetable bit position used to indicate encryption
-	 */
 	eax = 0x8000001f;
 	ecx = 0;
 	native_cpuid(&eax, &ebx, &ecx, &edx);
@@ -320,9 +266,6 @@ void sev_enable(struct boot_params *bp)
 	}
 
 	/*
-	 * SNP is supported in v2 of the GHCB spec which mandates support for HV
-	 * features.
-	 */
 	if (sev_status & MSR_AMD64_SEV_SNP_ENABLED) {
 		if (!(get_hv_features() & GHCB_HV_FT_SNP))
 			sev_es_terminate(SEV_TERM_SET_GEN, GHCB_SNP_UNSUPPORTED);
@@ -336,7 +279,6 @@ void sev_enable(struct boot_params *bp)
 	sme_me_mask = BIT_ULL(ebx & 0x3f);
 }
 
-/* Search for Confidential Computing blob in the EFI config table. */
 static struct cc_blob_sev_info *find_cc_blob_efi(struct boot_params *bp)
 {
 	unsigned long cfg_table_pa;
@@ -352,16 +294,6 @@ static struct cc_blob_sev_info *find_cc_blob_efi(struct boot_params *bp)
 								EFI_CC_BLOB_GUID);
 }
 
-/*
- * Initial set up of SNP relies on information provided by the
- * Confidential Computing blob, which can be passed to the boot kernel
- * by firmware/bootloader in the following ways:
- *
- * - via an entry in the EFI config table
- * - via a setup_data structure, as defined by the Linux Boot Protocol
- *
- * Scan for the blob in that order.
- */
 static struct cc_blob_sev_info *find_cc_blob(struct boot_params *bp)
 {
 	struct cc_blob_sev_info *cc_info;
@@ -381,10 +313,6 @@ found_cc_info:
 	return cc_info;
 }
 
-/*
- * Indicate SNP based on presence of SNP-specific CC blob. Subsequent checks
- * will verify the SNP CPUID/MSR bits.
- */
 bool snp_init(struct boot_params *bp)
 {
 	struct cc_blob_sev_info *cc_info;
@@ -397,19 +325,9 @@ bool snp_init(struct boot_params *bp)
 		return false;
 
 	/*
-	 * If a SNP-specific Confidential Computing blob is present, then
-	 * firmware/bootloader have indicated SNP support. Verifying this
-	 * involves CPUID checks which will be more reliable if the SNP
-	 * CPUID table is used. See comments over snp_setup_cpuid_table() for
-	 * more details.
-	 */
 	setup_cpuid_table(cc_info);
 
 	/*
-	 * Pass run-time kernel a pointer to CC info via boot_params so EFI
-	 * config table doesn't need to be searched again during early startup
-	 * phase.
-	 */
 	bp->cc_blob_address = (u32)(unsigned long)cc_info;
 
 	return true;
@@ -418,11 +336,6 @@ bool snp_init(struct boot_params *bp)
 void sev_prep_identity_maps(unsigned long top_level_pgt)
 {
 	/*
-	 * The Confidential Computing blob is used very early in uncompressed
-	 * kernel to find the in-memory CPUID table to handle CPUID
-	 * instructions. Make sure an identity-mapping exists so it can be
-	 * accessed after switchover.
-	 */
 	if (sev_snp_enabled()) {
 		unsigned long cc_info_pa = boot_params->cc_blob_address;
 		struct cc_blob_sev_info *cc_info;

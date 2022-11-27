@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
@@ -121,9 +120,6 @@ static void init_centaur(struct cpuinfo_x86 *c)
 	u32  aa, bb, cc, dd;
 
 	/*
-	 * Bit 31 in normal CPUID used for nonstandard 3DNow ID;
-	 * 3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
-	 */
 	clear_cpu_cap(c, 0*32+31);
 #endif
 	early_init_centaur(c);
@@ -137,10 +133,6 @@ static void init_centaur(struct cpuinfo_x86 *c)
 		unsigned int eax = cpuid_eax(10);
 
 		/*
-		 * Check for version and the number of counters
-		 * Version(eax[7:0]) can't be 0;
-		 * Counters(eax[15:8]) should be greater than 1;
-		 */
 		if ((eax & 0xff) && (((eax >> 8) & 0xff) > 1))
 			set_cpu_cap(c, X86_FEATURE_ARCH_PERFMON);
 	}
@@ -226,10 +218,6 @@ centaur_size_cache(struct cpuinfo_x86 *c, unsigned int size)
 		size >>= 8;
 
 	/*
-	 * There's also an erratum in Nehemiah stepping 1, which
-	 * returns '65KB' instead of '64KB'
-	 *  - Note, it seems this may only be in engineering samples.
-	 */
 	if ((c->x86 == 6) && (c->x86_model == 9) &&
 				(c->x86_stepping == 1) && (size == 65))
 		size -= 1;

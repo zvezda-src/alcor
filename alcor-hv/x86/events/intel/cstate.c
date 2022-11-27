@@ -1,103 +1,4 @@
-/*
- * Support cstate residency counters
- *
- * Copyright (C) 2015, Intel Corp.
- * Author: Kan Liang (kan.liang@intel.com)
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Library General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Library General Public License for more details.
- *
- */
 
-/*
- * This file export cstate related free running (read-only) counters
- * for perf. These counters may be use simultaneously by other tools,
- * such as turbostat. However, it still make sense to implement them
- * in perf. Because we can conveniently collect them together with
- * other events, and allow to use them from tools without special MSR
- * access code.
- *
- * The events only support system-wide mode counting. There is no
- * sampling support because it is not supported by the hardware.
- *
- * According to counters' scope and category, two PMUs are registered
- * with the perf_event core subsystem.
- *  - 'cstate_core': The counter is available for each physical core.
- *    The counters include CORE_C*_RESIDENCY.
- *  - 'cstate_pkg': The counter is available for each physical package.
- *    The counters include PKG_C*_RESIDENCY.
- *
- * All of these counters are specified in the Intel® 64 and IA-32
- * Architectures Software Developer.s Manual Vol3b.
- *
- * Model specific counters:
- *	MSR_CORE_C1_RES: CORE C1 Residency Counter
- *			 perf code: 0x00
- *			 Available model: SLM,AMT,GLM,CNL,ICX,TNT,ADL,RPL
- *			 Scope: Core (each processor core has a MSR)
- *	MSR_CORE_C3_RESIDENCY: CORE C3 Residency Counter
- *			       perf code: 0x01
- *			       Available model: NHM,WSM,SNB,IVB,HSW,BDW,SKL,GLM,
- *						CNL,KBL,CML,TNT
- *			       Scope: Core
- *	MSR_CORE_C6_RESIDENCY: CORE C6 Residency Counter
- *			       perf code: 0x02
- *			       Available model: SLM,AMT,NHM,WSM,SNB,IVB,HSW,BDW,
- *						SKL,KNL,GLM,CNL,KBL,CML,ICL,ICX,
- *						TGL,TNT,RKL,ADL,RPL,SPR
- *			       Scope: Core
- *	MSR_CORE_C7_RESIDENCY: CORE C7 Residency Counter
- *			       perf code: 0x03
- *			       Available model: SNB,IVB,HSW,BDW,SKL,CNL,KBL,CML,
- *						ICL,TGL,RKL,ADL,RPL
- *			       Scope: Core
- *	MSR_PKG_C2_RESIDENCY:  Package C2 Residency Counter.
- *			       perf code: 0x00
- *			       Available model: SNB,IVB,HSW,BDW,SKL,KNL,GLM,CNL,
- *						KBL,CML,ICL,ICX,TGL,TNT,RKL,ADL,
- *						RPL,SPR
- *			       Scope: Package (physical package)
- *	MSR_PKG_C3_RESIDENCY:  Package C3 Residency Counter.
- *			       perf code: 0x01
- *			       Available model: NHM,WSM,SNB,IVB,HSW,BDW,SKL,KNL,
- *						GLM,CNL,KBL,CML,ICL,TGL,TNT,RKL,
- *						ADL,RPL
- *			       Scope: Package (physical package)
- *	MSR_PKG_C6_RESIDENCY:  Package C6 Residency Counter.
- *			       perf code: 0x02
- *			       Available model: SLM,AMT,NHM,WSM,SNB,IVB,HSW,BDW,
- *						SKL,KNL,GLM,CNL,KBL,CML,ICL,ICX,
- *						TGL,TNT,RKL,ADL,RPL,SPR
- *			       Scope: Package (physical package)
- *	MSR_PKG_C7_RESIDENCY:  Package C7 Residency Counter.
- *			       perf code: 0x03
- *			       Available model: NHM,WSM,SNB,IVB,HSW,BDW,SKL,CNL,
- *						KBL,CML,ICL,TGL,RKL,ADL,RPL
- *			       Scope: Package (physical package)
- *	MSR_PKG_C8_RESIDENCY:  Package C8 Residency Counter.
- *			       perf code: 0x04
- *			       Available model: HSW ULT,KBL,CNL,CML,ICL,TGL,RKL,
- *						ADL,RPL
- *			       Scope: Package (physical package)
- *	MSR_PKG_C9_RESIDENCY:  Package C9 Residency Counter.
- *			       perf code: 0x05
- *			       Available model: HSW ULT,KBL,CNL,CML,ICL,TGL,RKL,
- *						ADL,RPL
- *			       Scope: Package (physical package)
- *	MSR_PKG_C10_RESIDENCY: Package C10 Residency Counter.
- *			       perf code: 0x06
- *			       Available model: HSW ULT,KBL,GLM,CNL,CML,ICL,TGL,
- *						TNT,RKL,ADL,RPL
- *			       Scope: Package (physical package)
- *
- */
 
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -125,14 +26,12 @@ static ssize_t cstate_get_attr_cpumask(struct device *dev,
 				       struct device_attribute *attr,
 				       char *buf);
 
-/* Model -> events mapping */
 struct cstate_model {
 	unsigned long		core_events;
 	unsigned long		pkg_events;
 	unsigned long		quirks;
 };
 
-/* Quirk flags */
 #define SLM_PKG_C6_USE_C7_MSR	(1UL << 0)
 #define KNL_CORE_C6_MSR		(1UL << 1)
 
@@ -142,7 +41,6 @@ struct perf_cstate_msr {
 };
 
 
-/* cstate_core PMU */
 static struct pmu cstate_core_pmu;
 static bool has_cstate_core;
 
@@ -183,11 +81,6 @@ static struct attribute *attrs_empty[] = {
 	NULL,
 };
 
-/*
- * There are no default events, but we need to create
- * "events" group (with empty attrs) before updating
- * it with detected events.
- */
 static struct attribute_group core_events_attr_group = {
 	.name = "events",
 	.attrs = attrs_empty,
@@ -223,7 +116,6 @@ static const struct attribute_group *core_attr_groups[] = {
 	NULL,
 };
 
-/* cstate_pkg PMU */
 static struct pmu cstate_pkg_pmu;
 static bool has_cstate_pkg;
 
@@ -398,10 +290,6 @@ static int cstate_pmu_event_add(struct perf_event *event, int mode)
 	return 0;
 }
 
-/*
- * Check if exiting cpu is the designated reader. If so migrate the
- * events when there is a valid target available
- */
 static int cstate_cpu_exit(unsigned int cpu)
 {
 	unsigned int target;
@@ -435,9 +323,6 @@ static int cstate_cpu_init(unsigned int cpu)
 	unsigned int target;
 
 	/*
-	 * If this is the first online thread of that core, set it in
-	 * the core cpu mask as the designated reader.
-	 */
 	target = cpumask_any_and(&cstate_core_cpu_mask,
 				 topology_sibling_cpumask(cpu));
 
@@ -445,9 +330,6 @@ static int cstate_cpu_init(unsigned int cpu)
 		cpumask_set_cpu(cpu, &cstate_core_cpu_mask);
 
 	/*
-	 * If this is the first online thread of that package, set it
-	 * in the package cpu mask as the designated reader.
-	 */
 	target = cpumask_any_and(&cstate_pkg_cpu_mask,
 				 topology_die_cpumask(cpu));
 	if (has_cstate_pkg && target >= nr_cpu_ids)

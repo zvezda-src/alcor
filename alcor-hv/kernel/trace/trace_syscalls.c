@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <trace/syscall.h>
 #include <trace/events/syscalls.h>
 #include <linux/syscalls.h>
@@ -38,31 +37,11 @@ static struct syscall_metadata **syscalls_metadata;
 static inline bool arch_syscall_match_sym_name(const char *sym, const char *name)
 {
 	/*
-	 * Only compare after the "sys" prefix. Archs that use
-	 * syscall wrappers may have syscalls symbols aliases prefixed
-	 * with ".SyS" or ".sys" instead of "sys", leading to an unwanted
-	 * mismatch.
-	 */
 	return !strcmp(sym + 3, name + 3);
 }
 #endif
 
 #ifdef ARCH_TRACE_IGNORE_COMPAT_SYSCALLS
-/*
- * Some architectures that allow for 32bit applications
- * to run on a 64bit kernel, do not map the syscalls for
- * the 32bit tasks the same as they do for 64bit tasks.
- *
- *     *cough*x86*cough*
- *
- * In such a case, instead of reporting the wrong syscalls,
- * simply ignore them.
- *
- * For an arch to ignore the compat syscalls it needs to
- * define ARCH_TRACE_IGNORE_COMPAT_SYSCALLS as well as
- * define the function arch_trace_is_compat_syscall() to let
- * the tracing system know that it should ignore it.
- */
 static int
 trace_get_syscall_nr(struct task_struct *task, struct pt_regs *regs)
 {
@@ -563,7 +542,6 @@ static int perf_call_bpf_enter(struct trace_event_call *call, struct pt_regs *re
 	} param;
 	int i;
 
-	*(struct pt_regs **)&param = regs;
 	param.syscall_nr = rec->nr;
 	for (i = 0; i < sys_data->nb_args; i++)
 		param.args[i] = rec->args[i];
@@ -664,7 +642,6 @@ static int perf_call_bpf_exit(struct trace_event_call *call, struct pt_regs *reg
 		unsigned long ret;
 	} param;
 
-	*(struct pt_regs **)&param = regs;
 	param.syscall_nr = rec->nr;
 	param.ret = rec->ret;
 	return trace_call_bpf(call, &param);

@@ -1,10 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
-/* audit -- definition of audit_context structure and supporting types
- *
- * Copyright 2003-2004 Red Hat, Inc.
- * Copyright 2005 Hewlett-Packard Development Company, L.P.
- * Copyright 2005 IBM Corporation
- */
 
 #ifndef _KERNEL_AUDIT_H_
 #define _KERNEL_AUDIT_H_
@@ -16,12 +9,8 @@
 #include <linux/tty.h>
 #include <uapi/linux/openat2.h> // struct open_how
 
-/* AUDIT_NAMES is the number of slots we reserve in the audit_context
- * for saving names from getname().  If we get more names we will allocate
- * a name dynamically and also add those to the list anchored by names_list. */
 #define AUDIT_NAMES	5
 
-/* At task start time, the audit_state is set in the audit_context using
    a per-task filter.  At syscall entry, the audit_state is augmented by
    the syscall filter. */
 enum audit_state {
@@ -40,7 +29,6 @@ enum audit_state {
 				 * record at syscall exit time.  */
 };
 
-/* Rule lists */
 struct audit_watch;
 struct audit_fsnotify_mark;
 struct audit_tree;
@@ -63,11 +51,6 @@ struct audit_cap_data {
 	kuid_t			rootid;
 };
 
-/* When fs/namei.c:getname() is called, we store the pointer in name and bump
- * the refcnt in the associated filename struct.
- *
- * Further, in fs/namei.c:path_lookup() we store the inode and device.
- */
 struct audit_names {
 	struct list_head	list;		/* audit_context->names_list */
 
@@ -86,10 +69,6 @@ struct audit_names {
 	unsigned int		fcap_ver;
 	unsigned char		type;		/* record type */
 	/*
-	 * This was an allocated audit_names and not from the array of
-	 * names allocated in the task audit context.  Thus this name
-	 * should be freed on syscall exit.
-	 */
 	bool			should_free;
 };
 
@@ -98,7 +77,6 @@ struct audit_proctitle {
 	char	*value;	/* the cmdline field */
 };
 
-/* The per-task audit context. */
 struct audit_context {
 	int		    dummy;	/* must be the first element */
 	enum {
@@ -116,13 +94,6 @@ struct audit_context {
 	u64		    prio;
 	int		    return_valid; /* return code is valid */
 	/*
-	 * The names_list is the list of all audit_names collected during this
-	 * syscall.  The first AUDIT_NAMES entries in the names_list will
-	 * actually be from the preallocated_names array for performance
-	 * reasons.  Except during allocation they should never be referenced
-	 * through the preallocated_names array and should only be found/used
-	 * by running the names_list.
-	 */
 	struct audit_names  preallocated_names[AUDIT_NAMES];
 	int		    name_count; /* total records in names_list */
 	struct list_head    names_list;	/* struct audit_names->list anchor */
@@ -224,7 +195,6 @@ static inline int audit_hash_ino(u32 ino)
 	return (ino & (AUDIT_INODE_BUCKETS-1));
 }
 
-/* Indicates that audit should log the full pathname. */
 #define AUDIT_NAME_FULL -1
 
 extern int audit_match_class(int class, unsigned syscall);
@@ -260,7 +230,6 @@ extern void audit_log_d_path_exe(struct audit_buffer *ab,
 extern struct tty_struct *audit_get_tty(void);
 extern void audit_put_tty(struct tty_struct *tty);
 
-/* audit watch/mark/tree functions */
 #ifdef CONFIG_AUDITSYSCALL
 extern unsigned int audit_serial(void);
 extern int auditsc_get_stamp(struct audit_context *ctx,

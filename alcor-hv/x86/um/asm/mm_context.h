@@ -1,9 +1,3 @@
-/*
- * Copyright (C) 2004 Fujitsu Siemens Computers GmbH
- * Licensed under the GPL
- *
- * Author: Bodo Stroesser <bstroesser@fujitsu-siemens.com>
- */
 
 #ifndef __ASM_LDT_H
 #define __ASM_LDT_H

@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
@@ -7,9 +6,6 @@
 
 #include "internals.h"
 
-/*
- * Device resource management aware IRQ request/free implementation.
- */
 struct irq_devres {
 	unsigned int irq;
 	void *dev_id;
@@ -29,25 +25,6 @@ static int devm_irq_match(struct device *dev, void *res, void *data)
 	return this->irq == match->irq && this->dev_id == match->dev_id;
 }
 
-/**
- *	devm_request_threaded_irq - allocate an interrupt line for a managed device
- *	@dev: device to request interrupt for
- *	@irq: Interrupt line to allocate
- *	@handler: Function to be called when the IRQ occurs
- *	@thread_fn: function to be called in a threaded interrupt context. NULL
- *		    for devices which handle everything in @handler
- *	@irqflags: Interrupt type flags
- *	@devname: An ascii name for the claiming device, dev_name(dev) if NULL
- *	@dev_id: A cookie passed back to the handler function
- *
- *	Except for the extra @dev argument, this function takes the
- *	same arguments and performs the same function as
- *	request_threaded_irq().  IRQs requested with this function will be
- *	automatically freed on driver detach.
- *
- *	If an IRQ allocated with this function needs to be freed
- *	separately, devm_free_irq() must be used.
- */
 int devm_request_threaded_irq(struct device *dev, unsigned int irq,
 			      irq_handler_t handler, irq_handler_t thread_fn,
 			      unsigned long irqflags, const char *devname,
@@ -79,23 +56,6 @@ int devm_request_threaded_irq(struct device *dev, unsigned int irq,
 }
 EXPORT_SYMBOL(devm_request_threaded_irq);
 
-/**
- *	devm_request_any_context_irq - allocate an interrupt line for a managed device
- *	@dev: device to request interrupt for
- *	@irq: Interrupt line to allocate
- *	@handler: Function to be called when the IRQ occurs
- *	@irqflags: Interrupt type flags
- *	@devname: An ascii name for the claiming device, dev_name(dev) if NULL
- *	@dev_id: A cookie passed back to the handler function
- *
- *	Except for the extra @dev argument, this function takes the
- *	same arguments and performs the same function as
- *	request_any_context_irq().  IRQs requested with this function will be
- *	automatically freed on driver detach.
- *
- *	If an IRQ allocated with this function needs to be freed
- *	separately, devm_free_irq() must be used.
- */
 int devm_request_any_context_irq(struct device *dev, unsigned int irq,
 			      irq_handler_t handler, unsigned long irqflags,
 			      const char *devname, void *dev_id)
@@ -125,17 +85,6 @@ int devm_request_any_context_irq(struct device *dev, unsigned int irq,
 }
 EXPORT_SYMBOL(devm_request_any_context_irq);
 
-/**
- *	devm_free_irq - free an interrupt
- *	@dev: device to free interrupt for
- *	@irq: Interrupt line to free
- *	@dev_id: Device identity to free
- *
- *	Except for the extra @dev argument, this function takes the
- *	same arguments and performs the same function as free_irq().
- *	This function instead of free_irq() should be used to manually
- *	free IRQs allocated with devm_request_irq().
- */
 void devm_free_irq(struct device *dev, unsigned int irq, void *dev_id)
 {
 	struct irq_devres match_data = { irq, dev_id };
@@ -158,23 +107,6 @@ static void devm_irq_desc_release(struct device *dev, void *res)
 	irq_free_descs(this->from, this->cnt);
 }
 
-/**
- * __devm_irq_alloc_descs - Allocate and initialize a range of irq descriptors
- *			    for a managed device
- * @dev:	Device to allocate the descriptors for
- * @irq:	Allocate for specific irq number if irq >= 0
- * @from:	Start the search from this irq number
- * @cnt:	Number of consecutive irqs to allocate
- * @node:	Preferred node on which the irq descriptor should be allocated
- * @owner:	Owning module (can be NULL)
- * @affinity:	Optional pointer to an irq_affinity_desc array of size @cnt
- *		which hints where the irq descriptors should be allocated
- *		and which default affinities to use
- *
- * Returns the first irq number or error code.
- *
- * Note: Use the provided wrappers (devm_irq_alloc_desc*) for simplicity.
- */
 int __devm_irq_alloc_descs(struct device *dev, int irq, unsigned int from,
 			   unsigned int cnt, int node, struct module *owner,
 			   const struct irq_affinity_desc *affinity)
@@ -201,19 +133,6 @@ int __devm_irq_alloc_descs(struct device *dev, int irq, unsigned int from,
 EXPORT_SYMBOL_GPL(__devm_irq_alloc_descs);
 
 #ifdef CONFIG_GENERIC_IRQ_CHIP
-/**
- * devm_irq_alloc_generic_chip - Allocate and initialize a generic chip
- *                               for a managed device
- * @dev:	Device to allocate the generic chip for
- * @name:	Name of the irq chip
- * @num_ct:	Number of irq_chip_type instances associated with this
- * @irq_base:	Interrupt base nr for this chip
- * @reg_base:	Register base address (virtual)
- * @handler:	Default flow handler associated with this chip
- *
- * Returns an initialized irq_chip_generic structure. The chip defaults
- * to the primary (index 0) irq_chip_type and @handler
- */
 struct irq_chip_generic *
 devm_irq_alloc_generic_chip(struct device *dev, const char *name, int num_ct,
 			    unsigned int irq_base, void __iomem *reg_base,
@@ -244,21 +163,6 @@ static void devm_irq_remove_generic_chip(struct device *dev, void *res)
 	irq_remove_generic_chip(this->gc, this->msk, this->clr, this->set);
 }
 
-/**
- * devm_irq_setup_generic_chip - Setup a range of interrupts with a generic
- *                               chip for a managed device
- *
- * @dev:	Device to setup the generic chip for
- * @gc:		Generic irq chip holding all data
- * @msk:	Bitmask holding the irqs to initialize relative to gc->irq_base
- * @flags:	Flags for initialization
- * @clr:	IRQ_* bits to clear
- * @set:	IRQ_* bits to set
- *
- * Set up max. 32 interrupts starting from gc->irq_base. Note, this
- * initializes all interrupts to the primary irq_chip_type and its
- * associated handler.
- */
 int devm_irq_setup_generic_chip(struct device *dev, struct irq_chip_generic *gc,
 				u32 msk, enum irq_gc_flags flags,
 				unsigned int clr, unsigned int set)

@@ -1,22 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Intel CPU Microcode Update Driver for Linux
- *
- * Copyright (C) 2000-2006 Tigran Aivazian <aivazian.tigran@gmail.com>
- *		 2006 Shaohua Li <shaohua.li@intel.com>
- *
- * Intel CPU microcode early update for Linux
- *
- * Copyright (C) 2012 Fenghua Yu <fenghua.yu@intel.com>
- *		      H Peter Anvin" <hpa@zytor.com>
- */
 
-/*
- * This needs to be before all headers so that pr_debug in printk.h doesn't turn
- * printk calls into no_printk().
- *
- *#define DEBUG
- */
 #define pr_fmt(fmt) "microcode: " fmt
 
 #include <linux/earlycpio.h>
@@ -39,15 +21,10 @@
 
 static const char ucode_path[] = "kernel/x86/microcode/GenuineIntel.bin";
 
-/* Current microcode patch used in early patching on the APs. */
 static struct microcode_intel *intel_ucode_patch;
 
-/* last level cache size per core */
 static int llc_size_per_core;
 
-/*
- * Returns 1 if update has been found, 0 otherwise.
- */
 static int find_matching_signature(void *mc, unsigned int csig, int cpf)
 {
 	struct microcode_header_intel *mc_hdr = mc;
@@ -73,9 +50,6 @@ static int find_matching_signature(void *mc, unsigned int csig, int cpf)
 	return 0;
 }
 
-/*
- * Returns 1 if update has been found, 0 otherwise.
- */
 static int has_newer_microcode(void *mc, unsigned int csig, int cpf, int new_rev)
 {
 	struct microcode_header_intel *mc_hdr = mc;
@@ -135,9 +109,6 @@ static void save_microcode_patch(struct ucode_cpu_info *uci, void *data, unsigne
 	}
 
 	/*
-	 * There weren't any previous patches found in the list cache; save the
-	 * newly found.
-	 */
 	if (!prev_found) {
 		p = memdup_patch(data, size);
 		if (!p)
@@ -153,10 +124,6 @@ static void save_microcode_patch(struct ucode_cpu_info *uci, void *data, unsigne
 		return;
 
 	/*
-	 * Save for early loading. On 32-bit, that needs to be a physical
-	 * address as the APs are running from physical addresses, before
-	 * paging has been enabled.
-	 */
 	if (IS_ENABLED(CONFIG_X86_32))
 		intel_ucode_patch = (struct microcode_intel *)__pa_nodebug(p->data);
 	else
@@ -208,9 +175,6 @@ static int microcode_sanity_check(void *mc, int print_err)
 		ext_sigcount = ext_header->count;
 
 		/*
-		 * Check extended table checksum: the sum of all dwords that
-		 * comprise a valid table must be 0.
-		 */
 		ext_tablep = (u32 *)ext_header;
 
 		i = ext_table_size / sizeof(u32);
@@ -225,10 +189,6 @@ static int microcode_sanity_check(void *mc, int print_err)
 	}
 
 	/*
-	 * Calculate the checksum of update data and header. The checksum of
-	 * valid update data and header including the extended signature table
-	 * must be 0.
-	 */
 	orig_sum = 0;
 	i = (MC_HEADER_SIZE + data_size) / sizeof(u32);
 	while (i--)
@@ -244,8 +204,6 @@ static int microcode_sanity_check(void *mc, int print_err)
 		return 0;
 
 	/*
-	 * Check extended signature checksum: 0 => valid.
-	 */
 	for (i = 0; i < ext_sigcount; i++) {
 		ext_sig = (void *)ext_header + EXT_HEADER_SIZE +
 			  EXT_SIGNATURE_SIZE * i;
@@ -261,10 +219,6 @@ static int microcode_sanity_check(void *mc, int print_err)
 	return 0;
 }
 
-/*
- * Get microcode matching with BSP's model. Only CPUs with the same model as
- * BSP can stay in the platform.
- */
 static struct microcode_intel *
 scan_microcode(void *data, size_t size, struct ucode_cpu_info *uci, bool save)
 {
@@ -391,10 +345,6 @@ static void show_saved_mc(void)
 #endif
 }
 
-/*
- * Save this microcode patch. It will be loaded early when a CPU is
- * hot-added or resumes.
- */
 static void save_mc_for_early(struct ucode_cpu_info *uci, u8 *mc, unsigned int size)
 {
 	/* Synchronization during CPU hotplug. */
@@ -431,9 +381,6 @@ static bool load_builtin_intel_microcode(struct cpio_data *cp)
 	return false;
 }
 
-/*
- * Print ucode update info.
- */
 static void
 print_ucode_info(struct ucode_cpu_info *uci, unsigned int date)
 {
@@ -449,9 +396,6 @@ print_ucode_info(struct ucode_cpu_info *uci, unsigned int date)
 static int delay_ucode_info;
 static int current_mc_date;
 
-/*
- * Print early updated ucode info after printk works. This is delayed info dump.
- */
 void show_ucode_info_early(void)
 {
 	struct ucode_cpu_info uci;
@@ -463,10 +407,6 @@ void show_ucode_info_early(void)
 	}
 }
 
-/*
- * At this point, we can not call printk() yet. Delay printing microcode info in
- * show_ucode_info_early() until printk() works.
- */
 static void print_ucode(struct ucode_cpu_info *uci)
 {
 	struct microcode_intel *mc;
@@ -480,8 +420,6 @@ static void print_ucode(struct ucode_cpu_info *uci)
 	delay_ucode_info_p = (int *)__pa_nodebug(&delay_ucode_info);
 	current_mc_date_p = (int *)__pa_nodebug(&current_mc_date);
 
-	*delay_ucode_info_p = 1;
-	*current_mc_date_p = mc->hdr.date;
 }
 #else
 
@@ -507,10 +445,6 @@ static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
 		return 0;
 
 	/*
-	 * Save us the MSR write below - which is a particular expensive
-	 * operation - when the other hyperthread has updated the microcode
-	 * already.
-	 */
 	rev = intel_get_microcode_revision();
 	if (rev >= mc->hdr.rev) {
 		uci->cpu_sig.rev = rev;
@@ -518,9 +452,6 @@ static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
 	}
 
 	/*
-	 * Writeback and invalidate caches before updating microcode to avoid
-	 * internal issues depending on what the microcode is updating.
-	 */
 	native_wbinvd();
 
 	/* write microcode via MSR 0x79 */
@@ -546,11 +477,6 @@ int __init save_microcode_in_initrd_intel(void)
 	struct cpio_data cp;
 
 	/*
-	 * initrd is going away, clear patch ptr. We will scan the microcode one
-	 * last time before jettisoning and save a patch, if found. Then we will
-	 * update that pointer too, with a stable patch address to use when
-	 * resuming the cores.
-	 */
 	intel_ucode_patch = NULL;
 
 	if (!load_builtin_intel_microcode(&cp))
@@ -568,9 +494,6 @@ int __init save_microcode_in_initrd_intel(void)
 	return 0;
 }
 
-/*
- * @res_patch, output: a pointer to the patch we found.
- */
 static struct microcode_intel *__load_ucode_intel(struct ucode_cpu_info *uci)
 {
 	static const char *path;
@@ -729,10 +652,6 @@ static enum ucode_state apply_microcode_intel(int cpu)
 	}
 
 	/*
-	 * Save us the MSR write below - which is a particular expensive
-	 * operation - when the other hyperthread has updated the microcode
-	 * already.
-	 */
 	rev = intel_get_microcode_revision();
 	if (rev >= mc->hdr.rev) {
 		ret = UCODE_OK;
@@ -740,9 +659,6 @@ static enum ucode_state apply_microcode_intel(int cpu)
 	}
 
 	/*
-	 * Writeback and invalidate caches before updating microcode to avoid
-	 * internal issues depending on what the microcode is updating.
-	 */
 	native_wbinvd();
 
 	/* write microcode via MSR 0x79 */
@@ -850,10 +766,6 @@ static enum ucode_state generic_load_microcode(int cpu, struct iov_iter *iter)
 	uci->mc = (struct microcode_intel *)new_mc;
 
 	/*
-	 * If early loading microcode is supported, save this mc into
-	 * permanent memory. So it will be loaded early when a CPU is hot added
-	 * or resumes.
-	 */
 	save_mc_for_early(uci, new_mc, new_mc_size);
 
 	pr_debug("CPU%d found a matching microcode update with version 0x%x (current=0x%x)\n",
@@ -867,11 +779,6 @@ static bool is_blacklisted(unsigned int cpu)
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
 	/*
-	 * Late loading on model 79 with microcode revision less than 0x0b000021
-	 * and LLC size per core bigger than 2.5MB may result in a system hang.
-	 * This behavior is documented in item BDF90, #334165 (Intel Xeon
-	 * Processor E7-8800/4800 v4 Product Family).
-	 */
 	if (c->x86 == 6 &&
 	    c->x86_model == INTEL_FAM6_BROADWELL_X &&
 	    c->x86_stepping == 0x01 &&

@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Glue Code for assembler optimized version of 3DES
- *
- * Copyright © 2014 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
- *
- * CBC & ECB parts based on code (crypto/cbc.c,ecb.c) by:
- *   Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
- */
 
 #include <crypto/algapi.h>
 #include <crypto/des.h>
@@ -21,11 +12,9 @@ struct des3_ede_x86_ctx {
 	struct des3_ede_ctx dec;
 };
 
-/* regular block cipher functions */
 asmlinkage void des3_ede_x86_64_crypt_blk(const u32 *expkey, u8 *dst,
 					  const u8 *src);
 
-/* 3-way parallel cipher functions */
 asmlinkage void des3_ede_x86_64_crypt_blk_3way(const u32 *expkey, u8 *dst,
 					       const u8 *src);
 
@@ -142,7 +131,6 @@ static unsigned int __cbc_encrypt(struct des3_ede_x86_ctx *ctx,
 		nbytes -= bsize;
 	} while (nbytes >= bsize);
 
-	*(u64 *)walk->iv = *iv;
 	return nbytes;
 }
 
@@ -219,8 +207,6 @@ static unsigned int __cbc_decrypt(struct des3_ede_x86_ctx *ctx,
 	}
 
 done:
-	*dst ^= *(u64 *)walk->iv;
-	*(u64 *)walk->iv = last_iv;
 
 	return nbytes;
 }
@@ -340,10 +326,6 @@ static bool is_blacklisted_cpu(void)
 
 	if (boot_cpu_data.x86 == 0x0f) {
 		/*
-		 * On Pentium 4, des3_ede-x86_64 is slower than generic C
-		 * implementation because use of 64bit rotates (which are really
-		 * slow on P4). Therefore blacklist P4s.
-		 */
 		return true;
 	}
 

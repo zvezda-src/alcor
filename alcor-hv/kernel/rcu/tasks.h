@@ -1,9 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
-/*
- * Task-based RCU implementations.
- *
- * Copyright (C) 2020 Paul E. McKenney
- */
 
 #ifdef CONFIG_TASKS_RCU_GENERIC
 #include "rcu_segcblist.h"
@@ -20,19 +14,6 @@ typedef void (*postscan_func_t)(struct list_head *hop);
 typedef void (*holdouts_func_t)(struct list_head *hop, bool ndrpt, bool *frptp);
 typedef void (*postgp_func_t)(struct rcu_tasks *rtp);
 
-/**
- * struct rcu_tasks_percpu - Per-CPU component of definition for a Tasks-RCU-like mechanism.
- * @cblist: Callback list.
- * @lock: Lock protecting per-CPU callback list.
- * @rtp_jiffies: Jiffies counter value for statistics.
- * @rtp_n_lock_retries: Rough lock-contention statistic.
- * @rtp_work: Work queue for invoking callbacks.
- * @rtp_irq_work: IRQ work queue for deferred wakeups.
- * @barrier_q_head: RCU callback for barrier operation.
- * @rtp_blkd_tasks: List of tasks blocked as readers.
- * @cpu: CPU number corresponding to this entry.
- * @rtpp: Pointer to the rcu_tasks structure.
- */
 struct rcu_tasks_percpu {
 	struct rcu_segcblist cblist;
 	raw_spinlock_t __private lock;
@@ -46,39 +27,6 @@ struct rcu_tasks_percpu {
 	struct rcu_tasks *rtpp;
 };
 
-/**
- * struct rcu_tasks - Definition for a Tasks-RCU-like mechanism.
- * @cbs_wait: RCU wait allowing a new callback to get kthread's attention.
- * @cbs_gbl_lock: Lock protecting callback list.
- * @tasks_gp_mutex: Mutex protecting grace period, needed during mid-boot dead zone.
- * @kthread_ptr: This flavor's grace-period/callback-invocation kthread.
- * @gp_func: This flavor's grace-period-wait function.
- * @gp_state: Grace period's most recent state transition (debugging).
- * @gp_sleep: Per-grace-period sleep to prevent CPU-bound looping.
- * @init_fract: Initial backoff sleep interval.
- * @gp_jiffies: Time of last @gp_state transition.
- * @gp_start: Most recent grace-period start in jiffies.
- * @tasks_gp_seq: Number of grace periods completed since boot.
- * @n_ipis: Number of IPIs sent to encourage grace periods to end.
- * @n_ipis_fails: Number of IPI-send failures.
- * @pregp_func: This flavor's pre-grace-period function (optional).
- * @pertask_func: This flavor's per-task scan function (optional).
- * @postscan_func: This flavor's post-task scan function (optional).
- * @holdouts_func: This flavor's holdout-list scan function (optional).
- * @postgp_func: This flavor's post-grace-period function (optional).
- * @call_func: This flavor's call_rcu()-equivalent function.
- * @rtpcpu: This flavor's rcu_tasks_percpu structure.
- * @percpu_enqueue_shift: Shift down CPU ID this much when enqueuing callbacks.
- * @percpu_enqueue_lim: Number of per-CPU callback queues in use for enqueuing.
- * @percpu_dequeue_lim: Number of per-CPU callback queues in use for dequeuing.
- * @percpu_dequeue_gpseq: RCU grace-period number to propagate enqueue limit to dequeuers.
- * @barrier_q_mutex: Serialize barrier operations.
- * @barrier_q_count: Number of queues being waited on.
- * @barrier_q_completion: Barrier wait/wakeup mechanism.
- * @barrier_q_seq: Sequence number for barrier operations.
- * @name: This flavor's textual name.
- * @kname: This flavor's kthread name.
- */
 struct rcu_tasks {
 	struct rcuwait cbs_wait;
 	raw_spinlock_t cbs_gbl_lock;
@@ -136,15 +84,12 @@ static struct rcu_tasks rt_name =							\
 	.kname = #rt_name,								\
 }
 
-/* Track exiting tasks in order to allow them to be waited for. */
 DEFINE_STATIC_SRCU(tasks_rcu_exit_srcu);
 
-/* Avoid IPIing CPUs early in the grace period. */
 #define RCU_TASK_IPI_DELAY (IS_ENABLED(CONFIG_TASKS_TRACE_RCU_READ_MB) ? HZ / 2 : 0)
 static int rcu_task_ipi_delay __read_mostly = RCU_TASK_IPI_DELAY;
 module_param(rcu_task_ipi_delay, int, 0644);
 
-/* Control stall timeouts.  Disable with <= 0, otherwise jiffies till stall. */
 #define RCU_TASK_BOOT_STALL_TIMEOUT (HZ * 30)
 #define RCU_TASK_STALL_TIMEOUT (HZ * 60 * 10)
 static int rcu_task_stall_timeout __read_mostly = RCU_TASK_STALL_TIMEOUT;
@@ -164,7 +109,6 @@ module_param(rcu_task_contend_lim, int, 0444);
 static int rcu_task_collapse_lim __read_mostly = 10;
 module_param(rcu_task_collapse_lim, int, 0444);
 
-/* RCU tasks grace-period state for debugging. */
 #define RTGS_INIT		 0
 #define RTGS_WAIT_WAIT_CBS	 1
 #define RTGS_WAIT_GP		 2
@@ -200,7 +144,6 @@ static const char * const rcu_tasks_gp_state_names[] = {
 
 static void rcu_tasks_invoke_cbs_wq(struct work_struct *wp);
 
-/* Record grace-period phase and time. */
 static void set_tasks_gp_state(struct rcu_tasks *rtp, int newstate)
 {
 	rtp->gp_state = newstate;
@@ -208,7 +151,6 @@ static void set_tasks_gp_state(struct rcu_tasks *rtp, int newstate)
 }
 
 #ifndef CONFIG_TINY_RCU
-/* Return state name. */
 static const char *tasks_gp_state_getname(struct rcu_tasks *rtp)
 {
 	int i = data_race(rtp->gp_state); // Let KCSAN detect update races
@@ -541,11 +483,6 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 	WRITE_ONCE(rtp->kthread_ptr, current); // Let GPs start!
 
 	/*
-	 * Each pass through the following loop makes one check for
-	 * newly arrived callbacks, and, if there are some, waits for
-	 * one RCU-tasks grace period and then invokes the callbacks.
-	 * This loop is terminated by the system going down.  ;-)
-	 */
 	for (;;) {
 		// Wait for one grace period and invoke any callbacks
 		// that are ready.
@@ -571,7 +508,6 @@ static void synchronize_rcu_tasks_generic(struct rcu_tasks *rtp)
 	rcu_tasks_one_gp(rtp, true);
 }
 
-/* Spawn RCU-tasks grace-period kthread. */
 static void __init rcu_spawn_tasks_kthread_generic(struct rcu_tasks *rtp)
 {
 	struct task_struct *t;
@@ -584,9 +520,6 @@ static void __init rcu_spawn_tasks_kthread_generic(struct rcu_tasks *rtp)
 
 #ifndef CONFIG_TINY_RCU
 
-/*
- * Print any non-default Tasks RCU settings.
- */
 static void __init rcu_tasks_bootup_oddness(void)
 {
 #if defined(CONFIG_TASKS_RCU) || defined(CONFIG_TASKS_TRACE_RCU)
@@ -614,7 +547,6 @@ static void __init rcu_tasks_bootup_oddness(void)
 #endif /* #ifndef CONFIG_TINY_RCU */
 
 #ifndef CONFIG_TINY_RCU
-/* Dump out rcutorture-relevant state common to all RCU-tasks flavors. */
 static void show_rcu_tasks_generic_gp_kthread(struct rcu_tasks *rtp, char *s)
 {
 	int cpu;
@@ -648,7 +580,6 @@ static void exit_tasks_rcu_finish_trace(struct task_struct *t);
 //
 // Shared code between task-list-scanning variants of Tasks RCU.
 
-/* Wait for one RCU-tasks grace period. */
 static void rcu_tasks_wait_gp(struct rcu_tasks *rtp)
 {
 	struct task_struct *g;
@@ -665,11 +596,6 @@ static void rcu_tasks_wait_gp(struct rcu_tasks *rtp)
 	rtp->pregp_func(&holdouts);
 
 	/*
-	 * There were callbacks, so we need to wait for an RCU-tasks
-	 * grace period.  Start off by scanning the task list for tasks
-	 * that are not already voluntarily blocked.  Mark these tasks
-	 * and make a list of them in holdouts.
-	 */
 	set_tasks_gp_state(rtp, RTGS_SCAN_TASKLIST);
 	if (rtp->pertask_func) {
 		rcu_read_lock();
@@ -682,10 +608,6 @@ static void rcu_tasks_wait_gp(struct rcu_tasks *rtp)
 	rtp->postscan_func(&holdouts);
 
 	/*
-	 * Each pass through the following loop scans the list of holdout
-	 * tasks, removing any that are no longer holdouts.  When the list
-	 * is empty, we are done.
-	 */
 	lastreport = jiffies;
 	lastinfo = lastreport;
 	rtsi = READ_ONCE(rcu_task_stall_info);
@@ -793,26 +715,12 @@ static void rcu_tasks_wait_gp(struct rcu_tasks *rtp)
 // rcu_tasks_pregp_step() and by the scheduler's locks and interrupt
 // disabling.
 
-/* Pre-grace-period preparation. */
 static void rcu_tasks_pregp_step(struct list_head *hop)
 {
 	/*
-	 * Wait for all pre-existing t->on_rq and t->nvcsw transitions
-	 * to complete.  Invoking synchronize_rcu() suffices because all
-	 * these transitions occur with interrupts disabled.  Without this
-	 * synchronize_rcu(), a read-side critical section that started
-	 * before the grace period might be incorrectly seen as having
-	 * started after the grace period.
-	 *
-	 * This synchronize_rcu() also dispenses with the need for a
-	 * memory barrier on the first store to t->rcu_tasks_holdout,
-	 * as it forces the store to happen after the beginning of the
-	 * grace period.
-	 */
 	synchronize_rcu();
 }
 
-/* Per-task initial processing. */
 static void rcu_tasks_pertask(struct task_struct *t, struct list_head *hop)
 {
 	if (t != current && READ_ONCE(t->on_rq) && !is_idle_task(t)) {
@@ -823,20 +731,12 @@ static void rcu_tasks_pertask(struct task_struct *t, struct list_head *hop)
 	}
 }
 
-/* Processing between scanning taskslist and draining the holdout list. */
 static void rcu_tasks_postscan(struct list_head *hop)
 {
 	/*
-	 * Wait for tasks that are in the process of exiting.  This
-	 * does only part of the job, ensuring that all tasks that were
-	 * previously exiting reach the point where they have disabled
-	 * preemption, allowing the later synchronize_rcu() to finish
-	 * the job.
-	 */
 	synchronize_srcu(&tasks_rcu_exit_srcu);
 }
 
-/* See if tasks are still holding out, complain if so. */
 static void check_holdout_task(struct task_struct *t,
 			       bool needreport, bool *firstreport)
 {
@@ -868,7 +768,6 @@ static void check_holdout_task(struct task_struct *t,
 	sched_show_task(t);
 }
 
-/* Scan the holdout lists for tasks no longer holding out. */
 static void check_all_holdout_tasks(struct list_head *hop,
 				    bool needreport, bool *firstreport)
 {
@@ -880,86 +779,27 @@ static void check_all_holdout_tasks(struct list_head *hop,
 	}
 }
 
-/* Finish off the Tasks-RCU grace period. */
 static void rcu_tasks_postgp(struct rcu_tasks *rtp)
 {
 	/*
-	 * Because ->on_rq and ->nvcsw are not guaranteed to have a full
-	 * memory barriers prior to them in the schedule() path, memory
-	 * reordering on other CPUs could cause their RCU-tasks read-side
-	 * critical sections to extend past the end of the grace period.
-	 * However, because these ->nvcsw updates are carried out with
-	 * interrupts disabled, we can use synchronize_rcu() to force the
-	 * needed ordering on all such CPUs.
-	 *
-	 * This synchronize_rcu() also confines all ->rcu_tasks_holdout
-	 * accesses to be within the grace period, avoiding the need for
-	 * memory barriers for ->rcu_tasks_holdout accesses.
-	 *
-	 * In addition, this synchronize_rcu() waits for exiting tasks
-	 * to complete their final preempt_disable() region of execution,
-	 * cleaning up after the synchronize_srcu() above.
-	 */
 	synchronize_rcu();
 }
 
 void call_rcu_tasks(struct rcu_head *rhp, rcu_callback_t func);
 DEFINE_RCU_TASKS(rcu_tasks, rcu_tasks_wait_gp, call_rcu_tasks, "RCU Tasks");
 
-/**
- * call_rcu_tasks() - Queue an RCU for invocation task-based grace period
- * @rhp: structure to be used for queueing the RCU updates.
- * @func: actual callback function to be invoked after the grace period
- *
- * The callback function will be invoked some time after a full grace
- * period elapses, in other words after all currently executing RCU
- * read-side critical sections have completed. call_rcu_tasks() assumes
- * that the read-side critical sections end at a voluntary context
- * switch (not a preemption!), cond_resched_tasks_rcu_qs(), entry into idle,
- * or transition to usermode execution.  As such, there are no read-side
- * primitives analogous to rcu_read_lock() and rcu_read_unlock() because
- * this primitive is intended to determine that all tasks have passed
- * through a safe state, not so much for data-structure synchronization.
- *
- * See the description of call_rcu() for more detailed information on
- * memory ordering guarantees.
- */
 void call_rcu_tasks(struct rcu_head *rhp, rcu_callback_t func)
 {
 	call_rcu_tasks_generic(rhp, func, &rcu_tasks);
 }
 EXPORT_SYMBOL_GPL(call_rcu_tasks);
 
-/**
- * synchronize_rcu_tasks - wait until an rcu-tasks grace period has elapsed.
- *
- * Control will return to the caller some time after a full rcu-tasks
- * grace period has elapsed, in other words after all currently
- * executing rcu-tasks read-side critical sections have elapsed.  These
- * read-side critical sections are delimited by calls to schedule(),
- * cond_resched_tasks_rcu_qs(), idle execution, userspace execution, calls
- * to synchronize_rcu_tasks(), and (in theory, anyway) cond_resched().
- *
- * This is a very specialized primitive, intended only for a few uses in
- * tracing and other situations requiring manipulation of function
- * preambles and profiling hooks.  The synchronize_rcu_tasks() function
- * is not (yet) intended for heavy use from multiple CPUs.
- *
- * See the description of synchronize_rcu() for more detailed information
- * on memory ordering guarantees.
- */
 void synchronize_rcu_tasks(void)
 {
 	synchronize_rcu_tasks_generic(&rcu_tasks);
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_tasks);
 
-/**
- * rcu_barrier_tasks - Wait for in-flight call_rcu_tasks() callbacks.
- *
- * Although the current implementation is guaranteed to wait, it is not
- * obligated to, for example, if there are no pending callbacks.
- */
 void rcu_barrier_tasks(void)
 {
 	rcu_barrier_tasks_generic(&rcu_tasks);
@@ -988,7 +828,6 @@ void show_rcu_tasks_classic_gp_kthread(void)
 EXPORT_SYMBOL_GPL(show_rcu_tasks_classic_gp_kthread);
 #endif // !defined(CONFIG_TINY_RCU)
 
-/* Do the srcu_read_lock() for the above synchronize_srcu().  */
 void exit_tasks_rcu_start(void) __acquires(&tasks_rcu_exit_srcu)
 {
 	preempt_disable();
@@ -996,7 +835,6 @@ void exit_tasks_rcu_start(void) __acquires(&tasks_rcu_exit_srcu)
 	preempt_enable();
 }
 
-/* Do the srcu_read_unlock() for the above synchronize_srcu().  */
 void exit_tasks_rcu_finish(void) __releases(&tasks_rcu_exit_srcu)
 {
 	struct task_struct *t = current;
@@ -1047,60 +885,18 @@ void call_rcu_tasks_rude(struct rcu_head *rhp, rcu_callback_t func);
 DEFINE_RCU_TASKS(rcu_tasks_rude, rcu_tasks_rude_wait_gp, call_rcu_tasks_rude,
 		 "RCU Tasks Rude");
 
-/**
- * call_rcu_tasks_rude() - Queue a callback rude task-based grace period
- * @rhp: structure to be used for queueing the RCU updates.
- * @func: actual callback function to be invoked after the grace period
- *
- * The callback function will be invoked some time after a full grace
- * period elapses, in other words after all currently executing RCU
- * read-side critical sections have completed. call_rcu_tasks_rude()
- * assumes that the read-side critical sections end at context switch,
- * cond_resched_tasks_rcu_qs(), or transition to usermode execution (as
- * usermode execution is schedulable). As such, there are no read-side
- * primitives analogous to rcu_read_lock() and rcu_read_unlock() because
- * this primitive is intended to determine that all tasks have passed
- * through a safe state, not so much for data-structure synchronization.
- *
- * See the description of call_rcu() for more detailed information on
- * memory ordering guarantees.
- */
 void call_rcu_tasks_rude(struct rcu_head *rhp, rcu_callback_t func)
 {
 	call_rcu_tasks_generic(rhp, func, &rcu_tasks_rude);
 }
 EXPORT_SYMBOL_GPL(call_rcu_tasks_rude);
 
-/**
- * synchronize_rcu_tasks_rude - wait for a rude rcu-tasks grace period
- *
- * Control will return to the caller some time after a rude rcu-tasks
- * grace period has elapsed, in other words after all currently
- * executing rcu-tasks read-side critical sections have elapsed.  These
- * read-side critical sections are delimited by calls to schedule(),
- * cond_resched_tasks_rcu_qs(), userspace execution (which is a schedulable
- * context), and (in theory, anyway) cond_resched().
- *
- * This is a very specialized primitive, intended only for a few uses in
- * tracing and other situations requiring manipulation of function preambles
- * and profiling hooks.  The synchronize_rcu_tasks_rude() function is not
- * (yet) intended for heavy use from multiple CPUs.
- *
- * See the description of synchronize_rcu() for more detailed information
- * on memory ordering guarantees.
- */
 void synchronize_rcu_tasks_rude(void)
 {
 	synchronize_rcu_tasks_generic(&rcu_tasks_rude);
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_tasks_rude);
 
-/**
- * rcu_barrier_tasks_rude - Wait for in-flight call_rcu_tasks_rude() callbacks.
- *
- * Although the current implementation is guaranteed to wait, it is not
- * obligated to, for example, if there are no pending callbacks.
- */
 void rcu_barrier_tasks_rude(void)
 {
 	rcu_barrier_tasks_generic(&rcu_tasks_rude);
@@ -1204,25 +1000,18 @@ void call_rcu_tasks_trace(struct rcu_head *rhp, rcu_callback_t func);
 DEFINE_RCU_TASKS(rcu_tasks_trace, rcu_tasks_wait_gp, call_rcu_tasks_trace,
 		 "RCU Tasks Trace");
 
-/* Load from ->trc_reader_special.b.need_qs with proper ordering. */
 static u8 rcu_ld_need_qs(struct task_struct *t)
 {
 	smp_mb(); // Enforce full grace-period ordering.
 	return smp_load_acquire(&t->trc_reader_special.b.need_qs);
 }
 
-/* Store to ->trc_reader_special.b.need_qs with proper ordering. */
 static void rcu_st_need_qs(struct task_struct *t, u8 v)
 {
 	smp_store_release(&t->trc_reader_special.b.need_qs, v);
 	smp_mb(); // Enforce full grace-period ordering.
 }
 
-/*
- * Do a cmpxchg() on ->trc_reader_special.b.need_qs, allowing for
- * the four-byte operand-size restriction of some platforms.
- * Returns the old value, which is often ignored.
- */
 u8 rcu_trc_cmpxchg_need_qs(struct task_struct *t, u8 old, u8 new)
 {
 	union rcu_special ret;
@@ -1237,10 +1026,6 @@ u8 rcu_trc_cmpxchg_need_qs(struct task_struct *t, u8 old, u8 new)
 }
 EXPORT_SYMBOL_GPL(rcu_trc_cmpxchg_need_qs);
 
-/*
- * If we are the last reader, signal the grace-period kthread.
- * Also remove from the per-CPU list of blocked tasks.
- */
 void rcu_read_unlock_trace_special(struct task_struct *t)
 {
 	unsigned long flags;
@@ -1271,7 +1056,6 @@ void rcu_read_unlock_trace_special(struct task_struct *t)
 }
 EXPORT_SYMBOL_GPL(rcu_read_unlock_trace_special);
 
-/* Add a newly blocked reader task to its CPU's list. */
 void rcu_tasks_trace_qs_blkd(struct task_struct *t)
 {
 	unsigned long flags;
@@ -1289,7 +1073,6 @@ void rcu_tasks_trace_qs_blkd(struct task_struct *t)
 }
 EXPORT_SYMBOL_GPL(rcu_tasks_trace_qs_blkd);
 
-/* Add a task to the holdout list, if it is not already on the list. */
 static void trc_add_holdout(struct task_struct *t, struct list_head *bhp)
 {
 	if (list_empty(&t->trc_holdout_list)) {
@@ -1299,7 +1082,6 @@ static void trc_add_holdout(struct task_struct *t, struct list_head *bhp)
 	}
 }
 
-/* Remove a task from the holdout list, if it is in fact present. */
 static void trc_del_holdout(struct task_struct *t)
 {
 	if (!list_empty(&t->trc_holdout_list)) {
@@ -1309,7 +1091,6 @@ static void trc_del_holdout(struct task_struct *t)
 	}
 }
 
-/* IPI handler to check task state. */
 static void trc_read_check_handler(void *t_in)
 {
 	int nesting;
@@ -1344,7 +1125,6 @@ reset_ipi:
 	smp_store_release(&texp->trc_ipi_to_cpu, -1); // ^^^
 }
 
-/* Callback function for scheduler to check locked-down task.  */
 static int trc_inspect_reader(struct task_struct *t, void *bhp_in)
 {
 	struct list_head *bhp = bhp_in;
@@ -1392,7 +1172,6 @@ static int trc_inspect_reader(struct task_struct *t, void *bhp_in)
 	return 0;
 }
 
-/* Attempt to extract the state for the specified task. */
 static void trc_wait_for_one_reader(struct task_struct *t,
 				    struct list_head *bhp)
 {
@@ -1449,10 +1228,6 @@ static void trc_wait_for_one_reader(struct task_struct *t,
 	}
 }
 
-/*
- * Initialize for first-round processing for the specified task.
- * Return false if task is NULL or already taken care of, true otherwise.
- */
 static bool rcu_tasks_trace_pertask_prep(struct task_struct *t, bool notself)
 {
 	// During early boot when there is only the one boot CPU, there
@@ -1467,14 +1242,12 @@ static bool rcu_tasks_trace_pertask_prep(struct task_struct *t, bool notself)
 	return true;
 }
 
-/* Do first-round processing for the specified task. */
 static void rcu_tasks_trace_pertask(struct task_struct *t, struct list_head *hop)
 {
 	if (rcu_tasks_trace_pertask_prep(t, true))
 		trc_wait_for_one_reader(t, hop);
 }
 
-/* Initialize for a new RCU-tasks-trace grace period. */
 static void rcu_tasks_trace_pregp_step(struct list_head *hop)
 {
 	LIST_HEAD(blkd_tasks);
@@ -1526,9 +1299,6 @@ static void rcu_tasks_trace_pregp_step(struct list_head *hop)
 	cpus_read_unlock();
 }
 
-/*
- * Do intermediate processing between task and holdout scans.
- */
 static void rcu_tasks_trace_postscan(struct list_head *hop)
 {
 	// Wait for late-stage exiting tasks to finish exiting.
@@ -1538,7 +1308,6 @@ static void rcu_tasks_trace_postscan(struct list_head *hop)
 	// TRC_NEED_QS_CHECKED in ->trc_reader_special.b.need_qs.
 }
 
-/* Communicate task state back to the RCU tasks trace stall warning request. */
 struct trc_stall_chk_rdr {
 	int nesting;
 	int ipi_to_cpu;
@@ -1557,7 +1326,6 @@ static int trc_check_slow_task(struct task_struct *t, void *arg)
 	return true;
 }
 
-/* Show the state of a task stalling the current RCU tasks trace GP. */
 static void show_stalled_task_trace(struct task_struct *t, bool *firstreport)
 {
 	int cpu;
@@ -1588,7 +1356,6 @@ static void show_stalled_task_trace(struct task_struct *t, bool *firstreport)
 	sched_show_task(t);
 }
 
-/* List stalled IPIs for RCU tasks trace. */
 static void show_stalled_ipi_trace(void)
 {
 	int cpu;
@@ -1598,7 +1365,6 @@ static void show_stalled_ipi_trace(void)
 			pr_alert("\tIPI outstanding to CPU %d\n", cpu);
 }
 
-/* Do one scan of the holdout list. */
 static void check_all_holdout_tasks_trace(struct list_head *hop,
 					  bool needreport, bool *firstreport)
 {
@@ -1635,7 +1401,6 @@ static void rcu_tasks_trace_empty_fn(void *unused)
 {
 }
 
-/* Wait for grace period to complete and provide ordering. */
 static void rcu_tasks_trace_postgp(struct rcu_tasks *rtp)
 {
 	int cpu;
@@ -1653,7 +1418,6 @@ static void rcu_tasks_trace_postgp(struct rcu_tasks *rtp)
 		  // Pairs with pretty much every ordering primitive.
 }
 
-/* Report any needed quiescent state for this exiting task. */
 static void exit_tasks_rcu_finish_trace(struct task_struct *t)
 {
 	union rcu_special trs = READ_ONCE(t->trc_reader_special);
@@ -1666,43 +1430,12 @@ static void exit_tasks_rcu_finish_trace(struct task_struct *t)
 		WRITE_ONCE(t->trc_reader_nesting, 0);
 }
 
-/**
- * call_rcu_tasks_trace() - Queue a callback trace task-based grace period
- * @rhp: structure to be used for queueing the RCU updates.
- * @func: actual callback function to be invoked after the grace period
- *
- * The callback function will be invoked some time after a trace rcu-tasks
- * grace period elapses, in other words after all currently executing
- * trace rcu-tasks read-side critical sections have completed. These
- * read-side critical sections are delimited by calls to rcu_read_lock_trace()
- * and rcu_read_unlock_trace().
- *
- * See the description of call_rcu() for more detailed information on
- * memory ordering guarantees.
- */
 void call_rcu_tasks_trace(struct rcu_head *rhp, rcu_callback_t func)
 {
 	call_rcu_tasks_generic(rhp, func, &rcu_tasks_trace);
 }
 EXPORT_SYMBOL_GPL(call_rcu_tasks_trace);
 
-/**
- * synchronize_rcu_tasks_trace - wait for a trace rcu-tasks grace period
- *
- * Control will return to the caller some time after a trace rcu-tasks
- * grace period has elapsed, in other words after all currently executing
- * trace rcu-tasks read-side critical sections have elapsed. These read-side
- * critical sections are delimited by calls to rcu_read_lock_trace()
- * and rcu_read_unlock_trace().
- *
- * This is a very specialized primitive, intended only for a few uses in
- * tracing and other situations requiring manipulation of function preambles
- * and profiling hooks.  The synchronize_rcu_tasks_trace() function is not
- * (yet) intended for heavy use from multiple CPUs.
- *
- * See the description of synchronize_rcu() for more detailed information
- * on memory ordering guarantees.
- */
 void synchronize_rcu_tasks_trace(void)
 {
 	RCU_LOCKDEP_WARN(lock_is_held(&rcu_trace_lock_map), "Illegal synchronize_rcu_tasks_trace() in RCU Tasks Trace read-side critical section");
@@ -1710,12 +1443,6 @@ void synchronize_rcu_tasks_trace(void)
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_tasks_trace);
 
-/**
- * rcu_barrier_tasks_trace - Wait for in-flight call_rcu_tasks_trace() callbacks.
- *
- * Although the current implementation is guaranteed to wait, it is not
- * obligated to, for example, if there are no pending callbacks.
- */
 void rcu_barrier_tasks_trace(void)
 {
 	rcu_barrier_tasks_generic(&rcu_tasks_trace);
@@ -1832,11 +1559,6 @@ static void rcu_tasks_initiate_self_tests(void)
 #endif
 }
 
-/*
- * Return:  0 - test passed
- *	    1 - test failed, but have not timed out yet
- *	   -1 - test failed and timed out
- */
 static int rcu_tasks_verify_self_tests(void)
 {
 	int ret = 0;
@@ -1861,10 +1583,6 @@ static int rcu_tasks_verify_self_tests(void)
 	return ret;
 }
 
-/*
- * Repeat the rcu_tasks_verify_self_tests() call once every second until the
- * test passes or has timed out.
- */
 static struct delayed_work rcu_tasks_verify_work;
 static void rcu_tasks_verify_work_fn(struct work_struct *work __maybe_unused)
 {

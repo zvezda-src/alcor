@@ -1,11 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _ASM_X86_ACPI_H
 #define _ASM_X86_ACPI_H
 
-/*
- *  Copyright (C) 2001 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
- *  Copyright (C) 2001 Patrick Mochel <mochel@osdl.org>
- */
 #include <acpi/pdc_intel.h>
 
 #include <asm/numa.h>
@@ -57,23 +52,13 @@ static inline void acpi_disable_pci(void)
 	acpi_noirq_set();
 }
 
-/* Low-level suspend routine. */
 extern int (*acpi_suspend_lowlevel)(void);
 
-/* Physical address to resume after wakeup */
 unsigned long acpi_get_wakeup_address(void);
 
-/*
- * Check if the CPU can handle C2 and deeper
- */
 static inline unsigned int acpi_processor_cstate_check(unsigned int max_cstate)
 {
 	/*
-	 * Early models (<=5) of AMD Opterons are not supposed to go into
-	 * C2 state.
-	 *
-	 * Steppings 0x0A and later are good
-	 */
 	if (boot_cpu_data.x86 == 0x0F &&
 	    boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
 	    boot_cpu_data.x86_model <= 0x05 &&
@@ -105,8 +90,6 @@ static inline void arch_acpi_set_pdc_bits(u32 *buf)
 		buf[2] |= ACPI_PDC_T_FFH;
 
 	/*
-	 * If mwait/monitor is unsupported, C2/C3_FFH will be disabled
-	 */
 	if (!cpu_has(c, X86_FEATURE_MWAIT))
 		buf[2] &= ~(ACPI_PDC_C_C2C3_FFH);
 }
@@ -165,18 +148,6 @@ struct cper_ia_proc_ctx;
 static inline pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
 {
 	/*
-	 * We currently have no way to look up the EFI memory map
-	 * attributes for a region in a consistent way, because the
-	 * memmap is discarded after efi_free_boot_services(). So if
-	 * you call efi_mem_attributes() during boot and at runtime,
-	 * you could theoretically see different attributes.
-	 *
-	 * We are yet to see any x86 platforms that require anything
-	 * other than PAGE_KERNEL (some ARM64 platforms require the
-	 * equivalent of PAGE_KERNEL_NOCACHE). Additionally, if SME
-	 * is active, the ACPI information will not be encrypted,
-	 * so return PAGE_KERNEL_NOENC until we know differently.
-	 */
 	return PAGE_KERNEL_NOENC;
 }
 

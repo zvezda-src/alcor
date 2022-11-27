@@ -1,10 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  poly_atan.c                                                              |
  |                                                                           |
  | Compute the arctan of a FPU_REG, using a polynomial approximation.        |
  |                                                                           |
- | Copyright (C) 1992,1993,1994,1997                                         |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
  |                  E-mail   billm@suburbia.net                              |
  |                                                                           |
@@ -31,7 +28,6 @@ static const unsigned long long oddnegterms[HIPOWERon] = {
 
 #define	HIPOWERop	6	/* odd poly, positive terms */
 static const unsigned long long oddplterms[HIPOWERop] = {
-/*  0xaaaaaaaaaaaaaaabLL,  transferred to fixedpterm[] */
 	0x0db55a71875c9ac2LL,
 	0x0029fce2d67880b0LL,
 	0x0000dfd3908b4596LL,
@@ -46,7 +42,6 @@ static const Xsig fixedpterm = MK_XSIG(0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa);
 
 static const Xsig pi_signif = MK_XSIG(0xc90fdaa2, 0x2168c234, 0xc4c6628b);
 
-/*--- poly_atan() -----------------------------------------------------------+
  |                                                                           |
  +---------------------------------------------------------------------------*/
 void poly_atan(FPU_REG *st0_ptr, u_char st0_tag,

@@ -1,14 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
-/*
- * Read-Copy Update module-based torture test facility
- *
- * Copyright (C) IBM Corporation, 2005, 2006
- *
- * Authors: Paul E. McKenney <paulmck@linux.ibm.com>
- *	  Josh Triplett <josh@joshtriplett.org>
- *
- * See also:  Documentation/RCU/torture.rst
- */
 
 #define pr_fmt(fmt) fmt
 
@@ -53,7 +42,6 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com> and Josh Triplett <josh@joshtriplett.org>");
 
-/* Bits for ->extendables field, extendables param, and related definitions. */
 #define RCUTORTURE_RDR_SHIFT_1	 8	/* Put SRCU index in upper bits. */
 #define RCUTORTURE_RDR_MASK_1	 (1 << RCUTORTURE_RDR_SHIFT_1)
 #define RCUTORTURE_RDR_SHIFT_2	 9	/* Put SRCU index in upper bits. */
@@ -223,7 +211,6 @@ static const char * const rcu_torture_writer_state_names[] = {
 	"RTWS_STOPPING",
 };
 
-/* Record reader segment types and duration for first failing read. */
 struct rt_read_seg {
 	int rt_readstate;
 	unsigned long rt_delay_jiffies;
@@ -259,10 +246,6 @@ static u64 notrace rcu_trace_clock_local(void)
 }
 #endif /* #else #ifdef CONFIG_RCU_TRACE */
 
-/*
- * Stop aggressive CPU-hog tests a bit before the end of the test in order
- * to avoid interfering with test shutdown.
- */
 static bool shutdown_time_arrived(void)
 {
 	return shutdown_secs && time_after(jiffies, shutdown_jiffies - 30 * HZ);
@@ -279,9 +262,6 @@ static DECLARE_WAIT_QUEUE_HEAD(barrier_wq);
 
 static atomic_t rcu_fwd_cb_nodelay;	/* Short rcu_torture_delay() delays. */
 
-/*
- * Allocate an element from the rcu_tortures pool.
- */
 static struct rcu_torture *
 rcu_torture_alloc(void)
 {
@@ -300,9 +280,6 @@ rcu_torture_alloc(void)
 	return container_of(p, struct rcu_torture, rtort_free);
 }
 
-/*
- * Free an element to the rcu_tortures pool.
- */
 static void
 rcu_torture_free(struct rcu_torture *p)
 {
@@ -312,9 +289,6 @@ rcu_torture_free(struct rcu_torture *p)
 	spin_unlock_bh(&rcu_torture_lock);
 }
 
-/*
- * Operations vector for selecting different types of tests.
- */
 
 struct rcu_torture_ops {
 	int ttype;
@@ -357,9 +331,6 @@ struct rcu_torture_ops {
 
 static struct rcu_torture_ops *cur_ops;
 
-/*
- * Definitions for rcu torture testing.
- */
 
 static int torture_readlock_not_held(void)
 {
@@ -413,9 +384,6 @@ static void rcu_torture_read_unlock(int idx) __releases(RCU)
 	rcu_read_unlock();
 }
 
-/*
- * Update callback in the pipe.  This should be invoked after a grace period.
- */
 static bool
 rcu_torture_pipe_update_one(struct rcu_torture *rp)
 {
@@ -438,10 +406,6 @@ rcu_torture_pipe_update_one(struct rcu_torture *rp)
 	return false;
 }
 
-/*
- * Update all callbacks in the pipe.  Suitable for synchronous grace-period
- * primitives.
- */
 static void
 rcu_torture_pipe_update(struct rcu_torture *old_rp)
 {
@@ -523,13 +487,6 @@ static struct rcu_torture_ops rcu_ops = {
 	.name			= "rcu"
 };
 
-/*
- * Don't even think about trying any of these in real life!!!
- * The names includes "busted", and they really means it!
- * The only purpose of these functions is to provide a buggy RCU
- * implementation to make sure that rcutorture correctly emits
- * buggy-RCU error messages.
- */
 static void rcu_busted_torture_deferred_free(struct rcu_torture *p)
 {
 	/* This is a deliberate bug for testing purposes only! */
@@ -567,9 +524,6 @@ static struct rcu_torture_ops rcu_busted_ops = {
 	.name		= "busted"
 };
 
-/*
- * Definitions for srcu torture testing.
- */
 
 DEFINE_STATIC_SRCU(srcu_ctl);
 static struct srcu_struct srcu_ctld;
@@ -696,7 +650,6 @@ static void srcu_torture_cleanup(void)
 	srcu_ctlp = &srcu_ctl; /* In case of a later rcutorture run. */
 }
 
-/* As above, but dynamically allocated. */
 static struct rcu_torture_ops srcud_ops = {
 	.ttype		= SRCU_FLAVOR,
 	.init		= srcu_torture_init,
@@ -718,7 +671,6 @@ static struct rcu_torture_ops srcud_ops = {
 	.name		= "srcud"
 };
 
-/* As above, but broken due to inappropriate reader extension. */
 static struct rcu_torture_ops busted_srcud_ops = {
 	.ttype		= SRCU_FLAVOR,
 	.init		= srcu_torture_init,
@@ -740,10 +692,6 @@ static struct rcu_torture_ops busted_srcud_ops = {
 	.name		= "busted_srcud"
 };
 
-/*
- * Definitions for trivial CONFIG_PREEMPT=n-only torture testing.
- * This implementation does not necessarily work well with CPU hotplug.
- */
 
 static void synchronize_rcu_trivial(void)
 {
@@ -784,9 +732,6 @@ static struct rcu_torture_ops trivial_ops = {
 
 #ifdef CONFIG_TASKS_RCU
 
-/*
- * Definitions for RCU-tasks torture testing.
- */
 
 static int tasks_torture_read_lock(void)
 {
@@ -838,9 +783,6 @@ static struct rcu_torture_ops tasks_ops = {
 
 #ifdef CONFIG_TASKS_RUDE_RCU
 
-/*
- * Definitions for rude RCU-tasks torture testing.
- */
 
 static void rcu_tasks_rude_torture_deferred_free(struct rcu_torture *p)
 {
@@ -878,9 +820,6 @@ static struct rcu_torture_ops tasks_rude_ops = {
 
 #ifdef CONFIG_TASKS_TRACE_RCU
 
-/*
- * Definitions for tracing RCU-tasks torture testing.
- */
 
 static int tasks_tracing_torture_read_lock(void)
 {
@@ -936,23 +875,12 @@ static unsigned long rcutorture_seq_diff(unsigned long new, unsigned long old)
 	return cur_ops->gp_diff(new, old);
 }
 
-/*
- * RCU torture priority-boost testing.  Runs one real-time thread per
- * CPU for moderate bursts, repeatedly starting grace periods and waiting
- * for them to complete.  If a given grace period takes too long, we assume
- * that priority inversion has occurred.
- */
 
 static int old_rt_runtime = -1;
 
 static void rcu_torture_disable_rt_throttle(void)
 {
 	/*
-	 * Disable RT throttling so that rcutorture's boost threads don't get
-	 * throttled. Only possible if rcutorture is built-in otherwise the
-	 * user should manually do this by setting the sched_rt_period_us and
-	 * sched_rt_runtime sysctls.
-	 */
 	if (!IS_BUILTIN(CONFIG_RCU_TORTURE_TEST) || old_rt_runtime != -1)
 		return;
 
@@ -1073,12 +1001,6 @@ static int rcu_torture_boost(void *arg)
 			rcu_torture_boost_failed(gp_state, &gp_state_time);
 
 		/*
-		 * Set the start time of the next test interval.
-		 * Yes, this is vulnerable to long delays, but such
-		 * delays simply cause a false negative for the next
-		 * interval.  Besides, we are running at RT priority,
-		 * so delays should be relatively rare.
-		 */
 		while (oldstarttime == READ_ONCE(boost_starttime) && !kthread_should_stop()) {
 			if (mutex_trylock(&boost_mutex)) {
 				if (oldstarttime == boost_starttime) {
@@ -1106,11 +1028,6 @@ checkwait:	if (stutter_wait("rcu_torture_boost"))
 	return 0;
 }
 
-/*
- * RCU torture force-quiescent-state kthread.  Repeatedly induces
- * bursts of calls to force_quiescent_state(), increasing the probability
- * of occurrence of some important types of race conditions.
- */
 static int
 rcu_torture_fqs(void *arg)
 {
@@ -1143,9 +1060,6 @@ rcu_torture_fqs(void *arg)
 static int synctype[ARRAY_SIZE(rcu_torture_writer_state_names)] = { };
 static int nsynctypes;
 
-/*
- * Determine which grace-period primitives are available.
- */
 static void rcu_torture_write_types(void)
 {
 	bool gp_cond1 = gp_cond, gp_cond_exp1 = gp_cond_exp, gp_exp1 = gp_exp;
@@ -1201,11 +1115,6 @@ static void rcu_torture_write_types(void)
 	}
 }
 
-/*
- * RCU torture writer kthread.  Repeatedly substitutes a new structure
- * for that pointed to by rcu_torture_current, freeing the old structure
- * after a series of grace periods (the "pipeline").
- */
 static int
 rcu_torture_writer(void *arg)
 {
@@ -1230,10 +1139,6 @@ rcu_torture_writer(void *arg)
 	if (WARN_ONCE(nsynctypes == 0,
 		      "%s: No update-side primitives.\n", __func__)) {
 		/*
-		 * No updates primitives, so don't try updating.
-		 * The resulting test won't be testing much, hence the
-		 * above WARN_ONCE().
-		 */
 		rcu_torture_writer_state = RTWS_STOPPING;
 		torture_kthread_stopping("rcu_torture_writer");
 		return 0;
@@ -1392,10 +1297,6 @@ rcu_torture_writer(void *arg)
 	return 0;
 }
 
-/*
- * RCU torture fake writer kthread.  Repeatedly calls sync, with a random
- * delay between calls.
- */
 static int
 rcu_torture_fakewriter(void *arg)
 {
@@ -1408,10 +1309,6 @@ rcu_torture_fakewriter(void *arg)
 	if (WARN_ONCE(nsynctypes == 0,
 		      "%s: No update-side primitives.\n", __func__)) {
 		/*
-		 * No updates primitives, so don't try updating.
-		 * The resulting test won't be testing much, hence the
-		 * above WARN_ONCE().
-		 */
 		torture_kthread_stopping("rcu_torture_fakewriter");
 		return 0;
 	}
@@ -1528,15 +1425,6 @@ static void rcu_torture_reader_do_mbchk(long myid, struct rcu_torture *rtp,
 	smp_store_release(&rtrcp_assigner->rtc_chkrdr, -1); // Assigner can again assign.
 }
 
-/*
- * Do one extension of an RCU read-side critical section using the
- * current reader state in readstate (set to zero for initial entry
- * to extended critical section), set the new state as specified by
- * newstate (set to zero for final exit from extended critical section),
- * and random-number-generator state in trsp.  If this is neither the
- * beginning or end of the critical section and if there was actually a
- * change, do a ->read_delay().
- */
 static void rcutorture_one_extend(int *readstate, int newstate,
 				  struct torture_random_state *trsp,
 				  struct rt_read_seg *rtrsp)
@@ -1570,12 +1458,6 @@ static void rcutorture_one_extend(int *readstate, int newstate,
 		idxnew2 = (cur_ops->readlock() & 0x1) << RCUTORTURE_RDR_SHIFT_2;
 
 	/*
-	 * Next, remove old protection, in decreasing order of strength
-	 * to avoid unlock paths that aren't safe in the stronger
-	 * context. Namely: BH can not be enabled with disabled interrupts.
-	 * Additionally PREEMPT_RT requires that BH is enabled in preemptible
-	 * context.
-	 */
 	if (statesold & RCUTORTURE_RDR_IRQ)
 		local_irq_enable();
 	if (statesold & RCUTORTURE_RDR_PREEMPT)
@@ -1618,13 +1500,11 @@ static void rcutorture_one_extend(int *readstate, int newstate,
 		idxnew2 = idxold2 & RCUTORTURE_RDR_MASK_2;
 	WARN_ON_ONCE(idxnew2 < 0);
 	WARN_ON_ONCE((idxnew2 >> RCUTORTURE_RDR_SHIFT_2) > 1);
-	*readstate = idxnew1 | idxnew2 | newstate;
 	WARN_ON_ONCE(*readstate < 0);
 	if (WARN_ON_ONCE((*readstate >> RCUTORTURE_RDR_SHIFT_2) > 1))
 		pr_info("Unexpected idxnew2 value of %#x\n", idxnew2);
 }
 
-/* Return the biggest extendables mask given current RCU and boot parameters. */
 static int rcutorture_extend_mask_max(void)
 {
 	int mask;
@@ -1635,7 +1515,6 @@ static int rcutorture_extend_mask_max(void)
 	return mask;
 }
 
-/* Return a random protection state mask, but with at least one bit set. */
 static int
 rcutorture_extend_mask(int oldmask, struct torture_random_state *trsp)
 {
@@ -1662,16 +1541,10 @@ rcutorture_extend_mask(int oldmask, struct torture_random_state *trsp)
 	}
 
 	/*
-	 * Can't enable bh w/irq disabled.
-	 */
 	if (mask & RCUTORTURE_RDR_IRQ)
 		mask |= oldmask & bhs;
 
 	/*
-	 * Ideally these sequences would be detected in debug builds
-	 * (regardless of RT), but until then don't stop testing
-	 * them on non-RT.
-	 */
 	if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
 		/* Can't modify BH in atomic context */
 		if (oldmask & preempts_irq)
@@ -1683,10 +1556,6 @@ rcutorture_extend_mask(int oldmask, struct torture_random_state *trsp)
 	return mask ?: RCUTORTURE_RDR_RCU_1;
 }
 
-/*
- * Do a randomly selected number of extensions of an existing RCU read-side
- * critical section.
- */
 static struct rt_read_seg *
 rcutorture_loop_extend(int *readstate, struct torture_random_state *trsp,
 		       struct rt_read_seg *rtrsp)
@@ -1708,11 +1577,6 @@ rcutorture_loop_extend(int *readstate, struct torture_random_state *trsp,
 	return &rtrsp[j];
 }
 
-/*
- * Do one read-side critical section, returning false if there was
- * no data to read.  Can be invoked both from process context and
- * from a timer handler.
- */
 static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 {
 	unsigned long cookie;
@@ -1792,12 +1656,6 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 
 static DEFINE_TORTURE_RANDOM_PERCPU(rcu_torture_timer_rand);
 
-/*
- * RCU torture reader from timer handler.  Dereferences rcu_torture_current,
- * incrementing the corresponding element of the pipeline array.  The
- * counter in the element should never be greater than 1, otherwise, the
- * RCU implementation is broken.
- */
 static void rcu_torture_timer(struct timer_list *unused)
 {
 	atomic_long_inc(&n_rcu_torture_timers);
@@ -1812,12 +1670,6 @@ static void rcu_torture_timer(struct timer_list *unused)
 	}
 }
 
-/*
- * RCU torture reader kthread.  Repeatedly dereferences rcu_torture_current,
- * incrementing the corresponding element of the pipeline array.  The
- * counter in the element should never be greater than 1, otherwise, the
- * RCU implementation is broken.
- */
 static int
 rcu_torture_reader(void *arg)
 {
@@ -1856,10 +1708,6 @@ rcu_torture_reader(void *arg)
 	return 0;
 }
 
-/*
- * Randomly Toggle CPUs' callback-offload state.  This uses hrtimers to
- * increase race probabilities and fuzzes the interval between toggling.
- */
 static int rcu_nocb_toggle(void *arg)
 {
 	int cpu;
@@ -1903,14 +1751,6 @@ static int rcu_nocb_toggle(void *arg)
 	return 0;
 }
 
-/*
- * Print torture statistics.  Caller must ensure that there is only
- * one call to this function at a given time!!!  This is normally
- * accomplished by relying on the module system to only have one copy
- * of the module loaded, and then by giving the rcu_torture_stats
- * kthread full control (or the init/cleanup functions when rcu_torture_stats
- * thread is not running).
- */
 static void
 rcu_torture_stats_print(void)
 {
@@ -2026,10 +1866,6 @@ rcu_torture_stats_print(void)
 	rtcv_snap = rcu_torture_current_version;
 }
 
-/*
- * Periodically prints torture statistics, if periodic statistics printing
- * was specified via the stat_interval module parameter.
- */
 static int
 rcu_torture_stats(void *arg)
 {
@@ -2043,7 +1879,6 @@ rcu_torture_stats(void *arg)
 	return 0;
 }
 
-/* Test mem_dump_obj() and friends.  */
 static void rcu_torture_mem_dump_obj(void)
 {
 	struct rcu_head *rhp;
@@ -2177,10 +2012,6 @@ static int rcutorture_booster_init(unsigned int cpu)
 	return 0;
 }
 
-/*
- * CPU-stall kthread.  It waits as specified by stall_cpu_holdoff, then
- * induces a CPU stall for the time specified by stall_cpu.
- */
 static int rcu_torture_stall(void *args)
 {
 	int idx;
@@ -2236,7 +2067,6 @@ static int rcu_torture_stall(void *args)
 	return 0;
 }
 
-/* Spawn CPU-stall kthread, if stall_cpu specified. */
 static int __init rcu_torture_stall_init(void)
 {
 	if (stall_cpu <= 0 && stall_gp_kthread <= 0)
@@ -2244,17 +2074,11 @@ static int __init rcu_torture_stall_init(void)
 	return torture_create_kthread(rcu_torture_stall, NULL, stall_task);
 }
 
-/* State structure for forward-progress self-propagating RCU callback. */
 struct fwd_cb_state {
 	struct rcu_head rh;
 	int stop;
 };
 
-/*
- * Forward-progress self-propagating RCU callback function.  Because
- * callbacks run from softirq, this function is an implicit RCU read-side
- * critical section.
- */
 static void rcu_torture_fwd_prog_cb(struct rcu_head *rhp)
 {
 	struct fwd_cb_state *fcsp = container_of(rhp, struct fwd_cb_state, rh);
@@ -2266,7 +2090,6 @@ static void rcu_torture_fwd_prog_cb(struct rcu_head *rhp)
 	cur_ops->call(&fcsp->rh, rcu_torture_fwd_prog_cb);
 }
 
-/* State for continuous-flood RCU callbacks. */
 struct rcu_fwd_cb {
 	struct rcu_head rh;
 	struct rcu_fwd_cb *rfc_next;
@@ -2326,7 +2149,6 @@ static void rcu_torture_fwd_cb_hist(struct rcu_fwd *rfp)
 	pr_cont("\n");
 }
 
-/* Callback function for continuous-flood RCU callbacks. */
 static void rcu_torture_fwd_cb_cr(struct rcu_head *rhp)
 {
 	unsigned long flags;
@@ -2363,10 +2185,6 @@ static void rcu_torture_fwd_prog_cond_resched(unsigned long iter)
 	cond_resched();
 }
 
-/*
- * Free all callbacks on the rcu_fwd_cb_head list, either because the
- * test is over or because we hit an OOM event.
- */
 static unsigned long rcu_torture_fwd_prog_cbfree(struct rcu_fwd *rfp)
 {
 	unsigned long flags;
@@ -2396,7 +2214,6 @@ static unsigned long rcu_torture_fwd_prog_cbfree(struct rcu_fwd *rfp)
 	return freed;
 }
 
-/* Carry out need_resched()/cond_resched() forward-progress testing. */
 static void rcu_torture_fwd_prog_nr(struct rcu_fwd *rfp,
 				    int *tested, int *tested_tries)
 {
@@ -2468,7 +2285,6 @@ static void rcu_torture_fwd_prog_nr(struct rcu_fwd *rfp,
 	atomic_dec(&rcu_fwd_cb_nodelay);
 }
 
-/* Carry out call_rcu() forward-progress testing. */
 static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 {
 	unsigned long cver;
@@ -2571,10 +2387,6 @@ static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 }
 
 
-/*
- * OOM notifier, but this only prints diagnostic information for the
- * current forward-progress test.
- */
 static int rcutorture_oom_notify(struct notifier_block *self,
 				 unsigned long notused, void *nfreed)
 {
@@ -2621,7 +2433,6 @@ static struct notifier_block rcutorture_oom_nb = {
 	.notifier_call = rcutorture_oom_notify
 };
 
-/* Carry out grace-period forward-progress testing. */
 static int rcu_torture_fwd_prog(void *args)
 {
 	bool firsttime = true;
@@ -2673,7 +2484,6 @@ static int rcu_torture_fwd_prog(void *args)
 	return 0;
 }
 
-/* If forward-progress checking is requested and feasible, spawn the thread. */
 static int __init rcu_torture_fwd_prog_init(void)
 {
 	int i;
@@ -2754,13 +2564,11 @@ static void rcu_torture_fwd_prog_cleanup(void)
 	fwd_prog_tasks = NULL;
 }
 
-/* Callback function for RCU barrier testing. */
 static void rcu_torture_barrier_cbf(struct rcu_head *rcu)
 {
 	atomic_inc(&barrier_cbs_invoked);
 }
 
-/* IPI handler to get callback posted on desired CPU, if online. */
 static void rcu_torture_barrier1cb(void *rcu_void)
 {
 	struct rcu_head *rhp = rcu_void;
@@ -2768,7 +2576,6 @@ static void rcu_torture_barrier1cb(void *rcu_void)
 	cur_ops->call(rhp, rcu_torture_barrier_cbf);
 }
 
-/* kthread function to register callbacks used to test RCU barriers. */
 static int rcu_torture_barrier_cbs(void *arg)
 {
 	long myid = (long)arg;
@@ -2788,9 +2595,6 @@ static int rcu_torture_barrier_cbs(void *arg)
 		if (torture_must_stop())
 			break;
 		/*
-		 * The above smp_load_acquire() ensures barrier_phase load
-		 * is ordered before the following ->call().
-		 */
 		if (smp_call_function_single(myid, rcu_torture_barrier1cb,
 					     &rcu, 1)) {
 			// IPI failed, so use direct call from current CPU.
@@ -2806,7 +2610,6 @@ static int rcu_torture_barrier_cbs(void *arg)
 	return 0;
 }
 
-/* kthread function to drive and coordinate RCU barrier testing. */
 static int rcu_torture_barrier(void *arg)
 {
 	int i;
@@ -2855,7 +2658,6 @@ static int rcu_torture_barrier(void *arg)
 	return 0;
 }
 
-/* Initialize RCU barrier testing. */
 static int rcu_torture_barrier_init(void)
 {
 	int i;
@@ -2892,7 +2694,6 @@ static int rcu_torture_barrier_init(void)
 	return torture_create_kthread(rcu_torture_barrier, NULL, barrier_task);
 }
 
-/* Clean up after RCU barrier testing. */
 static void rcu_torture_barrier_cleanup(void)
 {
 	int i;
@@ -3091,9 +2892,6 @@ rcu_torture_cleanup(void)
 		cpuhp_remove_state(rcutor_hp);
 
 	/*
-	 * Wait for all RCU callbacks to fire, then do torture-type-specific
-	 * cleanup operations.
-	 */
 	if (cur_ops->cb_barrier != NULL) {
 		pr_info("%s: Invoking %pS().\n", __func__, cur_ops->cb_barrier);
 		cur_ops->cb_barrier();
@@ -3151,23 +2949,10 @@ static void rcu_torture_leak_cb(struct rcu_head *rhp)
 static void rcu_torture_err_cb(struct rcu_head *rhp)
 {
 	/*
-	 * This -might- happen due to race conditions, but is unlikely.
-	 * The scenario that leads to this happening is that the
-	 * first of the pair of duplicate callbacks is queued,
-	 * someone else starts a grace period that includes that
-	 * callback, then the second of the pair must wait for the
-	 * next grace period.  Unlikely, but can happen.  If it
-	 * does happen, the debug-objects subsystem won't have splatted.
-	 */
 	pr_alert("%s: duplicated callback was invoked.\n", KBUILD_MODNAME);
 }
 #endif /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
 
-/*
- * Verify that double-free causes debug-objects to complain, but only
- * if CONFIG_DEBUG_OBJECTS_RCU_HEAD=y.  Otherwise, say that the test
- * cannot be carried out.
- */
 static void rcu_test_debug_objects(void)
 {
 #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD

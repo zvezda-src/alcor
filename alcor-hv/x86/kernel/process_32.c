@@ -1,13 +1,4 @@
-/*
- *  Copyright (C) 1995  Linus Torvalds
- *
- *  Pentium III FXSR, SSE support
- *	Gareth Hughes <gareth@valinux.com>, May 2000
- */
 
-/*
- * This file handles the architecture-dependent parts of process handling..
- */
 
 #include <linux/cpu.h>
 #include <linux/errno.h>
@@ -124,33 +115,6 @@ start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 EXPORT_SYMBOL_GPL(start_thread);
 
 
-/*
- *	switch_to(x,y) should switch tasks from x to y.
- *
- * We fsave/fwait so that an exception goes off at the right time
- * (as a call from the fsave or fwait in effect) rather than to
- * the wrong process. Lazy FP saving no longer makes any sense
- * with modern CPU's, and this simplifies a lot of things (SMP
- * and UP become the same).
- *
- * NOTE! We used to use the x86 hardware context switching. The
- * reason for not using it any more becomes apparent when you
- * try to recover gracefully from saved state that is no longer
- * valid (stale segment register values in particular). With the
- * hardware task-switch, there is no way to fix up bad state in
- * a reasonable manner.
- *
- * The fact that Intel documents the hardware task-switching to
- * be slow is a fairly red herring - this code is not noticeably
- * faster. However, there _is_ some room for improvement here,
- * so the performance issues may eventually be a valid point.
- * More important, however, is the fact that this allows us much
- * more flexibility.
- *
- * The return value (in %ax) will be the "prev" task after
- * the task-switch, and shows up in ret_from_fork in entry.S,
- * for example.
- */
 __visible __notrace_funcgraph struct task_struct *
 __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
@@ -165,36 +129,17 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 		switch_fpu_prepare(prev_fpu, cpu);
 
 	/*
-	 * Save away %gs. No need to save %fs, as it was saved on the
-	 * stack on entry.  No need to save %es and %ds, as those are
-	 * always kernel segments while inside the kernel.  Doing this
-	 * before setting the new TLS descriptors avoids the situation
-	 * where we temporarily have non-reloadable segments in %fs
-	 * and %gs.  This could be an issue if the NMI handler ever
-	 * used %fs or %gs (it does not today), or if the kernel is
-	 * running inside of a hypervisor layer.
-	 */
 	savesegment(gs, prev->gs);
 
 	/*
-	 * Load the per-thread Thread-Local Storage descriptor.
-	 */
 	load_TLS(next, cpu);
 
 	switch_to_extra(prev_p, next_p);
 
 	/*
-	 * Leave lazy mode, flushing any hypercalls made here.
-	 * This must be done before restoring TLS segments so
-	 * the GDT and LDT are properly updated.
-	 */
 	arch_end_context_switch(next_p);
 
 	/*
-	 * Reload esp0 and cpu_current_top_of_stack.  This changes
-	 * current_thread_info().  Refresh the SYSENTER configuration in
-	 * case prev or next is vm86.
-	 */
 	update_task_stack(next_p);
 	refresh_sysenter_cs(next);
 	this_cpu_write(cpu_current_top_of_stack,
@@ -202,8 +147,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 		       THREAD_SIZE);
 
 	/*
-	 * Restore %gs if needed (which is common)
-	 */
 	if (prev->gs | next->gs)
 		loadsegment(gs, next->gs);
 

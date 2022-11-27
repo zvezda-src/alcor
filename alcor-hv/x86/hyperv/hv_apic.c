@@ -1,23 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
 
-/*
- * Hyper-V specific APIC code.
- *
- * Copyright (C) 2018, Microsoft, Inc.
- *
- * Author : K. Y. Srinivasan <kys@microsoft.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- */
 
 #include <linux/types.h>
 #include <linux/vmalloc.h>
@@ -96,9 +77,6 @@ static void hv_apic_eoi_write(u32 reg, u32 val)
 	wrmsr(HV_X64_MSR_EOI, val, 0);
 }
 
-/*
- * IPI implementation on Hyper-V.
- */
 static bool __send_ipi_mask_ex(const struct cpumask *mask, int vector,
 		bool exclude_self)
 {
@@ -123,9 +101,6 @@ static bool __send_ipi_mask_ex(const struct cpumask *mask, int vector,
 	ipi_arg->vp_set.valid_bank_mask = 0;
 
 	/*
-	 * Use HV_GENERIC_SET_ALL and avoid converting cpumask to VP_SET
-	 * when the IPI is sent to all currently present CPUs.
-	 */
 	if (!cpumask_equal(mask, cpu_present_mask) || exclude_self) {
 		ipi_arg->vp_set.format = HV_GENERIC_SET_SPARSE_4K;
 		if (exclude_self)
@@ -134,10 +109,6 @@ static bool __send_ipi_mask_ex(const struct cpumask *mask, int vector,
 			nr_bank = cpumask_to_vpset(&(ipi_arg->vp_set), mask);
 
 		/*
-		 * 'nr_bank <= 0' means some CPUs in cpumask can't be
-		 * represented in VP_SET. Return an error and fall back to
-		 * native (architectural) method of sending IPIs.
-		 */
 		if (nr_bank <= 0)
 			goto ipi_mask_ex_done;
 	} else {
@@ -165,10 +136,6 @@ static bool __send_ipi_mask(const struct cpumask *mask, int vector,
 	weight = cpumask_weight(mask);
 
 	/*
-	 * Do nothing if
-	 *   1. the mask is empty
-	 *   2. the mask only contains self when exclude_self is true
-	 */
 	if (weight == 0 ||
 	    (exclude_self && weight == 1 && cpumask_test_cpu(this_cpu, mask)))
 		return true;
@@ -180,15 +147,6 @@ static bool __send_ipi_mask(const struct cpumask *mask, int vector,
 		return false;
 
 	/*
-	 * From the supplied CPU set we need to figure out if we can get away
-	 * with cheaper HVCALL_SEND_IPI hypercall. This is possible when the
-	 * highest VP number in the set is < 64. As VP numbers are usually in
-	 * ascending order and match Linux CPU ids, here is an optimization:
-	 * we check the VP number for the highest bit in the supplied set first
-	 * so we can quickly find out if using HVCALL_SEND_IPI_EX hypercall is
-	 * a must. We will also check all VP numbers when walking the supplied
-	 * CPU set to remain correct in all cases.
-	 */
 	if (hv_cpu_number_to_vp_number(cpumask_last(mask)) >= 64)
 		goto do_ex_hypercall;
 
@@ -203,9 +161,6 @@ static bool __send_ipi_mask(const struct cpumask *mask, int vector,
 			return false;
 
 		/*
-		 * This particular version of the IPI hypercall can
-		 * only target upto 64 CPUs.
-		 */
 		if (vcpu >= 64)
 			goto do_ex_hypercall;
 
@@ -280,8 +235,6 @@ void __init hv_apic_init(void)
 	if (ms_hyperv.hints & HV_X64_CLUSTER_IPI_RECOMMENDED) {
 		pr_info("Hyper-V: Using IPI hypercalls\n");
 		/*
-		 * Set the IPI entry points.
-		 */
 		orig_apic = *apic;
 
 		apic->send_IPI = hv_send_ipi;
@@ -296,16 +249,6 @@ void __init hv_apic_init(void)
 		pr_info("Hyper-V: Using enlightened APIC (%s mode)",
 			x2apic_enabled() ? "x2apic" : "xapic");
 		/*
-		 * When in x2apic mode, don't use the Hyper-V specific APIC
-		 * accessors since the field layout in the ICR register is
-		 * different in x2apic mode. Furthermore, the architectural
-		 * x2apic MSRs function just as well as the Hyper-V
-		 * synthetic APIC MSRs, so there's no benefit in having
-		 * separate Hyper-V accessors for x2apic mode. The only
-		 * exception is hv_apic_eoi_write, because it benefits from
-		 * lazy EOI when available, but the same accessor works for
-		 * both xapic and x2apic because the field layout is the same.
-		 */
 		apic_set_eoi_write(hv_apic_eoi_write);
 		if (!x2apic_enabled()) {
 			apic->read      = hv_apic_read;

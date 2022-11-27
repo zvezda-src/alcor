@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PKRU_H
 #define _ASM_X86_PKRU_H
 
@@ -26,9 +25,6 @@ static inline bool __pkru_allows_write(u32 pkru, u16 pkey)
 {
 	int pkru_pkey_bits = pkey * PKRU_BITS_PER_PKEY;
 	/*
-	 * Access-disable disables writes too so we need to check
-	 * both bits here.
-	 */
 	return !(pkru & ((PKRU_AD_BIT|PKRU_WD_BIT) << pkru_pkey_bits));
 }
 
@@ -44,9 +40,6 @@ static inline void write_pkru(u32 pkru)
 	if (!cpu_feature_enabled(X86_FEATURE_OSPKE))
 		return;
 	/*
-	 * WRPKRU is relatively expensive compared to RDPKRU.
-	 * Avoid WRPKRU when it would not change the value.
-	 */
 	if (pkru != rdpkru())
 		wrpkru(pkru);
 }

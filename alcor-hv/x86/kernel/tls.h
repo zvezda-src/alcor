@@ -1,11 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * Internal declarations for x86 TLS implementation functions.
- *
- * Copyright (C) 2007 Red Hat, Inc.  All rights reserved.
- *
- * Red Hat Author: Roland McGrath.
- */
 
 #ifndef _ARCH_X86_KERNEL_TLS_H
 

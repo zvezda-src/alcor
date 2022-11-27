@@ -1,16 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * irqchip.c: Common API for in kernel interrupt controllers
- * Copyright (c) 2007, Intel Corporation.
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
- * Copyright (c) 2013, Alexander Graf <agraf@suse.de>
- *
- * This file is derived from virt/kvm/irq_comm.c.
- *
- * Authors:
- *   Yaozu (Eddie) Dong <Eddie.dong@intel.com>
- *   Alexander Graf <agraf@suse.de>
- */
 
 #include <linux/kvm_host.h>
 #include <linux/slab.h>
@@ -62,12 +49,6 @@ int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi)
 	return kvm_set_msi(&route, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1, false);
 }
 
-/*
- * Return value:
- *  < 0   Interrupt was ignored (masked or not delivered for other reasons)
- *  = 0   Interrupt was coalesced (previous irq is still pending)
- *  > 0   Number of CPUs interrupt was delivered to
- */
 int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 		bool line_status)
 {
@@ -135,9 +116,6 @@ static int setup_routing_entry(struct kvm *kvm,
 	u32 gsi = array_index_nospec(ue->gsi, KVM_MAX_IRQ_ROUTES);
 
 	/*
-	 * Do not allow GSI to be mapped to the same irqchip more than once.
-	 * Allow only one to one mapping between GSI and non-irqchip routing.
-	 */
 	hlist_for_each_entry(ei, &rt->map[gsi], link)
 		if (ei->type != KVM_IRQ_ROUTING_IRQCHIP ||
 		    ue->type != KVM_IRQ_ROUTING_IRQCHIP ||

@@ -1,15 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0 OR MIT
-/******************************************************************************
- * grant_table.c
- * x86 specific part
- *
- * Granting foreign access to our memory reservation.
- *
- * Copyright (c) 2005-2006, Christopher Clark
- * Copyright (c) 2004-2005, K A Fraser
- * Copyright (c) 2008 Isaku Yamahata <yamahata at valinux co jp>
- *                    VA Linux Systems Japan. Split out x86 specific part.
- */
 
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -136,9 +124,6 @@ int arch_gnttab_init(unsigned long nr_shared, unsigned long nr_status)
 		return ret;
 
 	/*
-	 * Always allocate the space for the status frames in case
-	 * we're migrated to a host with V2 support.
-	 */
 	ret = arch_gnttab_valloc(&gnttab_status_vm_area, nr_status);
 	if (ret < 0)
 		goto err;
@@ -163,7 +148,5 @@ static int __init xen_pvh_gnttab_setup(void)
 					     &xen_auto_xlat_grant_frames.vaddr,
 					     xen_auto_xlat_grant_frames.count);
 }
-/* Call it _before_ __gnttab_init as we need to initialize the
- * xen_auto_xlat_grant_frames first. */
 core_initcall(xen_pvh_gnttab_setup);
 #endif

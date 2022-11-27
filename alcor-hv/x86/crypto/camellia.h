@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ASM_X86_CAMELLIA_H
 #define ASM_X86_CAMELLIA_H
 
@@ -23,17 +22,14 @@ extern int __camellia_setkey(struct camellia_ctx *cctx,
 			     const unsigned char *key,
 			     unsigned int key_len);
 
-/* regular block cipher functions */
 asmlinkage void __camellia_enc_blk(const void *ctx, u8 *dst, const u8 *src,
 				   bool xor);
 asmlinkage void camellia_dec_blk(const void *ctx, u8 *dst, const u8 *src);
 
-/* 2-way parallel cipher functions */
 asmlinkage void __camellia_enc_blk_2way(const void *ctx, u8 *dst, const u8 *src,
 					bool xor);
 asmlinkage void camellia_dec_blk_2way(const void *ctx, u8 *dst, const u8 *src);
 
-/* 16-way parallel cipher functions (avx/aes-ni) */
 asmlinkage void camellia_ecb_enc_16way(const void *ctx, u8 *dst, const u8 *src);
 asmlinkage void camellia_ecb_dec_16way(const void *ctx, u8 *dst, const u8 *src);
 
@@ -61,7 +57,6 @@ static inline void camellia_enc_blk_xor_2way(const void *ctx, u8 *dst,
 	__camellia_enc_blk_2way(ctx, dst, src, true);
 }
 
-/* glue helpers */
 extern void camellia_decrypt_cbc_2way(const void *ctx, u8 *dst, const u8 *src);
 
 #endif /* ASM_X86_CAMELLIA_H */

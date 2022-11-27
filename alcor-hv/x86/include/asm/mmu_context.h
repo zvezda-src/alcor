@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_MMU_CONTEXT_H
 #define _ASM_X86_MMU_CONTEXT_H
 
@@ -29,35 +28,15 @@ void cr4_update_pce(void *ignored);
 #endif
 
 #ifdef CONFIG_MODIFY_LDT_SYSCALL
-/*
- * ldt_structs can be allocated, used, and freed, but they are never
- * modified while live.
- */
 struct ldt_struct {
 	/*
-	 * Xen requires page-aligned LDTs with special permissions.  This is
-	 * needed to prevent us from installing evil descriptors such as
-	 * call gates.  On native, we could merge the ldt_struct and LDT
-	 * allocations, but it's not worth trying to optimize.
-	 */
 	struct desc_struct	*entries;
 	unsigned int		nr_entries;
 
 	/*
-	 * If PTI is in use, then the entries array is not mapped while we're
-	 * in user mode.  The whole array will be aliased at the addressed
-	 * given by ldt_slot_va(slot).  We use two slots so that we can allocate
-	 * and map, and enable a new LDT without invalidating the mapping
-	 * of an older, still-in-use LDT.
-	 *
-	 * slot will be -1 if this LDT doesn't have an alias mapping.
-	 */
 	int			slot;
 };
 
-/*
- * Used for LDT copy/destruction.
- */
 static inline void init_new_context_ldt(struct mm_struct *mm)
 {
 	mm->context.ldt = NULL;
@@ -94,10 +73,6 @@ static inline void switch_ldt(struct mm_struct *prev, struct mm_struct *next)
 #define enter_lazy_tlb enter_lazy_tlb
 extern void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk);
 
-/*
- * Init a new mm.  Used on mm copies, like at fork()
- * and on mm's that are brand-new, like at execve().
- */
 #define init_new_context init_new_context
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)
@@ -195,15 +170,6 @@ static inline void arch_unmap(struct mm_struct *mm, unsigned long start,
 {
 }
 
-/*
- * We only want to enforce protection keys on the current process
- * because we effectively have no access to PKRU for other
- * processes or any way to tell *which * PKRU in a threaded
- * process we could use.
- *
- * So do not enforce things if the VMA is not from the current
- * mm, or if we are in a kernel thread.
- */
 static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 		bool write, bool execute, bool foreign)
 {

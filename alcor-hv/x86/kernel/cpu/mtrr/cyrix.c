@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/mm.h>
@@ -32,12 +31,8 @@ cyrix_get_arr(unsigned int reg, unsigned long *base,
 	local_irq_restore(flags);
 
 	shift = ((unsigned char *) base)[1] & 0x0f;
-	*base >>= PAGE_SHIFT;
 
 	/*
-	 * Power of two, at least 4K on ARR0-ARR6, 256K on ARR7
-	 * Note: shift==0xf means 4G, this is unsupported.
-	 */
 	if (shift)
 		*size = (reg < 7 ? 0x1UL : 0x40UL) << (shift - 1);
 	else
@@ -79,14 +74,6 @@ cyrix_get_arr(unsigned int reg, unsigned long *base,
 	}
 }
 
-/*
- * cyrix_get_free_region - get a free ARR.
- *
- * @base: the starting (base) address of the region.
- * @size: the size (in bytes) of the region.
- *
- * Returns: the index of the region on success, else -1 on error.
-*/
 static int
 cyrix_get_free_region(unsigned long base, unsigned long size, int replace_reg)
 {
@@ -122,9 +109,6 @@ cyrix_get_free_region(unsigned long base, unsigned long size, int replace_reg)
 				return i;
 		}
 		/*
-		 * ARR0-ARR6 isn't free
-		 * try ARR7 but its size must be at least 256K
-		 */
 		cyrix_get_arr(i, &lbase, &lsize, &ltype);
 		if ((lsize == 0) && (size >= 0x40))
 			return i;
@@ -145,9 +129,6 @@ static void prepare_set(void)
 	}
 
 	/*
-	 * Disable and flush caches.
-	 * Note that wbinvd flushes the TLBs as a side-effect
-	 */
 	cr0 = read_cr0() | X86_CR0_CD;
 	wbinvd();
 	write_cr0(cr0);

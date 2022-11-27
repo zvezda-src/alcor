@@ -1,9 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
 //
 // Scalability test comparing RCU vs other mechanisms
 // for acquiring references on objects.
 //
-// Copyright (C) Google, 2020.
 //
 // Author: Joel Fernandes <joel@joelfernandes.org>
 

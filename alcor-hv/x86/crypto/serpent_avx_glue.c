@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Glue Code for AVX assembler versions of Serpent Cipher
- *
- * Copyright (C) 2012 Johannes Goetzfried
- *     <Johannes.Goetzfried@informatik.stud.uni-erlangen.de>
- *
- * Copyright © 2011-2013 Jussi Kivilinna <jussi.kivilinna@iki.fi>
- */
 
 #include <linux/module.h>
 #include <linux/types.h>
@@ -19,7 +10,6 @@
 #include "serpent-avx.h"
 #include "ecb_cbc_helpers.h"
 
-/* 8-way parallel cipher functions */
 asmlinkage void serpent_ecb_enc_8way_avx(const void *ctx, u8 *dst,
 					 const u8 *src);
 EXPORT_SYMBOL_GPL(serpent_ecb_enc_8way_avx);

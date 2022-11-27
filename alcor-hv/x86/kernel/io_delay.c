@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * I/O delay strategies for inb_p/outb_p
- *
- * Allow for a DMI based override of port 0x80, needed for certain HP laptops
- * and possibly other systems. Also allow for the gradual elimination of
- * outb_p/inb_p API uses.
- */
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/delay.h>
@@ -32,9 +24,6 @@ int io_delay_type __read_mostly = DEFAULT_IO_DELAY_TYPE;
 
 static int __initdata io_delay_override;
 
-/*
- * Paravirt wants native_io_delay to be a constant.
- */
 void native_io_delay(void)
 {
 	switch (io_delay_type) {
@@ -47,12 +36,6 @@ void native_io_delay(void)
 		break;
 	case IO_DELAY_TYPE_UDELAY:
 		/*
-		 * 2 usecs is an upper-bound for the outb delay but
-		 * note that udelay doesn't have the bus-level
-		 * side-effects that outb does, nor does udelay() have
-		 * precise timings during very early bootup (the delays
-		 * are shorter until calibrated):
-		 */
 		udelay(2);
 		break;
 	case IO_DELAY_TYPE_NONE:
@@ -71,10 +54,6 @@ static int __init dmi_io_delay_0xed_port(const struct dmi_system_id *id)
 	return 0;
 }
 
-/*
- * Quirk table for systems that misbehave (lock up, etc.) if port
- * 0x80 is used:
- */
 static const struct dmi_system_id io_delay_0xed_port_dmi_table[] __initconst = {
 	{
 		.callback	= dmi_io_delay_0xed_port,

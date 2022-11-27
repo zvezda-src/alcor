@@ -1,13 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
-/*
- * Read-Copy Update mechanism for mutual exclusion (tree-based version)
- * Internal non-public definitions.
- *
- * Copyright IBM Corporation, 2008
- *
- * Author: Ingo Molnar <mingo@elte.hu>
- *	   Paul E. McKenney <paulmck@linux.ibm.com>
- */
 
 #include <linux/cache.h>
 #include <linux/kthread.h>
@@ -21,7 +11,6 @@
 
 #include "rcu_segcblist.h"
 
-/* Communicate arguments to a workqueue handler. */
 struct rcu_exp_work {
 	unsigned long rew_s;
 #ifdef CONFIG_RCU_EXP_KTHREAD
@@ -31,7 +20,6 @@ struct rcu_exp_work {
 #endif /* CONFIG_RCU_EXP_KTHREAD */
 };
 
-/* RCU's kthread states for tracing. */
 #define RCU_KTHREAD_STOPPED  0
 #define RCU_KTHREAD_RUNNING  1
 #define RCU_KTHREAD_WAITING  2
@@ -39,9 +27,6 @@ struct rcu_exp_work {
 #define RCU_KTHREAD_YIELDING 4
 #define RCU_KTHREAD_MAX      4
 
-/*
- * Definition for node within the RCU grace-period-detection hierarchy.
- */
 struct rcu_node {
 	raw_spinlock_t __private lock;	/* Root rcu_node's lock protects */
 					/*  some rcu_state fields as well as */
@@ -139,17 +124,8 @@ struct rcu_node {
 	struct work_struct exp_poll_wq;
 } ____cacheline_internodealigned_in_smp;
 
-/*
- * Bitmasks in an rcu_node cover the interval [grplo, grphi] of CPU IDs, and
- * are indexed relative to this interval rather than the global CPU ID space.
- * This generates the bit for a CPU in node-local masks.
- */
 #define leaf_node_cpu_bit(rnp, cpu) (BIT((cpu) - (rnp)->grplo))
 
-/*
- * Union to allow "aggregate OR" operation on the need for a quiescent
- * state by the normal and expedited grace periods.
- */
 union rcu_noqs {
 	struct {
 		u8 norm;
@@ -158,7 +134,6 @@ union rcu_noqs {
 	u16 s; /* Set of bits, aggregate OR here. */
 };
 
-/* Per-CPU data for read-copy update. */
 struct rcu_data {
 	/* 1) quiescent-state and grace-period handling : */
 	unsigned long	gp_seq;		/* Track rsp->gp_seq counter. */
@@ -232,9 +207,6 @@ struct rcu_data {
 	bool nocb_cb_sleep;		/* Is the nocb CB thread asleep? */
 	struct task_struct *nocb_cb_kthread;
 	struct list_head nocb_head_rdp; /*
-					 * Head of rcu_data list in wakeup chain,
-					 * if rdp_gp.
-					 */
 	struct list_head nocb_entry_rdp; /* rcu_data node in wakeup chain. */
 	struct rcu_data *nocb_toggling_rdp; /* rdp queued for (de-)offloading */
 
@@ -266,7 +238,6 @@ struct rcu_data {
 	int cpu;
 };
 
-/* Values for nocb_defer_wakeup field in struct rcu_data. */
 #define RCU_NOCB_WAKE_NOT	0
 #define RCU_NOCB_WAKE_BYPASS	1
 #define RCU_NOCB_WAKE		2
@@ -295,16 +266,6 @@ do {									\
 	__set_current_state(TASK_RUNNING);				\
 } while (0)
 
-/*
- * RCU global state, including node hierarchy.  This hierarchy is
- * represented in "heap" form in a dense array.  The root (first level)
- * of the hierarchy is in ->node[0] (referenced by ->level[0]), the second
- * level in ->node[1] through ->node[m] (->node[1] referenced by ->level[1]),
- * and the third level in ->node[m+1] and following (->node[m+1] referenced
- * by ->level[2]).  The number of levels is determined by the number of
- * CPUs and by CONFIG_RCU_FANOUT.  Small systems will have a "hierarchy"
- * consisting of a single rcu_node.
- */
 struct rcu_state {
 	struct rcu_node node[NUM_RCU_NODES];	/* Hierarchy. */
 	struct rcu_node *level[RCU_NUM_LVLS + 1];
@@ -378,12 +339,10 @@ struct rcu_state {
 	int nocb_is_setup;			/* nocb is setup from boot */
 };
 
-/* Values for rcu_state structure's gp_flags field. */
 #define RCU_GP_FLAG_INIT 0x1	/* Need grace-period initialization. */
 #define RCU_GP_FLAG_FQS  0x2	/* Need grace-period quiescent-state forcing. */
 #define RCU_GP_FLAG_OVLD 0x4	/* Experiencing callback overload. */
 
-/* Values for rcu_state structure's gp_state field. */
 #define RCU_GP_IDLE	 0	/* Initial state and no GP in progress. */
 #define RCU_GP_WAIT_GPS  1	/* Wait for grace-period start. */
 #define RCU_GP_DONE_GPS  2	/* Wait done for grace-period start. */
@@ -394,14 +353,6 @@ struct rcu_state {
 #define RCU_GP_CLEANUP   7	/* Grace-period cleanup started. */
 #define RCU_GP_CLEANED   8	/* Grace-period cleanup complete. */
 
-/*
- * In order to export the rcu_state name to the tracing tools, it
- * needs to be added in the __tracepoint_string section.
- * This requires defining a separate variable tp_<sname>_varname
- * that points to the string being used, and this will allow
- * the tracing userspace tools to be able to decipher the string
- * address to the matching string.
- */
 #ifdef CONFIG_PREEMPT_RCU
 #define RCU_ABBR 'p'
 #define RCU_NAME_RAW "rcu_preempt"
@@ -417,7 +368,6 @@ static const char *tp_rcu_varname __used __tracepoint_string = rcu_name;
 #define RCU_NAME rcu_name
 #endif /* #else #ifdef CONFIG_TRACING */
 
-/* Forward declarations for tree_plugin.h */
 static void rcu_bootup_announce(void);
 static void rcu_qs(void);
 static int rcu_preempt_blocked_readers_cgp(struct rcu_node *rnp);
@@ -458,10 +408,6 @@ static void rcu_lockdep_assert_cblist_protected(struct rcu_data *rdp);
 #ifdef CONFIG_RCU_NOCB_CPU
 static void __init rcu_organize_nocb_kthreads(void);
 
-/*
- * Disable IRQs before checking offloaded state so that local
- * locking is safe against concurrent de-offloading.
- */
 #define rcu_nocb_lock_irqsave(rdp, flags)			\
 do {								\
 	local_irq_save(flags);					\
@@ -475,12 +421,10 @@ do {								\
 static void rcu_bind_gp_kthread(void);
 static bool rcu_nohz_full_cpu(void);
 
-/* Forward declarations for tree_stall.h */
 static void record_gp_stall_check_time(void);
 static void rcu_iw_handler(struct irq_work *iwp);
 static void check_cpu_stall(struct rcu_data *rdp);
 static void rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
 				     const unsigned long gpssdelay);
 
-/* Forward declarations for tree_exp.h. */
 static void sync_rcu_do_polled_gp(struct work_struct *wp);

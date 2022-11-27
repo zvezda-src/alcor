@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Kexec bzImage loader
- *
- * Copyright (C) 2014 Red Hat Inc.
- * Authors:
- *      Vivek Goyal <vgoyal@redhat.com>
- */
 
 #define pr_fmt(fmt)	"kexec-bzImage64: " fmt
 
@@ -28,27 +20,13 @@
 
 #define MAX_ELFCOREHDR_STR_LEN	30	/* elfcorehdr=0x<64bit-value> */
 
-/*
- * Defines lowest physical address for various segments. Not sure where
- * exactly these limits came from. Current bzimage64 loader in kexec-tools
- * uses these so I am retaining it. It can be changed over time as we gain
- * more insight.
- */
 #define MIN_PURGATORY_ADDR	0x3000
 #define MIN_BOOTPARAM_ADDR	0x3000
 #define MIN_KERNEL_LOAD_ADDR	0x100000
 #define MIN_INITRD_LOAD_ADDR	0x1000000
 
-/*
- * This is a place holder for all boot loader specific data structure which
- * gets allocated in one call but gets freed much later during cleanup
- * time. Right now there is only one field but it can grow as need be.
- */
 struct bzimage64_data {
 	/*
-	 * Temporary buffer to hold bootparams buffer. This should be
-	 * freed once the bootparam segment has been loaded.
-	 */
 	void *bootparams_buf;
 };
 
@@ -362,9 +340,6 @@ static int bzImage64_probe(const char *buf, unsigned long len)
 	}
 
 	/*
-	 * Can't handle 32bit EFI as it does not allow loading kernel
-	 * above 4G. This should be handled by 32bit bzImage loader
-	 */
 	if (efi_enabled(EFI_RUNTIME_SERVICES) && !efi_enabled(EFI_64BIT)) {
 		pr_debug("EFI is 32 bit. Can't load kernel above 4G.\n");
 		return ret;
@@ -420,9 +395,6 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 	}
 
 	/*
-	 * In case of crash dump, we will append elfcorehdr=<addr> to
-	 * command line. Make sure it does not overflow
-	 */
 	if (cmdline_len + MAX_ELFCOREHDR_STR_LEN > header->cmdline_size) {
 		pr_debug("Appending elfcorehdr=<addr> to command line exceeds maximum allowed length\n");
 		return ERR_PTR(-EINVAL);
@@ -436,9 +408,6 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 	}
 
 	/*
-	 * Load purgatory. For 64bit entry point, purgatory  code can be
-	 * anywhere.
-	 */
 	ret = kexec_load_purgatory(image, &pbuf);
 	if (ret) {
 		pr_err("Loading purgatory failed\n");
@@ -449,13 +418,6 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 
 
 	/*
-	 * Load Bootparams and cmdline and space for efi stuff.
-	 *
-	 * Allocate memory together for multiple data structures so
-	 * that they all can go in single area/segment and we don't
-	 * have to create separate segment for each. Keeps things
-	 * little bit simple
-	 */
 	efi_map_sz = efi_get_runtime_map_size();
 	params_cmdline_sz = sizeof(struct boot_params) + cmdline_len +
 				MAX_ELFCOREHDR_STR_LEN;
@@ -569,10 +531,6 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 	}
 
 	/*
-	 * Store pointer to params so that it could be freed after loading
-	 * params segment has been loaded and contents have been copied
-	 * somewhere else.
-	 */
 	ldata->bootparams_buf = params;
 	return ldata;
 
@@ -581,7 +539,6 @@ out_free_params:
 	return ERR_PTR(ret);
 }
 
-/* This cleanup function is called after various segments have been loaded */
 static int bzImage64_cleanup(void *loader_data)
 {
 	struct bzimage64_data *ldata = loader_data;

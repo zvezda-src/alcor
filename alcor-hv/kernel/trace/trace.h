@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 
 #ifndef _LINUX_KERNEL_TRACE_H
 #define _LINUX_KERNEL_TRACE_H
@@ -109,14 +108,9 @@ enum trace_type {
 
 #include "trace_entries.h"
 
-/* Use this for memory failure errors */
 #define MEM_FAIL(condition, fmt, ...)					\
 	DO_ONCE_LITE_IF(condition, pr_err, "ERROR: " fmt, ##__VA_ARGS__)
 
-/*
- * syscalls are special, and need special handling, this is why
- * they are not included in trace_entries.h
- */
 struct syscall_trace_enter {
 	struct trace_entry	ent;
 	int			nr;
@@ -148,11 +142,6 @@ struct kretprobe_trace_entry_head {
 
 struct trace_array;
 
-/*
- * The CPU trace array - it consists of thousands of trace entries
- * plus some other descriptor data: (for example which task started
- * the trace, etc.)
- */
 struct trace_array_cpu {
 	atomic_t		disabled;
 	void			*buffer_page;	/* ring buffer spare */
@@ -221,62 +210,17 @@ static inline bool still_need_pid_events(int type, struct trace_pid_list *pid_li
 					 struct trace_pid_list *no_pid_list)
 {
 	/*
-	 * Turning off what is in @type, return true if the "other"
-	 * pid list, still has pids in it.
-	 */
 	return (!(type & TRACE_PIDS) && pid_list) ||
 		(!(type & TRACE_NO_PIDS) && no_pid_list);
 }
 
 typedef bool (*cond_update_fn_t)(struct trace_array *tr, void *cond_data);
 
-/**
- * struct cond_snapshot - conditional snapshot data and callback
- *
- * The cond_snapshot structure encapsulates a callback function and
- * data associated with the snapshot for a given tracing instance.
- *
- * When a snapshot is taken conditionally, by invoking
- * tracing_snapshot_cond(tr, cond_data), the cond_data passed in is
- * passed in turn to the cond_snapshot.update() function.  That data
- * can be compared by the update() implementation with the cond_data
- * contained within the struct cond_snapshot instance associated with
- * the trace_array.  Because the tr->max_lock is held throughout the
- * update() call, the update() function can directly retrieve the
- * cond_snapshot and cond_data associated with the per-instance
- * snapshot associated with the trace_array.
- *
- * The cond_snapshot.update() implementation can save data to be
- * associated with the snapshot if it decides to, and returns 'true'
- * in that case, or it returns 'false' if the conditional snapshot
- * shouldn't be taken.
- *
- * The cond_snapshot instance is created and associated with the
- * user-defined cond_data by tracing_cond_snapshot_enable().
- * Likewise, the cond_snapshot instance is destroyed and is no longer
- * associated with the trace instance by
- * tracing_cond_snapshot_disable().
- *
- * The method below is required.
- *
- * @update: When a conditional snapshot is invoked, the update()
- *	callback function is invoked with the tr->max_lock held.  The
- *	update() implementation signals whether or not to actually
- *	take the snapshot, by returning 'true' if so, 'false' if no
- *	snapshot should be taken.  Because the max_lock is held for
- *	the duration of update(), the implementation is safe to
- *	directly retrieved and save any implementation data it needs
- *	to in association with the snapshot.
- */
 struct cond_snapshot {
 	void				*cond_data;
 	cond_update_fn_t		update;
 };
 
-/*
- * struct trace_func_repeats - used to keep track of the consecutive
- * (on the same CPU) calls of a single function.
- */
 struct trace_func_repeats {
 	unsigned long	ip;
 	unsigned long	parent_ip;
@@ -284,27 +228,12 @@ struct trace_func_repeats {
 	u64		ts_last_call;
 };
 
-/*
- * The trace array - an array of per-CPU trace arrays. This is the
- * highest level data structure that individual tracers deal with.
- * They have on/off state as well:
- */
 struct trace_array {
 	struct list_head	list;
 	char			*name;
 	struct array_buffer	array_buffer;
 #ifdef CONFIG_TRACER_MAX_TRACE
 	/*
-	 * The max_buffer is used to snapshot the trace when a maximum
-	 * latency is reached, or when the user initiates a snapshot.
-	 * Some tracers will use this to store a maximum trace while
-	 * it continues examining live traces.
-	 *
-	 * The buffers for the max_buffer are set up the same as the array_buffer
-	 * When a snapshot is taken, the buffer of the max_buffer is swapped
-	 * with the buffer of the array_buffer and the buffers are reset for
-	 * the array_buffer so the tracing can continue.
-	 */
 	struct array_buffer	max_buffer;
 	bool			allocated_snapshot;
 #endif
@@ -320,18 +249,6 @@ struct trace_array {
 	struct trace_pid_list	__rcu *filtered_pids;
 	struct trace_pid_list	__rcu *filtered_no_pids;
 	/*
-	 * max_lock is used to protect the swapping of buffers
-	 * when taking a max snapshot. The buffers themselves are
-	 * protected by per_cpu spinlocks. But the action of the swap
-	 * needs its own lock.
-	 *
-	 * This is defined as a arch_spinlock_t in order to help
-	 * with performance when lockdep debugging is enabled.
-	 *
-	 * It is also used in other places outside the update_max_tr
-	 * so it needs to be defined outside of the
-	 * CONFIG_TRACER_MAX_TRACE.
-	 */
 	arch_spinlock_t		max_lock;
 	int			buffer_disabled;
 #ifdef CONFIG_FTRACE_SYSCALLS
@@ -403,10 +320,6 @@ extern int tracing_set_clock(struct trace_array *tr, const char *clockstr);
 
 extern bool trace_clock_in_ns(struct trace_array *tr);
 
-/*
- * The global tracer (top) should be the first trace array added,
- * but we check the flag anyway.
- */
 static inline struct trace_array *top_trace_array(void)
 {
 	struct trace_array *tr;
@@ -431,22 +344,8 @@ static inline struct trace_array *top_trace_array(void)
 		break;						\
 	}
 
-/* Will cause compile errors if type is not found. */
 extern void __ftrace_bad_type(void);
 
-/*
- * The trace_assign_type is a verifier that the entry type is
- * the same as the type being assigned. To add new types simply
- * add a line with the following format:
- *
- * IF_ASSIGN(var, ent, type, id);
- *
- *  Where "type" is the trace type that includes the trace_entry
- *  as the "ent" item. And "id" is the trace identifier that is
- *  used in the trace_type enum.
- *
- *  If the type can have more than one id, then use zero.
- */
 #define trace_assign_type(var, ent)					\
 	do {								\
 		IF_ASSIGN(var, ent, struct ftrace_entry, TRACE_FN);	\
@@ -474,27 +373,17 @@ extern void __ftrace_bad_type(void);
 		__ftrace_bad_type();					\
 	} while (0)
 
-/*
- * An option specific to a tracer. This is a boolean value.
- * The bit is the bit index that sets its value on the
- * flags value in struct tracer_flags.
- */
 struct tracer_opt {
 	const char	*name; /* Will appear on the trace_options file */
 	u32		bit; /* Mask assigned in val field in tracer_flags */
 };
 
-/*
- * The set of specific options for a tracer. Your tracer
- * have to set the initial value of the flags val.
- */
 struct tracer_flags {
 	u32			val;
 	struct tracer_opt	*opts;
 	struct tracer		*trace;
 };
 
-/* Makes more easy to define a tracer opt */
 #define TRACER_OPT(s, b)	.name = #s, .bit = b
 
 
@@ -505,26 +394,6 @@ struct trace_option_dentry {
 	struct dentry			*entry;
 };
 
-/**
- * struct tracer - a specific tracer and its callbacks to interact with tracefs
- * @name: the name chosen to select it on the available_tracers file
- * @init: called when one switches to this tracer (echo name > current_tracer)
- * @reset: called when one switches to another tracer
- * @start: called when tracing is unpaused (echo 1 > tracing_on)
- * @stop: called when tracing is paused (echo 0 > tracing_on)
- * @update_thresh: called when tracing_thresh is updated
- * @open: called when the trace file is opened
- * @pipe_open: called when the trace_pipe file is opened
- * @close: called when the trace file is released
- * @pipe_close: called when the trace_pipe file is released
- * @read: override the default read callback on trace_pipe
- * @splice_read: override the default splice_read callback on trace_pipe
- * @selftest: selftest to run on boot (see trace_selftest.c)
- * @print_headers: override the first lines that describe your columns
- * @print_line: callback that prints a trace
- * @set_flag: signals one of your private flags changed (trace_options file)
- * @flags: your private flags
- */
 struct tracer {
 	const char		*name;
 	int			(*init)(struct trace_array *tr);
@@ -662,7 +531,6 @@ extern unsigned long nsecs_to_usecs(unsigned long nsecs);
 
 extern unsigned long tracing_thresh;
 
-/* PID filtering */
 
 extern int pid_max;
 
@@ -754,17 +622,11 @@ extern int trace_selftest_startup_nop(struct tracer *trace,
 					 struct trace_array *tr);
 extern int trace_selftest_startup_branch(struct tracer *trace,
 					 struct trace_array *tr);
-/*
- * Tracer data references selftest functions that only occur
- * on boot up. These can be __init functions. Thus, when selftests
- * are enabled, then the tracers need to reference __init functions.
- */
 #define __tracer_data		__refdata
 #else
 static inline void __init disable_tracing_selftest(const char *reason)
 {
 }
-/* Tracers are seldom changed. Optimize when selftests are disabled. */
 #define __tracer_data		__read_mostly
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
 
@@ -813,10 +675,8 @@ static __always_inline bool ftrace_hash_empty(struct ftrace_hash *hash)
 	return !hash || !(hash->count || (hash->flags & FTRACE_HASH_FL_MOD));
 }
 
-/* Standard output formatting function used for function return traces */
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
-/* Flag options */
 #define TRACE_GRAPH_PRINT_OVERRUN       0x1
 #define TRACE_GRAPH_PRINT_CPU           0x2
 #define TRACE_GRAPH_PRINT_OVERHEAD      0x4
@@ -866,11 +726,6 @@ static inline int ftrace_graph_addr(struct ftrace_graph_ent *trace)
 	preempt_disable_notrace();
 
 	/*
-	 * Have to open code "rcu_dereference_sched()" because the
-	 * function graph tracer can be called when RCU is not
-	 * "watching".
-	 * Protected with schedule_on_each_cpu(ftrace_sync)
-	 */
 	hash = rcu_dereference_protected(ftrace_graph_hash, !preemptible());
 
 	if (ftrace_hash_empty(hash)) {
@@ -881,17 +736,10 @@ static inline int ftrace_graph_addr(struct ftrace_graph_ent *trace)
 	if (ftrace_lookup_ip(hash, addr)) {
 
 		/*
-		 * This needs to be cleared on the return functions
-		 * when the depth is zero.
-		 */
 		trace_recursion_set(TRACE_GRAPH_BIT);
 		trace_recursion_set_depth(trace->depth);
 
 		/*
-		 * If no irqs are to be traced, but a set_graph_function
-		 * is set, and called by an interrupt handler, we still
-		 * want to trace it.
-		 */
 		if (in_hardirq())
 			trace_recursion_set(TRACE_IRQ_BIT);
 		else
@@ -919,11 +767,6 @@ static inline int ftrace_graph_notrace_addr(unsigned long addr)
 	preempt_disable_notrace();
 
 	/*
-	 * Have to open code "rcu_dereference_sched()" because the
-	 * function graph tracer can be called when RCU is not
-	 * "watching".
-	 * Protected with schedule_on_each_cpu(ftrace_sync)
-	 */
 	notrace_hash = rcu_dereference_protected(ftrace_graph_notrace_hash,
 						 !preemptible());
 
@@ -1028,7 +871,6 @@ static inline void ftrace_init_tracefs_toplevel(struct trace_array *tr, struct d
 static inline void ftrace_clear_pids(struct trace_array *tr) { }
 static inline int init_function_trace(void) { return 0; }
 static inline void ftrace_pid_follow_fork(struct trace_array *tr, bool enable) { }
-/* ftace_func_t type is not defined, use macro instead of static inline */
 #define ftrace_init_array_ops(tr, func) do { } while (0)
 #endif /* CONFIG_FUNCTION_TRACER */
 
@@ -1100,23 +942,12 @@ static inline void clear_ftrace_function_probes(struct trace_array *tr)
 {
 }
 
-/*
- * The ops parameter passed in is usually undefined.
- * This must be a macro.
- */
 #define ftrace_create_filter_files(ops, parent) do { } while (0)
 #define ftrace_destroy_filter_files(ops) do { } while (0)
 #endif /* CONFIG_FUNCTION_TRACER && CONFIG_DYNAMIC_FTRACE */
 
 bool ftrace_event_is_function(struct trace_event_call *call);
 
-/*
- * struct trace_parser - servers for reading the user input separated by spaces
- * @cont: set if the input is not complete - no final space char was found
- * @buffer: holds the parsed user input
- * @idx: user input length
- * @size: buffer size
- */
 struct trace_parser {
 	bool		cont;
 	char		*buffer;
@@ -1145,9 +976,6 @@ extern void trace_parser_put(struct trace_parser *parser);
 extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 	size_t cnt, loff_t *ppos);
 
-/*
- * Only create function graph options if function graph is configured.
- */
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 # define FGRAPH_FLAGS						\
 		C(DISPLAY_GRAPH,	"display-graph"),
@@ -1180,13 +1008,6 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 # define STACK_FLAGS
 #endif
 
-/*
- * trace_iterator_flags is an enumeration that defines bit
- * positions into trace_flags that controls the output.
- *
- * NOTE: These bits must match the trace_options array in
- *       trace.c (this macro guarantees it).
- */
 #define TRACE_FLAGS						\
 		C(PRINT_PARENT,		"print-parent"),	\
 		C(SYM_OFFSET,		"sym-offset"),		\
@@ -1217,10 +1038,6 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		STACK_FLAGS					\
 		BRANCH_FLAGS
 
-/*
- * By defining C, we can make TRACE_FLAGS a list of bit names
- * that will define the bits for the flag masks.
- */
 #undef C
 #define C(a, b) TRACE_ITER_##a##_BIT
 
@@ -1230,19 +1047,11 @@ enum trace_iterator_bits {
 	TRACE_ITER_LAST_BIT
 };
 
-/*
- * By redefining C, we can make TRACE_FLAGS a list of masks that
- * use the bits as defined above.
- */
 #undef C
 #define C(a, b) TRACE_ITER_##a = (1 << TRACE_ITER_##a##_BIT)
 
 enum trace_iterator_flags { TRACE_FLAGS };
 
-/*
- * TRACE_ITER_SYM_MASK masks the options in trace_flags that
- * control the output of kernel symbols.
- */
 #define TRACE_ITER_SYM_MASK \
 	(TRACE_ITER_PRINT_PARENT|TRACE_ITER_SYM_OFFSET|TRACE_ITER_SYM_ADDR)
 
@@ -1272,7 +1081,6 @@ static inline void trace_branch_disable(void)
 }
 #endif /* CONFIG_BRANCH_TRACER */
 
-/* set ring buffers to default size if not already done so */
 int tracing_update_buffers(void);
 
 struct ftrace_event_field {
@@ -1345,19 +1153,6 @@ __trace_event_discard_commit(struct trace_buffer *buffer,
 	ring_buffer_discard_commit(buffer, event);
 }
 
-/*
- * Helper function for event_trigger_unlock_commit{_regs}().
- * If there are event triggers attached to this event that requires
- * filtering against its fields, then they will be called as the
- * entry already holds the field information of the current event.
- *
- * It also checks if the event should be discarded or not.
- * It is to be discarded if the event is soft disabled and the
- * event was only recorded to process triggers, or if the event
- * filter is active and this event did not match the filters.
- *
- * Returns true if the event is discarded, false otherwise.
- */
 static inline bool
 __event_trigger_test_discard(struct trace_event_file *file,
 			     struct trace_buffer *buffer,
@@ -1392,18 +1187,6 @@ __event_trigger_test_discard(struct trace_event_file *file,
 	return true;
 }
 
-/**
- * event_trigger_unlock_commit - handle triggers and finish event commit
- * @file: The file pointer associated with the event
- * @buffer: The ring buffer that the event is being written to
- * @event: The event meta data in the ring buffer
- * @entry: The event itself
- * @trace_ctx: The tracing context flags.
- *
- * This is a helper function to handle triggers that require data
- * from the event itself. It also tests the event against filters and
- * if the event is soft disabled and should be discarded.
- */
 static inline void
 event_trigger_unlock_commit(struct trace_event_file *file,
 			    struct trace_buffer *buffer,
@@ -1423,13 +1206,6 @@ event_trigger_unlock_commit(struct trace_event_file *file,
 #define FILTER_PRED_IS_RIGHT	(1 << 15)
 #define FILTER_PRED_FOLD	(1 << 15)
 
-/*
- * The max preds is the size of unsigned short with
- * two flags at the MSBs. One bit is used for both the IS_RIGHT
- * and FOLD flags. The other is reserved.
- *
- * 2^14 preds is way more than enough.
- */
 #define MAX_FILTER_PRED		16384
 
 struct filter_pred;
@@ -1560,7 +1336,6 @@ struct event_trigger_data {
 	struct event_trigger_data	*named_data;
 };
 
-/* Avoid typos */
 #define ENABLE_EVENT_STR	"enable_event"
 #define DISABLE_EVENT_STR	"disable_event"
 #define ENABLE_HIST_STR		"enable_hist"
@@ -1633,53 +1408,6 @@ extern void event_trigger_unregister(struct event_command *cmd_ops,
 				     char *glob,
 				     struct event_trigger_data *trigger_data);
 
-/**
- * struct event_trigger_ops - callbacks for trace event triggers
- *
- * The methods in this structure provide per-event trigger hooks for
- * various trigger operations.
- *
- * The @init and @free methods are used during trigger setup and
- * teardown, typically called from an event_command's @parse()
- * function implementation.
- *
- * The @print method is used to print the trigger spec.
- *
- * The @trigger method is the function that actually implements the
- * trigger and is called in the context of the triggering event
- * whenever that event occurs.
- *
- * All the methods below, except for @init() and @free(), must be
- * implemented.
- *
- * @trigger: The trigger 'probe' function called when the triggering
- *	event occurs.  The data passed into this callback is the data
- *	that was supplied to the event_command @reg() function that
- *	registered the trigger (see struct event_command) along with
- *	the trace record, rec.
- *
- * @init: An optional initialization function called for the trigger
- *	when the trigger is registered (via the event_command reg()
- *	function).  This can be used to perform per-trigger
- *	initialization such as incrementing a per-trigger reference
- *	count, for instance.  This is usually implemented by the
- *	generic utility function @event_trigger_init() (see
- *	trace_event_triggers.c).
- *
- * @free: An optional de-initialization function called for the
- *	trigger when the trigger is unregistered (via the
- *	event_command @reg() function).  This can be used to perform
- *	per-trigger de-initialization such as decrementing a
- *	per-trigger reference count and freeing corresponding trigger
- *	data, for instance.  This is usually implemented by the
- *	generic utility function @event_trigger_free() (see
- *	trace_event_triggers.c).
- *
- * @print: The callback function invoked to have the trigger print
- *	itself.  This is usually implemented by a wrapper function
- *	that calls the generic utility function @event_trigger_print()
- *	(see trace_event_triggers.c).
- */
 struct event_trigger_ops {
 	void			(*trigger)(struct event_trigger_data *data,
 					   struct trace_buffer *buffer,
@@ -1691,85 +1419,6 @@ struct event_trigger_ops {
 					 struct event_trigger_data *data);
 };
 
-/**
- * struct event_command - callbacks and data members for event commands
- *
- * Event commands are invoked by users by writing the command name
- * into the 'trigger' file associated with a trace event.  The
- * parameters associated with a specific invocation of an event
- * command are used to create an event trigger instance, which is
- * added to the list of trigger instances associated with that trace
- * event.  When the event is hit, the set of triggers associated with
- * that event is invoked.
- *
- * The data members in this structure provide per-event command data
- * for various event commands.
- *
- * All the data members below, except for @post_trigger, must be set
- * for each event command.
- *
- * @name: The unique name that identifies the event command.  This is
- *	the name used when setting triggers via trigger files.
- *
- * @trigger_type: A unique id that identifies the event command
- *	'type'.  This value has two purposes, the first to ensure that
- *	only one trigger of the same type can be set at a given time
- *	for a particular event e.g. it doesn't make sense to have both
- *	a traceon and traceoff trigger attached to a single event at
- *	the same time, so traceon and traceoff have the same type
- *	though they have different names.  The @trigger_type value is
- *	also used as a bit value for deferring the actual trigger
- *	action until after the current event is finished.  Some
- *	commands need to do this if they themselves log to the trace
- *	buffer (see the @post_trigger() member below).  @trigger_type
- *	values are defined by adding new values to the trigger_type
- *	enum in include/linux/trace_events.h.
- *
- * @flags: See the enum event_command_flags below.
- *
- * All the methods below, except for @set_filter() and @unreg_all(),
- * must be implemented.
- *
- * @parse: The callback function responsible for parsing and
- *	registering the trigger written to the 'trigger' file by the
- *	user.  It allocates the trigger instance and registers it with
- *	the appropriate trace event.  It makes use of the other
- *	event_command callback functions to orchestrate this, and is
- *	usually implemented by the generic utility function
- *	@event_trigger_callback() (see trace_event_triggers.c).
- *
- * @reg: Adds the trigger to the list of triggers associated with the
- *	event, and enables the event trigger itself, after
- *	initializing it (via the event_trigger_ops @init() function).
- *	This is also where commands can use the @trigger_type value to
- *	make the decision as to whether or not multiple instances of
- *	the trigger should be allowed.  This is usually implemented by
- *	the generic utility function @register_trigger() (see
- *	trace_event_triggers.c).
- *
- * @unreg: Removes the trigger from the list of triggers associated
- *	with the event, and disables the event trigger itself, after
- *	initializing it (via the event_trigger_ops @free() function).
- *	This is usually implemented by the generic utility function
- *	@unregister_trigger() (see trace_event_triggers.c).
- *
- * @unreg_all: An optional function called to remove all the triggers
- *	from the list of triggers associated with the event.  Called
- *	when a trigger file is opened in truncate mode.
- *
- * @set_filter: An optional function called to parse and set a filter
- *	for the trigger.  If no @set_filter() method is set for the
- *	event command, filters set by the user for the command will be
- *	ignored.  This is usually implemented by the generic utility
- *	function @set_trigger_filter() (see trace_event_triggers.c).
- *
- * @get_trigger_ops: The callback function invoked to retrieve the
- *	event_trigger_ops implementation associated with the command.
- *	This callback function allows a single event_command to
- *	support multiple trigger implementations via different sets of
- *	event_trigger_ops, depending on the value of the @param
- *	string.
- */
 struct event_command {
 	struct list_head	list;
 	char			*name;
@@ -1792,34 +1441,6 @@ struct event_command {
 	struct event_trigger_ops *(*get_trigger_ops)(char *cmd, char *param);
 };
 
-/**
- * enum event_command_flags - flags for struct event_command
- *
- * @POST_TRIGGER: A flag that says whether or not this command needs
- *	to have its action delayed until after the current event has
- *	been closed.  Some triggers need to avoid being invoked while
- *	an event is currently in the process of being logged, since
- *	the trigger may itself log data into the trace buffer.  Thus
- *	we make sure the current event is committed before invoking
- *	those triggers.  To do that, the trigger invocation is split
- *	in two - the first part checks the filter using the current
- *	trace record; if a command has the @post_trigger flag set, it
- *	sets a bit for itself in the return value, otherwise it
- *	directly invokes the trigger.  Once all commands have been
- *	either invoked or set their return flag, the current record is
- *	either committed or discarded.  At that point, if any commands
- *	have deferred their triggers, those commands are finally
- *	invoked following the close of the current event.  In other
- *	words, if the event_trigger_ops @func() probe implementation
- *	itself logs to the trace buffer, this flag should be set,
- *	otherwise it can be left unspecified.
- *
- * @NEEDS_REC: A flag that says whether or not this command needs
- *	access to the trace record in order to perform its function,
- *	regardless of whether or not it has a filter associated with
- *	it (filters make a trigger require access to the trace record
- *	but are not always present).
- */
 enum event_command_flags {
 	EVENT_CMD_FL_POST_TRIGGER	= 1,
 	EVENT_CMD_FL_NEEDS_REC		= 2,
@@ -1855,7 +1476,6 @@ void trace_printk_start_comm(void);
 int trace_keep_overwrite(struct tracer *tracer, u32 mask, int set);
 int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled);
 
-/* Used from boot time tracer */
 extern int trace_set_options(struct trace_array *tr, char *option);
 extern int tracing_set_tracer(struct trace_array *tr, const char *buf);
 extern ssize_t tracing_resize_ring_buffer(struct trace_array *tr,
@@ -1875,15 +1495,6 @@ extern void tracing_log_err(struct trace_array *tr,
 			    const char *loc, const char *cmd,
 			    const char **errs, u8 type, u16 pos);
 
-/*
- * Normal trace_printk() and friends allocates special buffers
- * to do the manipulation, as well as saves the print formats
- * into sections to display. But the trace infrastructure wants
- * to use these without the added overhead at the price of being
- * a bit slower (used mainly for warnings, where we don't care
- * about performance). The internal_trace_puts() is for such
- * a purpose.
- */
 #define internal_trace_puts(str) __trace_puts(_THIS_IP_, str, strlen(str))
 
 #undef FTRACE_ENTRY
@@ -1920,7 +1531,6 @@ static inline const char *get_syscall_name(int syscall)
 #ifdef CONFIG_EVENT_TRACING
 void trace_event_init(void);
 void trace_event_eval_update(struct trace_eval_map **map, int len);
-/* Used from boot time tracer */
 extern int ftrace_set_clr_event(struct trace_array *tr, char *buf, int set);
 extern int trigger_process_regex(struct trace_event_file *file, char *buff);
 #else
@@ -1956,18 +1566,12 @@ static inline void tracer_hardirqs_off(unsigned long a0, unsigned long a1) { }
 
 extern struct trace_iterator *tracepoint_print_iter;
 
-/*
- * Reset the state of the trace_iterator so that it can read consumed data.
- * Normally, the trace_iterator is used for reading the data when it is not
- * consumed, and must retain state.
- */
 static __always_inline void trace_iterator_reset(struct trace_iterator *iter)
 {
 	memset_startat(iter, 0, seq);
 	iter->pos = -1;
 }
 
-/* Check the name is good for event/group/fields */
 static inline bool is_good_name(const char *name)
 {
 	if (!isalpha(*name) && *name != '_')
@@ -1979,7 +1583,6 @@ static inline bool is_good_name(const char *name)
 	return true;
 }
 
-/* Convert certain expected symbols into '_' when generating event names */
 static inline void sanitize_event_name(char *name)
 {
 	while (*name++ != '\0')
@@ -1987,13 +1590,6 @@ static inline void sanitize_event_name(char *name)
 			*name = '_';
 }
 
-/*
- * This is a generic way to read and write a u64 value from a file in tracefs.
- *
- * The value is stored on the variable pointed by *val. The value needs
- * to be at least *min and at most *max. The write is protected by an
- * existing *lock.
- */
 struct trace_min_max_param {
 	struct mutex	*lock;
 	u64		*val;

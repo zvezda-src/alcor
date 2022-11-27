@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (c) 2014 Oracle Co., Daniel Kiper
- */
 
 #include <linux/bitops.h>
 #include <linux/efi.h>
@@ -91,9 +87,6 @@ static efi_system_table_t __init *xen_efi_probe(void)
 	return &efi_systab_xen;
 }
 
-/*
- * Determine whether we're in secure boot mode.
- */
 static enum efi_secureboot_mode xen_efi_get_secureboot(void)
 {
 	static efi_guid_t shim_guid = EFI_SHIM_LOCK_GUID;

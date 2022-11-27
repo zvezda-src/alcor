@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * common.c - C code for kernel entry and exit
- * Copyright (c) 2015 Andrew Lutomirski
- *
- * Based on asm and ptrace code by many authors.  The code here originated
- * in ptrace.c and signal.c.
- */
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -40,9 +32,6 @@
 static __always_inline bool do_syscall_x64(struct pt_regs *regs, int nr)
 {
 	/*
-	 * Convert negative numbers to very high and thus out of range
-	 * numbers for comparisons.
-	 */
 	unsigned int unr = nr;
 
 	if (likely(unr < NR_syscalls)) {
@@ -56,10 +45,6 @@ static __always_inline bool do_syscall_x64(struct pt_regs *regs, int nr)
 static __always_inline bool do_syscall_x32(struct pt_regs *regs, int nr)
 {
 	/*
-	 * Adjust the starting offset of the table, and convert numbers
-	 * < __X32_SYSCALL_BIT to very high and thus out of range
-	 * numbers for comparisons.
-	 */
 	unsigned int xnr = nr - __X32_SYSCALL_BIT;
 
 	if (IS_ENABLED(CONFIG_X86_X32_ABI) && likely(xnr < X32_NR_syscalls)) {
@@ -96,15 +81,9 @@ static __always_inline int syscall_32_enter(struct pt_regs *regs)
 	return (int)regs->orig_ax;
 }
 
-/*
- * Invoke a 32-bit syscall.  Called with IRQs on in CONTEXT_KERNEL.
- */
 static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs, int nr)
 {
 	/*
-	 * Convert negative numbers to very high and thus out of range
-	 * numbers for comparisons.
-	 */
 	unsigned int unr = nr;
 
 	if (likely(unr < IA32_NR_syscalls)) {
@@ -115,17 +94,12 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs, int nr)
 	}
 }
 
-/* Handles int $0x80 */
 __visible noinstr void do_int80_syscall_32(struct pt_regs *regs)
 {
 	int nr = syscall_32_enter(regs);
 
 	add_random_kstack_offset();
 	/*
-	 * Subtlety here: if ptrace pokes something larger than 2^31-1 into
-	 * orig_ax, the int return value truncates it. This matches
-	 * the semantics of syscall_get_nr().
-	 */
 	nr = syscall_enter_from_user_mode(regs, nr);
 	instrumentation_begin();
 
@@ -142,19 +116,12 @@ static noinstr bool __do_fast_syscall_32(struct pt_regs *regs)
 
 	add_random_kstack_offset();
 	/*
-	 * This cannot use syscall_enter_from_user_mode() as it has to
-	 * fetch EBP before invoking any of the syscall entry work
-	 * functions.
-	 */
 	syscall_enter_from_user_mode_prepare(regs);
 
 	instrumentation_begin();
 	/* Fetch EBP from where the vDSO stashed it. */
 	if (IS_ENABLED(CONFIG_X86_64)) {
 		/*
-		 * Micro-optimization: the pointer we're following is
-		 * explicitly 32 bits, so it can't be out of range.
-		 */
 		res = __get_user(*(u32 *)&regs->bp,
 			 (u32 __user __force *)(unsigned long)(u32)regs->sp);
 	} else {
@@ -182,21 +149,13 @@ static noinstr bool __do_fast_syscall_32(struct pt_regs *regs)
 	return true;
 }
 
-/* Returns 0 to return using IRET or 1 to return using SYSEXIT/SYSRETL. */
 __visible noinstr long do_fast_syscall_32(struct pt_regs *regs)
 {
 	/*
-	 * Called using the internal vDSO SYSENTER/SYSCALL32 calling
-	 * convention.  Adjust regs so it looks like we entered using int80.
-	 */
 	unsigned long landing_pad = (unsigned long)current->mm->context.vdso +
 					vdso_image_32.sym_int80_landing_pad;
 
 	/*
-	 * SYSENTER loses EIP, and even SYSCALL32 needs us to skip forward
-	 * so that 'regs->ip -= 2' lands back on an int $0x80 instruction.
-	 * Fix it up.
-	 */
 	regs->ip = landing_pad;
 
 	/* Invoke the syscall. If it failed, keep it simple: use IRET. */
@@ -205,28 +164,11 @@ __visible noinstr long do_fast_syscall_32(struct pt_regs *regs)
 
 #ifdef CONFIG_X86_64
 	/*
-	 * Opportunistic SYSRETL: if possible, try to return using SYSRETL.
-	 * SYSRETL is available on all 64-bit CPUs, so we don't need to
-	 * bother with SYSEXIT.
-	 *
-	 * Unlike 64-bit opportunistic SYSRET, we can't check that CX == IP,
-	 * because the ECX fixup above will ensure that this is essentially
-	 * never the case.
-	 */
 	return regs->cs == __USER32_CS && regs->ss == __USER_DS &&
 		regs->ip == landing_pad &&
 		(regs->flags & (X86_EFLAGS_RF | X86_EFLAGS_TF)) == 0;
 #else
 	/*
-	 * Opportunistic SYSEXIT: if possible, try to return using SYSEXIT.
-	 *
-	 * Unlike 64-bit opportunistic SYSRET, we can't check that CX == IP,
-	 * because the ECX fixup above will ensure that this is essentially
-	 * never the case.
-	 *
-	 * We don't allow syscalls at all from VM86 mode, but we still
-	 * need to check VM, because we might be returning from sys_vm86.
-	 */
 	return static_cpu_has(X86_FEATURE_SEP) &&
 		regs->cs == __USER_CS && regs->ss == __USER_DS &&
 		regs->ip == landing_pad &&
@@ -234,7 +176,6 @@ __visible noinstr long do_fast_syscall_32(struct pt_regs *regs)
 #endif
 }
 
-/* Returns 0 to return using IRET or 1 to return using SYSEXIT/SYSRETL. */
 __visible noinstr long do_SYSENTER_32(struct pt_regs *regs)
 {
 	/* SYSENTER loses RSP, but the vDSO saved it in RBP. */
@@ -254,23 +195,9 @@ SYSCALL_DEFINE0(ni_syscall)
 
 #ifdef CONFIG_XEN_PV
 #ifndef CONFIG_PREEMPTION
-/*
- * Some hypercalls issued by the toolstack can take many 10s of
- * seconds. Allow tasks running hypercalls via the privcmd driver to
- * be voluntarily preempted even if full kernel preemption is
- * disabled.
- *
- * Such preemptible hypercalls are bracketed by
- * xen_preemptible_hcall_begin() and xen_preemptible_hcall_end()
- * calls.
- */
 DEFINE_PER_CPU(bool, xen_in_preemptible_hcall);
 EXPORT_SYMBOL_GPL(xen_in_preemptible_hcall);
 
-/*
- * In case of scheduling the flag must be cleared and restored after
- * returning from schedule as the task might move to a different CPU.
- */
 static __always_inline bool get_and_clear_inhcall(void)
 {
 	bool inhcall = __this_cpu_read(xen_in_preemptible_hcall);

@@ -1,8 +1,3 @@
-/*
- * Copyright (C) 2003 PathScale, Inc.
- * Copyright (C) 2003 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
- */
 
 
 #include <linux/personality.h>
@@ -17,9 +12,6 @@
 
 #ifdef CONFIG_X86_32
 
-/*
- * FPU tag word conversions.
- */
 
 static inline unsigned short twd_i387_to_fxsr(unsigned short twd)
 {
@@ -383,12 +375,6 @@ int setup_signal_stack_sc(unsigned long stack_top, struct ksignal *ksig,
 				      sizeof(frame->extramask));
 
 	/*
-	 * This is popl %eax ; movl $,%eax ; int $0x80
-	 *
-	 * WE DO NOT USE IT ANY MORE! It's only left here for historical
-	 * reasons and because gdb uses it as a signature to notice
-	 * signal handler stack frames.
-	 */
 	err |= __put_user(0xb858, (short __user *)(frame->retcode+0));
 	err |= __put_user(__NR_sigreturn, (int __user *)(frame->retcode+2));
 	err |= __put_user(0x80cd, (short __user *)(frame->retcode+6));
@@ -429,12 +415,6 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 					PT_REGS_SP(regs));
 
 	/*
-	 * This is movl $,%eax ; int $0x80
-	 *
-	 * WE DO NOT USE IT ANY MORE! It's only left here for historical
-	 * reasons and because gdb uses it as a signature to notice
-	 * signal handler stack frames.
-	 */
 	err |= __put_user(0xb8, (char __user *)(frame->retcode+0));
 	err |= __put_user(__NR_rt_sigreturn, (int __user *)(frame->retcode+1));
 	err |= __put_user(0x80cd, (short __user *)(frame->retcode+5));
@@ -526,9 +506,6 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 				      sizeof(*set));
 
 	/*
-	 * Set up to return from userspace.  If provided, use a stub
-	 * already in userspace.
-	 */
 	/* x86-64 should always use SA_RESTORER. */
 	if (ksig->ka.sa.sa_flags & SA_RESTORER)
 		err |= __put_user((void *)ksig->ka.sa.sa_restorer,
@@ -546,9 +523,6 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 	PT_REGS_AX(regs) = 0;
 
 	/*
-	 * This also works for non SA_SIGINFO handlers because they expect the
-	 * next argument after the signal number on the stack.
-	 */
 	PT_REGS_SI(regs) = (unsigned long) &frame->info;
 	PT_REGS_DX(regs) = (unsigned long) &frame->uc;
 	PT_REGS_IP(regs) = (unsigned long) ksig->ka.sa.sa_handler;

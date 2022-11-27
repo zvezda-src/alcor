@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Power trace points
- *
- * Copyright (C) 2009 Ming Lei <ming.lei@canonical.com>
- */
 
 #include <linux/string.h>
 #include <linux/types.h>

@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * <linux/swait.h> (simple wait queues ) implementation:
- */
 
 void __init_swait_queue_head(struct swait_queue_head *q, const char *name,
 			     struct lock_class_key *key)
@@ -12,12 +8,6 @@ void __init_swait_queue_head(struct swait_queue_head *q, const char *name,
 }
 EXPORT_SYMBOL(__init_swait_queue_head);
 
-/*
- * The thing about the wake_up_state() return value; I think we can ignore it.
- *
- * If for some reason it would return 0, that means the previously waiting
- * task is already running, so it will observe condition true (or has already).
- */
 void swake_up_locked(struct swait_queue_head *q)
 {
 	struct swait_queue *curr;
@@ -31,13 +21,6 @@ void swake_up_locked(struct swait_queue_head *q)
 }
 EXPORT_SYMBOL(swake_up_locked);
 
-/*
- * Wake up all waiters. This is an interface which is solely exposed for
- * completions and not for general usage.
- *
- * It is intentionally different from swake_up_all() to allow usage from
- * hard interrupt context and interrupt disabled regions.
- */
 void swake_up_all_locked(struct swait_queue_head *q)
 {
 	while (!list_empty(&q->task_list))
@@ -54,10 +37,6 @@ void swake_up_one(struct swait_queue_head *q)
 }
 EXPORT_SYMBOL(swake_up_one);
 
-/*
- * Does not allow usage from IRQ disabled, since we must be able to
- * release IRQs to guarantee bounded hold time.
- */
 void swake_up_all(struct swait_queue_head *q)
 {
 	struct swait_queue *curr;
@@ -107,9 +86,6 @@ long prepare_to_swait_event(struct swait_queue_head *q, struct swait_queue *wait
 	raw_spin_lock_irqsave(&q->lock, flags);
 	if (signal_pending_state(state, current)) {
 		/*
-		 * See prepare_to_wait_event(). TL;DR, subsequent swake_up_one()
-		 * must not see us.
-		 */
 		list_del_init(&wait->task_list);
 		ret = -ERESTARTSYS;
 	} else {

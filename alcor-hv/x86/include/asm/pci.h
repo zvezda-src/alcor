@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PCI_H
 #define _ASM_X86_PCI_H
 
@@ -70,7 +69,6 @@ static inline bool is_vmd(struct pci_bus *bus)
 #define is_vmd(bus)		false
 #endif /* CONFIG_VMD */
 
-/* Can be used to override the logic in pci_scan_bus for skipping
    already-configured bus numbers - to be used for buggy BIOSes
    or architectures with incomplete PCI setup by the loader */
 
@@ -106,7 +104,6 @@ static inline void early_quirks(void) { }
 extern void pci_iommu_alloc(void);
 
 #ifdef CONFIG_NUMA
-/* Returns the node based on pci bus */
 static inline int __pcibus_to_node(const struct pci_bus *bus)
 {
 	return to_pci_sysdata(bus)->node;

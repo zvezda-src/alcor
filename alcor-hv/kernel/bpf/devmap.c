@@ -1,49 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2017 Covalent IO, Inc. http://covalent.io
- */
 
-/* Devmaps primary use is as a backend map for XDP BPF helper call
- * bpf_redirect_map(). Because XDP is mostly concerned with performance we
- * spent some effort to ensure the datapath with redirect maps does not use
- * any locking. This is a quick note on the details.
- *
- * We have three possible paths to get into the devmap control plane bpf
- * syscalls, bpf programs, and driver side xmit/flush operations. A bpf syscall
- * will invoke an update, delete, or lookup operation. To ensure updates and
- * deletes appear atomic from the datapath side xchg() is used to modify the
- * netdev_map array. Then because the datapath does a lookup into the netdev_map
- * array (read-only) from an RCU critical section we use call_rcu() to wait for
- * an rcu grace period before free'ing the old data structures. This ensures the
- * datapath always has a valid copy. However, the datapath does a "flush"
- * operation that pushes any pending packets in the driver outside the RCU
- * critical section. Each bpf_dtab_netdev tracks these pending operations using
- * a per-cpu flush list. The bpf_dtab_netdev object will not be destroyed  until
- * this list is empty, indicating outstanding flush operations have completed.
- *
- * BPF syscalls may race with BPF program calls on any of the update, delete
- * or lookup operations. As noted above the xchg() operation also keep the
- * netdev_map consistent in this case. From the devmap side BPF programs
- * calling into these operations are the same as multiple user space threads
- * making system calls.
- *
- * Finally, any of the above may race with a netdev_unregister notifier. The
- * unregister notifier must search for net devices in the map structure that
- * contain a reference to the net device and remove them. This is a two step
- * process (a) dereference the bpf_dtab_netdev object in netdev_map and (b)
- * check to see if the ifindex is the same as the net_device being removed.
- * When removing the dev a cmpxchg() is used to ensure the correct dev is
- * removed, in the case of a concurrent update or delete operation it is
- * possible that the initially referenced dev is no longer in the map. As the
- * notifier hook walks the map we know that new dev references can not be
- * added by the user because core infrastructure ensures dev_get_by_index()
- * calls will fail at this point.
- *
- * The devmap_hash type is a map type which interprets keys as ifindexes and
- * indexes these using a hashmap. This allows maps that use ifindex as key to be
- * densely packed instead of having holes in the lookup array for unused
- * ifindexes. The setup and packet enqueue/send code is shared between the two
- * types of devmap; only the lookup and insertion is different.
- */
 #include <linux/bpf.h>
 #include <net/xdp.h>
 #include <linux/filter.h>
@@ -256,14 +211,9 @@ static int dev_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
 
 	if (index == dtab->map.max_entries - 1)
 		return -ENOENT;
-	*next = index + 1;
 	return 0;
 }
 
-/* Elements are kept alive by RCU; either by rcu_read_lock() (from syscall) or
- * by local_bh_disable() (from XDP calls inside NAPI). The
- * rcu_read_lock_bh_held() below makes lockdep accept both.
- */
 static void *__dev_map_hash_lookup_elem(struct bpf_map *map, u32 key)
 {
 	struct bpf_dtab *dtab = container_of(map, struct bpf_dtab, map);
@@ -405,10 +355,6 @@ out:
 	trace_xdp_devmap_xmit(bq->dev_rx, dev, sent, cnt - sent, err);
 }
 
-/* __dev_flush is called from xdp_do_flush() which _must_ be signalled from the
- * driver before returning from its napi->poll() routine. See the comment above
- * xdp_do_flush() in filter.c.
- */
 void __dev_flush(void)
 {
 	struct list_head *flush_list = this_cpu_ptr(&dev_flush_list);
@@ -422,10 +368,6 @@ void __dev_flush(void)
 	}
 }
 
-/* Elements are kept alive by RCU; either by rcu_read_lock() (from syscall) or
- * by local_bh_disable() (from XDP calls inside NAPI). The
- * rcu_read_lock_bh_held() below makes lockdep accept both.
- */
 static void *__dev_map_lookup_elem(struct bpf_map *map, u32 key)
 {
 	struct bpf_dtab *dtab = container_of(map, struct bpf_dtab, map);
@@ -439,10 +381,6 @@ static void *__dev_map_lookup_elem(struct bpf_map *map, u32 key)
 	return obj;
 }
 
-/* Runs in NAPI, i.e., softirq under local_bh_disable(). Thus, safe percpu
- * variable access, and map elements stick around. See comment above
- * xdp_do_flush() in filter.c.
- */
 static void bq_enqueue(struct net_device *dev, struct xdp_frame *xdpf,
 		       struct net_device *dev_rx, struct bpf_prog *xdp_prog)
 {
@@ -566,10 +504,6 @@ static inline bool is_ifindex_excluded(int *excluded, int num_excluded, int ifin
 	return false;
 }
 
-/* Get ifindex of each upper device. 'indexes' must be able to hold at
- * least MAX_NEST_DEV elements.
- * Returns the number of ifindexes added.
- */
 static int get_upper_ifindexes(struct net_device *dev, int *indexes)
 {
 	struct net_device *upper;

@@ -1,12 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
 #define BUILD_VDSO32
 
 #ifdef CONFIG_X86_64
 
-/*
- * in case of a 32 bit VDSO for a 64 bit kernel fake a 32 bit kernel
- * configuration
- */
 #undef CONFIG_64BIT
 #undef CONFIG_X86_64
 #undef CONFIG_COMPAT

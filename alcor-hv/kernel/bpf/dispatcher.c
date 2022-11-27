@@ -1,25 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* Copyright(c) 2019 Intel Corporation. */
 
 #include <linux/hash.h>
 #include <linux/bpf.h>
 #include <linux/filter.h>
 
-/* The BPF dispatcher is a multiway branch code generator. The
- * dispatcher is a mechanism to avoid the performance penalty of an
- * indirect call, which is expensive when retpolines are enabled. A
- * dispatch client registers a BPF program into the dispatcher, and if
- * there is available room in the dispatcher a direct call to the BPF
- * program will be generated. All calls to the BPF programs called via
- * the dispatcher will then be a direct call, instead of an
- * indirect. The dispatcher hijacks a trampoline function it via the
- * __fentry__ of the trampoline. The trampoline function has the
- * following signature:
- *
- * unsigned int trampoline(const void *ctx, const struct bpf_insn *insnsi,
- *                         unsigned int (*bpf_func)(const void *,
- *                                                  const struct bpf_insn *));
- */
 
 static struct bpf_dispatcher_prog *bpf_dispatcher_find_prog(
 	struct bpf_dispatcher *d, struct bpf_prog *prog)

@@ -1,7 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- * arch/um/include/sysdep-i386/archsetjmp.h
- */
 
 #ifndef _KLIBC_ARCHSETJMP_H
 #define _KLIBC_ARCHSETJMP_H

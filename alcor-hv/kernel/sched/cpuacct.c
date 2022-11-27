@@ -1,13 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0
 
-/*
- * CPU accounting code for task groups.
- *
- * Based on the work by Paul Menage (menage@google.com) and Balbir Singh
- * (balbir@in.ibm.com).
- */
 
-/* Time spent by the tasks of the CPU accounting group executing in ... */
 enum cpuacct_stat_index {
 	CPUACCT_STAT_USER,	/* ... user mode */
 	CPUACCT_STAT_SYSTEM,	/* ... kernel mode */
@@ -20,7 +12,6 @@ static const char * const cpuacct_stat_desc[] = {
 	[CPUACCT_STAT_SYSTEM] = "system",
 };
 
-/* track CPU usage of a group of tasks and its child groups */
 struct cpuacct {
 	struct cgroup_subsys_state	css;
 	/* cpuusage holds pointer to a u64-type object on every CPU */
@@ -33,7 +24,6 @@ static inline struct cpuacct *css_ca(struct cgroup_subsys_state *css)
 	return css ? container_of(css, struct cpuacct, css) : NULL;
 }
 
-/* Return CPU accounting group to which this task belongs */
 static inline struct cpuacct *task_ca(struct task_struct *tsk)
 {
 	return css_ca(task_css(tsk, cpuacct_cgrp_id));
@@ -50,7 +40,6 @@ static struct cpuacct root_cpuacct = {
 	.cpuusage	= &root_cpuacct_cpuusage,
 };
 
-/* Create a new CPU accounting group */
 static struct cgroup_subsys_state *
 cpuacct_css_alloc(struct cgroup_subsys_state *parent_css)
 {
@@ -81,7 +70,6 @@ out:
 	return ERR_PTR(-ENOMEM);
 }
 
-/* Destroy an existing CPU accounting group */
 static void cpuacct_css_free(struct cgroup_subsys_state *css)
 {
 	struct cpuacct *ca = css_ca(css);
@@ -99,16 +87,11 @@ static u64 cpuacct_cpuusage_read(struct cpuacct *ca, int cpu,
 	u64 data;
 
 	/*
-	 * We allow index == CPUACCT_STAT_NSTATS here to read
-	 * the sum of usages.
-	 */
 	if (WARN_ON_ONCE(index > CPUACCT_STAT_NSTATS))
 		return 0;
 
 #ifndef CONFIG_64BIT
 	/*
-	 * Take rq->lock to make 64-bit read safe on 32-bit platforms.
-	 */
 	raw_spin_rq_lock_irq(cpu_rq(cpu));
 #endif
 
@@ -143,11 +126,8 @@ static void cpuacct_cpuusage_write(struct cpuacct *ca, int cpu)
 
 #ifndef CONFIG_64BIT
 	/*
-	 * Take rq->lock to make 64-bit write safe on 32-bit platforms.
-	 */
 	raw_spin_rq_lock_irq(cpu_rq(cpu));
 #endif
-	*cpuusage = 0;
 	cpustat[CPUTIME_USER] = cpustat[CPUTIME_NICE] = 0;
 	cpustat[CPUTIME_SYSTEM] = cpustat[CPUTIME_IRQ] = 0;
 	cpustat[CPUTIME_SOFTIRQ] = 0;
@@ -157,7 +137,6 @@ static void cpuacct_cpuusage_write(struct cpuacct *ca, int cpu)
 #endif
 }
 
-/* Return total CPU usage (in nanoseconds) of a group */
 static u64 __cpuusage_read(struct cgroup_subsys_state *css,
 			   enum cpuacct_stat_index index)
 {
@@ -195,8 +174,6 @@ static int cpuusage_write(struct cgroup_subsys_state *css, struct cftype *cft,
 	int cpu;
 
 	/*
-	 * Only allow '0' here to do a reset.
-	 */
 	if (val)
 		return -EINVAL;
 
@@ -326,11 +303,6 @@ static struct cftype files[] = {
 	{ }	/* terminate */
 };
 
-/*
- * charge this task's execution time to its accounting group.
- *
- * called with rq->lock held.
- */
 void cpuacct_charge(struct task_struct *tsk, u64 cputime)
 {
 	unsigned int cpu = task_cpu(tsk);
@@ -342,11 +314,6 @@ void cpuacct_charge(struct task_struct *tsk, u64 cputime)
 		*per_cpu_ptr(ca->cpuusage, cpu) += cputime;
 }
 
-/*
- * Add user/system time to cpuacct.
- *
- * Note: it's the caller that updates the account of the root cgroup.
- */
 void cpuacct_account_field(struct task_struct *tsk, int index, u64 val)
 {
 	struct cpuacct *ca;

@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * MCE grading rules.
- * Copyright 2008, 2009 Intel Corporation.
- *
- * Author: Andi Kleen
- */
 #include <linux/kernel.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
@@ -19,17 +12,6 @@
 
 #include "internal.h"
 
-/*
- * Grade an mce by severity. In general the most severe ones are processed
- * first. Since there are quite a lot of combinations test the bits in a
- * table-driven way. The rules are simply processed in order, first
- * match wins.
- *
- * Note this is only used for machine check exceptions, the corrected
- * errors use much simpler rules. The exceptions still check for the corrected
- * errors, but only to leave them alone for the CMCI handler (except for
- * panic situations)
- */
 
 enum context { IN_KERNEL = 1, IN_USER = 2, IN_KERNEL_RECOV = 3 };
 enum ser { SER_REQUIRED = 1, NO_SER = 2 };
@@ -104,12 +86,6 @@ static struct severity {
 		NOSER, BITCLR(MCI_STATUS_UC)
 		),
 	/*
-	 * known AO MCACODs reported via MCE or CMC:
-	 *
-	 * SRAO could be signaled either via a machine check exception or
-	 * CMCI with the corresponding bit S 1 or 0. So we don't need to
-	 * check bit S for SRAO.
-	 */
 	MCESEV(
 		AO, "Action optional: memory scrubbing error",
 		SER, MASK(MCI_UC_AR|MCACOD_SCRUBMSK, MCI_STATUS_UC|MCACOD_SCRUB)
@@ -119,12 +95,6 @@ static struct severity {
 		SER, MASK(MCI_UC_AR|MCACOD, MCI_STATUS_UC|MCACOD_L3WB)
 		),
 	/*
-	 * Quirk for Skylake/Cascade Lake. Patrol scrubber may be configured
-	 * to report uncorrected errors using CMCI with a special signature.
-	 * UC=0, MSCOD=0x0010, MCACOD=binary(000X 0000 1100 XXXX) reported
-	 * in one of the memory controller banks.
-	 * Set severity to "AO" for same action as normal patrol scrub error.
-	 */
 	MCESEV(
 		AO, "Uncorrected Patrol Scrub Error",
 		SER, MASK(MCI_STATUS_UC|MCI_ADDR|0xffffeff0, MCI_ADDR|0x001000c0),
@@ -255,17 +225,6 @@ static bool is_copy_from_user(struct pt_regs *regs)
 	return true;
 }
 
-/*
- * If mcgstatus indicated that ip/cs on the stack were
- * no good, then "m->cs" will be zero and we will have
- * to assume the worst case (IN_KERNEL) as we actually
- * have no idea what we were executing when the machine
- * check hit.
- * If we do have a good "m->cs" (or a faked one in the
- * case we were executing in VM86 mode) we can use it to
- * distinguish an exception taken in user from from one
- * taken in the kernel.
- */
 static noinstr int error_context(struct mce *m, struct pt_regs *regs)
 {
 	int fixup_type;
@@ -301,16 +260,12 @@ static noinstr int error_context(struct mce *m, struct pt_regs *regs)
 	}
 }
 
-/* See AMD PPR(s) section Machine Check Error Handling. */
 static noinstr int mce_severity_amd(struct mce *m, struct pt_regs *regs, char **msg, bool is_excp)
 {
 	char *panic_msg = NULL;
 	int ret;
 
 	/*
-	 * Default return value: Action required, the error must be handled
-	 * immediately.
-	 */
 	ret = MCE_AR_SEVERITY;
 
 	/* Processor Context Corrupt, no need to fumble too much, die! */
@@ -326,18 +281,12 @@ static noinstr int mce_severity_amd(struct mce *m, struct pt_regs *regs, char **
 	}
 
 	/*
-	 * If the UC bit is not set, the system either corrected or deferred
-	 * the error. No action will be required after logging the error.
-	 */
 	if (!(m->status & MCI_STATUS_UC)) {
 		ret = MCE_KEEP_SEVERITY;
 		goto out;
 	}
 
 	/*
-	 * On MCA overflow, without the MCA overflow recovery feature the
-	 * system will not be able to recover, panic.
-	 */
 	if ((m->status & MCI_STATUS_OVER) && !mce_flags.overflow_recov) {
 		panic_msg = "Overflowed uncorrected error without MCA Overflow Recovery";
 		ret = MCE_PANIC_SEVERITY;

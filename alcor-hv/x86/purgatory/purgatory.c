@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * purgatory: Runs between two kernels
- *
- * Copyright (C) 2014 Red Hat Inc.
- *
- * Author:
- *       Vivek Goyal <vgoyal@redhat.com>
- */
 
 #include <linux/bug.h>
 #include <linux/kernel.h>
@@ -52,8 +43,4 @@ void purgatory(void)
 	}
 }
 
-/*
- * Defined in order to reuse memcpy() and memset() from
- * arch/x86/boot/compressed/string.c
- */
 void warn(const char *msg) {}

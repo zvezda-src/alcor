@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #define pr_fmt(fmt) "kcov: " fmt
 
 #define DISABLE_BRANCH_PROFILING
@@ -27,29 +26,10 @@
 
 #define kcov_debug(fmt, ...) pr_debug("%s: " fmt, __func__, ##__VA_ARGS__)
 
-/* Number of 64-bit words written per one comparison: */
 #define KCOV_WORDS_PER_CMP 4
 
-/*
- * kcov descriptor (one per opened debugfs file).
- * State transitions of the descriptor:
- *  - initial state after open()
- *  - then there must be a single ioctl(KCOV_INIT_TRACE) call
- *  - then, mmap() call (several calls are allowed but not useful)
- *  - then, ioctl(KCOV_ENABLE, arg), where arg is
- *	KCOV_TRACE_PC - to trace only the PCs
- *	or
- *	KCOV_TRACE_CMP - to trace only the comparison operands
- *  - then, ioctl(KCOV_DISABLE) to disable the task.
- * Enabling/disabling ioctls can be repeated (only one task a time allowed).
- */
 struct kcov {
 	/*
-	 * Reference counter. We keep one for:
-	 *  - opened file descriptor
-	 *  - task with enabled coverage (we can't unwire it from another task)
-	 *  - each code section for remote coverage collection
-	 */
 	refcount_t		refcount;
 	/* The lock protects mode, size, area and t. */
 	spinlock_t		lock;
@@ -65,9 +45,6 @@ struct kcov {
 	/* Size of remote area (in long's). */
 	unsigned int		remote_size;
 	/*
-	 * Sequence is incremented each time kcov is reenabled, used by
-	 * kcov_remote_stop(), see the comment there.
-	 */
 	int			sequence;
 };
 
@@ -101,7 +78,6 @@ static DEFINE_PER_CPU(struct kcov_percpu_data, kcov_percpu_data) = {
 	.lock = INIT_LOCAL_LOCK(lock),
 };
 
-/* Must be called with kcov_remote_lock locked. */
 static struct kcov_remote *kcov_remote_find(u64 handle)
 {
 	struct kcov_remote *remote;
@@ -113,7 +89,6 @@ static struct kcov_remote *kcov_remote_find(u64 handle)
 	return NULL;
 }
 
-/* Must be called with kcov_remote_lock locked. */
 static struct kcov_remote *kcov_remote_add(struct kcov *kcov, u64 handle)
 {
 	struct kcov_remote *remote;
@@ -129,7 +104,6 @@ static struct kcov_remote *kcov_remote_add(struct kcov *kcov, u64 handle)
 	return remote;
 }
 
-/* Must be called with kcov_remote_lock locked. */
 static struct kcov_remote_area *kcov_remote_area_get(unsigned int size)
 {
 	struct kcov_remote_area *area;
@@ -145,7 +119,6 @@ static struct kcov_remote_area *kcov_remote_area_get(unsigned int size)
 	return NULL;
 }
 
-/* Must be called with kcov_remote_lock locked. */
 static void kcov_remote_area_put(struct kcov_remote_area *area,
 					unsigned int size)
 {
@@ -159,20 +132,10 @@ static notrace bool check_kcov_mode(enum kcov_mode needed_mode, struct task_stru
 	unsigned int mode;
 
 	/*
-	 * We are interested in code coverage as a function of a syscall inputs,
-	 * so we ignore code executed in interrupts, unless we are in a remote
-	 * coverage collection section in a softirq.
-	 */
 	if (!in_task() && !(in_serving_softirq() && t->kcov_softirq))
 		return false;
 	mode = READ_ONCE(t->kcov_mode);
 	/*
-	 * There is some code that runs in interrupts but for which
-	 * in_interrupt() returns false (e.g. preempt_schedule_irq()).
-	 * READ_ONCE()/barrier() effectively provides load-acquire wrt
-	 * interrupts, there are paired barrier()/WRITE_ONCE() in
-	 * kcov_start().
-	 */
 	barrier();
 	return mode == needed_mode;
 }
@@ -185,10 +148,6 @@ static notrace unsigned long canonicalize_ip(unsigned long ip)
 	return ip;
 }
 
-/*
- * Entry point from instrumented code.
- * This is called once per basic-block/edge.
- */
 void notrace __sanitizer_cov_trace_pc(void)
 {
 	struct task_struct *t;
@@ -232,9 +191,6 @@ static void notrace write_comp_data(u64 type, u64 arg1, u64 arg2, u64 ip)
 	ip = canonicalize_ip(ip);
 
 	/*
-	 * We write all comparison arguments and types as u64.
-	 * The buffer was allocated for t->kcov_size unsigned longs.
-	 */
 	area = (u64 *)t->kcov_area;
 	max_pos = t->kcov_size * sizeof(unsigned long);
 
@@ -435,27 +391,6 @@ void kcov_task_exit(struct task_struct *t)
 	spin_lock_irqsave(&kcov->lock, flags);
 	kcov_debug("t = %px, kcov->t = %px\n", t, kcov->t);
 	/*
-	 * For KCOV_ENABLE devices we want to make sure that t->kcov->t == t,
-	 * which comes down to:
-	 *        WARN_ON(!kcov->remote && kcov->t != t);
-	 *
-	 * For KCOV_REMOTE_ENABLE devices, the exiting task is either:
-	 *
-	 * 1. A remote task between kcov_remote_start() and kcov_remote_stop().
-	 *    In this case we should print a warning right away, since a task
-	 *    shouldn't be exiting when it's in a kcov coverage collection
-	 *    section. Here t points to the task that is collecting remote
-	 *    coverage, and t->kcov->t points to the thread that created the
-	 *    kcov device. Which means that to detect this case we need to
-	 *    check that t != t->kcov->t, and this gives us the following:
-	 *        WARN_ON(kcov->remote && kcov->t != t);
-	 *
-	 * 2. The task that created kcov exiting without calling KCOV_DISABLE,
-	 *    and then again we make sure that t->kcov->t == t:
-	 *        WARN_ON(kcov->remote && kcov->t != t);
-	 *
-	 * By combining all three checks into one we get:
-	 */
 	if (WARN_ON(kcov->t != t)) {
 		spin_unlock_irqrestore(&kcov->lock, flags);
 		return;
@@ -532,11 +467,6 @@ static int kcov_get_mode(unsigned long arg)
 		return -EINVAL;
 }
 
-/*
- * Fault in a lazily-faulted vmalloc area before it can be used by
- * __santizer_cov_trace_pc(), to avoid recursion issues if any code on the
- * vmalloc fault handling path is instrumented.
- */
 static void kcov_fault_in_area(struct kcov *kcov)
 {
 	unsigned long stride = PAGE_SIZE / sizeof(unsigned long);
@@ -576,12 +506,6 @@ static int kcov_ioctl_locked(struct kcov *kcov, unsigned int cmd,
 	switch (cmd) {
 	case KCOV_ENABLE:
 		/*
-		 * Enable coverage for the current task.
-		 * At this point user must have been enabled trace mode,
-		 * and mmapped the file. Coverage collection is disabled only
-		 * at task exit or voluntary by KCOV_DISABLE. After that it can
-		 * be enabled for another task.
-		 */
 		if (kcov->mode != KCOV_MODE_INIT || !kcov->area)
 			return -EINVAL;
 		t = current;
@@ -684,12 +608,6 @@ static long kcov_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case KCOV_INIT_TRACE:
 		/*
-		 * Enable kcov in trace mode and setup buffer size.
-		 * Must happen before anything else.
-		 *
-		 * First check the size argument - it must be at least 2
-		 * to hold the current position and one PC.
-		 */
 		size = arg;
 		if (size < 2 || size > INT_MAX / sizeof(unsigned long))
 			return -EINVAL;
@@ -726,9 +644,6 @@ static long kcov_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		fallthrough;
 	default:
 		/*
-		 * All other commands can be normally executed under a spin lock, so we
-		 * obtain and release it here in order to simplify kcov_ioctl_locked().
-		 */
 		spin_lock_irqsave(&kcov->lock, flags);
 		res = kcov_ioctl_locked(kcov, cmd, arg);
 		spin_unlock_irqrestore(&kcov->lock, flags);
@@ -745,48 +660,6 @@ static const struct file_operations kcov_fops = {
 	.release        = kcov_close,
 };
 
-/*
- * kcov_remote_start() and kcov_remote_stop() can be used to annotate a section
- * of code in a kernel background thread or in a softirq to allow kcov to be
- * used to collect coverage from that part of code.
- *
- * The handle argument of kcov_remote_start() identifies a code section that is
- * used for coverage collection. A userspace process passes this handle to
- * KCOV_REMOTE_ENABLE ioctl to make the used kcov device start collecting
- * coverage for the code section identified by this handle.
- *
- * The usage of these annotations in the kernel code is different depending on
- * the type of the kernel thread whose code is being annotated.
- *
- * For global kernel threads that are spawned in a limited number of instances
- * (e.g. one USB hub_event() worker thread is spawned per USB HCD) and for
- * softirqs, each instance must be assigned a unique 4-byte instance id. The
- * instance id is then combined with a 1-byte subsystem id to get a handle via
- * kcov_remote_handle(subsystem_id, instance_id).
- *
- * For local kernel threads that are spawned from system calls handler when a
- * user interacts with some kernel interface (e.g. vhost workers), a handle is
- * passed from a userspace process as the common_handle field of the
- * kcov_remote_arg struct (note, that the user must generate a handle by using
- * kcov_remote_handle() with KCOV_SUBSYSTEM_COMMON as the subsystem id and an
- * arbitrary 4-byte non-zero number as the instance id). This common handle
- * then gets saved into the task_struct of the process that issued the
- * KCOV_REMOTE_ENABLE ioctl. When this process issues system calls that spawn
- * kernel threads, the common handle must be retrieved via kcov_common_handle()
- * and passed to the spawned threads via custom annotations. Those kernel
- * threads must in turn be annotated with kcov_remote_start(common_handle) and
- * kcov_remote_stop(). All of the threads that are spawned by the same process
- * obtain the same handle, hence the name "common".
- *
- * See Documentation/dev-tools/kcov.rst for more details.
- *
- * Internally, kcov_remote_start() looks up the kcov device associated with the
- * provided handle, allocates an area for coverage collection, and saves the
- * pointers to kcov and area into the current task_struct to allow coverage to
- * be collected via __sanitizer_cov_trace_pc().
- * In turns kcov_remote_stop() clears those pointers from task_struct to stop
- * collecting coverage and copies all collected coverage into the kcov area.
- */
 
 static inline bool kcov_mode_enabled(unsigned int mode)
 {
@@ -845,19 +718,12 @@ void kcov_remote_start(u64 handle)
 	local_lock_irqsave(&kcov_percpu_data.lock, flags);
 
 	/*
-	 * Check that kcov_remote_start() is not called twice in background
-	 * threads nor called by user tasks (with enabled kcov).
-	 */
 	mode = READ_ONCE(t->kcov_mode);
 	if (WARN_ON(in_task() && kcov_mode_enabled(mode))) {
 		local_unlock_irqrestore(&kcov_percpu_data.lock, flags);
 		return;
 	}
 	/*
-	 * Check that kcov_remote_start() is not called twice in softirqs.
-	 * Note, that kcov_remote_start() can be called from a softirq that
-	 * happened while collecting coverage from a background thread.
-	 */
 	if (WARN_ON(in_serving_softirq() && t->kcov_softirq)) {
 		local_unlock_irqrestore(&kcov_percpu_data.lock, flags);
 		return;
@@ -876,9 +742,6 @@ void kcov_remote_start(u64 handle)
 	/* Put in kcov_remote_stop(). */
 	kcov_get(kcov);
 	/*
-	 * Read kcov fields before unlock to prevent races with
-	 * KCOV_DISABLE / kcov_remote_reset().
-	 */
 	mode = kcov->mode;
 	sequence = kcov->sequence;
 	if (in_task()) {
@@ -902,7 +765,6 @@ void kcov_remote_start(u64 handle)
 	}
 
 	/* Reset coverage size. */
-	*(u64 *)area = 0;
 
 	if (in_serving_softirq()) {
 		kcov_remote_softirq_start(t);
@@ -970,7 +832,6 @@ static void kcov_move_area(enum kcov_mode mode, void *dst_area,
 	}
 }
 
-/* See the comment before kcov_remote_start() for usage details. */
 void kcov_remote_stop(void)
 {
 	struct task_struct *t = current;
@@ -993,9 +854,6 @@ void kcov_remote_stop(void)
 		return;
 	}
 	/*
-	 * When in softirq, check if the corresponding kcov_remote_start()
-	 * actually found the remote handle and started collecting coverage.
-	 */
 	if (in_serving_softirq() && !t->kcov_softirq) {
 		local_unlock_irqrestore(&kcov_percpu_data.lock, flags);
 		return;
@@ -1019,9 +877,6 @@ void kcov_remote_stop(void)
 
 	spin_lock(&kcov->lock);
 	/*
-	 * KCOV_DISABLE could have been called between kcov_remote_start()
-	 * and kcov_remote_stop(), hence the sequence check.
-	 */
 	if (sequence == kcov->sequence && kcov->remote)
 		kcov_move_area(kcov->mode, kcov->area, kcov->size, area);
 	spin_unlock(&kcov->lock);
@@ -1039,7 +894,6 @@ void kcov_remote_stop(void)
 }
 EXPORT_SYMBOL(kcov_remote_stop);
 
-/* See the comment before kcov_remote_start() for usage details. */
 u64 kcov_common_handle(void)
 {
 	if (!in_task())
@@ -1061,10 +915,6 @@ static int __init kcov_init(void)
 	}
 
 	/*
-	 * The kcov debugfs file won't ever get removed and thus,
-	 * there is no need to protect it against removal races. The
-	 * use of debugfs_create_file_unsafe() is actually safe here.
-	 */
 	debugfs_create_file_unsafe("kcov", 0600, NULL, NULL, &kcov_fops);
 
 	return 0;

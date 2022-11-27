@@ -1,24 +1,13 @@
-/*
- * Kernel Debugger Architecture Dependent Console I/O handler
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.
- *
- * Copyright (c) 1999-2006 Silicon Graphics, Inc.  All Rights Reserved.
- * Copyright (c) 2009 Wind River Systems, Inc.  All Rights Reserved.
- */
 
 #include <linux/kdb.h>
 #include <linux/keyboard.h>
 #include <linux/ctype.h>
 #include <linux/io.h>
 
-/* Keyboard Controller Registers on normal PCs. */
 
 #define KBD_STATUS_REG		0x64	/* Status register (R) */
 #define KBD_DATA_REG		0x60	/* Keyboard data register (R/W) */
 
-/* Status Register Bits */
 
 #define KBD_STAT_OBF 		0x01	/* Keyboard output buffer full */
 #define KBD_STAT_MOUSE_OBF	0x20	/* Mouse output buffer full */
@@ -26,11 +15,6 @@
 static int kbd_exists;
 static int kbd_last_ret;
 
-/*
- * Check if the keyboard controller has a keypress for us.
- * Some parts (Enter Release, LED change) are still blocking polled here,
- * but hopefully they are all short.
- */
 int kdb_get_kbd_char(void)
 {
 	int scancode, scanstatus;
@@ -50,28 +34,17 @@ int kdb_get_kbd_char(void)
 		return -1;
 
 	/*
-	 * Fetch the scancode
-	 */
 	scancode = inb(KBD_DATA_REG);
 	scanstatus = inb(KBD_STATUS_REG);
 
 	/*
-	 * Ignore mouse events.
-	 */
 	if (scanstatus & KBD_STAT_MOUSE_OBF)
 		return -1;
 
 	/*
-	 * Ignore release, trigger on make
-	 * (except for shift keys, where we want to
-	 *  keep the shift state so long as the key is
-	 *  held down).
-	 */
 
 	if (((scancode&0x7f) == 0x2a) || ((scancode&0x7f) == 0x36)) {
 		/*
-		 * Next key may use shift table
-		 */
 		if ((scancode & 0x80) == 0)
 			shift_key = 1;
 		else
@@ -81,8 +54,6 @@ int kdb_get_kbd_char(void)
 
 	if ((scancode&0x7f) == 0x1d) {
 		/*
-		 * Left ctrl key
-		 */
 		if ((scancode & 0x80) == 0)
 			ctrl_key = 1;
 		else
@@ -99,13 +70,9 @@ int kdb_get_kbd_char(void)
 	scancode &= 0x7f;
 
 	/*
-	 * Translate scancode
-	 */
 
 	if (scancode == 0x3a) {
 		/*
-		 * Toggle caps lock
-		 */
 		shift_lock ^= 1;
 
 #ifdef	KDB_BLINK_LED
@@ -116,8 +83,6 @@ int kdb_get_kbd_char(void)
 
 	if (scancode == 0x0e) {
 		/*
-		 * Backspace
-		 */
 		return 8;
 	}
 
@@ -145,10 +110,6 @@ int kdb_get_kbd_char(void)
 		return -1;
 
 	/*
-	 * For Japanese 86/106 keyboards
-	 * 	See comment in drivers/char/pc_keyb.c.
-	 * 	- Masahiro Adegawa
-	 */
 	if (scancode == 0x73)
 		scancode = 0x59;
 	else if (scancode == 0x7d)
@@ -190,70 +151,30 @@ int kdb_get_kbd_char(void)
 }
 EXPORT_SYMBOL_GPL(kdb_get_kbd_char);
 
-/*
- * Best effort cleanup of ENTER break codes on leaving KDB. Called on
- * exiting KDB, when we know we processed an ENTER or KP ENTER scan
- * code.
- */
 void kdb_kbd_cleanup_state(void)
 {
 	int scancode, scanstatus;
 
 	/*
-	 * Nothing to clean up, since either
-	 * ENTER was never pressed, or has already
-	 * gotten cleaned up.
-	 */
 	if (!kbd_last_ret)
 		return;
 
 	kbd_last_ret = 0;
 	/*
-	 * Enter key. Need to absorb the break code here, lest it gets
-	 * leaked out if we exit KDB as the result of processing 'g'.
-	 *
-	 * This has several interesting implications:
-	 * + Need to handle KP ENTER, which has break code 0xe0 0x9c.
-	 * + Need to handle repeat ENTER and repeat KP ENTER. Repeats
-	 *   only get a break code at the end of the repeated
-	 *   sequence. This means we can't propagate the repeated key
-	 *   press, and must swallow it away.
-	 * + Need to handle possible PS/2 mouse input.
-	 * + Need to handle mashed keys.
-	 */
 
 	while (1) {
 		while ((inb(KBD_STATUS_REG) & KBD_STAT_OBF) == 0)
 			cpu_relax();
 
 		/*
-		 * Fetch the scancode.
-		 */
 		scancode = inb(KBD_DATA_REG);
 		scanstatus = inb(KBD_STATUS_REG);
 
 		/*
-		 * Skip mouse input.
-		 */
 		if (scanstatus & KBD_STAT_MOUSE_OBF)
 			continue;
 
 		/*
-		 * If we see 0xe0, this is either a break code for KP
-		 * ENTER, or a repeat make for KP ENTER. Either way,
-		 * since the second byte is equivalent to an ENTER,
-		 * skip the 0xe0 and try again.
-		 *
-		 * If we see 0x1c, this must be a repeat ENTER or KP
-		 * ENTER (and we swallowed 0xe0 before). Try again.
-		 *
-		 * We can also see make and break codes for other keys
-		 * mashed before or after pressing ENTER. Thus, if we
-		 * see anything other than 0x9c, we have to try again.
-		 *
-		 * Note, if you held some key as ENTER was depressed,
-		 * that break code would get leaked out.
-		 */
 		if (scancode != 0x9c)
 			continue;
 

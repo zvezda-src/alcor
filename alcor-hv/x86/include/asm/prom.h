@@ -1,10 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
-/*
- * Definitions for Device tree / OpenFirmware handling on X86
- *
- * based on arch/powerpc/include/asm/prom.h which is
- *         Copyright (C) 1996-2005 Paul Mackerras.
- */
 
 #ifndef _ASM_X86_PROM_H
 #define _ASM_X86_PROM_H

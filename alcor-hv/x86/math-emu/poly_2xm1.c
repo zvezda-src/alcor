@@ -1,10 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  poly_2xm1.c                                                              |
  |                                                                           |
  | Function to compute 2^x-1 by a polynomial approximation.                  |
  |                                                                           |
- | Copyright (C) 1992,1993,1994,1997                                         |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
  |                  E-mail   billm@suburbia.net                              |
  |                                                                           |
@@ -35,9 +32,7 @@ static const unsigned long long lterms[HIPOWER] = {
 
 static const Xsig hiterm = MK_XSIG(0xb17217f7, 0xd1cf79ab, 0xc8a39194);
 
-/* Four slices: 0.0 : 0.25 : 0.50 : 0.75 : 1.0,
    These numbers are 2^(1/4), 2^(1/2), and 2^(3/4)
- */
 static const Xsig shiftterm0 = MK_XSIG(0, 0, 0);
 static const Xsig shiftterm1 = MK_XSIG(0x9837f051, 0x8db8a96f, 0x46ad2318);
 static const Xsig shiftterm2 = MK_XSIG(0xb504f333, 0xf9de6484, 0x597d89b3);
@@ -47,7 +42,6 @@ static const Xsig *shiftterm[] = { &shiftterm0, &shiftterm1,
 	&shiftterm2, &shiftterm3
 };
 
-/*--- poly_2xm1() -----------------------------------------------------------+
  | Requires st(0) which is TAG_Valid and < 1.                                |
  +---------------------------------------------------------------------------*/
 int poly_2xm1(u_char sign, FPU_REG *arg, FPU_REG *result)

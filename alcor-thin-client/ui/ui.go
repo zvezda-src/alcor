@@ -5,7 +5,6 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
-	"github.com/Shells-com/shells-go/res"
 )
 
 var logoContainer *fyne.Container

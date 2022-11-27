@@ -1,23 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_BOOTPARAM_UTILS_H
 #define _ASM_X86_BOOTPARAM_UTILS_H
 
 #include <asm/bootparam.h>
 
-/*
- * This file is included from multiple environments.  Do not
- * add completing #includes to make it standalone.
- */
 
-/*
- * Deal with bootloaders which fail to initialize unknown fields in
- * boot_params to zero.  The list fields in this list are taken from
- * analysis of kexec-tools; if other broken bootloaders initialize a
- * different set of fields we will need to figure out how to disambiguate.
- *
- * Note: efi_info is commonly left uninitialized, but that field has a
- * private magic, so it is better to leave it unchanged.
- */
 
 #define sizeof_mbr(type, member) ({ sizeof(((type *)0)->member); })
 

@@ -1,31 +1,4 @@
-#
-#
 
-# Copyright (C) 2013 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 """Version utilities."""
@@ -37,25 +10,12 @@ from alcor import constants
 _FULL_VERSION_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 _SHORT_VERSION_RE = re.compile(r"(\d+)\.(\d+)")
 
-# The first Alcor version that supports automatic upgrades
 FIRST_UPGRADE_VERSION = (2, 10, 0)
 
 CURRENT_VERSION = (constants.VERSION_MAJOR, constants.VERSION_MINOR,
                    constants.VERSION_REVISION)
 
-# Format for CONFIG_VERSION:
-#   01 03 0123 = 01030123
-#   ^^ ^^ ^^^^
-#   |  |  + Configuration version/revision
-#   |  + Minor version
-#   + Major version
-#
-# It is stored as an integer. Make sure not to write an octal number.
 
-# BuildVersion and SplitVersion must be in here because we can't import other
-# modules. The cfgupgrade tool must be able to read and write version numbers
-# and thus requires these functions. To avoid code duplication, they're kept in
-# here.
 
 
 def BuildVersion(major, minor, revision):

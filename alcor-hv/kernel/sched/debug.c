@@ -1,16 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * kernel/sched/debug.c
- *
- * Print the CFS rbtree and other debugging details
- *
- * Copyright(C) 2007, Red Hat, Inc., Ingo Molnar
- */
 
-/*
- * This allows printing both to /proc/sched_debug and
- * to the console
- */
 #define SEQ_printf(m, x...)			\
  do {						\
 	if (m)					\
@@ -19,9 +7,6 @@
 		pr_cont(x);			\
  } while (0)
 
-/*
- * Ease the printing of nsec fields:
- */
 static long long nsec_high(unsigned long long nsec)
 {
 	if ((long long)nsec < 0) {
@@ -148,7 +133,6 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 	if (ret < 0)
 		return ret;
 
-	*ppos += cnt;
 
 	return cnt;
 }
@@ -191,7 +175,6 @@ static ssize_t sched_scaling_write(struct file *filp, const char __user *ubuf,
 	if (sched_update_scaling())
 		return -EINVAL;
 
-	*ppos += cnt;
 	return cnt;
 }
 
@@ -237,7 +220,6 @@ static ssize_t sched_dynamic_write(struct file *filp, const char __user *ubuf,
 
 	sched_dynamic_update(mode);
 
-	*ppos += cnt;
 
 	return cnt;
 }
@@ -395,9 +377,6 @@ void update_sched_domain_debugfs(void)
 	int cpu, i;
 
 	/*
-	 * This can unfortunately be invoked before sched_debug_init() creates
-	 * the debug directory. Don't touch sd_sysctl_cpus until then.
-	 */
 	if (!debugfs_sched)
 		return;
 
@@ -503,13 +482,6 @@ static void task_group_path(struct task_group *tg, char *path, int plen)
 	cgroup_path(tg->css.cgroup, path, plen);
 }
 
-/*
- * Only 1 SEQ_printf_task_group_path() caller can use the full length
- * group_path[] for cgroup path. Other simultaneous callers will have
- * to use a shorter stack buffer. A "..." suffix is appended at the end
- * of the stack buffer so that it will show up in case the output length
- * matches the given buffer size to indicate possible path name truncation.
- */
 #define SEQ_printf_task_group_path(m, tg, fmt...)			\
 {									\
 	if (spin_trylock(&sched_debug_lock)) {				\
@@ -851,23 +823,12 @@ void sysrq_sched_debug_show(void)
 	sched_debug_header(NULL);
 	for_each_online_cpu(cpu) {
 		/*
-		 * Need to reset softlockup watchdogs on all CPUs, because
-		 * another CPU might be blocked waiting for us to process
-		 * an IPI or stop_machine.
-		 */
 		touch_nmi_watchdog();
 		touch_all_softlockup_watchdogs();
 		print_cpu(NULL, cpu);
 	}
 }
 
-/*
- * This iterator needs some explanation.
- * It returns 1 for the header position.
- * This means 2 is CPU 0.
- * In a hotplugged system some CPUs, including CPU 0, may be missing so we have
- * to use cpumask_* to iterate over the CPUs.
- */
 static void *sched_debug_start(struct seq_file *file, loff_t *offset)
 {
 	unsigned long n = *offset;
@@ -882,7 +843,6 @@ static void *sched_debug_start(struct seq_file *file, loff_t *offset)
 	else
 		n = cpumask_first(cpu_online_mask);
 
-	*offset = n + 1;
 
 	if (n < nr_cpu_ids)
 		return (void *)(unsigned long)(n + 2);

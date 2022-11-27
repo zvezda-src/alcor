@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
@@ -14,13 +13,8 @@
 
 #include <asm/trace/hyperv.h>
 
-/*
- * See struct hv_deposit_memory. The first u64 is partition ID, the rest
- * are GPAs.
- */
 #define HV_DEPOSIT_MAX (HV_HYP_PAGE_SIZE / sizeof(u64) - 1)
 
-/* Deposits exact number of pages. Must be called with interrupts enabled.  */
 int hv_call_deposit_pages(int node, u64 partition_id, u32 num_pages)
 {
 	struct page **pages, *page;
@@ -124,10 +118,6 @@ int hv_call_add_logical_proc(int node, u32 lp_index, u32 apic_id)
 	int pxm = node_to_pxm(node);
 
 	/*
-	 * When adding a logical processor, the hypervisor may return
-	 * HV_STATUS_INSUFFICIENT_MEMORY. When that happens, we deposit more
-	 * pages and retry.
-	 */
 	do {
 		local_irq_save(flags);
 

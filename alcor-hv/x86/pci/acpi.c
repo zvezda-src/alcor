@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/init.h>
@@ -146,14 +145,6 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 	},
 
 	/*
-	 * Many Lenovo models with "IIL" in their DMI_PRODUCT_VERSION have
-	 * an E820 reserved region that covers the entire 32-bit host
-	 * bridge memory window from _CRS.  Using the E820 region to clip
-	 * _CRS means no space is available for hot-added or uninitialized
-	 * PCI devices.  This typically breaks I2C controllers for touchpads
-	 * and hot-added Thunderbolt devices.  See the commit log for
-	 * models known to require this quirk and related bug reports.
-	 */
 	{
 		.callback = set_no_e820,
 		.ident = "Lenovo *IIL* product version",
@@ -164,10 +155,6 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 	},
 
 	/*
-	 * The Acer Spin 5 (SP513-54N) has the same E820 reservation covering
-	 * the entire _CRS 32-bit window issue as the Lenovo *IIL* models.
-	 * See https://bugs.launchpad.net/bugs/1884232
-	 */
 	{
 		.callback = set_no_e820,
 		.ident = "Acer Spin 5 (SP513-54N)",
@@ -178,10 +165,6 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 	},
 
 	/*
-	 * Clevo X170KM-G barebones have the same E820 reservation covering
-	 * the entire _CRS 32-bit window issue as the Lenovo *IIL* models.
-	 * See https://bugzilla.kernel.org/show_bug.cgi?id=214259
-	 */
 	{
 		.callback = set_no_e820,
 		.ident = "Clevo X170KM-G Barebone",
@@ -200,32 +183,12 @@ void __init pci_acpi_crs_quirks(void)
 		pci_use_crs = false;
 
 	/*
-	 * Some firmware includes unusable space (host bridge registers,
-	 * hidden PCI device BARs, etc) in PCI host bridge _CRS.  This is a
-	 * firmware defect, and 4dc2287c1805 ("x86: avoid E820 regions when
-	 * allocating address space") has clipped out the unusable space in
-	 * the past.
-	 *
-	 * But other firmware supplies E820 reserved regions that cover
-	 * entire _CRS windows, so clipping throws away the entire window,
-	 * leaving none for hot-added or uninitialized devices.  These E820
-	 * entries are probably *not* a firmware defect, so disable the
-	 * clipping by default for post-2022 machines.
-	 *
-	 * We already have quirks to disable clipping for pre-2023
-	 * machines, and we'll likely need quirks to *enable* clipping for
-	 * post-2022 machines that incorrectly include unusable space in
-	 * _CRS.
-	 */
 	if (year >= 2023)
 		pci_use_e820 = false;
 
 	dmi_check_system(pci_crs_quirks);
 
 	/*
-	 * If the user specifies "pci=use_crs" or "pci=nocrs" explicitly, that
-	 * takes precedence over anything we figured out above.
-	 */
 	if (pci_probe & PCI_ROOT_NO_CRS)
 		pci_use_crs = false;
 	else if (pci_probe & PCI_USE__CRS)
@@ -260,10 +223,6 @@ static int check_segment(u16 seg, struct device *dev, char *estr)
 	}
 
 	/*
-	 * Failure in adding MMCFG information is not fatal,
-	 * just can't access extended configuration space of
-	 * devices under this host bridge.
-	 */
 	dev_warn(dev,
 		 "%s can't access extended PCI configuration "
 		 "space under this bridge.\n",
@@ -357,20 +316,6 @@ static void pci_acpi_root_release_info(struct acpi_pci_root_info *ci)
 	kfree(container_of(ci, struct pci_root_info, common));
 }
 
-/*
- * An IO port or MMIO resource assigned to a PCI host bridge may be
- * consumed by the host bridge itself or available to its child
- * bus/devices. The ACPI specification defines a bit (Producer/Consumer)
- * to tell whether the resource is consumed by the host bridge itself,
- * but firmware hasn't used that bit consistently, so we can't rely on it.
- *
- * On x86 and IA64 platforms, all IO port and MMIO resources are assumed
- * to be available to child bus/devices except one special case:
- *     IO port [0xCF8-0xCFF] is consumed by the host bridge itself
- *     to access PCI configuration space.
- *
- * So explicitly filter out PCI CFG IO ports[0xCF8-0xCFF].
- */
 static bool resource_is_pcicfg_ioport(struct resource *res)
 {
 	return (res->flags & IORESOURCE_IO) &&
@@ -430,9 +375,6 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	bus = pci_find_bus(domain, busnum);
 	if (bus) {
 		/*
-		 * If the desired bus has been scanned already, replace
-		 * its bus->sysdata.
-		 */
 		struct pci_sysdata sd = {
 			.domain = domain,
 			.node = node,
@@ -472,11 +414,6 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
 	/*
-	 * We pass NULL as parent to pci_create_root_bus(), so if it is not NULL
-	 * here, pci_create_root_bus() has been called by someone else and
-	 * sysdata is likely to be different from what we expect.  Let it go in
-	 * that case.
-	 */
 	if (!bridge->dev.parent) {
 		struct pci_sysdata *sd = bridge->bus->sysdata;
 		ACPI_COMPANION_SET(&bridge->dev, sd->companion);
@@ -499,10 +436,6 @@ int __init pci_acpi_init(void)
 
 	if (pci_routeirq) {
 		/*
-		 * PCI IRQ routing is set up by pci_enable_device(), but we
-		 * also do it here in case there are still broken drivers that
-		 * don't use pci_enable_device().
-		 */
 		printk(KERN_INFO "PCI: Routing PCI interrupts for all devices because \"pci=routeirq\" specified\n");
 		for_each_pci_dev(dev)
 			acpi_pci_irq_enable(dev);

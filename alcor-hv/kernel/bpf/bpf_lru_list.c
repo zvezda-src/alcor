@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2016 Facebook
- */
 #include <linux/cpumask.h>
 #include <linux/spinlock.h>
 #include <linux/percpu.h>
@@ -13,7 +10,6 @@
 #define PERCPU_FREE_TARGET		(4)
 #define PERCPU_NR_SCANS			PERCPU_FREE_TARGET
 
-/* Helpers to get the local list index */
 #define LOCAL_LIST_IDX(t)	((t) - BPF_LOCAL_LIST_T_OFFSET)
 #define LOCAL_FREE_LIST_IDX	LOCAL_LIST_IDX(BPF_LRU_LOCAL_LIST_T_FREE)
 #define LOCAL_PENDING_LIST_IDX	LOCAL_LIST_IDX(BPF_LRU_LOCAL_LIST_T_PENDING)
@@ -27,7 +23,6 @@ static int get_next_cpu(int cpu)
 	return cpu;
 }
 
-/* Local list helpers */
 static struct list_head *local_free_list(struct bpf_lru_locallist *loc_l)
 {
 	return &loc_l->lists[LOCAL_FREE_LIST_IDX];
@@ -38,7 +33,6 @@ static struct list_head *local_pending_list(struct bpf_lru_locallist *loc_l)
 	return &loc_l->lists[LOCAL_PENDING_LIST_IDX];
 }
 
-/* bpf_lru_node helpers */
 static bool bpf_lru_node_is_ref(const struct bpf_lru_node *node)
 {
 	return node->ref;
@@ -78,7 +72,6 @@ static void __bpf_lru_node_move_to_free(struct bpf_lru_list *l,
 	list_move(&node->list, free_list);
 }
 
-/* Move nodes from local list to the LRU list */
 static void __bpf_lru_node_move_in(struct bpf_lru_list *l,
 				   struct bpf_lru_node *node,
 				   enum bpf_lru_list_type tgt_type)
@@ -93,10 +86,6 @@ static void __bpf_lru_node_move_in(struct bpf_lru_list *l,
 	list_move(&node->list, &l->lists[tgt_type]);
 }
 
-/* Move nodes between or within active and inactive list (like
- * active to inactive, inactive to active or tail of active back to
- * the head of active).
- */
 static void __bpf_lru_node_move(struct bpf_lru_list *l,
 				struct bpf_lru_node *node,
 				enum bpf_lru_list_type tgt_type)
@@ -127,15 +116,6 @@ static bool bpf_lru_list_inactive_low(const struct bpf_lru_list *l)
 		l->counts[BPF_LRU_LIST_T_ACTIVE];
 }
 
-/* Rotate the active list:
- * 1. Start from tail
- * 2. If the node has the ref bit set, it will be rotated
- *    back to the head of active list with the ref bit cleared.
- *    Give this node one more chance to survive in the active list.
- * 3. If the ref bit is not set, move it to the head of the
- *    inactive list.
- * 4. It will at most scan nr_scans nodes
- */
 static void __bpf_lru_list_rotate_active(struct bpf_lru *lru,
 					 struct bpf_lru_list *l)
 {
@@ -155,14 +135,6 @@ static void __bpf_lru_list_rotate_active(struct bpf_lru *lru,
 	}
 }
 
-/* Rotate the inactive list.  It starts from the next_inactive_rotation
- * 1. If the node has ref bit set, it will be moved to the head
- *    of active list with the ref bit cleared.
- * 2. If the node does not have ref bit set, it will leave it
- *    at its current location (i.e. do nothing) so that it can
- *    be considered during the next inactive_shrink.
- * 3. It will at most scan nr_scans nodes
- */
 static void __bpf_lru_list_rotate_inactive(struct bpf_lru *lru,
 					   struct bpf_lru_list *l)
 {
@@ -198,10 +170,6 @@ static void __bpf_lru_list_rotate_inactive(struct bpf_lru *lru,
 	l->next_inactive_rotation = next;
 }
 
-/* Shrink the inactive list.  It starts from the tail of the
- * inactive list and only move the nodes without the ref bit
- * set to the designated free list.
- */
 static unsigned int
 __bpf_lru_list_shrink_inactive(struct bpf_lru *lru,
 			       struct bpf_lru_list *l,
@@ -231,9 +199,6 @@ __bpf_lru_list_shrink_inactive(struct bpf_lru *lru,
 	return nshrinked;
 }
 
-/* 1. Rotate the active list (if needed)
- * 2. Always rotate the inactive list
- */
 static void __bpf_lru_list_rotate(struct bpf_lru *lru, struct bpf_lru_list *l)
 {
 	if (bpf_lru_list_inactive_low(l))
@@ -242,16 +207,6 @@ static void __bpf_lru_list_rotate(struct bpf_lru *lru, struct bpf_lru_list *l)
 	__bpf_lru_list_rotate_inactive(lru, l);
 }
 
-/* Calls __bpf_lru_list_shrink_inactive() to shrink some
- * ref-bit-cleared nodes and move them to the designated
- * free list.
- *
- * If it cannot get a free node after calling
- * __bpf_lru_list_shrink_inactive().  It will just remove
- * one node from either inactive or active list without
- * honoring the ref-bit.  It prefers inactive list to active
- * list in this situation.
- */
 static unsigned int __bpf_lru_list_shrink(struct bpf_lru *lru,
 					  struct bpf_lru_list *l,
 					  unsigned int tgt_nshrink,
@@ -286,7 +241,6 @@ static unsigned int __bpf_lru_list_shrink(struct bpf_lru *lru,
 	return 0;
 }
 
-/* Flush the nodes from the local pending list to the LRU list */
 static void __local_list_flush(struct bpf_lru_list *l,
 			       struct bpf_lru_locallist *loc_l)
 {
@@ -350,7 +304,6 @@ static void __local_list_add_pending(struct bpf_lru *lru,
 				     struct bpf_lru_node *node,
 				     u32 hash)
 {
-	*(u32 *)((void *)node + lru->hash_offset) = hash;
 	node->cpu = cpu;
 	node->type = BPF_LRU_LOCAL_LIST_T_PENDING;
 	node->ref = 0;

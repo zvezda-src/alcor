@@ -1,7 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- * tick internal variable and functions used by low/high res code
- */
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
 
@@ -30,7 +26,6 @@ extern int tick_is_oneshot_available(void);
 extern struct tick_device *tick_get_device(int cpu);
 
 extern int clockevents_tick_resume(struct clock_event_device *dev);
-/* Check, if the device is functional or a dummy for broadcast */
 static inline int tick_device_is_functional(struct clock_event_device *dev)
 {
 	return !(dev->features & CLOCK_EVT_FEAT_DUMMY);
@@ -58,7 +53,6 @@ extern void clockevents_handle_noop(struct clock_event_device *dev);
 extern int __clockevents_update_freq(struct clock_event_device *dev, u32 freq);
 extern ssize_t sysfs_get_uname(const char *buf, char *dst, size_t cnt);
 
-/* Broadcasting support */
 # ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 extern int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu);
 extern void tick_install_broadcast_device(struct clock_event_device *dev, int cpu);
@@ -83,7 +77,6 @@ static inline bool tick_resume_check_broadcast(void) { return false; }
 static inline void tick_broadcast_init(void) { }
 static inline int tick_broadcast_update_freq(struct clock_event_device *dev, u32 freq) { return -ENODEV; }
 
-/* Set the periodic handler in non broadcast mode */
 static inline void tick_set_periodic_handler(struct clock_event_device *dev, int broadcast)
 {
 	dev->event_handler = tick_handle_periodic;
@@ -95,7 +88,6 @@ static inline void tick_suspend(void) { }
 static inline void tick_resume(void) { }
 #endif /* !GENERIC_CLOCKEVENTS */
 
-/* Oneshot related functions */
 #ifdef CONFIG_TICK_ONESHOT
 extern void tick_setup_oneshot(struct clock_event_device *newdev,
 			       void (*handler)(struct clock_event_device *),
@@ -123,7 +115,6 @@ static inline void tick_clock_notify(void) { }
 static inline int tick_check_oneshot_change(int allow_nohz) { return 0; }
 #endif /* !CONFIG_TICK_ONESHOT */
 
-/* Functions related to oneshot broadcasting */
 #if defined(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST) && defined(CONFIG_TICK_ONESHOT)
 extern void tick_broadcast_switch_to_oneshot(void);
 extern int tick_broadcast_oneshot_active(void);
@@ -143,7 +134,6 @@ extern void tick_broadcast_offline(unsigned int cpu);
 static inline void tick_broadcast_offline(unsigned int cpu) { }
 #endif
 
-/* NO_HZ_FULL internal */
 #ifdef CONFIG_NO_HZ_FULL
 extern void tick_nohz_init(void);
 # else
@@ -178,18 +168,6 @@ void clock_was_set_delayed(void);
 
 void hrtimers_resume_local(void);
 
-/* Since jiffies uses a simple TICK_NSEC multiplier
- * conversion, the .shift value could be zero. However
- * this would make NTP adjustments impossible as they are
- * in units of 1/2^.shift. Thus we use JIFFIES_SHIFT to
- * shift both the nominator and denominator the same
- * amount, and give ntp adjustments in units of 1/2^8
- *
- * The value 8 is somewhat carefully chosen, as anything
- * larger can result in overflows. TICK_NSEC grows as HZ
- * shrinks, so values greater than 8 overflow 32bits when
- * HZ=100.
- */
 #if HZ < 34
 #define JIFFIES_SHIFT	6
 #elif HZ < 67

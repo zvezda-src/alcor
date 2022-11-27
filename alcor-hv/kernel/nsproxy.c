@@ -1,13 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- *  Copyright (C) 2006 IBM Corporation
- *
- *  Author: Serge Hallyn <serue@us.ibm.com>
- *
- *  Jun 2006 - namespaces support
- *             OpenVZ, SWsoft Inc.
- *             Pavel Emelianov <xemul@openvz.org>
- */
 
 #include <linux/slab.h>
 #include <linux/export.h>
@@ -59,11 +49,6 @@ static inline struct nsproxy *create_nsproxy(void)
 	return nsproxy;
 }
 
-/*
- * Create new nsproxy and all of its the associated namespaces.
- * Return the newly created nsproxy.  Do not attach this to the task,
- * leave it to the caller to do proper locking and attach it to task.
- */
 static struct nsproxy *create_new_namespaces(unsigned long flags,
 	struct task_struct *tsk, struct user_namespace *user_ns,
 	struct fs_struct *new_fs)
@@ -144,10 +129,6 @@ out_ns:
 	return ERR_PTR(err);
 }
 
-/*
- * called from clone.  This now handles copy for nsproxy and all
- * namespaces therein.
- */
 int copy_namespaces(unsigned long flags, struct task_struct *tsk)
 {
 	struct nsproxy *old_ns = tsk->nsproxy;
@@ -165,12 +146,6 @@ int copy_namespaces(unsigned long flags, struct task_struct *tsk)
 		return -EPERM;
 
 	/*
-	 * CLONE_NEWIPC must detach from the undolist: after switching
-	 * to a new ipc namespace, the semaphore arrays from the old
-	 * namespace are unreachable.  In clone parlance, CLONE_SYSVSEM
-	 * means share undolist with parent, so we must forbid using
-	 * it along with CLONE_NEWIPC.
-	 */
 	if ((flags & (CLONE_NEWIPC | CLONE_SYSVSEM)) ==
 		(CLONE_NEWIPC | CLONE_SYSVSEM))
 		return -EINVAL;
@@ -205,10 +180,6 @@ void free_nsproxy(struct nsproxy *ns)
 	kmem_cache_free(nsproxy_cachep, ns);
 }
 
-/*
- * Called from unshare. Unshare all the namespaces part of nsproxy.
- * On success, returns the new nsproxy.
- */
 int unshare_nsproxy_namespaces(unsigned long unshare_flags,
 	struct nsproxy **new_nsp, struct cred *new_cred, struct fs_struct *new_fs)
 {
@@ -224,7 +195,6 @@ int unshare_nsproxy_namespaces(unsigned long unshare_flags,
 	if (!ns_capable(user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
 
-	*new_nsp = create_new_namespaces(unshare_flags, current, user_ns,
 					 new_fs ? new_fs : current->fs);
 	if (IS_ERR(*new_nsp)) {
 		err = PTR_ERR(*new_nsp);
@@ -301,9 +271,6 @@ static void put_nsset(struct nsset *nsset)
 	if (flags & CLONE_NEWUSER)
 		put_cred(nsset_cred(nsset));
 	/*
-	 * We only created a temporary copy if we attached to more than just
-	 * the mount namespace.
-	 */
 	if (nsset->fs && (flags & CLONE_NEWNS) && (flags & ~CLONE_NEWNS))
 		free_fs_struct(nsset->fs);
 	if (nsset->nsproxy)
@@ -347,13 +314,6 @@ static inline int validate_ns(struct nsset *nsset, struct ns_common *ns)
 	return ns->ops->install(nsset, ns);
 }
 
-/*
- * This is the inverse operation to unshare().
- * Ordering is equivalent to the standard ordering used everywhere else
- * during unshare and process creation. The switch to the new set of
- * namespaces occurs at the point of no return after installation of
- * all requested namespaces was successful in commit_nsset().
- */
 static int validate_nsset(struct nsset *nsset, struct pid *pid)
 {
 	int ret = 0;
@@ -405,11 +365,6 @@ static int validate_nsset(struct nsset *nsset, struct pid *pid)
 	rcu_read_unlock();
 
 	/*
-	 * Install requested namespaces. The caller will have
-	 * verified earlier that the requested namespaces are
-	 * supported on this kernel. We don't report errors here
-	 * if a namespace is requested that isn't supported.
-	 */
 #ifdef CONFIG_USER_NS
 	if (flags & CLONE_NEWUSER) {
 		ret = validate_ns(nsset, &user_ns->ns);
@@ -482,15 +437,6 @@ out:
 	return ret;
 }
 
-/*
- * This is the point of no return. There are just a few namespaces
- * that do some actual work here and it's sufficiently minimal that
- * a separate ns_common operation seems unnecessary for now.
- * Unshare is doing the same thing. If we'll end up needing to do
- * more in a given namespace or a helper here is ultimately not
- * exported anymore a simple commit handler for each namespace
- * should be added to ns_common.
- */
 static void commit_nsset(struct nsset *nsset)
 {
 	unsigned flags = nsset->flags;

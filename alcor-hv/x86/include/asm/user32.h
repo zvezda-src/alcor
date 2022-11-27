@@ -1,9 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_USER32_H
 #define _ASM_X86_USER32_H
 
-/* IA32 compatible user structures for ptrace.
- * These should be used for 32bit coredumps too. */
 
 struct user_i387_ia32_struct {
 	u32	cwd;
@@ -16,7 +13,6 @@ struct user_i387_ia32_struct {
 	u32	st_space[20];   /* 8*10 bytes for each FP-reg = 80 bytes */
 };
 
-/* FSAVE frame with extensions */
 struct user32_fxsr_struct {
 	unsigned short	cwd;
 	unsigned short	swd;
@@ -48,7 +44,6 @@ struct user32 {
   int u_fpvalid;		/* True if math co-processor being used. */
 				/* for this mess. Not yet used. */
   struct user_i387_ia32_struct i387;	/* Math Co-processor registers. */
-/* The rest of this junk is to help gdb figure out what goes where */
   __u32 u_tsize;	/* Text segment size (pages). */
   __u32 u_dsize;	/* Data segment size (pages). */
   __u32 u_ssize;	/* Stack segment size (pages). */

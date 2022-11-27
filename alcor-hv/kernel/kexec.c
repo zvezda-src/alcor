@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * kexec.c - kexec_load system call
- * Copyright (C) 2002-2004 Eric Biederman  <ebiederm@xmission.com>
- */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -55,10 +50,6 @@ static int kimage_alloc_init(struct kimage **rimage, unsigned long entry,
 		goto out_free_image;
 
 	/*
-	 * Find a location for the control code buffer, and add it
-	 * the vector of segments so that it's pages will also be
-	 * counted as destination pages.
-	 */
 	ret = -ENOMEM;
 	image->control_code_page = kimage_alloc_control_pages(image,
 					   get_order(KEXEC_CONTROL_PAGE_SIZE));
@@ -75,7 +66,6 @@ static int kimage_alloc_init(struct kimage **rimage, unsigned long entry,
 		}
 	}
 
-	*rimage = image;
 	return 0;
 out_free_control_pages:
 	kimage_free_page_list(&image->control_pages);
@@ -92,13 +82,6 @@ static int do_kexec_load(unsigned long entry, unsigned long nr_segments,
 	int ret;
 
 	/*
-	 * Because we write directly to the reserved memory region when loading
-	 * crash kernels we need a mutex here to prevent multiple crash kernels
-	 * from attempting to load simultaneously, and to prevent a crash kernel
-	 * from loading over the top of a in use crash kernel.
-	 *
-	 * KISS: always take the mutex.
-	 */
 	if (!mutex_trylock(&kexec_mutex))
 		return -EBUSY;
 
@@ -118,10 +101,6 @@ static int do_kexec_load(unsigned long entry, unsigned long nr_segments,
 	}
 	if (flags & KEXEC_ON_CRASH) {
 		/*
-		 * Loading another kernel to switch to if this one
-		 * crashes.  Free any current crash dump kernel before
-		 * we corrupt it.
-		 */
 		kimage_free(xchg(&kexec_crash_image, NULL));
 	}
 
@@ -137,9 +116,6 @@ static int do_kexec_load(unsigned long entry, unsigned long nr_segments,
 		goto out;
 
 	/*
-	 * Some architecture(like S390) may touch the crash memory before
-	 * machine_kexec_prepare(), we must copy vmcoreinfo data after it.
-	 */
 	ret = kimage_crash_copy_vmcoreinfo(image);
 	if (ret)
 		goto out;
@@ -169,26 +145,6 @@ out_unlock:
 	return ret;
 }
 
-/*
- * Exec Kernel system call: for obvious reasons only root may call it.
- *
- * This call breaks up into three pieces.
- * - A generic part which loads the new kernel from the current
- *   address space, and very carefully places the data in the
- *   allocated pages.
- *
- * - A generic part that interacts with the kernel and tells all of
- *   the devices to shut down.  Preventing on-going dmas, and placing
- *   the devices in a consistent state so a later kernel can
- *   reinitialize them.
- *
- * - A machine specific part that includes the syscall number
- *   and then copies the image to it's final destination.  And
- *   jumps into the image at entry.
- *
- * kexec does not sync, or unmount filesystems so if you need
- * that to happen you need to do that yourself.
- */
 
 static inline int kexec_load_check(unsigned long nr_segments,
 				   unsigned long flags)
@@ -205,17 +161,11 @@ static inline int kexec_load_check(unsigned long nr_segments,
 		return result;
 
 	/*
-	 * kexec can be used to circumvent module loading restrictions, so
-	 * prevent loading in that case
-	 */
 	result = security_locked_down(LOCKDOWN_KEXEC);
 	if (result)
 		return result;
 
 	/*
-	 * Verify we have a legal set of flags
-	 * This leaves us room for future extensions.
-	 */
 	if ((flags & KEXEC_FLAGS) != (flags & ~KEXEC_ARCH_MASK))
 		return -EINVAL;
 

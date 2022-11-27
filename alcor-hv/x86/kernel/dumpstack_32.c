@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- *  Copyright (C) 1991, 1992  Linus Torvalds
- *  Copyright (C) 2000, 2001, 2002 Andi Kleen, SuSE Labs
- */
 #include <linux/sched/debug.h>
 #include <linux/kallsyms.h>
 #include <linux/kprobes.h>
@@ -41,9 +36,6 @@ static bool in_hardirq_stack(unsigned long *stack, struct stack_info *info)
 	unsigned long *end   = begin + (THREAD_SIZE / sizeof(long));
 
 	/*
-	 * This is a software stack, so 'end' can be a valid stack pointer.
-	 * It just means the stack is empty.
-	 */
 	if (stack < begin || stack > end)
 		return false;
 
@@ -52,9 +44,6 @@ static bool in_hardirq_stack(unsigned long *stack, struct stack_info *info)
 	info->end	= end;
 
 	/*
-	 * See irq_32.c -- the next stack pointer is stored at the beginning of
-	 * the stack.
-	 */
 	info->next_sp	= (unsigned long *)*begin;
 
 	return true;
@@ -66,9 +55,6 @@ static bool in_softirq_stack(unsigned long *stack, struct stack_info *info)
 	unsigned long *end   = begin + (THREAD_SIZE / sizeof(long));
 
 	/*
-	 * This is a software stack, so 'end' can be a valid stack pointer.
-	 * It just means the stack is empty.
-	 */
 	if (stack < begin || stack > end)
 		return false;
 
@@ -77,9 +63,6 @@ static bool in_softirq_stack(unsigned long *stack, struct stack_info *info)
 	info->end	= end;
 
 	/*
-	 * The next stack pointer is stored at the beginning of the stack.
-	 * See irq_32.c.
-	 */
 	info->next_sp	= (unsigned long *)*begin;
 
 	return true;
@@ -135,10 +118,6 @@ int get_stack_info(unsigned long *stack, struct task_struct *task,
 
 recursion_check:
 	/*
-	 * Make sure we don't iterate through any given stack more than once.
-	 * If it comes up a second time then there's something wrong going on:
-	 * just break out and report an unknown stack type.
-	 */
 	if (visit_mask) {
 		if (*visit_mask & (1UL << info->type)) {
 			printk_deferred_once(KERN_WARNING "WARNING: stack recursion on stack type %d\n", info->type);

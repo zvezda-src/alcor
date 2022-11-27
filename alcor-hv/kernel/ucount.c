@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/stat.h>
 #include <linux/sysctl.h>
@@ -326,9 +325,6 @@ long inc_rlimit_get_ucounts(struct ucounts *ucounts, enum ucount_type type)
 			ret = new;
 		max = READ_ONCE(iter->ns->ucount_max[type]);
 		/*
-		 * Grab an extra ucount reference for the caller when
-		 * the rlimit count was previously 0.
-		 */
 		if (new != 1)
 			continue;
 		if (!get_ucounts(iter))
@@ -364,10 +360,6 @@ static __init int user_namespace_sysctl_init(void)
 	static struct ctl_table_header *user_header;
 	static struct ctl_table empty[1];
 	/*
-	 * It is necessary to register the user directory in the
-	 * default set so that registrations in the child sets work
-	 * properly.
-	 */
 	user_header = register_sysctl("user", empty);
 	kmemleak_ignore(user_header);
 	BUG_ON(!user_header);

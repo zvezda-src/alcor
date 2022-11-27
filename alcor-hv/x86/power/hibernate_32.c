@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Hibernation support specific for i386 - temporary page tables
- *
- * Copyright (c) 2006 Rafael J. Wysocki <rjw@sisk.pl>
- */
 
 #include <linux/gfp.h>
 #include <linux/suspend.h>
@@ -15,18 +9,9 @@
 #include <asm/sections.h>
 #include <asm/suspend.h>
 
-/* Pointer to the temporary resume page tables */
 pgd_t *resume_pg_dir;
 
-/* The following three functions are based on the analogous code in
- * arch/x86/mm/init_32.c
- */
 
-/*
- * Create a middle page table on a resume-safe page and put a pointer to it in
- * the given global directory entry.  This only returns the gd entry
- * in non-PAE compilation mode, since the middle layer is folded.
- */
 static pmd_t *resume_one_md_table_init(pgd_t *pgd)
 {
 	p4d_t *p4d;
@@ -52,10 +37,6 @@ static pmd_t *resume_one_md_table_init(pgd_t *pgd)
 	return pmd_table;
 }
 
-/*
- * Create a page table on a resume-safe page and place a pointer to it in
- * a middle page directory entry.
- */
 static pte_t *resume_one_page_table_init(pmd_t *pmd)
 {
 	if (pmd_none(*pmd)) {
@@ -73,11 +54,6 @@ static pte_t *resume_one_page_table_init(pmd_t *pmd)
 	return pte_offset_kernel(pmd, 0);
 }
 
-/*
- * This maps the physical memory to kernel virtual address space, a total
- * of max_low_pfn pages, by creating page tables starting from address
- * PAGE_OFFSET.  The page tables are allocated out of resume-safe pages.
- */
 static int resume_physical_mapping_init(pgd_t *pgd_base)
 {
 	unsigned long pfn;

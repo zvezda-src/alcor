@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * tboot.c: main implementation of helper functions used by kernel for
- *          runtime support of Intel(R) Trusted Execution Technology
- *
- * Copyright (c) 2006-2009, Intel Corporation
- */
 
 #include <linux/intel-iommu.h>
 #include <linux/init_task.h>
@@ -32,10 +25,8 @@
 
 #include "../realmode/rm/wakeup.h"
 
-/* Global pointer to shared data; NULL means no measured launch. */
 static struct tboot *tboot __read_mostly;
 
-/* timeout for APs (in secs) to enter wait-for-SIPI state during shutdown */
 #define AP_WAIT_TIMEOUT		1
 
 #undef pr_fmt
@@ -48,7 +39,6 @@ bool tboot_enabled(void)
 	return tboot != NULL;
 }
 
-/* noinline to prevent gcc from warning about dereferencing constant fixaddr */
 static noinline __init bool check_tboot_version(void)
 {
 	if (memcmp(&tboot_uuid, &tboot->uuid, sizeof(tboot->uuid))) {
@@ -78,9 +68,6 @@ void __init tboot_probe(void)
 	if (!boot_params.tboot_addr)
 		return;
 	/*
-	 * also verify that it is mapped as we expect it before calling
-	 * set_fixmap(), to reduce chance of garbage value causing crash
-	 */
 	if (!e820__mapped_any(boot_params.tboot_addr,
 			     boot_params.tboot_addr, E820_TYPE_RESERVED)) {
 		pr_warn("non-0 tboot_addr but it is not of type E820_TYPE_RESERVED\n");
@@ -137,13 +124,6 @@ static int map_tboot_page(unsigned long vaddr, unsigned long pfn,
 	pte_unmap(pte);
 
 	/*
-	 * PTI poisons low addresses in the kernel page tables in the
-	 * name of making them unusable for userspace.  To execute
-	 * code at such a low address, the poison must be cleared.
-	 *
-	 * Note: 'pgd' actually gets set in p4d_alloc() _or_
-	 * pud_alloc() depending on 4/5-level paging.
-	 */
 	pgd->pgd &= ~_PAGE_NX;
 
 	return 0;
@@ -233,10 +213,6 @@ void tboot_shutdown(u32 shutdown_type)
 		return;
 
 	/*
-	 * if we're being called before the 1:1 mapping is set up then just
-	 * return and let the normal shutdown happen; this should only be
-	 * due to very early panic()
-	 */
 	if (!tboot_pg_dir)
 		return;
 
@@ -272,10 +248,6 @@ static void tboot_copy_fadt(const struct acpi_table_fadt *fadt)
 	TB_COPY_GAS(tboot->acpi_sinfo.pm1b_evt_blk, fadt->xpm1b_event_block);
 
 	/*
-	 * We need phys addr of waking vector, but can't use virt_to_phys() on
-	 * &acpi_gbl_FACS because it is ioremap'ed, so calc from FACS phys
-	 * addr.
-	 */
 	tboot->acpi_sinfo.wakeup_vector = fadt->facs +
 		offsetof(struct acpi_table_facs, firmware_waking_vector);
 }
@@ -392,7 +364,6 @@ static ssize_t tboot_log_read(struct file *file, char __user *user_buf, size_t c
 	if (copy_to_user(user_buf, kbuf, count))
 		goto err_kfree;
 
-	*ppos += count;
 
 	ret = count;
 
@@ -434,18 +405,13 @@ static __init int tboot_late_init(void)
 
 late_initcall(tboot_late_init);
 
-/*
- * TXT configuration registers (offsets from TXT_{PUB, PRIV}_CONFIG_REGS_BASE)
- */
 
 #define TXT_PUB_CONFIG_REGS_BASE       0xfed30000
 #define TXT_PRIV_CONFIG_REGS_BASE      0xfed20000
 
-/* # pages for each config regs space - used by fixmap */
 #define NR_TXT_CONFIG_PAGES     ((TXT_PUB_CONFIG_REGS_BASE -                \
 				  TXT_PRIV_CONFIG_REGS_BASE) >> PAGE_SHIFT)
 
-/* offsets from pub/priv config space */
 #define TXTCR_HEAP_BASE             0x0300
 #define TXTCR_HEAP_SIZE             0x0308
 
@@ -481,9 +447,6 @@ struct acpi_table_header *tboot_get_dmar_table(struct acpi_table_header *dmar_tb
 		return dmar_tbl;
 
 	/*
-	 * ACPI tables may not be DMA protected by tboot, so use DMAR copy
-	 * SINIT saved in SinitMleData in TXT heap (which is DMA protected)
-	 */
 
 	/* map config space in order to get heap addr */
 	config = ioremap(TXT_PUB_CONFIG_REGS_BASE, NR_TXT_CONFIG_PAGES *

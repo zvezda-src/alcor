@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/isa-dma.h>
@@ -16,9 +15,6 @@
 
 #include "cpu.h"
 
-/*
- * Read NSC/Cyrix DEVID registers (DIR) to get more detailed info. about the CPU
- */
 static void __do_cyrix_devid(unsigned char *dir0, unsigned char *dir1)
 {
 	unsigned char ccr2, ccr3;
@@ -56,13 +52,6 @@ static void do_cyrix_devid(unsigned char *dir0, unsigned char *dir1)
 	__do_cyrix_devid(dir0, dir1);
 	local_irq_restore(flags);
 }
-/*
- * Cx86_dir0_msb is a HACK needed by check_cx686_cpuid/slop in bugs.h in
- * order to identify the Cyrix CPU model after we're out of setup.c
- *
- * Actually since bugs.h doesn't even reference this perhaps someone should
- * fix the documentation ???
- */
 static unsigned char Cx86_dir0_msb = 0;
 
 static const char Cx86_model[][9] = {
@@ -83,13 +72,6 @@ static char Cx86_cb[] = "?.5x Core/Bus Clock";
 static const char cyrix_model_mult1[] = "12??43";
 static const char cyrix_model_mult2[] = "12233445";
 
-/*
- * Reset the slow-loop (SLOP) bit on the 686(L) which is set by some old
- * BIOSes for compatibility with DOS games.  This makes the udelay loop
- * work correctly, and improves performance.
- *
- * FIXME: our newer udelay uses the tsc. We don't need to frob with SLOP
- */
 
 static void check_cx686_slop(struct cpuinfo_x86 *c)
 {
@@ -143,9 +125,6 @@ static void set_cx86_memwb(void)
 	setCx86(CX86_CCR2, getCx86(CX86_CCR2) | 0x14);
 }
 
-/*
- *	Configure later MediaGX and/or Geode processor.
- */
 
 static void geode_configure(void)
 {
@@ -196,9 +175,6 @@ static void init_cyrix(struct cpuinfo_x86 *c)
 	const char *p = NULL;
 
 	/*
-	 * Bit 31 in normal CPUID used for nonstandard 3DNow ID;
-	 * 3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
-	 */
 	clear_cpu_cap(c, 0*32+31);
 
 	/* Cyrix used bit 24 in extended (AMD) CPUID for Cyrix MMX extensions */
@@ -262,17 +238,6 @@ static void init_cyrix(struct cpuinfo_x86 *c)
 	{
 		u32 vendor, device;
 		/*
-		 * It isn't really a PCI quirk directly, but the cure is the
-		 * same. The MediaGX has deep magic SMM stuff that handles the
-		 * SB emulation. It throws away the fifo on disable_dma() which
-		 * is wrong and ruins the audio.
-		 *
-		 *  Bug2: VSA1 has a wrap bug so that using maximum sized DMA
-		 *  causes bad things. According to NatSemi VSA2 has another
-		 *  bug to do with 'hlt'. I've not seen any boards using VSA2
-		 *  and X doesn't seem to support it either so who cares 8).
-		 *  VSA1 we work around however.
-		 */
 
 		pr_info("Working around Cyrix MediaGX virtual DMA bugs.\n");
 		isa_dma_bridge_buggy = 2;
@@ -284,8 +249,6 @@ static void init_cyrix(struct cpuinfo_x86 *c)
 		device = read_pci_config_16(0, 0, 0x12, PCI_DEVICE_ID);
 
 		/*
-		 *  The 5510/5520 companion chips have a funky PIT.
-		 */
 		if (vendor == PCI_VENDOR_ID_CYRIX &&
 			(device == PCI_DEVICE_ID_CYRIX_5510 ||
 					device == PCI_DEVICE_ID_CYRIX_5520))
@@ -300,11 +263,6 @@ static void init_cyrix(struct cpuinfo_x86 *c)
 			setCx86(CX86_CCR7, getCx86(CX86_CCR7) | 1);
 
 			/*
-			 * GXm : 0x30 ... 0x5f GXm  datasheet 51
-			 * GXlv: 0x6x          GXlv datasheet 54
-			 *  ?  : 0x7x
-			 * GX1 : 0x8x          GX1  datasheet 56
-			 */
 			if ((0x30 <= dir1 && dir1 <= 0x6f) ||
 					(0x80 <= dir1 && dir1 <= 0x8f))
 				geode_configure();
@@ -358,23 +316,9 @@ static void init_cyrix(struct cpuinfo_x86 *c)
 	return;
 }
 
-/*
- * Handle National Semiconductor branded processors
- */
 static void init_nsc(struct cpuinfo_x86 *c)
 {
 	/*
-	 * There may be GX1 processors in the wild that are branded
-	 * NSC and not Cyrix.
-	 *
-	 * This function only handles the GX processor, and kicks every
-	 * thing else to the Cyrix init function above - that should
-	 * cover any processors that might have been branded differently
-	 * after NSC acquired Cyrix.
-	 *
-	 * If this breaks your GX1 horribly, please e-mail
-	 * info-linux@ldcmail.amd.com to tell us.
-	 */
 
 	/* Handle the GX (Formally known as the GX2) */
 
@@ -384,16 +328,7 @@ static void init_nsc(struct cpuinfo_x86 *c)
 		init_cyrix(c);
 }
 
-/*
- * Cyrix CPUs without cpuid or with cpuid not yet enabled can be detected
- * by the fact that they preserve the flags across the division of 5/2.
- * PII and PPro exhibit this behavior too, but they have cpuid available.
- */
 
-/*
- * Perform the Cyrix 5/2 test. A Cyrix won't change
- * the flags, while other 486 chips will.
- */
 static inline int test_cyrix_52div(void)
 {
 	unsigned int test;

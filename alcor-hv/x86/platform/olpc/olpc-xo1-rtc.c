@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Support for OLPC XO-1 Real Time Clock (RTC)
- *
- * Copyright (C) 2011 One Laptop per Child
- */
 
 #include <linux/mc146818rtc.h>
 #include <linux/platform_device.h>

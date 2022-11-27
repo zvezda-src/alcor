@@ -1,31 +1,4 @@
-#
-#
 
-# Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 """Module containing constants and functions for filesystem paths.
@@ -37,7 +10,6 @@ from alcor import compat
 from alcor import vcluster
 
 
-# Build-time constants
 DEFAULT_FILE_STORAGE_DIR = "/srv/alcor/file-storage"
 DEFAULT_FILE_STORAGE_DIR = vcluster.AddNodePrefix(DEFAULT_FILE_STORAGE_DIR)
 DEFAULT_SHARED_FILE_STORAGE_DIR = "/srv/alcor/shared-file-storage"
@@ -58,7 +30,6 @@ PKGLIBDIR = _constants.PKGLIBDIR
 SHAREDIR = _constants.SHAREDIR
 LOCALSTATEDIR = vcluster.AddNodePrefix(_constants.LOCALSTATEDIR)
 
-# Paths which don't change for a virtual cluster
 DAEMON_UTIL = _constants.PKGLIBDIR + "/daemon-util"
 IMPORT_EXPORT_DAEMON = _constants.PKGLIBDIR + "/import-export"
 KVM_CONSOLE_WRAPPER = _constants.PKGLIBDIR + "/tools/kvm-console-wrapper"
@@ -71,17 +42,14 @@ XEN_CONSOLE_WRAPPER = _constants.PKGLIBDIR + "/tools/xen-console-wrapper"
 CFGUPGRADE = _constants.PKGLIBDIR + "/tools/cfgupgrade"
 POST_UPGRADE = _constants.PKGLIBDIR + "/tools/post-upgrade"
 ENSURE_DIRS = _constants.PKGLIBDIR + "/ensure-dirs"
-# Script to configure the metadata virtual network interface with Xen
 XEN_VIF_METAD_SETUP = _constants.PKGLIBDIR + "/vif-alcor-metad"
 ETC_HOSTS = vcluster.ETC_HOSTS
 
-# Top-level paths
 DATA_DIR = LOCALSTATEDIR + "/lib/alcor"
 LOCK_DIR = LOCALSTATEDIR + "/lock"
 LOG_DIR = LOCALSTATEDIR + "/log/alcor"
 RUN_DIR = LOCALSTATEDIR + "/run/alcor"
 
-#: Script to configure master IP address
 DEFAULT_MASTER_SETUP_SCRIPT = TOOLSDIR + "/master-ip-setup"
 
 SSH_HOST_DSA_PRIV = _constants.SSH_HOST_DSA_PRIV
@@ -97,8 +65,6 @@ CRYPTO_KEYS_DIR = RUN_DIR + "/crypto"
 IMPORT_EXPORT_DIR = RUN_DIR + "/import-export"
 INSTANCE_STATUS_FILE = RUN_DIR + "/instance-status"
 INSTANCE_REASON_DIR = RUN_DIR + "/instance-reason"
-#: User-id pool lock directory (used user IDs have a corresponding lock file in
-#: this directory)
 UIDPOOL_LOCKDIR = RUN_DIR + "/uid-pool"
 LIVELOCK_DIR = RUN_DIR + "/livelocks"
 LUXID_MESSAGE_DIR = RUN_DIR + "/luxidmessages"
@@ -126,50 +92,33 @@ HOOKS_BASE_DIR = CONF_DIR + "/hooks"
 FILE_STORAGE_PATHS_FILE = CONF_DIR + "/file-storage-paths"
 RESTRICTED_COMMANDS_DIR = CONF_DIR + "/restricted-commands"
 
-#: Node daemon certificate path
 NODED_CERT_FILE = DATA_DIR + "/server.pem"
 NODED_CLIENT_CERT_FILE = DATA_DIR + "/client.pem"
 
-#: Node daemon certificate file permissions
 NODED_CERT_MODE = 0o440
 
-#: Locked in exclusive mode while noded verifies a remote command
 RESTRICTED_COMMANDS_LOCK_FILE = LOCK_DIR + "/alcor-restricted-commands.lock"
 
-#: Lock file for watcher, locked in shared mode by watcher; lock in exclusive
-# mode to block watcher (see L{cli._RunWhileDaemonsStoppedHelper.Call}
 WATCHER_LOCK_FILE = LOCK_DIR + "/alcor-watcher.lock"
 
-#: Status file for per-group watcher, locked in exclusive mode by watcher
 WATCHER_GROUP_STATE_FILE = DATA_DIR + "/watcher.%s.data"
 
-#: File for per-group instance status, merged into L{INSTANCE_STATUS_FILE} by
-#: per-group processes
 WATCHER_GROUP_INSTANCE_STATUS_FILE = DATA_DIR + "/watcher.%s.instance-status"
 
-#: File containing Unix timestamp until which watcher should be paused
 WATCHER_PAUSEFILE = DATA_DIR + "/watcher.pause"
 
-#: User-provided master IP setup script
 EXTERNAL_MASTER_SETUP_SCRIPT = USER_SCRIPTS_DIR + "/master-ip-setup"
 
-#: LUXI socket used for job execution
 MASTER_SOCKET = SOCKET_DIR + "/alcor-master"
-#: LUXI socket used for queries only
 QUERY_SOCKET = SOCKET_DIR + "/alcor-query"
-#: WConfD socket
 WCONFD_SOCKET = SOCKET_DIR + "/alcor-wconfd"
-#: Metad socket
 METAD_SOCKET = SOCKET_DIR + "/alcor-metad"
 
 LOG_OS_DIR = LOG_DIR + "/os"
 LOG_ES_DIR = LOG_DIR + "/extstorage"
-#: Directory for storing Xen config files after failed instance starts
 LOG_XEN_DIR = LOG_DIR + "/xen"
-# Directory to store the output of kvm instances
 LOG_KVM_DIR = LOG_DIR + "/kvm"
 
-# Job queue paths
 JOB_QUEUE_LOCK_FILE = QUEUE_DIR + "/lock"
 JOB_QUEUE_VERSION_FILE = QUEUE_DIR + "/version"
 JOB_QUEUE_SERIAL_FILE = QUEUE_DIR + "/serial"

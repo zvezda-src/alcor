@@ -1,7 +1,3 @@
-/*
- * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
- */
 
 #include <linux/mm.h>
 #include <linux/sched.h>
@@ -41,17 +37,6 @@ static long write_ldt_entry(struct mm_id *mm_idp, int func,
 	return res;
 }
 
-/*
- * In skas mode, we hold our own ldt data in UML.
- * Thus, the code implementing sys_modify_ldt_skas
- * is very similar to (and mostly stolen from) sys_modify_ldt
- * for arch/i386/kernel/ldt.c
- * The routines copied and modified in part are:
- * - read_ldt
- * - read_default_ldt
- * - write_ldt
- * - sys_modify_ldt_skas
- */
 
 static int read_ldt(void __user * ptr, unsigned long bytecount)
 {
@@ -110,10 +95,6 @@ static int read_default_ldt(void __user * ptr, unsigned long bytecount)
 
 	err = bytecount;
 	/*
-	 * UML doesn't support lcall7 and lcall27.
-	 * So, we don't really have a default ldt, but emulate
-	 * an empty ldt of common host default ldt size.
-	 */
 	if (clear_user(ptr, bytecount))
 		err = -EFAULT;
 
@@ -311,10 +292,6 @@ long init_new_ldt(struct mm_context *new_mm, struct mm_context *from_mm)
 	if (!from_mm) {
 		memset(&desc, 0, sizeof(desc));
 		/*
-		 * Now we try to retrieve info about the ldt, we
-		 * inherited from the host. All ldt-entries found
-		 * will be reset in the following loop
-		 */
 		ldt_get_host_info();
 		for (num_p=host_ldt_entries; *num_p != -1; num_p++) {
 			desc.entry_number = *num_p;
@@ -329,11 +306,6 @@ long init_new_ldt(struct mm_context *new_mm, struct mm_context *from_mm)
 	}
 
 	/*
-	 * Our local LDT is used to supply the data for
-	 * modify_ldt(READLDT), if PTRACE_LDT isn't available,
-	 * i.e., we have to use the stub for modify_ldt, which
-	 * can't handle the big read buffer of up to 64kB.
-	 */
 	mutex_lock(&from_mm->arch.ldt.lock);
 	if (from_mm->arch.ldt.entry_count <= LDT_DIRECT_ENTRIES)
 		memcpy(new_mm->arch.ldt.u.entries, from_mm->arch.ldt.u.entries,

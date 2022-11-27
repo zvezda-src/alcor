@@ -1,14 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
-/*
- * 2002-10-15  Posix Clocks & timers
- *                           by George Anzinger george@mvista.com
- *			     Copyright (C) 2002 2003 by MontaVista Software.
- *
- * 2004-06-01  Fix CLOCK_REALTIME clock/timer TIMER_ABSTIME bug.
- *			     Copyright (C) 2004 Boris Hu
- *
- * These are all the functions necessary to implement POSIX clocks & timers
- */
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -35,18 +24,7 @@
 #include "timekeeping.h"
 #include "posix-timers.h"
 
-/*
- * Management arrays for POSIX timers. Timers are now kept in static hash table
- * with 512 entries.
- * Timer ids are allocated by local routine, which selects proper hash head by
- * key, constructed from current->signal address and per signal struct counter.
- * This keeps timer ids unique per process, but now they can intersect between
- * processes.
- */
 
-/*
- * Lets keep our timers in a slab cache :-)
- */
 static struct kmem_cache *posix_timers_cache;
 
 static DEFINE_HASHTABLE(posix_timers_hashtable, 9);
@@ -56,52 +34,12 @@ static const struct k_clock * const posix_clocks[];
 static const struct k_clock *clockid_to_kclock(const clockid_t id);
 static const struct k_clock clock_realtime, clock_monotonic;
 
-/*
- * we assume that the new SIGEV_THREAD_ID shares no bits with the other
- * SIGEV values.  Here we put out an error if this assumption fails.
- */
 #if SIGEV_THREAD_ID != (SIGEV_THREAD_ID & \
                        ~(SIGEV_SIGNAL | SIGEV_NONE | SIGEV_THREAD))
 #error "SIGEV_THREAD_ID must not share bit with other SIGEV values!"
 #endif
 
-/*
- * The timer ID is turned into a timer address by idr_find().
- * Verifying a valid ID consists of:
- *
- * a) checking that idr_find() returns other than -1.
- * b) checking that the timer id matches the one in the timer itself.
- * c) that the timer owner is in the callers thread group.
- */
 
-/*
- * CLOCKs: The POSIX standard calls for a couple of clocks and allows us
- *	    to implement others.  This structure defines the various
- *	    clocks.
- *
- * RESOLUTION: Clock resolution is used to round up timer and interval
- *	    times, NOT to report clock times, which are reported with as
- *	    much resolution as the system can muster.  In some cases this
- *	    resolution may depend on the underlying clock hardware and
- *	    may not be quantifiable until run time, and only then is the
- *	    necessary code is written.	The standard says we should say
- *	    something about this issue in the documentation...
- *
- * FUNCTIONS: The CLOCKs structure defines possible functions to
- *	    handle various clock functions.
- *
- *	    The standard POSIX timer management code assumes the
- *	    following: 1.) The k_itimer struct (sched.h) is used for
- *	    the timer.  2.) The list, it_lock, it_clock, it_id and
- *	    it_pid fields are not modified by timer code.
- *
- * Permissions: It is assumed that the clock_settime() function defined
- *	    for each clock will take care of permission checks.	 Some
- *	    clocks may be set able by any user (i.e. local process
- *	    clocks) others not.	 Currently the only set able clock we
- *	    have is CLOCK_REALTIME and its high res counter part, both of
- *	    which we beg off on and pass to do_sys_settimeofday().
- */
 static struct k_itimer *__lock_timer(timer_t timer_id, unsigned long *flags);
 
 #define lock_timer(tid, flags)						   \
@@ -166,7 +104,6 @@ static inline void unlock_timer(struct k_itimer *timr, unsigned long flags)
 	spin_unlock_irqrestore(&timr->it_lock, flags);
 }
 
-/* Get clock_realtime */
 static int posix_get_realtime_timespec(clockid_t which_clock, struct timespec64 *tp)
 {
 	ktime_get_real_ts64(tp);
@@ -178,7 +115,6 @@ static ktime_t posix_get_realtime_ktime(clockid_t which_clock)
 	return ktime_get_real();
 }
 
-/* Set clock_realtime */
 static int posix_clock_realtime_set(const clockid_t which_clock,
 				    const struct timespec64 *tp)
 {
@@ -191,9 +127,6 @@ static int posix_clock_realtime_adj(const clockid_t which_clock,
 	return do_adjtimex(t);
 }
 
-/*
- * Get monotonic time for posix timers
- */
 static int posix_get_monotonic_timespec(clockid_t which_clock, struct timespec64 *tp)
 {
 	ktime_get_ts64(tp);
@@ -206,9 +139,6 @@ static ktime_t posix_get_monotonic_ktime(clockid_t which_clock)
 	return ktime_get();
 }
 
-/*
- * Get monotonic-raw time for posix timers
- */
 static int posix_get_monotonic_raw(clockid_t which_clock, struct timespec64 *tp)
 {
 	ktime_get_raw_ts64(tp);
@@ -233,7 +163,6 @@ static int posix_get_monotonic_coarse(clockid_t which_clock,
 
 static int posix_get_coarse_res(const clockid_t which_clock, struct timespec64 *tp)
 {
-	*tp = ktime_to_timespec64(KTIME_LOW_RES);
 	return 0;
 }
 
@@ -267,9 +196,6 @@ static int posix_get_hrtimer_res(clockid_t which_clock, struct timespec64 *tp)
 	return 0;
 }
 
-/*
- * Initialize everything, well, just everything in Posix clocks/timers ;)
- */
 static __init int init_posix_timers(void)
 {
 	posix_timers_cache = kmem_cache_create("posix_timers_cache",
@@ -279,10 +205,6 @@ static __init int init_posix_timers(void)
 }
 __initcall(init_posix_timers);
 
-/*
- * The siginfo si_overrun field and the return value of timer_getoverrun(2)
- * are of type int. Clamp the overrun value to INT_MAX
- */
 static inline int timer_overrun_to_int(struct k_itimer *timr, int baseval)
 {
 	s64 sum = timr->it_overrun_last + (s64)baseval;
@@ -299,17 +221,6 @@ static void common_hrtimer_rearm(struct k_itimer *timr)
 	hrtimer_restart(timer);
 }
 
-/*
- * This function is exported for use by the signal deliver code.  It is
- * called just prior to the info block being released and passes that
- * block to us.  It's function is to update the overrun entry AND to
- * restart the timer.  It should only be called if the timer is to be
- * restarted (i.e. we have flagged this in the sys_private entry of the
- * info block).
- *
- * To protect against the timer going away while the interrupt is queued,
- * we require that the it_requeue_pending flag be set.
- */
 void posixtimer_rearm(struct kernel_siginfo *info)
 {
 	struct k_itimer *timr;
@@ -338,16 +249,6 @@ int posix_timer_event(struct k_itimer *timr, int si_private)
 	enum pid_type type;
 	int ret;
 	/*
-	 * FIXME: if ->sigq is queued we can race with
-	 * dequeue_signal()->posixtimer_rearm().
-	 *
-	 * If dequeue_signal() sees the "right" value of
-	 * si_sys_private it calls posixtimer_rearm().
-	 * We re-queue ->sigq and drop ->it_lock().
-	 * posixtimer_rearm() locks the timer
-	 * and re-schedules it while ->sigq is pending.
-	 * Not really bad, but not that we want.
-	 */
 	timr->sigq->info.si_sys_private = si_private;
 
 	type = !(timr->it_sigev_notify & SIGEV_THREAD_ID) ? PIDTYPE_TGID : PIDTYPE_PID;
@@ -356,13 +257,6 @@ int posix_timer_event(struct k_itimer *timr, int si_private)
 	return ret > 0;
 }
 
-/*
- * This function gets called when a POSIX.1b interval timer expires.  It
- * is used as a callback from the kernel internal timer.  The
- * run_timer_list code ALWAYS calls with interrupts on.
-
- * This code is for CLOCK_REALTIME* and CLOCK_MONOTONIC* timers.
- */
 static enum hrtimer_restart posix_timer_fn(struct hrtimer *timer)
 {
 	struct k_itimer *timr;
@@ -379,35 +273,10 @@ static enum hrtimer_restart posix_timer_fn(struct hrtimer *timer)
 
 	if (posix_timer_event(timr, si_private)) {
 		/*
-		 * signal was not sent because of sig_ignor
-		 * we will not get a call back to restart it AND
-		 * it should be restarted.
-		 */
 		if (timr->it_interval != 0) {
 			ktime_t now = hrtimer_cb_get_time(timer);
 
 			/*
-			 * FIXME: What we really want, is to stop this
-			 * timer completely and restart it in case the
-			 * SIG_IGN is removed. This is a non trivial
-			 * change which involves sighand locking
-			 * (sigh !), which we don't want to do late in
-			 * the release cycle.
-			 *
-			 * For now we just let timers with an interval
-			 * less than a jiffie expire every jiffie to
-			 * avoid softirq starvation in case of SIG_IGN
-			 * and a very small interval, which would put
-			 * the timer right back on the softirq pending
-			 * list. By moving now ahead of time we trick
-			 * hrtimer_forward() to expire the timer
-			 * later, while we still maintain the overrun
-			 * accuracy, but have some inconsistency in
-			 * the timer_gettime() case. This is at least
-			 * better than a starved softirq. A more
-			 * complex fix which solves also another related
-			 * inconsistency is already in the pipeline.
-			 */
 #ifdef CONFIG_HIGH_RES_TIMERS
 			{
 				ktime_t kj = NSEC_PER_SEC / HZ;
@@ -494,7 +363,6 @@ static int common_timer_create(struct k_itimer *new_timer)
 	return 0;
 }
 
-/* Create a POSIX.1b interval timer. */
 static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 			   timer_t __user *created_timer_id)
 {
@@ -564,11 +432,6 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 
 	return 0;
 	/*
-	 * In the case of the timer belonging to another task, after
-	 * the task is unlocked, the timer is owned by the other task
-	 * and may cease to exist at any time.  Don't use or modify
-	 * new_timer after the unlock call.
-	 */
 out:
 	release_posix_timer(new_timer, it_id_set);
 	return error;
@@ -604,21 +467,11 @@ COMPAT_SYSCALL_DEFINE3(timer_create, clockid_t, which_clock,
 }
 #endif
 
-/*
- * Locking issues: We need to protect the result of the id look up until
- * we get the timer locked down so it is not deleted under us.  The
- * removal is done under the idr spinlock so we use that here to bridge
- * the find to the timer lock.  To avoid a dead lock, the timer id MUST
- * be release with out holding the timer lock.
- */
 static struct k_itimer *__lock_timer(timer_t timer_id, unsigned long *flags)
 {
 	struct k_itimer *timr;
 
 	/*
-	 * timer_t could be any type >= int and we want to make sure any
-	 * @timer_id outside positive int range fails lookup.
-	 */
 	if ((unsigned long long)timer_id > INT_MAX)
 		return NULL;
 
@@ -651,22 +504,6 @@ static s64 common_hrtimer_forward(struct k_itimer *timr, ktime_t now)
 	return hrtimer_forward(timer, now, timr->it_interval);
 }
 
-/*
- * Get the time remaining on a POSIX.1b interval timer.  This function
- * is ALWAYS called with spin_lock_irq on the timer, thus it must not
- * mess with irq.
- *
- * We have a couple of messes to clean up here.  First there is the case
- * of a timer that has a requeue pending.  These timers should appear to
- * be in the timer list with an expiry as if we were to requeue them
- * now.
- *
- * The second issue is the SIGEV_NONE timer which may be active but is
- * not really ever put in the timer list (to save system resources).
- * This timer may be expired, and if so, we will do it here.  Otherwise
- * it is the same as a requeue pending timer WRT to what we should
- * report.
- */
 void common_timer_get(struct k_itimer *timr, struct itimerspec64 *cur_setting)
 {
 	const struct k_clock *kc = timr->kclock;
@@ -681,9 +518,6 @@ void common_timer_get(struct k_itimer *timr, struct itimerspec64 *cur_setting)
 		cur_setting->it_interval = ktime_to_timespec64(iv);
 	} else if (!timr->it_active) {
 		/*
-		 * SIGEV_NONE oneshot timers are never queued. Check them
-		 * below.
-		 */
 		if (!sig_none)
 			return;
 	}
@@ -691,9 +525,6 @@ void common_timer_get(struct k_itimer *timr, struct itimerspec64 *cur_setting)
 	now = kc->clock_get_ktime(timr->it_clock);
 
 	/*
-	 * When a requeue is pending or this is a SIGEV_NONE timer move the
-	 * expiry time forward by intervals, so expiry is > now.
-	 */
 	if (iv && (timr->it_requeue_pending & REQUEUE_PENDING || sig_none))
 		timr->it_overrun += kc->timer_forward(timr, now);
 
@@ -701,9 +532,6 @@ void common_timer_get(struct k_itimer *timr, struct itimerspec64 *cur_setting)
 	/* Return 0 only, when the timer is expired and not pending */
 	if (remaining <= 0) {
 		/*
-		 * A single shot SIGEV_NONE timer must return 0, when
-		 * it is expired !
-		 */
 		if (!sig_none)
 			cur_setting->it_value.tv_nsec = 1;
 	} else {
@@ -711,7 +539,6 @@ void common_timer_get(struct k_itimer *timr, struct itimerspec64 *cur_setting)
 	}
 }
 
-/* Get the time remaining on a POSIX.1b interval timer. */
 static int do_timer_gettime(timer_t timer_id,  struct itimerspec64 *setting)
 {
 	struct k_itimer *timr;
@@ -734,7 +561,6 @@ static int do_timer_gettime(timer_t timer_id,  struct itimerspec64 *setting)
 	return ret;
 }
 
-/* Get the time remaining on a POSIX.1b interval timer. */
 SYSCALL_DEFINE2(timer_gettime, timer_t, timer_id,
 		struct __kernel_itimerspec __user *, setting)
 {
@@ -765,15 +591,6 @@ SYSCALL_DEFINE2(timer_gettime32, timer_t, timer_id,
 
 #endif
 
-/*
- * Get the number of overruns of a POSIX.1b interval timer.  This is to
- * be the overrun of the timer last delivered.  At the same time we are
- * accumulating overruns on the next timer.  The overrun is frozen when
- * the signal is delivered, either at the notify time (if the info block
- * is not queued) or at the actual delivery time (as we are informed by
- * the call back to posixtimer_rearm().  So all we need to do is
- * to pick up the frozen overrun.
- */
 SYSCALL_DEFINE1(timer_getoverrun, timer_t, timer_id)
 {
 	struct k_itimer *timr;
@@ -798,14 +615,6 @@ static void common_hrtimer_arm(struct k_itimer *timr, ktime_t expires,
 
 	mode = absolute ? HRTIMER_MODE_ABS : HRTIMER_MODE_REL;
 	/*
-	 * Posix magic: Relative CLOCK_REALTIME timers are not affected by
-	 * clock modifications, so they become CLOCK_MONOTONIC based under the
-	 * hood. See hrtimer_init(). Update timr->kclock, so the generic
-	 * functions which use timr->kclock->clock_get_*() work.
-	 *
-	 * Note: it_clock stays unmodified, because the next timer_set() might
-	 * use ABSTIME, so it needs to switch back.
-	 */
 	if (timr->it_clock == CLOCK_REALTIME)
 		timr->kclock = absolute ? &clock_realtime : &clock_monotonic;
 
@@ -830,12 +639,6 @@ static void common_timer_wait_running(struct k_itimer *timer)
 	hrtimer_cancel_wait_running(&timer->it.real.timer);
 }
 
-/*
- * On PREEMPT_RT this prevent priority inversion against softirq kthread in
- * case it gets preempted while executing a timer callback. See comments in
- * hrtimer_cancel_wait_running. For PREEMPT_RT=n this just results in a
- * cpu_relax().
- */
 static struct k_itimer *timer_wait_running(struct k_itimer *timer,
 					   unsigned long *flags)
 {
@@ -854,7 +657,6 @@ static struct k_itimer *timer_wait_running(struct k_itimer *timer,
 	return lock_timer(timer_id, flags);
 }
 
-/* Set a POSIX.1b interval timer. */
 int common_timer_set(struct k_itimer *timr, int flags,
 		     struct itimerspec64 *new_setting,
 		     struct itimerspec64 *old_setting)
@@ -869,9 +671,6 @@ int common_timer_set(struct k_itimer *timr, int flags,
 	/* Prevent rearming by clearing the interval */
 	timr->it_interval = 0;
 	/*
-	 * Careful here. On SMP systems the timer expiry function could be
-	 * active and spinning on timr->it_lock.
-	 */
 	if (kc->timer_try_to_cancel(timr) < 0)
 		return TIMER_RETRY;
 
@@ -934,7 +733,6 @@ retry:
 	return error;
 }
 
-/* Set a POSIX.1b interval timer */
 SYSCALL_DEFINE4(timer_settime, timer_t, timer_id, int, flags,
 		const struct __kernel_itimerspec __user *, new_setting,
 		struct __kernel_itimerspec __user *, old_setting)
@@ -1000,7 +798,6 @@ static inline int timer_delete_hook(struct k_itimer *timer)
 	return kc->timer_del(timer);
 }
 
-/* Delete a POSIX.1b interval timer. */
 SYSCALL_DEFINE1(timer_delete, timer_t, timer_id)
 {
 	struct k_itimer *timer;
@@ -1022,9 +819,6 @@ retry_delete:
 	list_del(&timer->list);
 	spin_unlock(&current->sighand->siglock);
 	/*
-	 * This keeps any tasks waiting on the spin lock from thinking
-	 * they got something (see the lock code above).
-	 */
 	timer->it_signal = NULL;
 
 	unlock_timer(timer, flags);
@@ -1032,9 +826,6 @@ retry_delete:
 	return 0;
 }
 
-/*
- * return timer owned by the process, used by exit_itimers
- */
 static void itimer_delete(struct k_itimer *timer)
 {
 retry_delete:
@@ -1050,11 +841,6 @@ retry_delete:
 	release_posix_timer(timer, IT_ID_SET);
 }
 
-/*
- * This is called by do_exit or de_thread, only when nobody else can
- * modify the signal->posix_timers list. Yet we need sighand->siglock
- * to prevent the race with /proc/pid/timers.
- */
 void exit_itimers(struct task_struct *tsk)
 {
 	struct list_head timers;
@@ -1225,9 +1011,6 @@ SYSCALL_DEFINE2(clock_getres_time32, clockid_t, which_clock,
 
 #endif
 
-/*
- * nanosleep for monotonic and realtime clocks
- */
 static int common_nsleep(const clockid_t which_clock, int flags,
 			 const struct timespec64 *rqtp)
 {

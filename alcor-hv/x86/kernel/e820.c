@@ -1,14 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Low level x86 E820 memory map handling functions.
- *
- * The firmware and bootloader passes us the "E820 table", which is the primary
- * physical memory layout description available about x86 systems.
- *
- * The kernel takes the E820 memory layout and optionally modifies it with
- * quirks and other tweaks, and feeds that into the generic Linux memory
- * allocation code routines via a platform independent interface (memblock, etc.).
- */
 #include <linux/crash_dump.h>
 #include <linux/memblock.h>
 #include <linux/suspend.h>
@@ -20,42 +9,6 @@
 #include <asm/e820/api.h>
 #include <asm/setup.h>
 
-/*
- * We organize the E820 table into three main data structures:
- *
- * - 'e820_table_firmware': the original firmware version passed to us by the
- *   bootloader - not modified by the kernel. It is composed of two parts:
- *   the first 128 E820 memory entries in boot_params.e820_table and the remaining
- *   (if any) entries of the SETUP_E820_EXT nodes. We use this to:
- *
- *       - inform the user about the firmware's notion of memory layout
- *         via /sys/firmware/memmap
- *
- *       - the hibernation code uses it to generate a kernel-independent CRC32
- *         checksum of the physical memory layout of a system.
- *
- * - 'e820_table_kexec': a slightly modified (by the kernel) firmware version
- *   passed to us by the bootloader - the major difference between
- *   e820_table_firmware[] and this one is that, the latter marks the setup_data
- *   list created by the EFI boot stub as reserved, so that kexec can reuse the
- *   setup_data information in the second kernel. Besides, e820_table_kexec[]
- *   might also be modified by the kexec itself to fake a mptable.
- *   We use this to:
- *
- *       - kexec, which is a bootloader in disguise, uses the original E820
- *         layout to pass to the kexec-ed kernel. This way the original kernel
- *         can have a restricted E820 map while the kexec()-ed kexec-kernel
- *         can have access to full memory - etc.
- *
- * - 'e820_table': this is the main E820 table that is massaged by the
- *   low level x86 platform code, or modified by boot parameters, before
- *   passed on to higher level MM layers.
- *
- * Once the E820 map has been converted to the standard Linux memory layout
- * information its role stops - modifying it has no effect and does not get
- * re-propagated. So itsmain role is a temporary bootstrap storage of firmware
- * specific memory layout data during early bootup.
- */
 static struct e820_table e820_table_init		__initdata;
 static struct e820_table e820_table_kexec_init		__initdata;
 static struct e820_table e820_table_firmware_init	__initdata;
@@ -64,16 +17,11 @@ struct e820_table *e820_table __refdata			= &e820_table_init;
 struct e820_table *e820_table_kexec __refdata		= &e820_table_kexec_init;
 struct e820_table *e820_table_firmware __refdata	= &e820_table_firmware_init;
 
-/* For PCI or other memory-mapped resources */
 unsigned long pci_mem_start = 0xaeedbabe;
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL(pci_mem_start);
 #endif
 
-/*
- * This function checks if any part of the range <start,end> is mapped
- * with type.
- */
 static bool _e820__mapped_any(struct e820_table *table,
 			      u64 start, u64 end, enum e820_type type)
 {
@@ -103,12 +51,6 @@ bool e820__mapped_any(u64 start, u64 end, enum e820_type type)
 }
 EXPORT_SYMBOL_GPL(e820__mapped_any);
 
-/*
- * This function checks if the entire <start,end> range is mapped with 'type'.
- *
- * Note: this function only works correctly once the E820 table is sorted and
- * not-overlapping (at least for the range specified), which is the case normally.
- */
 static struct e820_entry *__e820__mapped_all(u64 start, u64 end,
 					     enum e820_type type)
 {
@@ -125,16 +67,10 @@ static struct e820_entry *__e820__mapped_all(u64 start, u64 end,
 			continue;
 
 		/*
-		 * If the region is at the beginning of <start,end> we move
-		 * 'start' to the end of the region since it's ok until there
-		 */
 		if (entry->addr <= start)
 			start = entry->addr + entry->size;
 
 		/*
-		 * If 'start' is now at or beyond 'end', we're done, full
-		 * coverage of the desired range exists:
-		 */
 		if (start >= end)
 			return entry;
 	}
@@ -142,17 +78,11 @@ static struct e820_entry *__e820__mapped_all(u64 start, u64 end,
 	return NULL;
 }
 
-/*
- * This function checks if the entire range <start,end> is mapped with type.
- */
 bool __init e820__mapped_all(u64 start, u64 end, enum e820_type type)
 {
 	return __e820__mapped_all(start, end, type);
 }
 
-/*
- * This function returns the type associated with the range <start,end>.
- */
 int e820__get_entry_type(u64 start, u64 end)
 {
 	struct e820_entry *entry = __e820__mapped_all(start, end, 0);
@@ -160,9 +90,6 @@ int e820__get_entry_type(u64 start, u64 end)
 	return entry ? entry->type : -EINVAL;
 }
 
-/*
- * Add a memory region to the kernel E820 map.
- */
 static void __init __e820__range_add(struct e820_table *table, u64 start, u64 size, enum e820_type type)
 {
 	int x = table->nr_entries;
@@ -215,67 +142,6 @@ void __init e820__print_table(char *who)
 	}
 }
 
-/*
- * Sanitize an E820 map.
- *
- * Some E820 layouts include overlapping entries. The following
- * replaces the original E820 map with a new one, removing overlaps,
- * and resolving conflicting memory types in favor of highest
- * numbered type.
- *
- * The input parameter 'entries' points to an array of 'struct
- * e820_entry' which on entry has elements in the range [0, *nr_entries)
- * valid, and which has space for up to max_nr_entries entries.
- * On return, the resulting sanitized E820 map entries will be in
- * overwritten in the same location, starting at 'entries'.
- *
- * The integer pointed to by nr_entries must be valid on entry (the
- * current number of valid entries located at 'entries'). If the
- * sanitizing succeeds the *nr_entries will be updated with the new
- * number of valid entries (something no more than max_nr_entries).
- *
- * The return value from e820__update_table() is zero if it
- * successfully 'sanitized' the map entries passed in, and is -1
- * if it did nothing, which can happen if either of (1) it was
- * only passed one map entry, or (2) any of the input map entries
- * were invalid (start + size < start, meaning that the size was
- * so big the described memory range wrapped around through zero.)
- *
- *	Visually we're performing the following
- *	(1,2,3,4 = memory types)...
- *
- *	Sample memory map (w/overlaps):
- *	   ____22__________________
- *	   ______________________4_
- *	   ____1111________________
- *	   _44_____________________
- *	   11111111________________
- *	   ____________________33__
- *	   ___________44___________
- *	   __________33333_________
- *	   ______________22________
- *	   ___________________2222_
- *	   _________111111111______
- *	   _____________________11_
- *	   _________________4______
- *
- *	Sanitized equivalent (no overlap):
- *	   1_______________________
- *	   _44_____________________
- *	   ___1____________________
- *	   ____22__________________
- *	   ______11________________
- *	   _________1______________
- *	   __________3_____________
- *	   ___________44___________
- *	   _____________33_________
- *	   _______________2________
- *	   ________________1_______
- *	   _________________4______
- *	   ___________________2____
- *	   ____________________33__
- *	   ______________________4_
- */
 struct change_member {
 	/* Pointer to the original entry: */
 	struct e820_entry	*entry;
@@ -294,11 +160,6 @@ static int __init cpcompare(const void *a, const void *b)
 	const struct change_member *ap = *app, *bp = *bpp;
 
 	/*
-	 * Inputs are pointers to two elements of change_point[].  If their
-	 * addresses are not equal, their difference dominates.  If the addresses
-	 * are equal, then consider one that represents the end of its region
-	 * to be greater than one that does not.
-	 */
 	if (ap->addr != bp->addr)
 		return ap->addr > bp->addr ? 1 : -1;
 
@@ -308,10 +169,6 @@ static int __init cpcompare(const void *a, const void *b)
 static bool e820_nomerge(enum e820_type type)
 {
 	/*
-	 * These types may indicate distinct platform ranges aligned to
-	 * numa node, protection domain, performance domain, or other
-	 * boundaries. Do not merge them.
-	 */
 	if (type == E820_TYPE_PRAM)
 		return true;
 	if (type == E820_TYPE_SOFT_RESERVED)
@@ -345,9 +202,6 @@ int __init e820__update_table(struct e820_table *table)
 		change_point[i] = &change_point_list[i];
 
 	/*
-	 * Record all known change-points (starting and ending addresses),
-	 * omitting empty memory regions:
-	 */
 	chg_idx = 0;
 	for (i = 0; i < table->nr_entries; i++)	{
 		if (entries[i].size != 0) {
@@ -383,10 +237,6 @@ int __init e820__update_table(struct e820_table *table)
 			overlap_entries--;
 		}
 		/*
-		 * If there are overlapping entries, decide which
-		 * "type" to use (larger value takes precedence --
-		 * 1=usable, 2,3,4,4+=unusable)
-		 */
 		current_type = 0;
 		for (i = 0; i < overlap_entries; i++) {
 			if (overlap_list[i]->type > current_type)
@@ -441,15 +291,6 @@ static int __init __append_e820_table(struct boot_e820_entry *entries, u32 nr_en
 	return 0;
 }
 
-/*
- * Copy the BIOS E820 map into a safe place.
- *
- * Sanity-check it while we're at it..
- *
- * If we're lucky and live on a modern system, the setup code
- * will have given us a memory map that we can use to properly
- * set up memory.  If we aren't, we'll fake a memory map.
- */
 static int __init append_e820_table(struct boot_e820_entry *entries, u32 nr_entries)
 {
 	/* Only one memory region (or negative)? Ignore it */
@@ -515,9 +356,6 @@ __e820__range_update(struct e820_table *table, u64 start, u64 size, enum e820_ty
 		real_updated_size += final_end - final_start;
 
 		/*
-		 * Left range could be head or tail, so need to update
-		 * its size first:
-		 */
 		entry->size -= final_end - final_start;
 		if (entry->addr < final_start)
 			continue;
@@ -537,7 +375,6 @@ static u64 __init e820__range_update_kexec(u64 start, u64 size, enum e820_type o
 	return __e820__range_update(e820_table_kexec, start, size, old_type, new_type);
 }
 
-/* Remove a range of memory from the E820 table: */
 u64 __init e820__range_remove(u64 start, u64 size, enum e820_type old_type, bool check_type)
 {
 	int i;
@@ -587,9 +424,6 @@ u64 __init e820__range_remove(u64 start, u64 size, enum e820_type old_type, bool
 		real_removed_size += final_end - final_start;
 
 		/*
-		 * Left range could be head or tail, so need to update
-		 * the size first:
-		 */
 		entry->size -= final_end - final_start;
 		if (entry->addr < final_start)
 			continue;
@@ -615,9 +449,6 @@ static void __init e820__update_table_kexec(void)
 
 #define MAX_GAP_END 0x100000000ull
 
-/*
- * Search for a gap in the E820 memory space from 0 to MAX_GAP_END (4GB).
- */
 static int __init e820_search_gap(unsigned long *gapstart, unsigned long *gapsize)
 {
 	unsigned long long last = MAX_GAP_END;
@@ -629,9 +460,6 @@ static int __init e820_search_gap(unsigned long *gapstart, unsigned long *gapsiz
 		unsigned long long end = start + e820_table->entries[i].size;
 
 		/*
-		 * Since "last" is at most 4GB, we know we'll
-		 * fit in 32 bits if this condition is true:
-		 */
 		if (last > end) {
 			unsigned long gap = last - end;
 
@@ -647,14 +475,6 @@ static int __init e820_search_gap(unsigned long *gapstart, unsigned long *gapsiz
 	return found;
 }
 
-/*
- * Search for the biggest gap in the low 32 bits of the E820
- * memory space. We pass this space to the PCI subsystem, so
- * that it can assign MMIO resources for hotplug or
- * unconfigured devices in.
- *
- * Hopefully the BIOS let enough space left.
- */
 __init void e820__setup_pci_gap(void)
 {
 	unsigned long gapstart, gapsize;
@@ -674,26 +494,12 @@ __init void e820__setup_pci_gap(void)
 	}
 
 	/*
-	 * e820__reserve_resources_late() protects stolen RAM already:
-	 */
 	pci_mem_start = gapstart;
 
 	pr_info("[mem %#010lx-%#010lx] available for PCI devices\n",
 		gapstart, gapstart + gapsize - 1);
 }
 
-/*
- * Called late during init, in free_initmem().
- *
- * Initial e820_table and e820_table_kexec are largish __initdata arrays.
- *
- * Copy them to a (usually much smaller) dynamically allocated area that is
- * sized precisely after the number of e820 entries.
- *
- * This is done after we've performed all the fixes and tweaks to the tables.
- * All functions which modify them are __init functions, which won't exist
- * after free_initmem().
- */
 __init void e820__reallocate_tables(void)
 {
 	struct e820_table *n;
@@ -715,12 +521,6 @@ __init void e820__reallocate_tables(void)
 	e820_table_firmware = n;
 }
 
-/*
- * Because of the small fixed size of struct boot_params, only the first
- * 128 E820 memory entries are passed to the kernel via boot_params.e820_table,
- * the remaining (if any) entries are passed via the SETUP_E820_EXT node of
- * struct setup_data, which is parsed here.
- */
 void __init e820__memory_setup_extended(u64 phys_addr, u32 data_len)
 {
 	int entries;
@@ -742,14 +542,6 @@ void __init e820__memory_setup_extended(u64 phys_addr, u32 data_len)
 	e820__print_table("extended");
 }
 
-/*
- * Find the ranges of physical addresses that do not correspond to
- * E820 RAM areas and register the corresponding pages as 'nosave' for
- * hibernation (32-bit) or software suspend and suspend to RAM (64-bit).
- *
- * This function requires the E820 map to be sorted and without any
- * overlapping entries.
- */
 void __init e820__register_nosave_regions(unsigned long limit_pfn)
 {
 	int i;
@@ -772,10 +564,6 @@ void __init e820__register_nosave_regions(unsigned long limit_pfn)
 }
 
 #ifdef CONFIG_ACPI
-/*
- * Register ACPI NVS memory regions, so that we can save/restore them during
- * hibernation and the subsequent resume:
- */
 static int __init e820__register_nvs_regions(void)
 {
 	int i;
@@ -792,14 +580,6 @@ static int __init e820__register_nvs_regions(void)
 core_initcall(e820__register_nvs_regions);
 #endif
 
-/*
- * Allocate the requested number of bytes with the requested alignment
- * and return (the physical address) to the caller. Also register this
- * range in the 'kexec' E820 table as a reserved range.
- *
- * This allows kexec to fake a new mptable, as if it came from the real
- * system.
- */
 u64 __init e820__memblock_alloc_reserved(u64 size, u64 align)
 {
 	u64 addr;
@@ -824,9 +604,6 @@ u64 __init e820__memblock_alloc_reserved(u64 size, u64 align)
 # define MAX_ARCH_PFN MAXMEM>>PAGE_SHIFT
 #endif
 
-/*
- * Find the highest page frame number we have available
- */
 static unsigned long __init e820_end_pfn(unsigned long limit_pfn, enum e820_type type)
 {
 	int i;
@@ -880,7 +657,6 @@ static void __init early_panic(char *msg)
 
 static int userdef __initdata;
 
-/* The "mem=nopentium" boot option disables 4MB page tables on 32-bit kernels: */
 static int __init parse_memopt(char *p)
 {
 	u64 mem_size;
@@ -988,11 +764,6 @@ static int __init parse_memmap_opt(char *str)
 }
 early_param("memmap", parse_memmap_opt);
 
-/*
- * Reserve all entries from the bootloader's extensible data nodes list,
- * because if present we are going to use it later on to fetch e820
- * entries from it:
- */
 void __init e820__reserve_setup_data(void)
 {
 	struct setup_indirect *indirect;
@@ -1017,9 +788,6 @@ void __init e820__reserve_setup_data(void)
 		e820__range_update(pa_data, sizeof(*data)+data->len, E820_TYPE_RAM, E820_TYPE_RESERVED_KERN);
 
 		/*
-		 * SETUP_EFI and SETUP_IMA are supplied by kexec and do not need
-		 * to be reserved.
-		 */
 		if (data->type != SETUP_EFI && data->type != SETUP_IMA)
 			e820__range_update_kexec(pa_data,
 						 sizeof(*data) + data->len,
@@ -1055,11 +823,6 @@ void __init e820__reserve_setup_data(void)
 	e820__print_table("reserve setup_data");
 }
 
-/*
- * Called after parse_early_param(), after early parameters (such as mem=)
- * have been processed, in which case we already have an E820 table filled in
- * via the parameter callback function(s), but it's not sorted and printed yet:
- */
 void __init e820__finish_early_params(void)
 {
 	if (userdef) {
@@ -1126,9 +889,6 @@ static bool __init do_mark_busy(enum e820_type type, struct resource *res)
 		return true;
 
 	/*
-	 * Treat persistent memory and other special memory ranges like
-	 * device memory, i.e. reserve it for exclusive use of a driver
-	 */
 	switch (type) {
 	case E820_TYPE_RESERVED:
 	case E820_TYPE_SOFT_RESERVED:
@@ -1145,9 +905,6 @@ static bool __init do_mark_busy(enum e820_type type, struct resource *res)
 	}
 }
 
-/*
- * Mark E820 reserved areas as busy for the resource manager:
- */
 
 static struct resource __initdata *e820_res;
 
@@ -1179,10 +936,6 @@ void __init e820__reserve_resources(void)
 		res->desc  = e820_type_to_iores_desc(entry);
 
 		/*
-		 * Don't register the region that could be conflicted with
-		 * PCI device BAR resources and insert them later in
-		 * pcibios_resource_survey():
-		 */
 		if (do_mark_busy(entry->type, res)) {
 			res->flags |= IORESOURCE_BUSY;
 			insert_resource(&iomem_resource, res);
@@ -1198,9 +951,6 @@ void __init e820__reserve_resources(void)
 	}
 }
 
-/*
- * How much should we pad the end of RAM, depending on where it is?
- */
 static unsigned long __init ram_alignment(resource_size_t pos)
 {
 	unsigned long mb = pos >> 20;
@@ -1232,9 +982,6 @@ void __init e820__reserve_resources_late(void)
 	}
 
 	/*
-	 * Try to bump up RAM regions to reasonable boundaries, to
-	 * avoid stolen RAM:
-	 */
 	for (i = 0; i < e820_table->nr_entries; i++) {
 		struct e820_entry *entry = &e820_table->entries[i];
 		u64 start, end;
@@ -1254,19 +1001,11 @@ void __init e820__reserve_resources_late(void)
 	}
 }
 
-/*
- * Pass the firmware (bootloader) E820 map to the kernel and process it:
- */
 char *__init e820__memory_setup_default(void)
 {
 	char *who = "BIOS-e820";
 
 	/*
-	 * Try to copy the BIOS-supplied E820-map.
-	 *
-	 * Otherwise fake a memory map; one section from 0k->640k,
-	 * the next section from 1mb->appropriate_mem_k
-	 */
 	if (append_e820_table(boot_params.e820_table, boot_params.e820_entries) < 0) {
 		u64 mem_size;
 
@@ -1290,11 +1029,6 @@ char *__init e820__memory_setup_default(void)
 	return who;
 }
 
-/*
- * Calls e820__memory_setup_default() in essence to pick up the firmware/bootloader
- * E820 map - with an optional platform quirk available for virtual platforms
- * to override this method of boot environment processing:
- */
 void __init e820__memory_setup(void)
 {
 	char *who;
@@ -1317,14 +1051,6 @@ void __init e820__memblock_setup(void)
 	u64 end;
 
 	/*
-	 * The bootstrap memblock region count maximum is 128 entries
-	 * (INIT_MEMBLOCK_REGIONS), but EFI might pass us more E820 entries
-	 * than that - so allow memblock resizing.
-	 *
-	 * This is safe, because this call happens pretty late during x86 setup,
-	 * so we know about reserved memory regions already. (This is important
-	 * so that memblock resizing does no stomp over reserved areas.)
-	 */
 	memblock_allow_resize();
 
 	for (i = 0; i < e820_table->nr_entries; i++) {

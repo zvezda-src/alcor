@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Accelerated GHASH implementation with Intel PCLMULQDQ-NI
- * instructions. This file contains glue code.
- *
- * Copyright (c) 2009 Intel Corp.
- *   Author: Huang Ying <ying.huang@intel.com>
- */
 
 #include <linux/err.h>
 #include <linux/module.h>

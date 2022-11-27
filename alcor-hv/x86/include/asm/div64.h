@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_DIV64_H
 #define _ASM_X86_DIV64_H
 
@@ -7,18 +6,6 @@
 #include <linux/types.h>
 #include <linux/log2.h>
 
-/*
- * do_div() is NOT a C function. It wants to return
- * two values (the quotient and the remainder), but
- * since that doesn't work very well in C, what it
- * does is:
- *
- * - modifies the 64-bit dividend _in_place_
- * - returns the 32-bit remainder
- *
- * This ends up being the most efficient "calling
- * convention" on x86.
- */
 #define do_div(n, base)						\
 ({								\
 	unsigned long __upper, __low, __high, __mod, __base;	\
@@ -74,10 +61,6 @@ static inline u64 mul_u32_u32(u32 a, u32 b)
 #else
 # include <asm-generic/div64.h>
 
-/*
- * Will generate an #DE when the result doesn't fit u64, could fix with an
- * __ex_table[] entry when it becomes an issue.
- */
 static inline u64 mul_u64_u64_div_u64(u64 a, u64 mul, u64 div)
 {
 	u64 q;

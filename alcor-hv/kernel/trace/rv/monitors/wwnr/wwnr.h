@@ -1,8 +1,3 @@
-/*
- * Automatically generated C representation of wwnr automaton
- * For further information about this format, see kernel documentation:
- *   Documentation/trace/rv/deterministic_automata.rst
- */
 
 enum states_wwnr {
 	not_running_wwnr = 0,

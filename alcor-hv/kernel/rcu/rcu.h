@@ -1,58 +1,33 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
-/*
- * Read-Copy Update definitions shared among RCU implementations.
- *
- * Copyright IBM Corporation, 2011
- *
- * Author: Paul E. McKenney <paulmck@linux.ibm.com>
- */
 
 #ifndef __LINUX_RCU_H
 #define __LINUX_RCU_H
 
 #include <trace/events/rcu.h>
 
-/*
- * Grace-period counter management.
- */
 
 #define RCU_SEQ_CTR_SHIFT	2
 #define RCU_SEQ_STATE_MASK	((1 << RCU_SEQ_CTR_SHIFT) - 1)
 
-/* Low-order bit definition for polled grace-period APIs. */
 #define RCU_GET_STATE_COMPLETED	0x1
 
 extern int sysctl_sched_rt_runtime;
 
-/*
- * Return the counter portion of a sequence number previously returned
- * by rcu_seq_snap() or rcu_seq_current().
- */
 static inline unsigned long rcu_seq_ctr(unsigned long s)
 {
 	return s >> RCU_SEQ_CTR_SHIFT;
 }
 
-/*
- * Return the state portion of a sequence number previously returned
- * by rcu_seq_snap() or rcu_seq_current().
- */
 static inline int rcu_seq_state(unsigned long s)
 {
 	return s & RCU_SEQ_STATE_MASK;
 }
 
-/*
- * Set the state portion of the pointed-to sequence number.
- * The caller is responsible for preventing conflicting updates.
- */
 static inline void rcu_seq_set_state(unsigned long *sp, int newstate)
 {
 	WARN_ON_ONCE(newstate & ~RCU_SEQ_STATE_MASK);
 	WRITE_ONCE(*sp, (*sp & ~RCU_SEQ_STATE_MASK) + newstate);
 }
 
-/* Adjust sequence number for start of update-side operation. */
 static inline void rcu_seq_start(unsigned long *sp)
 {
 	WRITE_ONCE(*sp, *sp + 1);
@@ -60,13 +35,11 @@ static inline void rcu_seq_start(unsigned long *sp)
 	WARN_ON_ONCE(rcu_seq_state(*sp) != 1);
 }
 
-/* Compute the end-of-grace-period value for the specified sequence number. */
 static inline unsigned long rcu_seq_endval(unsigned long *sp)
 {
 	return (*sp | RCU_SEQ_STATE_MASK) + 1;
 }
 
-/* Adjust sequence number for end of update-side operation. */
 static inline void rcu_seq_end(unsigned long *sp)
 {
 	smp_mb(); /* Ensure update-side operation before counter increment. */
@@ -74,17 +47,6 @@ static inline void rcu_seq_end(unsigned long *sp)
 	WRITE_ONCE(*sp, rcu_seq_endval(sp));
 }
 
-/*
- * rcu_seq_snap - Take a snapshot of the update side's sequence number.
- *
- * This function returns the earliest value of the grace-period sequence number
- * that will indicate that a full grace period has elapsed since the current
- * time.  Once the grace-period sequence number has reached this value, it will
- * be safe to invoke all callbacks that have been registered prior to the
- * current time. This value is the current grace-period number plus two to the
- * power of the number of low-order bits reserved for state, then rounded up to
- * the next value in which the state bits are all zero.
- */
 static inline unsigned long rcu_seq_snap(unsigned long *sp)
 {
 	unsigned long s;
@@ -94,35 +56,21 @@ static inline unsigned long rcu_seq_snap(unsigned long *sp)
 	return s;
 }
 
-/* Return the current value the update side's sequence number, no ordering. */
 static inline unsigned long rcu_seq_current(unsigned long *sp)
 {
 	return READ_ONCE(*sp);
 }
 
-/*
- * Given a snapshot from rcu_seq_snap(), determine whether or not the
- * corresponding update-side operation has started.
- */
 static inline bool rcu_seq_started(unsigned long *sp, unsigned long s)
 {
 	return ULONG_CMP_LT((s - 1) & ~RCU_SEQ_STATE_MASK, READ_ONCE(*sp));
 }
 
-/*
- * Given a snapshot from rcu_seq_snap(), determine whether or not a
- * full update-side operation has occurred.
- */
 static inline bool rcu_seq_done(unsigned long *sp, unsigned long s)
 {
 	return ULONG_CMP_GE(READ_ONCE(*sp), s);
 }
 
-/*
- * Given a snapshot from rcu_seq_snap(), determine whether or not a
- * full update-side operation has occurred, but do not allow the
- * (ULONG_MAX / 2) safety-factor/guard-band.
- */
 static inline bool rcu_seq_done_exact(unsigned long *sp, unsigned long s)
 {
 	unsigned long cur_s = READ_ONCE(*sp);
@@ -130,27 +78,17 @@ static inline bool rcu_seq_done_exact(unsigned long *sp, unsigned long s)
 	return ULONG_CMP_GE(cur_s, s) || ULONG_CMP_LT(cur_s, s - (2 * RCU_SEQ_STATE_MASK + 1));
 }
 
-/*
- * Has a grace period completed since the time the old gp_seq was collected?
- */
 static inline bool rcu_seq_completed_gp(unsigned long old, unsigned long new)
 {
 	return ULONG_CMP_LT(old, new & ~RCU_SEQ_STATE_MASK);
 }
 
-/*
- * Has a grace period started since the time the old gp_seq was collected?
- */
 static inline bool rcu_seq_new_gp(unsigned long old, unsigned long new)
 {
 	return ULONG_CMP_LT((old + RCU_SEQ_STATE_MASK) & ~RCU_SEQ_STATE_MASK,
 			    new);
 }
 
-/*
- * Roughly how many full grace periods have elapsed between the collection
- * of the two specified grace periods?
- */
 static inline unsigned long rcu_seq_diff(unsigned long new, unsigned long old)
 {
 	unsigned long rnd_diff;
@@ -158,9 +96,6 @@ static inline unsigned long rcu_seq_diff(unsigned long new, unsigned long old)
 	if (old == new)
 		return 0;
 	/*
-	 * Compute the number of grace periods (still shifted up), plus
-	 * one if either of new and old is not an exact grace period.
-	 */
 	rnd_diff = (new & ~RCU_SEQ_STATE_MASK) -
 		   ((old + RCU_SEQ_STATE_MASK) & ~RCU_SEQ_STATE_MASK) +
 		   ((new & RCU_SEQ_STATE_MASK) || (old & RCU_SEQ_STATE_MASK));
@@ -169,12 +104,6 @@ static inline unsigned long rcu_seq_diff(unsigned long new, unsigned long old)
 	return ((rnd_diff - RCU_SEQ_STATE_MASK - 1) >> RCU_SEQ_CTR_SHIFT) + 2;
 }
 
-/*
- * debug_rcu_head_queue()/debug_rcu_head_unqueue() are used internally
- * by call_rcu() and rcu callback execution, and are therefore not part
- * of the RCU API. These are in rcupdate.h because they are used by all
- * RCU implementations.
- */
 
 #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
 # define STATE_RCU_HEAD_READY	0
@@ -254,16 +183,8 @@ static inline bool rcu_stall_is_suppressed(void)
 #define rcu_ftrace_dump_stall_unsuppress()
 #endif /* #ifdef CONFIG_RCU_STALL_COMMON */
 
-/*
- * Strings used in tracepoints need to be exported via the
- * tracing system such that tools like perf and trace-cmd can
- * translate the string address pointers to actual text.
- */
 #define TPS(x)  tracepoint_string(x)
 
-/*
- * Dump the ftrace buffer, but only one time per callsite per boot.
- */
 #define rcu_ftrace_dump(oops_dump_mode) \
 do { \
 	static atomic_t ___rfd_beenhere = ATOMIC_INIT(0); \
@@ -280,10 +201,6 @@ do { \
 void rcu_early_boot_tests(void);
 void rcu_test_sync_prims(void);
 
-/*
- * This function really isn't for public consumption, but RCU is special in
- * that context switches can allow the state machine to make progress.
- */
 extern void resched_cpu(int cpu);
 
 #if defined(CONFIG_SRCU) || !defined(CONFIG_TINY_RCU)
@@ -296,10 +213,6 @@ extern int rcu_num_nodes;
 static bool rcu_fanout_exact;
 static int rcu_fanout_leaf;
 
-/*
- * Compute the per-level fanout, either using the exact fanout specified
- * or balancing the tree, depending on the rcu_fanout_exact boot parameter.
- */
 static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
 {
 	int i;
@@ -325,48 +238,28 @@ static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
 
 extern void rcu_init_geometry(void);
 
-/* Returns a pointer to the first leaf rcu_node structure. */
 #define rcu_first_leaf_node() (rcu_state.level[rcu_num_lvls - 1])
 
-/* Is this rcu_node a leaf? */
 #define rcu_is_leaf_node(rnp) ((rnp)->level == rcu_num_lvls - 1)
 
-/* Is this rcu_node the last leaf? */
 #define rcu_is_last_leaf_node(rnp) ((rnp) == &rcu_state.node[rcu_num_nodes - 1])
 
-/*
- * Do a full breadth-first scan of the {s,}rcu_node structures for the
- * specified state structure (for SRCU) or the only rcu_state structure
- * (for RCU).
- */
 #define srcu_for_each_node_breadth_first(sp, rnp) \
 	for ((rnp) = &(sp)->node[0]; \
 	     (rnp) < &(sp)->node[rcu_num_nodes]; (rnp)++)
 #define rcu_for_each_node_breadth_first(rnp) \
 	srcu_for_each_node_breadth_first(&rcu_state, rnp)
 
-/*
- * Scan the leaves of the rcu_node hierarchy for the rcu_state structure.
- * Note that if there is a singleton rcu_node tree with but one rcu_node
- * structure, this loop -will- visit the rcu_node structure.  It is still
- * a leaf node, even if it is also the root node.
- */
 #define rcu_for_each_leaf_node(rnp) \
 	for ((rnp) = rcu_first_leaf_node(); \
 	     (rnp) < &rcu_state.node[rcu_num_nodes]; (rnp)++)
 
-/*
- * Iterate over all possible CPUs in a leaf RCU node.
- */
 #define for_each_leaf_node_possible_cpu(rnp, cpu) \
 	for (WARN_ON_ONCE(!rcu_is_leaf_node(rnp)), \
 	     (cpu) = cpumask_next((rnp)->grplo - 1, cpu_possible_mask); \
 	     (cpu) <= rnp->grphi; \
 	     (cpu) = cpumask_next((cpu), cpu_possible_mask))
 
-/*
- * Iterate over all CPUs in a leaf RCU node's specified mask.
- */
 #define rcu_find_next_bit(rnp, cpu, mask) \
 	((rnp)->grplo + find_next_bit(&(mask), BITS_PER_LONG, (cpu)))
 #define for_each_leaf_node_cpu_mask(rnp, cpu, mask) \
@@ -375,20 +268,6 @@ extern void rcu_init_geometry(void);
 	     (cpu) <= rnp->grphi; \
 	     (cpu) = rcu_find_next_bit((rnp), (cpu) + 1 - (rnp->grplo), (mask)))
 
-/*
- * Wrappers for the rcu_node::lock acquire and release.
- *
- * Because the rcu_nodes form a tree, the tree traversal locking will observe
- * different lock values, this in turn means that an UNLOCK of one level
- * followed by a LOCK of another level does not imply a full memory barrier;
- * and most importantly transitivity is lost.
- *
- * In order to restore full ordering between tree levels, augment the regular
- * lock acquire functions with smp_mb__after_unlock_lock().
- *
- * As ->lock of struct rcu_node is a __private field, therefore one should use
- * these wrappers rather than directly call raw_spin_{lock,unlock}* on ->lock.
- */
 #define raw_spin_lock_rcu_node(p)					\
 do {									\
 	raw_spin_lock(&ACCESS_PRIVATE(p, lock));			\
@@ -440,7 +319,6 @@ do {									\
 #endif /* #if defined(CONFIG_SRCU) || !defined(CONFIG_TINY_RCU) */
 
 #ifdef CONFIG_TINY_RCU
-/* Tiny RCU doesn't expedite, as its purpose in life is instead to be tiny. */
 static inline bool rcu_gp_is_normal(void) { return true; }
 static inline bool rcu_gp_is_expedited(void) { return false; }
 static inline void rcu_expedite_gp(void) { }
@@ -487,8 +365,6 @@ void rcu_gp_set_torture_wait(int duration);
 static inline void rcutorture_get_gp_data(enum rcutorture_type test_type,
 					  int *flags, unsigned long *gp_seq)
 {
-	*flags = 0;
-	*gp_seq = 0;
 }
 #ifdef CONFIG_RCU_TRACE
 void do_trace_rcu_torture_read(const char *rcutorturename,
@@ -515,8 +391,6 @@ static inline void srcutorture_get_gp_data(enum rcutorture_type test_type,
 {
 	if (test_type != SRCU_FLAVOR)
 		return;
-	*flags = 0;
-	*gp_seq = sp->srcu_idx;
 }
 
 #elif defined(CONFIG_TREE_SRCU)

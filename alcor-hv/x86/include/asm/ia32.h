@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_IA32_H
 #define _ASM_X86_IA32_H
 
@@ -7,13 +6,9 @@
 
 #include <linux/compat.h>
 
-/*
- * 32 bit structures for IA32 support.
- */
 
 #include <uapi/asm/sigcontext.h>
 
-/* signal.h */
 
 struct ucontext_ia32 {
 	unsigned int	  uc_flags;
@@ -23,9 +18,6 @@ struct ucontext_ia32 {
 	compat_sigset_t	  uc_sigmask;	/* mask last for extensibility */
 };
 
-/* This matches struct stat64 in glibc2.2, hence the absolutely
- * insane amounts of padding around dev_t's.
- */
 struct stat64 {
 	unsigned long long	st_dev;
 	unsigned char		__pad0[4];

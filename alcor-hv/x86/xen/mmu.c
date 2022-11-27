@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/pfn.h>
 #include <asm/xen/page.h>
@@ -23,9 +22,6 @@ xmaddr_t arbitrary_virt_to_machine(void *vaddr)
 	unsigned offset;
 
 	/*
-	 * if the PFN is in the linear mapped vaddr range, we can just use
-	 * the (quick) virt_to_machine() p2m lookup
-	 */
 	if (virt_addr_valid(vaddr))
 		return virt_to_machine(vaddr);
 
@@ -38,7 +34,6 @@ xmaddr_t arbitrary_virt_to_machine(void *vaddr)
 }
 EXPORT_SYMBOL_GPL(arbitrary_virt_to_machine);
 
-/* Returns: 0 success */
 int xen_unmap_domain_gfn_range(struct vm_area_struct *vma,
 			       int nr, struct page **pages)
 {

@@ -1,44 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_INTEL_FAMILY_H
 #define _ASM_X86_INTEL_FAMILY_H
 
-/*
- * "Big Core" Processors (Branded as Core, Xeon, etc...)
- *
- * While adding a new CPUID for a new microarchitecture, add a new
- * group to keep logically sorted out in chronological order. Within
- * that group keep the CPUID for the variants sorted by model number.
- *
- * The defined symbol names have the following form:
- *	INTEL_FAM6{OPTFAMILY}_{MICROARCH}{OPTDIFF}
- * where:
- * OPTFAMILY	Describes the family of CPUs that this belongs to. Default
- *		is assumed to be "_CORE" (and should be omitted). Other values
- *		currently in use are _ATOM and _XEON_PHI
- * MICROARCH	Is the code name for the micro-architecture for this core.
- *		N.B. Not the platform name.
- * OPTDIFF	If needed, a short string to differentiate by market segment.
- *
- *		Common OPTDIFFs:
- *
- *			- regular client parts
- *		_L	- regular mobile parts
- *		_G	- parts with extra graphics on
- *		_X	- regular server parts
- *		_D	- micro server parts
- *		_N,_P	- other mobile parts
- *
- *		Historical OPTDIFFs:
- *
- *		_EP	- 2 socket server parts
- *		_EX	- 4+ socket server parts
- *
- * The #define line may optionally include a comment including platform or core
- * names. An exception is made for skylake/kabylake where steppings seem to have gotten
- * their own names :-(
- */
 
-/* Wildcard match for FAM6 so X86_MATCH_INTEL_FAM6_MODEL(ANY) works */
 #define INTEL_FAM6_ANY			X86_MODEL_ANY
 
 #define INTEL_FAM6_CORE_YONAH		0x0E
@@ -75,16 +38,10 @@
 #define INTEL_FAM6_SKYLAKE_L		0x4E	/* Sky Lake             */
 #define INTEL_FAM6_SKYLAKE		0x5E	/* Sky Lake             */
 #define INTEL_FAM6_SKYLAKE_X		0x55	/* Sky Lake             */
-/*                 CASCADELAKE_X	0x55	   Sky Lake -- s: 7     */
-/*                 COOPERLAKE_X		0x55	   Sky Lake -- s: 11    */
 
 #define INTEL_FAM6_KABYLAKE_L		0x8E	/* Sky Lake             */
-/*                 AMBERLAKE_L		0x8E	   Sky Lake -- s: 9     */
-/*                 COFFEELAKE_L		0x8E	   Sky Lake -- s: 10    */
-/*                 WHISKEYLAKE_L	0x8E       Sky Lake -- s: 11,12 */
 
 #define INTEL_FAM6_KABYLAKE		0x9E	/* Sky Lake             */
-/*                 COFFEELAKE		0x9E	   Sky Lake -- s: 10-13 */
 
 #define INTEL_FAM6_COMETLAKE		0xA5	/* Sky Lake             */
 #define INTEL_FAM6_COMETLAKE_L		0xA6	/* Sky Lake             */
@@ -113,7 +70,6 @@
 #define INTEL_FAM6_RAPTORLAKE		0xB7
 #define INTEL_FAM6_RAPTORLAKE_P		0xBA
 
-/* "Small Core" Processors (Atom) */
 
 #define INTEL_FAM6_ATOM_BONNELL		0x1C /* Diamondville, Pineview */
 #define INTEL_FAM6_ATOM_BONNELL_MID	0x26 /* Silverthorne, Lincroft */
@@ -133,19 +89,16 @@
 #define INTEL_FAM6_ATOM_GOLDMONT	0x5C /* Apollo Lake */
 #define INTEL_FAM6_ATOM_GOLDMONT_D	0x5F /* Denverton */
 
-/* Note: the micro-architecture is "Goldmont Plus" */
 #define INTEL_FAM6_ATOM_GOLDMONT_PLUS	0x7A /* Gemini Lake */
 
 #define INTEL_FAM6_ATOM_TREMONT_D	0x86 /* Jacobsville */
 #define INTEL_FAM6_ATOM_TREMONT		0x96 /* Elkhart Lake */
 #define INTEL_FAM6_ATOM_TREMONT_L	0x9C /* Jasper Lake */
 
-/* Xeon Phi */
 
 #define INTEL_FAM6_XEON_PHI_KNL		0x57 /* Knights Landing */
 #define INTEL_FAM6_XEON_PHI_KNM		0x85 /* Knights Mill */
 
-/* Family 5 */
 #define INTEL_FAM5_QUARK_X1000		0x09 /* Quark X1000 SoC */
 
 #endif /* _ASM_X86_INTEL_FAMILY_H */

@@ -1,13 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/******************************************************************************
- * x86_emulate.h
- *
- * Generic x86 (32-bit and 64-bit) instruction decoder and emulator.
- *
- * Copyright (c) 2005 Keir Fraser
- *
- * From: xen-unstable 10676:af9809f51f81a3c43f276f00c81a52ef558afda4
- */
 
 #ifndef _ASM_X86_KVM_X86_EMULATE_H
 #define _ASM_X86_KVM_X86_EMULATE_H
@@ -28,11 +18,6 @@ struct x86_exception {
 	u8 async_page_fault;
 };
 
-/*
- * This struct is used to carry enough information from the instruction
- * decoder to main KVM so that a decision can be made whether the
- * instruction needs to be intercepted or not.
- */
 struct x86_instruction_info {
 	u8  intercept;          /* which intercept                      */
 	u8  rep_prefix;         /* rep prefix?                          */
@@ -47,41 +32,8 @@ struct x86_instruction_info {
 	u64 next_rip;           /* rip following the instruction        */
 };
 
-/*
- * x86_emulate_ops:
- *
- * These operations represent the instruction emulator's interface to memory.
- * There are two categories of operation: those that act on ordinary memory
- * regions (*_std), and those that act on memory regions known to require
- * special treatment or emulation (*_emulated).
- *
- * The emulator assumes that an instruction accesses only one 'emulated memory'
- * location, that this location is the given linear faulting address (cr2), and
- * that this is one of the instruction's data operands. Instruction fetches and
- * stack operations are assumed never to access emulated memory. The emulator
- * automatically deduces which operand of a string-move operation is accessing
- * emulated memory, and assumes that the other operand accesses normal memory.
- *
- * NOTES:
- *  1. The emulator isn't very smart about emulated vs. standard memory.
- *     'Emulated memory' access addresses should be checked for sanity.
- *     'Normal memory' accesses may fault, and the caller must arrange to
- *     detect and handle reentrancy into the emulator via recursive faults.
- *     Accesses may be unaligned and may cross page boundaries.
- *  2. If the access fails (cannot emulate, or a standard access faults) then
- *     it is up to the memop to propagate the fault to the guest VM via
- *     some out-of-band mechanism, unknown to the emulator. The memop signals
- *     failure by returning X86EMUL_PROPAGATE_FAULT to the emulator, which will
- *     then immediately bail.
- *  3. Valid access sizes are 1, 2, 4 and 8 bytes. On x86/32 systems only
- *     cmpxchg8b_emulated need support 8-byte accesses.
- *  4. The emulator cannot handle 64-bit mode emulation on an x86/32 system.
- */
-/* Access completed successfully: continue emulation as normal. */
 #define X86EMUL_CONTINUE        0
-/* Access is unhandleable: bail from emulation and return error to caller. */
 #define X86EMUL_UNHANDLEABLE    1
-/* Terminate emulation but return success to the caller. */
 #define X86EMUL_PROPAGATE_FAULT 2 /* propagate a generated fault to guest */
 #define X86EMUL_RETRY_INSTR     3 /* retry the instruction for some reason */
 #define X86EMUL_CMPXCHG_FAILED  4 /* cmpxchg did not see expected value */
@@ -91,93 +43,40 @@ struct x86_instruction_info {
 struct x86_emulate_ops {
 	void (*vm_bugged)(struct x86_emulate_ctxt *ctxt);
 	/*
-	 * read_gpr: read a general purpose register (rax - r15)
-	 *
-	 * @reg: gpr number.
-	 */
 	ulong (*read_gpr)(struct x86_emulate_ctxt *ctxt, unsigned reg);
 	/*
-	 * write_gpr: write a general purpose register (rax - r15)
-	 *
-	 * @reg: gpr number.
-	 * @val: value to write.
-	 */
 	void (*write_gpr)(struct x86_emulate_ctxt *ctxt, unsigned reg, ulong val);
 	/*
-	 * read_std: Read bytes of standard (non-emulated/special) memory.
-	 *           Used for descriptor reading.
-	 *  @addr:  [IN ] Linear address from which to read.
-	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
-	 *  @bytes: [IN ] Number of bytes to read from memory.
-	 *  @system:[IN ] Whether the access is forced to be at CPL0.
-	 */
 	int (*read_std)(struct x86_emulate_ctxt *ctxt,
 			unsigned long addr, void *val,
 			unsigned int bytes,
 			struct x86_exception *fault, bool system);
 
 	/*
-	 * read_phys: Read bytes of standard (non-emulated/special) memory.
-	 *            Used for descriptor reading.
-	 *  @addr:  [IN ] Physical address from which to read.
-	 *  @val:   [OUT] Value read from memory.
-	 *  @bytes: [IN ] Number of bytes to read from memory.
-	 */
 	int (*read_phys)(struct x86_emulate_ctxt *ctxt, unsigned long addr,
 			void *val, unsigned int bytes);
 
 	/*
-	 * write_std: Write bytes of standard (non-emulated/special) memory.
-	 *            Used for descriptor writing.
-	 *  @addr:  [IN ] Linear address to which to write.
-	 *  @val:   [OUT] Value write to memory, zero-extended to 'u_long'.
-	 *  @bytes: [IN ] Number of bytes to write to memory.
-	 *  @system:[IN ] Whether the access is forced to be at CPL0.
-	 */
 	int (*write_std)(struct x86_emulate_ctxt *ctxt,
 			 unsigned long addr, void *val, unsigned int bytes,
 			 struct x86_exception *fault, bool system);
 	/*
-	 * fetch: Read bytes of standard (non-emulated/special) memory.
-	 *        Used for instruction fetch.
-	 *  @addr:  [IN ] Linear address from which to read.
-	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
-	 *  @bytes: [IN ] Number of bytes to read from memory.
-	 */
 	int (*fetch)(struct x86_emulate_ctxt *ctxt,
 		     unsigned long addr, void *val, unsigned int bytes,
 		     struct x86_exception *fault);
 
 	/*
-	 * read_emulated: Read bytes from emulated/special memory area.
-	 *  @addr:  [IN ] Linear address from which to read.
-	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
-	 *  @bytes: [IN ] Number of bytes to read from memory.
-	 */
 	int (*read_emulated)(struct x86_emulate_ctxt *ctxt,
 			     unsigned long addr, void *val, unsigned int bytes,
 			     struct x86_exception *fault);
 
 	/*
-	 * write_emulated: Write bytes to emulated/special memory area.
-	 *  @addr:  [IN ] Linear address to which to write.
-	 *  @val:   [IN ] Value to write to memory (low-order bytes used as
-	 *                required).
-	 *  @bytes: [IN ] Number of bytes to write to memory.
-	 */
 	int (*write_emulated)(struct x86_emulate_ctxt *ctxt,
 			      unsigned long addr, const void *val,
 			      unsigned int bytes,
 			      struct x86_exception *fault);
 
 	/*
-	 * cmpxchg_emulated: Emulate an atomic (LOCKed) CMPXCHG operation on an
-	 *                   emulated/special memory area.
-	 *  @addr:  [IN ] Linear address to access.
-	 *  @old:   [IN ] Value expected to be current at @addr.
-	 *  @new:   [IN ] Value to write to @addr.
-	 *  @bytes: [IN ] Number of bytes to access using CMPXCHG.
-	 */
 	int (*cmpxchg_emulated)(struct x86_emulate_ctxt *ctxt,
 				unsigned long addr,
 				const void *old,
@@ -240,7 +139,6 @@ struct x86_emulate_ops {
 	int (*set_xcr)(struct x86_emulate_ctxt *ctxt, u32 index, u64 xcr);
 };
 
-/* Type, address-of, and value of an instruction's operand. */
 struct operand {
 	enum { OP_REG, OP_MEM, OP_MEM_STR, OP_IMM, OP_XMM, OP_MM, OP_NONE } type;
 	unsigned int bytes;
@@ -280,7 +178,6 @@ struct read_cache {
 	unsigned long end;
 };
 
-/* Execution mode, passed to the emulator. */
 enum x86emul_mode {
 	X86EMUL_MODE_REAL,	/* Real mode.             */
 	X86EMUL_MODE_VM86,	/* Virtual 8086 mode.     */
@@ -289,25 +186,14 @@ enum x86emul_mode {
 	X86EMUL_MODE_PROT64,	/* 64-bit (long) mode.    */
 };
 
-/* These match some of the HF_* flags defined in kvm_host.h  */
 #define X86EMUL_GUEST_MASK           (1 << 5) /* VCPU is in guest-mode */
 #define X86EMUL_SMM_MASK             (1 << 6)
 #define X86EMUL_SMM_INSIDE_NMI_MASK  (1 << 7)
 
-/*
- * fastop functions are declared as taking a never-defined fastop parameter,
- * so they can't be called from C directly.
- */
 struct fastop;
 
 typedef void (*fastop_t)(struct fastop *);
 
-/*
- * The emulator's _regs array tracks only the GPRs, i.e. excludes RIP.  RIP is
- * tracked/accessed via _eip, and except for RIP relative addressing, which
- * also uses _eip, RIP cannot be a register operand nor can it be an operand in
- * a ModRM or SIB byte.
- */
 #ifdef CONFIG_X86_64
 #define NR_EMULATOR_GPRS	16
 #else
@@ -338,8 +224,6 @@ struct x86_emulate_ctxt {
 	gpa_t gpa_val;
 
 	/*
-	 * decode cache
-	 */
 
 	/* current opcode length in bytes */
 	u8 opcode_len;
@@ -393,11 +277,9 @@ struct x86_emulate_ctxt {
 	unlikely(__ret);			\
 })
 
-/* Repeat String Operation Prefix */
 #define REPE_PREFIX	0xf3
 #define REPNE_PREFIX	0xf2
 
-/* CPUID vendors */
 #define X86EMUL_CPUID_VENDOR_AuthenticAMD_ebx 0x68747541
 #define X86EMUL_CPUID_VENDOR_AuthenticAMD_ecx 0x444d4163
 #define X86EMUL_CPUID_VENDOR_AuthenticAMD_edx 0x69746e65
@@ -503,7 +385,6 @@ enum x86_intercept {
 	nr_x86_intercepts
 };
 
-/* Host execution mode. */
 #if defined(CONFIG_X86_32)
 #define X86EMUL_MODE_HOST X86EMUL_MODE_PROT32
 #elif defined(CONFIG_X86_64)

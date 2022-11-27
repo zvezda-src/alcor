@@ -1,27 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * x86 FPU bug checks:
- */
 #include <asm/fpu/api.h>
 
-/*
- * Boot time CPU/FPU FDIV bug detection code:
- */
 
 static double __initdata x = 4195835.0;
 static double __initdata y = 3145727.0;
 
-/*
- * This used to check for exceptions..
- * However, it turns out that to support that,
- * the XMM trap handlers basically had to
- * be buggy. So let's have a correct XMM trap
- * handler, and forget about printing out
- * some status at boot.
- *
- * We should really only care about bugs here
- * anyway. Not features.
- */
 void __init fpu__init_check_bugs(void)
 {
 	s32 fdiv_bug;
@@ -33,11 +15,6 @@ void __init fpu__init_check_bugs(void)
 	kernel_fpu_begin();
 
 	/*
-	 * trap_init() enabled FXSR and company _before_ testing for FP
-	 * problems here.
-	 *
-	 * Test for the divl bug: http://en.wikipedia.org/wiki/Fdiv_bug
-	 */
 	__asm__("fninit\n\t"
 		"fldl %1\n\t"
 		"fdivl %2\n\t"

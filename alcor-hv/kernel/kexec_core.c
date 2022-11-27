@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * kexec.c - kexec system call core code.
- * Copyright (C) 2002-2004 Eric Biederman  <ebiederm@xmission.com>
- */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -48,14 +43,11 @@
 
 DEFINE_MUTEX(kexec_mutex);
 
-/* Per cpu memory for storing cpu states in case of system crash. */
 note_buf_t __percpu *crash_notes;
 
-/* Flag to indicate we are going to kexec a new kernel */
 bool kexec_in_progress = false;
 
 
-/* Location of the reserved area for the crash kernel */
 struct resource crashk_res = {
 	.name  = "Crash kernel",
 	.start = 0,
@@ -74,16 +66,9 @@ struct resource crashk_low_res = {
 int kexec_should_crash(struct task_struct *p)
 {
 	/*
-	 * If crash_kexec_post_notifiers is enabled, don't run
-	 * crash_kexec() here yet, which must be run after panic
-	 * notifiers in panic().
-	 */
 	if (crash_kexec_post_notifiers)
 		return 0;
 	/*
-	 * There are 4 panic() calls in make_task_dead() path, each of which
-	 * corresponds to each of these 4 conditions.
-	 */
 	if (in_interrupt() || !p->pid || is_global_init(p) || panic_on_oops)
 		return 1;
 	return 0;
@@ -95,50 +80,7 @@ int kexec_crash_loaded(void)
 }
 EXPORT_SYMBOL_GPL(kexec_crash_loaded);
 
-/*
- * When kexec transitions to the new kernel there is a one-to-one
- * mapping between physical and virtual addresses.  On processors
- * where you can disable the MMU this is trivial, and easy.  For
- * others it is still a simple predictable page table to setup.
- *
- * In that environment kexec copies the new kernel to its final
- * resting place.  This means I can only support memory whose
- * physical address can fit in an unsigned long.  In particular
- * addresses where (pfn << PAGE_SHIFT) > ULONG_MAX cannot be handled.
- * If the assembly stub has more restrictive requirements
- * KEXEC_SOURCE_MEMORY_LIMIT and KEXEC_DEST_MEMORY_LIMIT can be
- * defined more restrictively in <asm/kexec.h>.
- *
- * The code for the transition from the current kernel to the
- * new kernel is placed in the control_code_buffer, whose size
- * is given by KEXEC_CONTROL_PAGE_SIZE.  In the best case only a single
- * page of memory is necessary, but some architectures require more.
- * Because this memory must be identity mapped in the transition from
- * virtual to physical addresses it must live in the range
- * 0 - TASK_SIZE, as only the user space mappings are arbitrarily
- * modifiable.
- *
- * The assembly stub in the control code buffer is passed a linked list
- * of descriptor pages detailing the source pages of the new kernel,
- * and the destination addresses of those source pages.  As this data
- * structure is not used in the context of the current OS, it must
- * be self-contained.
- *
- * The code has been made to work with highmem pages and will use a
- * destination page in its final resting place (if it happens
- * to allocate it).  The end product of this is that most of the
- * physical address space, and most of RAM can be used.
- *
- * Future directions include:
- *  - allocating a page table with the control code buffer identity
- *    mapped, to simplify machine_kexec and make kexec_on_panic more
- *    reliable.
- */
 
-/*
- * KIMAGE_NO_DEST is an impossible destination address..., for
- * allocating pages whose destination address we do not care about.
- */
 #define KIMAGE_NO_DEST (-1UL)
 #define PAGE_COUNT(x) (((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
 
@@ -154,18 +96,6 @@ int sanity_check_segment_list(struct kimage *image)
 	unsigned long nr_pages = totalram_pages();
 
 	/*
-	 * Verify we have good destination addresses.  The caller is
-	 * responsible for making certain we don't attempt to load
-	 * the new image into invalid or reserved areas of RAM.  This
-	 * just verifies it is an address we can use.
-	 *
-	 * Since the kernel does everything in page size chunks ensure
-	 * the destination addresses are page aligned.  Too many
-	 * special cases crop of when we don't do this.  The most
-	 * insidious is getting overlapping destination addresses
-	 * simply because addresses are changed to page size
-	 * granularity.
-	 */
 	for (i = 0; i < nr_segments; i++) {
 		unsigned long mstart, mend;
 
@@ -212,10 +142,6 @@ int sanity_check_segment_list(struct kimage *image)
 	}
 
 	/*
-	 * Verify that no more than half of memory will be consumed. If the
-	 * request from userspace is too large, a large amount of time will be
-	 * wasted allocating pages, which can cause a soft lockup.
-	 */
 	for (i = 0; i < nr_segments; i++) {
 		if (PAGE_COUNT(image->segment[i].memsz) > nr_pages / 2)
 			return -EINVAL;
@@ -227,14 +153,6 @@ int sanity_check_segment_list(struct kimage *image)
 		return -EINVAL;
 
 	/*
-	 * Verify we have good destination addresses.  Normally
-	 * the caller is responsible for making certain we don't
-	 * attempt to load the new image into invalid or reserved
-	 * areas of RAM.  But crash kernels are preloaded into a
-	 * reserved area of ram.  We must ensure the addresses
-	 * are in the reserved area otherwise preloading the
-	 * kernel could corrupt things.
-	 */
 
 	if (image->type == KEXEC_TYPE_CRASH) {
 		for (i = 0; i < nr_segments; i++) {
@@ -507,14 +425,6 @@ int kimage_crash_copy_vmcoreinfo(struct kimage *image)
 		return 0;
 
 	/*
-	 * For kdump, allocate one vmcoreinfo safe copy from the
-	 * crash memory. as we have arch_kexec_protect_crashkres()
-	 * after kexec syscall, we naturally protect it from write
-	 * (even read) access under kernel direct mapping. But on
-	 * the other hand, we still need to operate it when crash
-	 * happens to generate vmcoreinfo note, hereby we rely on
-	 * vmap for this purpose.
-	 */
 	vmcoreinfo_page = kimage_alloc_control_pages(image, 0);
 	if (!vmcoreinfo_page) {
 		pr_warn("Could not allocate vmcoreinfo buffer\n");
@@ -551,9 +461,7 @@ static int kimage_add_entry(struct kimage *image, kimage_entry_t entry)
 		image->last_entry = ind_page +
 				      ((PAGE_SIZE/sizeof(kimage_entry_t)) - 1);
 	}
-	*image->entry = entry;
 	image->entry++;
-	*image->entry = 0;
 
 	return 0;
 }
@@ -596,7 +504,6 @@ void kimage_terminate(struct kimage *image)
 	if (*image->entry != 0)
 		image->entry++;
 
-	*image->entry = IND_DONE;
 }
 
 #define for_each_kimage_entry(image, ptr, entry) \
@@ -649,9 +556,6 @@ void kimage_free(struct kimage *image)
 	kimage_free_page_list(&image->control_pages);
 
 	/*
-	 * Free up any temporary buffers allocated. This might hit if
-	 * error occurred much later after buffer allocation.
-	 */
 	if (image->file_mode)
 		kimage_file_post_load_cleanup(image);
 
@@ -682,30 +586,10 @@ static struct page *kimage_alloc_page(struct kimage *image,
 					unsigned long destination)
 {
 	/*
-	 * Here we implement safeguards to ensure that a source page
-	 * is not copied to its destination page before the data on
-	 * the destination page is no longer useful.
-	 *
-	 * To do this we maintain the invariant that a source page is
-	 * either its own destination page, or it is not a
-	 * destination page at all.
-	 *
-	 * That is slightly stronger than required, but the proof
-	 * that no problems will not occur is trivial, and the
-	 * implementation is simply to verify.
-	 *
-	 * When allocating all pages normally this algorithm will run
-	 * in O(N) time, but in the worst case it will run in O(N^2)
-	 * time.   If the runtime is a problem the data structures can
-	 * be fixed.
-	 */
 	struct page *page;
 	unsigned long addr;
 
 	/*
-	 * Walk through the list of destination pages, and see if I
-	 * have a match.
-	 */
 	list_for_each_entry(page, &image->dest_pages, lru) {
 		addr = page_to_boot_pfn(page) << PAGE_SHIFT;
 		if (addr == destination) {
@@ -739,10 +623,6 @@ static struct page *kimage_alloc_page(struct kimage *image,
 			break;
 
 		/*
-		 * I know that the page is someones destination page.
-		 * See if there is already a source page for this
-		 * destination page.  And if so swap the source pages.
-		 */
 		old = kimage_dst_used(image, addr);
 		if (old) {
 			/* If so move it */
@@ -952,11 +832,6 @@ static int __init kexec_core_sysctl_init(void)
 late_initcall(kexec_core_sysctl_init);
 #endif
 
-/*
- * No panic_cpu check version of crash_kexec().  This function is called
- * only when panic_cpu holds the current CPU number; this is the only CPU
- * which processes crash_kexec routines.
- */
 void __noclone __crash_kexec(struct pt_regs *regs)
 {
 	/* Take the kexec_mutex here to prevent sys_kexec_load
@@ -986,10 +861,6 @@ void crash_kexec(struct pt_regs *regs)
 	int old_cpu, this_cpu;
 
 	/*
-	 * Only one CPU is allowed to execute the crash_kexec() code as with
-	 * panic().  Otherwise parallel calls of panic() and crash_kexec()
-	 * may stop each other.  To exclude them, we use panic_cpu here too.
-	 */
 	this_cpu = raw_smp_processor_id();
 	old_cpu = atomic_cmpxchg(&panic_cpu, PANIC_CPU_INVALID, this_cpu);
 	if (old_cpu == PANIC_CPU_INVALID) {
@@ -997,9 +868,6 @@ void crash_kexec(struct pt_regs *regs)
 		__crash_kexec(regs);
 
 		/*
-		 * Reset panic_cpu to allow another panic()/crash_kexec()
-		 * call.
-		 */
 		atomic_set(&panic_cpu, PANIC_CPU_INVALID);
 	}
 }
@@ -1096,22 +964,10 @@ static int __init crash_notes_memory_init(void)
 	size_t size, align;
 
 	/*
-	 * crash_notes could be allocated across 2 vmalloc pages when percpu
-	 * is vmalloc based . vmalloc doesn't guarantee 2 continuous vmalloc
-	 * pages are also on 2 continuous physical pages. In this case the
-	 * 2nd part of crash_notes in 2nd page could be lost since only the
-	 * starting address and size of crash_notes are exported through sysfs.
-	 * Here round up the size of crash_notes to the nearest power of two
-	 * and pass it to __alloc_percpu as align value. This can make sure
-	 * crash_notes is allocated inside one physical page.
-	 */
 	size = sizeof(note_buf_t);
 	align = min(roundup_pow_of_two(sizeof(note_buf_t)), PAGE_SIZE);
 
 	/*
-	 * Break compile if size is bigger than PAGE_SIZE since crash_notes
-	 * definitely will be in 2 pages with that.
-	 */
 	BUILD_BUG_ON(size > PAGE_SIZE);
 
 	crash_notes = __alloc_percpu(size, align);
@@ -1124,10 +980,6 @@ static int __init crash_notes_memory_init(void)
 subsys_initcall(crash_notes_memory_init);
 
 
-/*
- * Move into place and start executing a preloaded standalone
- * executable.  If nothing was preloaded return an error.
- */
 int kernel_kexec(void)
 {
 	int error = 0;
@@ -1176,11 +1028,6 @@ int kernel_kexec(void)
 		migrate_to_reboot_cpu();
 
 		/*
-		 * migrate_to_reboot_cpu() disables CPU hotplug assuming that
-		 * no further code needs to use CPU hotplug (which is true in
-		 * the reboot case). However, the kexec path depends on using
-		 * CPU hotplug again; so re-enable it here.
-		 */
 		cpu_hotplug_enable();
 		pr_notice("Starting new kernel\n");
 		machine_shutdown();

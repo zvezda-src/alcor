@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * trace_events_inject - trace event injection
- *
- * Copyright (C) 2019 Cong Wang <cwang@twitter.com>
- */
 
 #include <linux/module.h>
 #include <linux/ctype.h>
@@ -62,7 +56,6 @@ parse_field(char *str, struct trace_event_call *call,
 	if (!field)
 		return -ENOENT;
 
-	*pf = field;
 	while (isspace(str[i]))
 		i++;
 	if (str[i] != '=')
@@ -186,13 +179,11 @@ static void *trace_alloc_entry(struct trace_event_call *call, int *size)
 		}
 	}
 
-	*size = entry_size + 1;
 	return entry;
 }
 
 #define INJECT_STRING "STATIC STRING CAN NOT BE INJECTED"
 
-/* Caller is responsible to free the *pentry. */
 static int parse_entry(char *str, struct trace_event_call *call, void **pentry)
 {
 	struct ftrace_event_field *field;
@@ -202,7 +193,6 @@ static int parse_entry(char *str, struct trace_event_call *call, void **pentry)
 	int len;
 
 	entry = trace_alloc_entry(call, &entry_size);
-	*pentry = entry;
 	if (!entry)
 		return -ENOMEM;
 
@@ -316,7 +306,6 @@ event_inject_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	if (err < 0)
 		return err;
 
-	*ppos += err;
 	return cnt;
 }
 

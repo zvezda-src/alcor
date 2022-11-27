@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Module sysfs support
- *
- * Copyright (C) 2008 Rusty Russell
- */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -14,10 +8,6 @@
 #include <linux/mutex.h>
 #include "internal.h"
 
-/*
- * /sys/module/foo/sections stuff
- * J. Corbet <corbet@lwn.net>
- */
 #ifdef CONFIG_KALLSYMS
 struct module_sect_attr {
 	struct bin_attribute battr;
@@ -44,13 +34,6 @@ static ssize_t module_sect_read(struct file *file, struct kobject *kobj,
 		return -EINVAL;
 
 	/*
-	 * Since we're a binary read handler, we must account for the
-	 * trailing NUL byte that sprintf will write: if "buf" is
-	 * too small to hold the NUL, or the NUL is exactly the last
-	 * byte, the read will look like it got truncated by one byte.
-	 * Since there is no way to ask sprintf nicely to not write
-	 * the NUL, we have to use a bounce buffer.
-	 */
 	wrote = scnprintf(bounce, sizeof(bounce), "0x%px\n",
 			  kallsyms_show_value(file->f_cred)
 				? (void *)sattr->address : NULL);
@@ -111,7 +94,6 @@ static void add_sect_attrs(struct module *mod, const struct load_info *info)
 		sattr->battr.attr.mode = 0400;
 		*(gattr++) = &(sattr++)->battr;
 	}
-	*gattr = NULL;
 
 	if (sysfs_create_group(&mod->mkobj.kobj, &sect_attrs->grp))
 		goto out;
@@ -128,17 +110,11 @@ static void remove_sect_attrs(struct module *mod)
 		sysfs_remove_group(&mod->mkobj.kobj,
 				   &mod->sect_attrs->grp);
 		/*
-		 * We are positive that no one is using any sect attrs
-		 * at this point.  Deallocate immediately.
-		 */
 		free_sect_attrs(mod->sect_attrs);
 		mod->sect_attrs = NULL;
 	}
 }
 
-/*
- * /sys/module/foo/notes/.section.name gives contents of SHT_NOTE sections.
- */
 
 struct module_notes_attrs {
 	struct kobject *dir;
@@ -151,8 +127,6 @@ static ssize_t module_notes_read(struct file *filp, struct kobject *kobj,
 				 char *buf, loff_t pos, size_t count)
 {
 	/*
-	 * The caller checked the pos and count against our size.
-	 */
 	memcpy(buf, bin_attr->private + pos, count);
 	return count;
 }

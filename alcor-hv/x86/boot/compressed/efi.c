@@ -1,19 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Helpers for early access to EFI configuration table.
- *
- * Originally derived from arch/x86/boot/compressed/acpi.c
- */
 
 #include "misc.h"
 
-/**
- * efi_get_type - Given a pointer to boot_params, determine the type of EFI environment.
- *
- * @bp:         pointer to boot_params
- *
- * Return: EFI_TYPE_{32,64} for valid EFI environments, EFI_TYPE_NONE otherwise.
- */
 enum efi_type efi_get_type(struct boot_params *bp)
 {
 	struct efi_info *ei;
@@ -34,10 +21,6 @@ enum efi_type efi_get_type(struct boot_params *bp)
 
 #ifndef CONFIG_X86_64
 	/*
-	 * Existing callers like acpi.c treat this case as an indicator to
-	 * fall-through to non-EFI, rather than an error, so maintain that
-	 * functionality here as well.
-	 */
 	if (ei->efi_systab_hi || ei->efi_memmap_hi) {
 		debug_putstr("EFI system table is located above 4GB and cannot be accessed.\n");
 		et = EFI_TYPE_NONE;
@@ -47,14 +30,6 @@ enum efi_type efi_get_type(struct boot_params *bp)
 	return et;
 }
 
-/**
- * efi_get_system_table - Given a pointer to boot_params, retrieve the physical address
- *                        of the EFI system table.
- *
- * @bp:         pointer to boot_params
- *
- * Return: EFI system table address on success. On error, return 0.
- */
 unsigned long efi_get_system_table(struct boot_params *bp)
 {
 	unsigned long sys_tbl_pa;
@@ -76,12 +51,6 @@ unsigned long efi_get_system_table(struct boot_params *bp)
 	return sys_tbl_pa;
 }
 
-/*
- * EFI config table address changes to virtual address after boot, which may
- * not be accessible for the kexec'd kernel. To address this, kexec provides
- * the initial physical address via a struct setup_data entry, which is
- * checked for here, along with some sanity checks.
- */
 static struct efi_setup_data *get_kexec_setup_data(struct boot_params *bp,
 						   enum efi_type et)
 {
@@ -102,10 +71,6 @@ static struct efi_setup_data *get_kexec_setup_data(struct boot_params *bp,
 	}
 
 	/*
-	 * Original ACPI code falls back to attempting normal EFI boot in these
-	 * cases, so maintain existing behavior by indicating non-kexec
-	 * environment to the caller, but print them for debugging.
-	 */
 	if (esd && !esd->tables) {
 		debug_putstr("kexec EFI environment missing valid configuration table.\n");
 		return NULL;
@@ -116,16 +81,6 @@ static struct efi_setup_data *get_kexec_setup_data(struct boot_params *bp,
 	return NULL;
 }
 
-/**
- * efi_get_conf_table - Given a pointer to boot_params, locate and return the physical
- *                      address of EFI configuration table.
- *
- * @bp:                 pointer to boot_params
- * @cfg_tbl_pa:         location to store physical address of config table
- * @cfg_tbl_len:        location to store number of config table entries
- *
- * Return: 0 on success. On error, return params are left unchanged.
- */
 int efi_get_conf_table(struct boot_params *bp, unsigned long *cfg_tbl_pa,
 		       unsigned int *cfg_tbl_len)
 {
@@ -163,7 +118,6 @@ int efi_get_conf_table(struct boot_params *bp, unsigned long *cfg_tbl_pa,
 	return 0;
 }
 
-/* Get vendor table address/guid from EFI config table at the given index */
 static int get_vendor_table(void *cfg_tbl, unsigned int idx,
 			    unsigned long *vendor_tbl_pa,
 			    efi_guid_t *vendor_tbl_guid,
@@ -192,17 +146,6 @@ static int get_vendor_table(void *cfg_tbl, unsigned int idx,
 	return 0;
 }
 
-/**
- * efi_find_vendor_table - Given EFI config table, search it for the physical
- *                         address of the vendor table associated with GUID.
- *
- * @bp:                pointer to boot_params
- * @cfg_tbl_pa:        pointer to EFI configuration table
- * @cfg_tbl_len:       number of entries in EFI configuration table
- * @guid:              GUID of vendor table
- *
- * Return: vendor table address on success. On error, return 0.
- */
 unsigned long efi_find_vendor_table(struct boot_params *bp,
 				    unsigned long cfg_tbl_pa,
 				    unsigned int cfg_tbl_len,

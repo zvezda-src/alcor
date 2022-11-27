@@ -1,24 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* -*- linux-c -*- ------------------------------------------------------- *
- *
- *   Copyright (C) 1991, 1992 Linus Torvalds
- *   Copyright 2007 rPath, Inc. - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author H. Peter Anvin
- *
- * ----------------------------------------------------------------------- */
 
-/*
- * Standard video BIOS modes
- *
- * We have two options for this; silent and scanned.
- */
 
 #include "boot.h"
 #include "video.h"
 
 static __videocard video_bios;
 
-/* Set a conventional BIOS mode */
 static int set_bios_mode(u8 mode);
 
 static int bios_set_mode(struct mode_info *mi)

@@ -1,8 +1,3 @@
-/*
- * Copyright 2003 PathScale, Inc.
- *
- * Licensed under the GPL
- */
 
 #ifndef __SYSDEP_X86_64_SYSCALLS_H__
 #define __SYSDEP_X86_64_SYSCALLS_H__

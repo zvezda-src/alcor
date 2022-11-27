@@ -1,4 +1,3 @@
-/* Declare dependencies between CPUIDs */
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -9,16 +8,6 @@ struct cpuid_dep {
 	unsigned int	depends;
 };
 
-/*
- * Table of CPUID features that depend on others.
- *
- * This only includes dependencies that can be usefully disabled, not
- * features part of the base set (like FPU).
- *
- * Note this all is not __init / __initdata because it can be
- * called from cpu hotplug. It shouldn't do anything in this case,
- * but it's difficult to tell that to the init reference checker.
- */
 static const struct cpuid_dep cpuid_deps[] = {
 	{ X86_FEATURE_FXSR,			X86_FEATURE_FPU	      },
 	{ X86_FEATURE_XSAVEOPT,			X86_FEATURE_XSAVE     },
@@ -84,10 +73,6 @@ static const struct cpuid_dep cpuid_deps[] = {
 static inline void clear_feature(struct cpuinfo_x86 *c, unsigned int feature)
 {
 	/*
-	 * Note: This could use the non atomic __*_bit() variants, but the
-	 * rest of the cpufeature code uses atomics as well, so keep it for
-	 * consistency. Cleanup all of it separately.
-	 */
 	if (!c) {
 		clear_cpu_cap(&boot_cpu_data, feature);
 		set_bit(feature, (unsigned long *)cpu_caps_cleared);
@@ -96,7 +81,6 @@ static inline void clear_feature(struct cpuinfo_x86 *c, unsigned int feature)
 	}
 }
 
-/* Take the capabilities and the BUG bits into account */
 #define MAX_FEATURE_BITS ((NCAPINTS + NBUGINTS) * sizeof(u32) * 8)
 
 static void do_clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int feature)

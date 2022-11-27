@@ -1,15 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _ASM_X86_XOR_32_H
 #define _ASM_X86_XOR_32_H
 
-/*
- * Optimized RAID-5 checksumming functions for MMX.
- */
 
-/*
- * High-speed RAID5 checksumming functions utilizing MMX instructions.
- * Copyright (C) 1998 Ingo Molnar.
- */
 
 #define LD(x, y)	"       movq   8*("#x")(%1), %%mm"#y"   ;\n"
 #define ST(x, y)	"       movq %%mm"#y",   8*("#x")(%1)   ;\n"
@@ -543,13 +535,10 @@ static struct xor_block_template xor_block_pIII_sse = {
 	.do_5 = xor_sse_5,
 };
 
-/* Also try the AVX routines */
 #include <asm/xor_avx.h>
 
-/* Also try the generic routines.  */
 #include <asm-generic/xor.h>
 
-/* We force the use of the SSE xor block because it can write around L2.
    We may also be able to load into the L1 only depending on how the cpu
    deals with a load to a line that is being prefetched.  */
 #undef XOR_TRY_TEMPLATES

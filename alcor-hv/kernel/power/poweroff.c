@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * poweroff.c - sysrq handler to gracefully power down machine.
- */
 
 #include <linux/kernel.h>
 #include <linux/sysrq.h>
@@ -11,10 +7,6 @@
 #include <linux/reboot.h>
 #include <linux/cpumask.h>
 
-/*
- * When the user hits Sys-Rq o to power down the machine this is the
- * callback we use.
- */
 
 static void do_poweroff(struct work_struct *dummy)
 {

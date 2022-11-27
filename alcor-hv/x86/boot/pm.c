@@ -1,22 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* -*- linux-c -*- ------------------------------------------------------- *
- *
- *   Copyright (C) 1991, 1992 Linus Torvalds
- *   Copyright 2007 rPath, Inc. - All Rights Reserved
- *
- * ----------------------------------------------------------------------- */
 
-/*
- * Prepare the machine for transition to protected mode.
- */
 
 #include "boot.h"
 #include <asm/segment.h>
 
-/*
- * Invoke the realmode switch hook if present; otherwise
- * disable all interrupts.
- */
 static void realmode_switch_hook(void)
 {
 	if (boot_params.hdr.realmode_swtch) {
@@ -30,9 +16,6 @@ static void realmode_switch_hook(void)
 	}
 }
 
-/*
- * Disable all interrupts at the legacy PIC.
- */
 static void mask_all_interrupts(void)
 {
 	outb(0xff, 0xa1);	/* Mask all interrupts on the secondary PIC */
@@ -41,9 +24,6 @@ static void mask_all_interrupts(void)
 	io_delay();
 }
 
-/*
- * Reset IGNNE# if asserted in the FPU.
- */
 static void reset_coprocessor(void)
 {
 	outb(0, 0xf0);
@@ -52,9 +32,6 @@ static void reset_coprocessor(void)
 	io_delay();
 }
 
-/*
- * Set up the GDT
- */
 
 struct gdt_ptr {
 	u16 len;
@@ -87,18 +64,12 @@ static void setup_gdt(void)
 	asm volatile("lgdtl %0" : : "m" (gdt));
 }
 
-/*
- * Set up the IDT
- */
 static void setup_idt(void)
 {
 	static const struct gdt_ptr null_idt = {0, 0};
 	asm volatile("lidtl %0" : : "m" (null_idt));
 }
 
-/*
- * Actual invocation sequence
- */
 void go_to_protected_mode(void)
 {
 	/* Hook before leaving real mode, also disables interrupts */

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef _CRYPTO_ECB_CBC_HELPER_H
 #define _CRYPTO_ECB_CBC_HELPER_H
@@ -6,10 +5,6 @@
 #include <crypto/internal/skcipher.h>
 #include <asm/fpu/api.h>
 
-/*
- * Mode helpers to instantiate parameterized skcipher ECB/CBC modes without
- * having to rely on indirect calls and retpolines.
- */
 
 #define ECB_WALK_START(req, bsize, fpu_blocks) do {			\
 	void *ctx = crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));	\

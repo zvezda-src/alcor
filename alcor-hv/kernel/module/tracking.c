@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Module taint unload tracking support
- *
- * Copyright (C) 2022 Aaron Tomlin
- */
 
 #include <linux/module.h>
 #include <linux/string.h>

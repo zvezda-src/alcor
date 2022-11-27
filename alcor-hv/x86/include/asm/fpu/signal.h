@@ -1,7 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- * x86 FPU signal frame handling methods:
- */
 #ifndef _ASM_X86_FPU_SIGNAL_H
 #define _ASM_X86_FPU_SIGNAL_H
 

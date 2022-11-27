@@ -1,17 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Load ELF vmlinux file for the kexec_file_load syscall.
- *
- * Copyright (C) 2004  Adam Litke (agl@us.ibm.com)
- * Copyright (C) 2004  IBM Corp.
- * Copyright (C) 2005  R Sharada (sharada@in.ibm.com)
- * Copyright (C) 2006  Mohan Kumar M (mohan@in.ibm.com)
- * Copyright (C) 2016  IBM Corporation
- *
- * Based on kexec-tools' kexec-elf-exec.c and kexec-elf-ppc64.c.
- * Heavily modified for the kernel by
- * Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>.
- */
 
 #define pr_fmt(fmt)	"kexec_elf: " fmt
 
@@ -56,10 +42,6 @@ static uint16_t elf16_to_cpu(const struct elfhdr *ehdr, uint16_t value)
 	return value;
 }
 
-/**
- * elf_is_ehdr_sane - check that it is safe to use the ELF header
- * @buf_len:	size of the buffer in which the ELF file is loaded.
- */
 static bool elf_is_ehdr_sane(const struct elfhdr *ehdr, size_t buf_len)
 {
 	if (ehdr->e_phnum > 0 && ehdr->e_phentsize != sizeof(struct elf_phdr)) {
@@ -79,9 +61,6 @@ static bool elf_is_ehdr_sane(const struct elfhdr *ehdr, size_t buf_len)
 		size_t phdr_size;
 
 		/*
-		 * e_phnum is at most 65535 so calculating the size of the
-		 * program header cannot overflow.
-		 */
 		phdr_size = sizeof(struct elf_phdr) * ehdr->e_phnum;
 
 		/* Sanity check the program header table location. */
@@ -98,9 +77,6 @@ static bool elf_is_ehdr_sane(const struct elfhdr *ehdr, size_t buf_len)
 		size_t shdr_size;
 
 		/*
-		 * e_shnum is at most 65536 so calculating
-		 * the size of the section header cannot overflow.
-		 */
 		shdr_size = sizeof(struct elf_shdr) * ehdr->e_shnum;
 
 		/* Sanity check the section header table location. */
@@ -178,10 +154,6 @@ static int elf_read_ehdr(const char *buf, size_t len, struct elfhdr *ehdr)
 	return elf_is_ehdr_sane(ehdr, len) ? 0 : -ENOEXEC;
 }
 
-/**
- * elf_is_phdr_sane - check that it is safe to use the program header
- * @buf_len:	size of the buffer in which the ELF file is loaded.
- */
 static bool elf_is_phdr_sane(const struct elf_phdr *phdr, size_t buf_len)
 {
 
@@ -242,12 +214,6 @@ static int elf_read_phdr(const char *buf, size_t len,
 	return elf_is_phdr_sane(phdr, len) ? 0 : -ENOEXEC;
 }
 
-/**
- * elf_read_phdrs - read the program headers from the buffer
- *
- * This function assumes that the program header table was checked for sanity.
- * Use elf_is_ehdr_sane() if it wasn't.
- */
 static int elf_read_phdrs(const char *buf, size_t len,
 			  struct kexec_elf_info *elf_info)
 {
@@ -255,9 +221,6 @@ static int elf_read_phdrs(const char *buf, size_t len,
 	const struct elfhdr *ehdr = elf_info->ehdr;
 
 	/*
-	 * e_phnum is at most 65535 so calculating the size of the
-	 * program header cannot overflow.
-	 */
 	phdr_size = sizeof(struct elf_phdr) * ehdr->e_phnum;
 
 	elf_info->proghdrs = kzalloc(phdr_size, GFP_KERNEL);
@@ -278,21 +241,6 @@ static int elf_read_phdrs(const char *buf, size_t len,
 	return 0;
 }
 
-/**
- * elf_read_from_buffer - read ELF file and sets up ELF header and ELF info
- * @buf:	Buffer to read ELF file from.
- * @len:	Size of @buf.
- * @ehdr:	Pointer to existing struct which will be populated.
- * @elf_info:	Pointer to existing struct which will be populated.
- *
- * This function allows reading ELF files with different byte order than
- * the kernel, byte-swapping the fields as needed.
- *
- * Return:
- * On success returns 0, and the caller should call
- * kexec_free_elf_info(elf_info) to free the memory allocated for the section
- * and program headers.
- */
 static int elf_read_from_buffer(const char *buf, size_t len,
 				struct elfhdr *ehdr,
 				struct kexec_elf_info *elf_info)
@@ -313,17 +261,11 @@ static int elf_read_from_buffer(const char *buf, size_t len,
 	return 0;
 }
 
-/**
- * kexec_free_elf_info - free memory allocated by elf_read_from_buffer
- */
 void kexec_free_elf_info(struct kexec_elf_info *elf_info)
 {
 	kfree(elf_info->proghdrs);
 	memset(elf_info, 0, sizeof(*elf_info));
 }
-/**
- * kexec_build_elf_info - read ELF executable and check that we can use it
- */
 int kexec_build_elf_info(const char *buf, size_t len, struct elfhdr *ehdr,
 			       struct kexec_elf_info *elf_info)
 {
@@ -345,10 +287,6 @@ int kexec_build_elf_info(const char *buf, size_t len, struct elfhdr *ehdr,
 
 	for (i = 0; i < ehdr->e_phnum; i++) {
 		/*
-		 * Kexec does not support loading interpreters.
-		 * In addition this check keeps us from attempting
-		 * to kexec ordinay executables.
-		 */
 		if (elf_info->proghdrs[i].p_type == PT_INTERP) {
 			pr_err("Requires an ELF interpreter.\n");
 			goto error;
@@ -377,14 +315,6 @@ int kexec_elf_probe(const char *buf, unsigned long len)
 	return elf_check_arch(&ehdr) ? 0 : -ENOEXEC;
 }
 
-/**
- * kexec_elf_load - load ELF executable image
- * @lowest_load_addr:	On return, will be the address where the first PT_LOAD
- *			section will be loaded in memory.
- *
- * Return:
- * 0 on success, negative value on failure.
- */
 int kexec_elf_load(struct kimage *image, struct elfhdr *ehdr,
 			 struct kexec_elf_info *elf_info,
 			 struct kexec_buf *kbuf,
@@ -423,7 +353,6 @@ int kexec_elf_load(struct kimage *image, struct elfhdr *ehdr,
 			lowest_addr = load_addr;
 	}
 
-	*lowest_load_addr = lowest_addr;
 	ret = 0;
  out:
 	return ret;

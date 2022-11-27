@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- *  Copyright (C) 2004 IBM Corporation
- *
- *  Author: Serge Hallyn <serue@us.ibm.com>
- */
 
 #include <linux/export.h>
 #include <linux/uts.h>
@@ -37,11 +31,6 @@ static struct uts_namespace *create_uts_ns(void)
 	return uts_ns;
 }
 
-/*
- * Clone a new ns copying an original utsname, setting refcount to 1
- * @old_ns: namespace to clone
- * Return ERR_PTR(-ENOMEM) on error (failure to allocate), new ns otherwise
- */
 static struct uts_namespace *clone_uts_ns(struct user_namespace *user_ns,
 					  struct uts_namespace *old_ns)
 {
@@ -80,12 +69,6 @@ fail:
 	return ERR_PTR(err);
 }
 
-/*
- * Copy task tsk's utsname namespace, or clone it if flags
- * specifies CLONE_NEWUTS.  In latter case, changes to the
- * utsname of this process won't be seen by parent, and vice
- * versa.
- */
 struct uts_namespace *copy_utsname(unsigned long flags,
 	struct user_namespace *user_ns, struct uts_namespace *old_ns)
 {

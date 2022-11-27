@@ -1,45 +1,15 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * KVM Microsoft Hyper-V emulation
- *
- * derived from arch/x86/kvm/x86.c
- *
- * Copyright (C) 2006 Qumranet, Inc.
- * Copyright (C) 2008 Qumranet, Inc.
- * Copyright IBM Corporation, 2008
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
- * Copyright (C) 2015 Andrey Smetanin <asmetanin@virtuozzo.com>
- *
- * Authors:
- *   Avi Kivity   <avi@qumranet.com>
- *   Yaniv Kamay  <yaniv@qumranet.com>
- *   Amit Shah    <amit.shah@qumranet.com>
- *   Ben-Ami Yassour <benami@il.ibm.com>
- *   Andrey Smetanin <asmetanin@virtuozzo.com>
- */
 
 #ifndef __ARCH_X86_KVM_HYPERV_H__
 #define __ARCH_X86_KVM_HYPERV_H__
 
 #include <linux/kvm_host.h>
 
-/*
- * The #defines related to the synthetic debugger are required by KDNet, but
- * they are not documented in the Hyper-V TLFS because the synthetic debugger
- * functionality has been deprecated and is subject to removal in future
- * versions of Windows.
- */
 #define HYPERV_CPUID_SYNDBG_VENDOR_AND_MAX_FUNCTIONS	0x40000080
 #define HYPERV_CPUID_SYNDBG_INTERFACE			0x40000081
 #define HYPERV_CPUID_SYNDBG_PLATFORM_CAPABILITIES	0x40000082
 
-/*
- * Hyper-V synthetic debugger platform capabilities
- * These are HYPERV_CPUID_SYNDBG_PLATFORM_CAPABILITIES.EAX bits.
- */
 #define HV_X64_SYNDBG_CAP_ALLOW_KERNEL_DEBUGGING	BIT(1)
 
-/* Hyper-V Synthetic debug options MSR */
 #define HV_X64_MSR_SYNDBG_CONTROL		0x400000F1
 #define HV_X64_MSR_SYNDBG_STATUS		0x400000F2
 #define HV_X64_MSR_SYNDBG_SEND_BUFFER		0x400000F3
@@ -47,7 +17,6 @@
 #define HV_X64_MSR_SYNDBG_PENDING_BUFFER	0x400000F5
 #define HV_X64_MSR_SYNDBG_OPTIONS		0x400000FF
 
-/* Hyper-V HV_X64_MSR_SYNDBG_OPTIONS bits */
 #define HV_X64_SYNDBG_OPTION_USE_HCALLS		BIT(2)
 
 static inline struct kvm_hv *to_kvm_hv(struct kvm *kvm)

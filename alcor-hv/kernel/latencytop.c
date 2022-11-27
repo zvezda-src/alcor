@@ -1,47 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * latencytop.c: Latency display infrastructure
- *
- * (C) Copyright 2008 Intel Corporation
- * Author: Arjan van de Ven <arjan@linux.intel.com>
- */
 
-/*
- * CONFIG_LATENCYTOP enables a kernel latency tracking infrastructure that is
- * used by the "latencytop" userspace tool. The latency that is tracked is not
- * the 'traditional' interrupt latency (which is primarily caused by something
- * else consuming CPU), but instead, it is the latency an application encounters
- * because the kernel sleeps on its behalf for various reasons.
- *
- * This code tracks 2 levels of statistics:
- * 1) System level latency
- * 2) Per process latency
- *
- * The latency is stored in fixed sized data structures in an accumulated form;
- * if the "same" latency cause is hit twice, this will be tracked as one entry
- * in the data structure. Both the count, total accumulated latency and maximum
- * latency are tracked in this data structure. When the fixed size structure is
- * full, no new causes are tracked until the buffer is flushed by writing to
- * the /proc file; the userspace tool does this on a regular basis.
- *
- * A latency cause is identified by a stringified backtrace at the point that
- * the scheduler gets invoked. The userland tool will use this string to
- * identify the cause of the latency in human readable form.
- *
- * The information is exported via /proc/latency_stats and /proc/<pid>/latency.
- * These files look like this:
- *
- * Latency Top version : v0.1
- * 70 59433 4897 i915_irq_wait drm_ioctl vfs_ioctl do_vfs_ioctl sys_ioctl
- * |    |    |    |
- * |    |    |    +----> the stringified backtrace
- * |    |    +---------> The maximum latency for this entry in microseconds
- * |    +--------------> The accumulated latency for this entry (microseconds)
- * +-------------------> The number of times this entry is hit
- *
- * (note: the average latency is the accumulated latency divided by the number
- * of times)
- */
 
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
@@ -157,22 +114,6 @@ account_global_scheduler_latency(struct task_struct *tsk,
 	memcpy(&latency_record[i], lat, sizeof(struct latency_record));
 }
 
-/**
- * __account_scheduler_latency - record an occurred latency
- * @tsk - the task struct of the task hitting the latency
- * @usecs - the duration of the latency in microseconds
- * @inter - 1 if the sleep was interruptible, 0 if uninterruptible
- *
- * This function is the main entry point for recording latency entries
- * as called by the scheduler.
- *
- * This function has a few special cases to deal with normal 'non-latency'
- * sleeps: specifically, interruptible sleep longer than 5 msec is skipped
- * since this usually is caused by waiting for events via select() and co.
- *
- * Negative latencies (caused by time going backwards) are also explicitly
- * skipped.
- */
 void __sched
 __account_scheduler_latency(struct task_struct *tsk, int usecs, int inter)
 {
@@ -227,8 +168,6 @@ __account_scheduler_latency(struct task_struct *tsk, int usecs, int inter)
 	}
 
 	/*
-	 * short term hack; if we're > 32 we stop; future we recycle:
-	 */
 	if (tsk->latency_record_count >= LT_SAVECOUNT)
 		goto out_unlock;
 

@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
-/*
- * Support for dynamic clock devices
- *
- * Copyright (C) 2010 OMICRON electronics GmbH
- */
 #include <linux/device.h>
 #include <linux/export.h>
 #include <linux/file.h>
@@ -14,9 +8,6 @@
 
 #include "posix-timers.h"
 
-/*
- * Returns NULL if the posix_clock instance attached to 'fp' is old and stale.
- */
 static struct posix_clock *get_posix_clock(struct file *fp)
 {
 	struct posix_clock *clk = fp->private_data;

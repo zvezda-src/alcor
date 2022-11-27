@@ -1,10 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_UACCESS_32_H
 #define _ASM_X86_UACCESS_32_H
 
-/*
- * User space memory access functions
- */
 #include <linux/string.h>
 #include <asm/asm.h>
 #include <asm/page.h>

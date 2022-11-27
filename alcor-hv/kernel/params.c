@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/* Helpers for initial module or kernel cmdline parsing
-   Copyright (C) 2001 Rusty Russell.
 
 */
 #include <linux/kernel.h>
@@ -15,10 +12,8 @@
 #include <linux/security.h>
 
 #ifdef CONFIG_SYSFS
-/* Protects all built-in parameters, modules use their own param_lock */
 static DEFINE_MUTEX(param_lock);
 
-/* Use the module's mutex, or if built-in use the built-in mutex */
 #ifdef CONFIG_MODULES
 #define KPARAM_MUTEX(mod)	((mod) ? &(mod)->param_lock : &param_lock)
 #else
@@ -35,7 +30,6 @@ static inline void check_kparam_locked(struct module *mod)
 }
 #endif /* !CONFIG_SYSFS */
 
-/* This just allows us to keep track of which parameters are kmalloced. */
 struct kmalloced_param {
 	struct list_head list;
 	char val[];
@@ -58,7 +52,6 @@ static void *kmalloc_parameter(unsigned int size)
 	return p->val;
 }
 
-/* Does nothing if parameter wasn't kmalloced above. */
 static void maybe_kfree_parameter(void *param)
 {
 	struct kmalloced_param *p;
@@ -157,7 +150,6 @@ static int parse_one(char *param,
 	return -ENOENT;
 }
 
-/* Args looks like "foo=bar,bar2 baz=fuz wiz". */
 char *parse_args(const char *doing,
 		 char *args,
 		 const struct kernel_param *params,
@@ -213,7 +205,6 @@ char *parse_args(const char *doing,
 	return err;
 }
 
-/* Lazy bastard, eh? */
 #define STANDARD_PARAM_DEF(name, type, format, strtolfn)      		\
 	int param_set_##name(const char *val, const struct kernel_param *kp) \
 	{								\
@@ -256,7 +247,6 @@ int param_set_uint_minmax(const char *val, const struct kernel_param *kp,
 		return ret;
 	if (num < min || num > max)
 		return -EINVAL;
-	*((unsigned int *)kp->arg) = num;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(param_set_uint_minmax);
@@ -303,7 +293,6 @@ const struct kernel_param_ops param_ops_charp = {
 };
 EXPORT_SYMBOL(param_ops_charp);
 
-/* Actually could be a bool or an int, for historical reasons. */
 int param_set_bool(const char *val, const struct kernel_param *kp)
 {
 	/* No equals means "set"... */
@@ -359,7 +348,6 @@ const struct kernel_param_ops param_ops_bool_enable_only = {
 };
 EXPORT_SYMBOL_GPL(param_ops_bool_enable_only);
 
-/* This one must be bool. */
 int param_set_invbool(const char *val, const struct kernel_param *kp)
 {
 	int ret;
@@ -409,7 +397,6 @@ const struct kernel_param_ops param_ops_bint = {
 };
 EXPORT_SYMBOL(param_ops_bint);
 
-/* We break the rule and mangle the string. */
 static int param_array(struct module *mod,
 		       const char *name,
 		       const char *val,
@@ -428,7 +415,6 @@ static int param_array(struct module *mod,
 	kp.arg = elem;
 	kp.level = level;
 
-	*num = 0;
 	/* We expect a comma-separated list of values. */
 	do {
 		int len;
@@ -534,7 +520,6 @@ const struct kernel_param_ops param_ops_string = {
 };
 EXPORT_SYMBOL(param_ops_string);
 
-/* sysfs output in /sys/modules/XYZ/parameters/ */
 #define to_module_attr(n) container_of(n, struct module_attribute, attr)
 #define to_module_kobject(n) container_of(n, struct module_kobject, kobj)
 
@@ -569,7 +554,6 @@ static ssize_t param_attr_show(struct module_attribute *mattr,
 	return count;
 }
 
-/* sysfs always hands a nul-terminated string in buf.  We rely on that. */
 static ssize_t param_attr_store(struct module_attribute *mattr,
 				struct module_kobject *mk,
 				const char *buf, size_t len)
@@ -612,16 +596,6 @@ void kernel_param_unlock(struct module *mod)
 EXPORT_SYMBOL(kernel_param_lock);
 EXPORT_SYMBOL(kernel_param_unlock);
 
-/*
- * add_sysfs_param - add a parameter to sysfs
- * @mk: struct module_kobject
- * @kp: the actual parameter definition to add to sysfs
- * @name: name of parameter
- *
- * Create a kobject if for a (per-module) parameter if mp NULL, and
- * create file in sysfs.  Returns an error on out of memory.  Always cleans up
- * if there's an error.
- */
 static __modinit int add_sysfs_param(struct module_kobject *mk,
 				     const struct kernel_param *kp,
 				     const char *name)
@@ -694,15 +668,6 @@ static void free_module_param_attrs(struct module_kobject *mk)
 	mk->mp = NULL;
 }
 
-/*
- * module_param_sysfs_setup - setup sysfs support for one module
- * @mod: module
- * @kparam: module parameters (array)
- * @num_params: number of module parameters
- *
- * Adds sysfs entries for module parameters under
- * /sys/module/[mod->name]/parameters/
- */
 int module_param_sysfs_setup(struct module *mod,
 			     const struct kernel_param *kparam,
 			     unsigned int num_params)
@@ -731,13 +696,6 @@ int module_param_sysfs_setup(struct module *mod,
 	return err;
 }
 
-/*
- * module_param_sysfs_remove - remove sysfs support for one module
- * @mod: module
- *
- * Remove sysfs entries for module parameters and the corresponding
- * kobject.
- */
 void module_param_sysfs_remove(struct module *mod)
 {
 	if (mod->mkobj.mp) {
@@ -817,16 +775,6 @@ static void __init kernel_add_sysfs_param(const char *name,
 	kobject_put(&mk->kobj);
 }
 
-/*
- * param_sysfs_builtin - add sysfs parameters for built-in modules
- *
- * Add module_parameters to sysfs for "modules" built into the kernel.
- *
- * The "module" name (KBUILD_MODNAME) is stored before a dot, the
- * "parameter" name is stored behind a dot in kernel_param->name. So,
- * extract the "module" name for all built-in kernel_param-eters,
- * and for all who have the same, call kernel_add_sysfs_param.
- */
 static void __init param_sysfs_builtin(void)
 {
 	const struct kernel_param *kp;
@@ -881,7 +829,6 @@ static void __init version_sysfs_builtin(void)
 	}
 }
 
-/* module-related sysfs stuff */
 
 static ssize_t module_attr_show(struct kobject *kobj,
 				struct attribute *attr,
@@ -953,9 +900,6 @@ struct kobj_type module_ktype = {
 	.sysfs_ops =	&module_sysfs_ops,
 };
 
-/*
- * param_sysfs_init - wrapper for built-in params support
- */
 static int __init param_sysfs_init(void)
 {
 	module_kset = kset_create_and_add("module", &module_uevent_ops, NULL);

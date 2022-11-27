@@ -1,14 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Common code for probe-based Dynamic events.
- *
- * This code was copied from kernel/trace/trace_kprobe.c written by
- * Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
- *
- * Updates to make this generic:
- * Copyright (C) IBM Corporation, 2010-2011
- * Author:     Srikar Dronamraju
- */
 #define pr_fmt(fmt)	"trace_probe: " fmt
 
 #include "trace_probe.h"
@@ -29,7 +18,6 @@ static const char *reserved_field_names[] = {
 	FIELD_STRING_FUNC,
 };
 
-/* Printing  in basic type function template */
 #define DEFINE_BASIC_PRINT_TYPE_FUNC(tname, type, fmt)			\
 int PRINT_TYPE_FUNC_NAME(tname)(struct trace_seq *s, void *data, void *ent)\
 {									\
@@ -58,7 +46,6 @@ int PRINT_TYPE_FUNC_NAME(symbol)(struct trace_seq *s, void *data, void *ent)
 }
 const char PRINT_TYPE_FMT_NAME(symbol)[] = "%pS";
 
-/* Print type function for string type */
 int PRINT_TYPE_FUNC_NAME(string)(struct trace_seq *s, void *data, void *ent)
 {
 	int len = *(u32 *)data >> 16;
@@ -73,7 +60,6 @@ int PRINT_TYPE_FUNC_NAME(string)(struct trace_seq *s, void *data, void *ent)
 
 const char PRINT_TYPE_FMT_NAME(string)[] = "\\\"%s\\\"";
 
-/* Fetch type information table */
 static const struct fetch_type probe_fetch_types[] = {
 	/* Special types */
 	__ASSIGN_FETCH_TYPE("string", string, string, sizeof(u32), 1,
@@ -196,7 +182,6 @@ void __trace_probe_log_err(int offset, int err_type)
 		p[len] = ' ';
 		p += len + 1;
 	}
-	*(p - 1) = '\0';
 
 	tracing_log_err(NULL, trace_probe_log.subsystem, command,
 			trace_probe_err_text, err_type, pos + offset);
@@ -204,7 +189,6 @@ void __trace_probe_log_err(int offset, int err_type)
 	kfree(command);
 }
 
-/* Split symbol and offset. */
 int traceprobe_split_symbol_offset(char *symbol, long *offset)
 {
 	char *tmp;
@@ -225,7 +209,6 @@ int traceprobe_split_symbol_offset(char *symbol, long *offset)
 	return 0;
 }
 
-/* @buf must has MAX_EVENT_NAME_LEN size */
 int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
 				char *buf, int offset)
 {
@@ -359,13 +342,11 @@ static int __parse_imm_string(char *str, char **pbuf, int offs)
 		trace_probe_log_err(offs + len, IMMSTR_NO_CLOSE);
 		return -EINVAL;
 	}
-	*pbuf = kstrndup(str, len - 1, GFP_KERNEL);
 	if (!*pbuf)
 		return -ENOMEM;
 	return 0;
 }
 
-/* Recursive argument parser */
 static int
 parse_probe_arg(char *arg, const struct fetch_type *type,
 		struct fetch_insn **pcode, struct fetch_insn *end,
@@ -520,7 +501,6 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 
 #define BYTES_TO_BITS(nb)	((BITS_PER_LONG * (nb)) / sizeof(long))
 
-/* Bitfield type needs to be parsed into a fetch function */
 static int __parse_bitfield_probe_arg(const char *bf,
 				      const struct fetch_type *t,
 				      struct fetch_insn **pcode)
@@ -545,7 +525,6 @@ static int __parse_bitfield_probe_arg(const char *bf,
 	code++;
 	if (code->op != FETCH_OP_NOP)
 		return -EINVAL;
-	*pcode = code;
 
 	code->op = FETCH_OP_MOD_BF;
 	code->lshift = BYTES_TO_BITS(t->size) - (bw + bo);
@@ -555,7 +534,6 @@ static int __parse_bitfield_probe_arg(const char *bf,
 	return (BYTES_TO_BITS(t->size) < (bw + bo)) ? -EINVAL : 0;
 }
 
-/* String length checking wrapper */
 static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 		struct probe_arg *parg, unsigned int flags, int offset)
 {
@@ -616,9 +594,6 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 	}
 
 	/*
-	 * Since $comm and immediate string can not be dereferenced,
-	 * we can find those by strcmp.
-	 */
 	if (strcmp(arg, "$comm") == 0 || strncmp(arg, "\\\"", 2) == 0) {
 		/* The type of $comm must be "string", and not an array. */
 		if (parg->count || (t && strcmp(t, "string")))
@@ -631,7 +606,6 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 		goto out;
 	}
 	parg->offset = *size;
-	*size += parg->type->size * (parg->count ?: 1);
 
 	ret = -ENOMEM;
 	if (parg->count) {
@@ -668,11 +642,6 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 		     code->op == FETCH_OP_DATA) || code->op == FETCH_OP_TP_ARG ||
 		     parg->count) {
 			/*
-			 * IMM, DATA and COMM is pointing actual address, those
-			 * must be kept, and if parg->count != 0, this is an
-			 * array of string pointers instead of string address
-			 * itself.
-			 */
 			code++;
 			if (code->op != FETCH_OP_NOP) {
 				trace_probe_log_err(offset, TOO_MANY_OPS);
@@ -754,7 +723,6 @@ out:
 	return ret;
 }
 
-/* Return 1 if name is reserved or already used by another argument */
 static int traceprobe_conflict_field_name(const char *name,
 					  struct probe_arg *args, int narg)
 {
@@ -862,7 +830,6 @@ int traceprobe_update_arg(struct probe_arg *arg)
 	return 0;
 }
 
-/* When len=0, we just calculate the needed length */
 #define LEN_OR_ZERO (len ? len - pos : 0)
 static int __set_print_fmt(struct trace_probe *tp, char *buf, int len,
 			   enum probe_print_type ptype)
@@ -1152,10 +1119,6 @@ int trace_probe_remove_file(struct trace_probe *tp,
 	return 0;
 }
 
-/*
- * Return the smallest index of different type argument (start from 1).
- * If all argument types and name are same, return 0.
- */
 int trace_probe_compare_arg_type(struct trace_probe *a, struct trace_probe *b)
 {
 	int i;

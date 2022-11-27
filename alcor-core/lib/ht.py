@@ -1,31 +1,4 @@
-#
-#
 
-# Copyright (C) 2010, 2011, 2012 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 """Module implementing the parameter types code."""
@@ -149,8 +122,6 @@ def CombinationDesc(op, args, fn):
   return WithDesc(descr)(fn)
 
 
-# Modifiable default values; need to define these here before the
-# actual LUs
 
 @WithDesc(str([]))
 def EmptyList():
@@ -168,11 +139,9 @@ def EmptyDict():
   return {}
 
 
-#: The without-default default value
 NoDefault = object()
 
 
-# Some basic types
 @WithDesc("Anything")
 def TAny(_):
   """Accepts any value.
@@ -260,7 +229,6 @@ def TElemOf(target_list):
   return WithDesc("OneOf %s" % (utils.CommaJoin(target_list), ))(fn)
 
 
-# Container types
 @WithDesc("List")
 def TList(val):
   """Checks if the given value is a list.
@@ -297,7 +265,6 @@ def TIsLength(size):
   return WithDesc("Length %s" % (size, ))(fn)
 
 
-# Combinator types
 def TAnd(*args):
   """Combine multiple functions using an AND operation.
 
@@ -354,65 +321,46 @@ def TMaybeValueNone(test):
   return TMaybe(TOr(TValueNone, test))
 
 
-# Type aliases
 
-#: a non-empty string
 TNonEmptyString = WithDesc("NonEmptyString")(TAnd(TString, TTrue))
 
-#: a maybe non-empty string
 TMaybeString = TMaybe(TNonEmptyString)
 
-#: a maybe boolean (bool or none)
 TMaybeBool = TMaybe(TBool)
 
-#: Maybe a dictionary (dict or None)
 TMaybeDict = TMaybe(TDict)
 
-#: Maybe a list (list or None)
 TMaybeList = TMaybe(TList)
 
 
-#: a non-negative number (value > 0)
-# val_type should be TInt, TDouble (== TFloat), or TNumber
 def TNonNegative(val_type):
   return WithDesc("EqualOrGreaterThanZero")(TAnd(val_type, lambda v: v >= 0))
 
 
-#: a positive number (value >= 0)
-# val_type should be TInt, TDouble (== TFloat), or TNumber
 def TPositive(val_type):
   return WithDesc("GreaterThanZero")(TAnd(val_type, lambda v: v > 0))
 
 
-#: a non-negative integer (value >= 0)
 TNonNegativeInt = TNonNegative(TInt)
 
-#: a positive integer (value > 0)
 TPositiveInt = TPositive(TInt)
 
-#: a maybe positive integer (positive integer or None)
 TMaybePositiveInt = TMaybe(TPositiveInt)
 
-#: a negative integer (value < 0)
 TNegativeInt = \
   TAnd(TInt, WithDesc("LessThanZero")(compat.partial(operator.gt, 0)))
 
-#: a positive float
 TNonNegativeFloat = \
   TAnd(TFloat, WithDesc("EqualOrGreaterThanZero")(lambda v: v >= 0.0))
 
-#: Job ID
 TJobId = WithDesc("JobId")(TOr(TNonNegativeInt,
                                TRegex(re.compile("^%s$" %
                                                  constants.JOB_ID_TEMPLATE))))
 
-#: Double (== Float)
 TDouble = TFloat
 
-#: Number
 TNumber = TOr(TInt, TFloat)
 
-#: Relative job ID
 TRelativeJobId = WithDesc("RelativeJobId")(TNegativeInt)
 
 
@@ -624,7 +572,6 @@ TInstCreateMode = TElemOf(constants.INSTANCE_CREATE_MODES)
 TRebootType = TElemOf(constants.REBOOT_TYPES)
 TFileDriver = TElemOf(constants.FILE_DRIVER)
 TOobCommand = TElemOf(constants.OOB_COMMANDS)
-# FIXME: adjust this after all queries are in haskell
 TQueryTypeOp = TElemOf(set(constants.QR_VIA_OP)
                        .union(set(constants.QR_VIA_LUXI)))
 

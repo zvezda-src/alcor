@@ -6,16 +6,10 @@
 #define BTS_BUFFER_SIZE		(PAGE_SIZE << 4)
 #define PEBS_BUFFER_SIZE	(PAGE_SIZE << 4)
 
-/* The maximal number of PEBS events: */
 #define MAX_PEBS_EVENTS_FMT4	8
 #define MAX_PEBS_EVENTS		32
 #define MAX_FIXED_PEBS_EVENTS	16
 
-/*
- * A debug store configuration.
- *
- * We only support architectures that use 64bit fields.
- */
 struct debug_store {
 	u64	bts_buffer_base;
 	u64	bts_index;

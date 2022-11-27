@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* By Ross Biro 1/23/92 */
-/*
- * Pentium III FXSR, SSE support
- *	Gareth Hughes <gareth@valinux.com>, May 2000
- */
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -95,13 +89,6 @@ static const struct pt_regs_offset regoffset_table[] = {
 	REG_OFFSET_END,
 };
 
-/**
- * regs_query_register_offset() - query register offset from its name
- * @name:	the name of a register
- *
- * regs_query_register_offset() returns the offset of a register in struct
- * pt_regs from its name. If the name is invalid, this returns -EINVAL;
- */
 int regs_query_register_offset(const char *name)
 {
 	const struct pt_regs_offset *roff;
@@ -111,13 +98,6 @@ int regs_query_register_offset(const char *name)
 	return -EINVAL;
 }
 
-/**
- * regs_query_register_name() - query register name from its offset
- * @offset:	the offset of a register in struct pt_regs.
- *
- * regs_query_register_name() returns the name of a register from its
- * offset in struct pt_regs. If the @offset is invalid, this returns NULL;
- */
 const char *regs_query_register_name(unsigned int offset)
 {
 	const struct pt_regs_offset *roff;
@@ -127,14 +107,7 @@ const char *regs_query_register_name(unsigned int offset)
 	return NULL;
 }
 
-/*
- * does not yet catch signals sent when the child dies.
- * in exit.c or in signal.c.
- */
 
-/*
- * Determines which flags the user has access to [1 = access, 0 = no access].
- */
 #define FLAG_MASK_32		((unsigned long)			\
 				 (X86_EFLAGS_CF | X86_EFLAGS_PF |	\
 				  X86_EFLAGS_AF | X86_EFLAGS_ZF |	\
@@ -142,9 +115,6 @@ const char *regs_query_register_name(unsigned int offset)
 				  X86_EFLAGS_DF | X86_EFLAGS_OF |	\
 				  X86_EFLAGS_RF | X86_EFLAGS_AC))
 
-/*
- * Determines whether a value may be installed in a segment register.
- */
 static inline bool invalid_selector(u16 value)
 {
 	return unlikely(value != 0 && (value & SEGMENT_RPL_MASK) != USER_RPL);
@@ -163,8 +133,6 @@ static unsigned long *pt_regs_access(struct pt_regs *regs, unsigned long regno)
 static u16 get_segment_reg(struct task_struct *task, unsigned long offset)
 {
 	/*
-	 * Returning the value truncates it to 16 bits.
-	 */
 	unsigned int retval;
 	if (offset != offsetof(struct user_regs_struct, gs))
 		retval = *pt_regs_access(task_pt_regs(task), offset);
@@ -184,20 +152,10 @@ static int set_segment_reg(struct task_struct *task,
 		return -EIO;
 
 	/*
-	 * The value argument was already truncated to 16 bits.
-	 */
 	if (invalid_selector(value))
 		return -EIO;
 
 	/*
-	 * For %cs and %ss we cannot permit a null selector.
-	 * We can permit a bogus selector as long as it has USER_RPL.
-	 * Null selectors are fine for other segment registers, but
-	 * we will never get back to user mode with invalid %cs or %ss
-	 * and will take the trap in iret instead.  Much code relies
-	 * on user_mode() to distinguish a user trap frame (which can
-	 * safely use invalid selectors) from a kernel trap frame.
-	 */
 	switch (offset) {
 	case offsetof(struct user_regs_struct, cs):
 	case offsetof(struct user_regs_struct, ss):
@@ -229,8 +187,6 @@ static unsigned long *pt_regs_access(struct pt_regs *regs, unsigned long offset)
 static u16 get_segment_reg(struct task_struct *task, unsigned long offset)
 {
 	/*
-	 * Returning the value truncates it to 16 bits.
-	 */
 	unsigned int seg;
 
 	switch (offset) {
@@ -274,16 +230,10 @@ static int set_segment_reg(struct task_struct *task,
 		return -EIO;
 
 	/*
-	 * The value argument was already truncated to 16 bits.
-	 */
 	if (invalid_selector(value))
 		return -EIO;
 
 	/*
-	 * Writes to FS and GS will change the stored selector.  Whether
-	 * this changes the segment base as well depends on whether
-	 * FSGSBASE is enabled.
-	 */
 
 	switch (offset) {
 	case offsetof(struct user_regs_struct,fs):
@@ -300,8 +250,6 @@ static int set_segment_reg(struct task_struct *task,
 		break;
 
 		/*
-		 * Can't actually change these in 64-bit mode.
-		 */
 	case offsetof(struct user_regs_struct,cs):
 		if (unlikely(value == 0))
 			return -EIO;
@@ -324,8 +272,6 @@ static unsigned long get_flags(struct task_struct *task)
 	unsigned long retval = task_pt_regs(task)->flags;
 
 	/*
-	 * If the debugger set TF, hide it from the readout.
-	 */
 	if (test_tsk_thread_flag(task, TIF_FORCED_TF))
 		retval &= ~X86_EFLAGS_TF;
 
@@ -337,10 +283,6 @@ static int set_flags(struct task_struct *task, unsigned long value)
 	struct pt_regs *regs = task_pt_regs(task);
 
 	/*
-	 * If the user value contains TF, mark that
-	 * it was not "us" (the debugger) that set it.
-	 * If not, make sure it stays set if we had.
-	 */
 	if (value & X86_EFLAGS_TF)
 		clear_tsk_thread_flag(task, TIF_FORCED_TF);
 	else if (test_tsk_thread_flag(task, TIF_FORCED_TF))
@@ -380,7 +322,6 @@ static int putreg(struct task_struct *child,
 #endif
 	}
 
-	*pt_regs_access(task_pt_regs(child), offset) = value;
 	return 0;
 }
 
@@ -456,9 +397,6 @@ static void ptrace_triggered(struct perf_event *bp,
 	struct thread_struct *thread = &(current->thread);
 
 	/*
-	 * Store in the virtual DR6 register the fact that the breakpoint
-	 * was hit so the thread's debugger will see it.
-	 */
 	for (i = 0; i < HBP_NUM; i++) {
 		if (thread->ptrace_bps[i] == bp)
 			break;
@@ -467,11 +405,6 @@ static void ptrace_triggered(struct perf_event *bp,
 	thread->virtual_dr6 |= (DR_TRAP0 << i);
 }
 
-/*
- * Walk through every ptrace breakpoints for this thread and
- * build the dr7 value on top of their attributes.
- *
- */
 static unsigned long ptrace_get_dr7(struct perf_event *bp[])
 {
 	int i;
@@ -534,9 +467,6 @@ static int ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
 	return modify_user_hw_breakpoint(bp, &attr);
 }
 
-/*
- * Handle ptrace writes to debug register 7.
- */
 static int ptrace_write_dr7(struct task_struct *tsk, unsigned long data)
 {
 	struct thread_struct *thread = &tsk->thread;
@@ -585,9 +515,6 @@ restore:
 	return ret;
 }
 
-/*
- * Handle PTRACE_PEEKUSR calls for the debug register area.
- */
 static unsigned long ptrace_get_debugreg(struct task_struct *tsk, int n)
 {
 	struct thread_struct *thread = &tsk->thread;
@@ -616,16 +543,6 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 
 	if (!bp) {
 		/*
-		 * Put stub len and type to create an inactive but correct bp.
-		 *
-		 * CHECKME: the previous code returned -EIO if the addr wasn't
-		 * a valid task virtual addr. The new one will return -EINVAL in
-		 *  this case.
-		 * -EINVAL may be what we want for in-kernel breakpoints users,
-		 * but -EIO looks better for ptrace, since we refuse a register
-		 * writing for the user. And anyway this is the previous
-		 * behaviour.
-		 */
 		bp = ptrace_register_breakpoint(tsk,
 				X86_BREAKPOINT_LEN_1, X86_BREAKPOINT_WRITE,
 				addr, true);
@@ -643,9 +560,6 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 	return err;
 }
 
-/*
- * Handle PTRACE_POKEUSR calls for the debug register area.
- */
 static int ptrace_set_debugreg(struct task_struct *tsk, int n,
 			       unsigned long val)
 {
@@ -666,10 +580,6 @@ static int ptrace_set_debugreg(struct task_struct *tsk, int n,
 	return rc;
 }
 
-/*
- * These access the current or another (stopped) task's io permission
- * bitmap for debugging or core dump.
- */
 static int ioperm_active(struct task_struct *target,
 			 const struct user_regset *regset)
 {
@@ -690,11 +600,6 @@ static int ioperm_get(struct task_struct *target,
 	return membuf_write(&to, iobm->bitmap, IO_BITMAP_BYTES);
 }
 
-/*
- * Called by kernel/ptrace.c when detaching..
- *
- * Make sure the single step bit is not set.
- */
 void ptrace_disable(struct task_struct *child)
 {
 	user_disable_single_step(child);
@@ -862,11 +767,6 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 	SEG32(es);
 
 	/*
-	 * A 32-bit ptracer on a 64-bit kernel expects that writing
-	 * FS or GS will also update the base.  This is needed for
-	 * operations like PTRACE_SETREGS to fully restore a saved
-	 * CPU state.
-	 */
 
 	case offsetof(struct user32, regs.fs):
 		ret = set_segment_reg(child,
@@ -900,15 +800,6 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 
 	case offsetof(struct user32, regs.orig_eax):
 		/*
-		 * Warning: bizarre corner case fixup here.  A 32-bit
-		 * debugger setting orig_eax to -1 wants to disable
-		 * syscall restart.  Make sure that the syscall
-		 * restart code sign-extends orig_ax.  Also make sure
-		 * we interpret the -ERESTART* codes correctly if
-		 * loaded into regs->ax in case the task is not
-		 * actually still sitting at the exit from a 32-bit
-		 * syscall with TS_COMPAT still set.
-		 */
 		regs->orig_ax = value;
 		if (syscall_get_nr(child, regs) != -1)
 			child->thread_info.status |= TS_I386_REGS_POKED;
@@ -927,9 +818,6 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 			return -EIO;
 
 		/*
-		 * Other dummy fields in the virtual user structure
-		 * are ignored
-		 */
 		break;
 	}
 	return 0;
@@ -987,9 +875,6 @@ static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 			return -EIO;
 
 		/*
-		 * Other dummy fields in the virtual user structure
-		 * are ignored
-		 */
 		*val = 0;
 		break;
 	}
@@ -1302,10 +1187,6 @@ static const struct user_regset_view user_x86_32_view = {
 };
 #endif
 
-/*
- * This represents bytes 464..511 in the memory layout exported through
- * the REGSET_XSTATE interface.
- */
 u64 xstate_fx_sw_bytes[USER_XSTATE_FX_SW_WORDS];
 
 void __init update_regset_xstate_info(unsigned int size, u64 xstate_mask)
@@ -1319,25 +1200,6 @@ void __init update_regset_xstate_info(unsigned int size, u64 xstate_mask)
 	xstate_fx_sw_bytes[USER_XSTATE_XCR0_WORD] = xstate_mask;
 }
 
-/*
- * This is used by the core dump code to decide which regset to dump.  The
- * core dump code writes out the resulting .e_machine and the corresponding
- * regsets.  This is suboptimal if the task is messing around with its CS.L
- * field, but at worst the core dump will end up missing some information.
- *
- * Unfortunately, it is also used by the broken PTRACE_GETREGSET and
- * PTRACE_SETREGSET APIs.  These APIs look at the .regsets field but have
- * no way to make sure that the e_machine they use matches the caller's
- * expectations.  The result is that the data format returned by
- * PTRACE_GETREGSET depends on the returned CS field (and even the offset
- * of the returned CS field depends on its value!) and the data format
- * accepted by PTRACE_SETREGSET is determined by the old CS value.  The
- * upshot is that it is basically impossible to use these APIs correctly.
- *
- * The best way to fix it in the long run would probably be to add new
- * improved ptrace() APIs to read and write registers reliably, possibly by
- * allowing userspace to select the ELF e_machine variant that they expect.
- */
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 {
 #ifdef CONFIG_IA32_EMULATION

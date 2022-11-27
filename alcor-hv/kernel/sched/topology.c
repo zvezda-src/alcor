@@ -1,11 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Scheduler topology setup/handling methods
- */
 
 DEFINE_MUTEX(sched_domains_mutex);
 
-/* Protected by sched_domains_mutex: */
 static cpumask_var_t sched_domains_tmpmask;
 static cpumask_var_t sched_domains_tmpmask2;
 
@@ -159,7 +154,6 @@ static inline bool sched_debug(void)
 }
 #endif /* CONFIG_SCHED_DEBUG */
 
-/* Generate a mask of SD flags with the SDF_NEEDS_GROUPS metaflag */
 #define SD_FLAG(name, mflags) (name * !!((mflags) & SDF_NEEDS_GROUPS)) |
 static const unsigned int SD_DEGENERATE_GROUPS_MASK =
 #include <linux/sched/sd_flags.h>
@@ -341,31 +335,6 @@ static void sched_energy_set(bool has_eas)
 	}
 }
 
-/*
- * EAS can be used on a root domain if it meets all the following conditions:
- *    1. an Energy Model (EM) is available;
- *    2. the SD_ASYM_CPUCAPACITY flag is set in the sched_domain hierarchy.
- *    3. no SMT is detected.
- *    4. the EM complexity is low enough to keep scheduling overheads low;
- *    5. schedutil is driving the frequency of all CPUs of the rd;
- *    6. frequency invariance support is present;
- *
- * The complexity of the Energy Model is defined as:
- *
- *              C = nr_pd * (nr_cpus + nr_ps)
- *
- * with parameters defined as:
- *  - nr_pd:    the number of performance domains
- *  - nr_cpus:  the number of CPUs
- *  - nr_ps:    the sum of the number of performance states of all performance
- *              domains (for example, on a system with 2 performance domains,
- *              with 10 performance states each, nr_ps = 2 * 10 = 20).
- *
- * It is generally not a good idea to use such a model in the wake-up path on
- * very complex platforms because of the associated scheduling overheads. The
- * arbitrary constraint below prevents that. It makes EAS usable up to 16 CPUs
- * with per-CPU DVFS and less than 8 performance states each, for example.
- */
 #define EM_MAX_COMPLEXITY 2048
 
 extern struct cpufreq_governor schedutil_gov;
@@ -431,9 +400,6 @@ static bool build_perf_domains(const struct cpumask *cpu_map)
 		pd = tmp;
 
 		/*
-		 * Count performance domains and performance states for the
-		 * complexity check.
-		 */
 		nr_pd++;
 		nr_ps += em_pd_nr_perf_states(pd->em_pd);
 	}
@@ -498,10 +464,6 @@ void rq_attach_root(struct rq *rq, struct root_domain *rd)
 		cpumask_clear_cpu(rq->cpu, old_rd->span);
 
 		/*
-		 * If we dont want to free the old_rd yet then
-		 * set old_rd to NULL to skip the freeing later
-		 * in this function:
-		 */
 		if (!atomic_dec_and_test(&old_rd->refcount))
 			old_rd = NULL;
 	}
@@ -572,10 +534,6 @@ out:
 	return -ENOMEM;
 }
 
-/*
- * By default the system creates a single root-domain with all CPUs as
- * members (mimicking the global state we have today).
- */
 struct root_domain def_root_domain;
 
 void init_defrootdomain(void)
@@ -624,10 +582,6 @@ static void free_sched_groups(struct sched_group *sg, int free_sgc)
 static void destroy_sched_domain(struct sched_domain *sd)
 {
 	/*
-	 * A normal sched domain may have multiple group references, an
-	 * overlapping domain, having private groups, only one.  Iterate,
-	 * dropping group/capacity references, freeing where none remain.
-	 */
 	free_sched_groups(sd->groups, 1);
 
 	if (sd->shared && atomic_dec_and_test(&sd->shared->ref))
@@ -652,15 +606,6 @@ static void destroy_sched_domains(struct sched_domain *sd)
 		call_rcu(&sd->rcu, destroy_sched_domains_rcu);
 }
 
-/*
- * Keep a special pointer to the highest sched_domain that has
- * SD_SHARE_PKG_RESOURCE set (Last Level Cache Domain) for this
- * allows us to avoid some pointer chasing select_idle_sibling().
- *
- * Also keep a unique ID per domain (we use the first CPU number in
- * the cpumask of the domain), this allows us to quickly tell if
- * two CPUs are in the same cache domain, see cpus_share_cache().
- */
 DEFINE_PER_CPU(struct sched_domain __rcu *, sd_llc);
 DEFINE_PER_CPU(int, sd_llc_size);
 DEFINE_PER_CPU(int, sd_llc_id);
@@ -699,10 +644,6 @@ static void update_top_cache_domain(int cpu)
 	rcu_assign_pointer(per_cpu(sd_asym_cpucapacity, cpu), sd);
 }
 
-/*
- * Attach the domain 'sd' to 'cpu' as its base domain. Callers must
- * hold the hotplug lock.
- */
 static void
 cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 {
@@ -720,10 +661,6 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 			if (parent->parent)
 				parent->parent->child = tmp;
 			/*
-			 * Transfer SD_PREFER_SIBLING down in case of a
-			 * degenerate parent; the spans match for this
-			 * so the property transfers.
-			 */
 			if (parent->flags & SD_PREFER_SIBLING)
 				tmp->flags |= SD_PREFER_SIBLING;
 			destroy_sched_domain(parent);
@@ -739,10 +676,6 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 			struct sched_group *sg = sd->groups;
 
 			/*
-			 * sched groups hold the flags of the child sched
-			 * domain for convenience. Clear such flags since
-			 * the child is being destroyed.
-			 */
 			do {
 				sg->flags = 0;
 			} while (sg != sd->groups);
@@ -774,126 +707,14 @@ enum s_alloc {
 	sa_none,
 };
 
-/*
- * Return the canonical balance CPU for this group, this is the first CPU
- * of this group that's also in the balance mask.
- *
- * The balance mask are all those CPUs that could actually end up at this
- * group. See build_balance_mask().
- *
- * Also see should_we_balance().
- */
 int group_balance_cpu(struct sched_group *sg)
 {
 	return cpumask_first(group_balance_mask(sg));
 }
 
 
-/*
- * NUMA topology (first read the regular topology blurb below)
- *
- * Given a node-distance table, for example:
- *
- *   node   0   1   2   3
- *     0:  10  20  30  20
- *     1:  20  10  20  30
- *     2:  30  20  10  20
- *     3:  20  30  20  10
- *
- * which represents a 4 node ring topology like:
- *
- *   0 ----- 1
- *   |       |
- *   |       |
- *   |       |
- *   3 ----- 2
- *
- * We want to construct domains and groups to represent this. The way we go
- * about doing this is to build the domains on 'hops'. For each NUMA level we
- * construct the mask of all nodes reachable in @level hops.
- *
- * For the above NUMA topology that gives 3 levels:
- *
- * NUMA-2	0-3		0-3		0-3		0-3
- *  groups:	{0-1,3},{1-3}	{0-2},{0,2-3}	{1-3},{0-1,3}	{0,2-3},{0-2}
- *
- * NUMA-1	0-1,3		0-2		1-3		0,2-3
- *  groups:	{0},{1},{3}	{0},{1},{2}	{1},{2},{3}	{0},{2},{3}
- *
- * NUMA-0	0		1		2		3
- *
- *
- * As can be seen; things don't nicely line up as with the regular topology.
- * When we iterate a domain in child domain chunks some nodes can be
- * represented multiple times -- hence the "overlap" naming for this part of
- * the topology.
- *
- * In order to minimize this overlap, we only build enough groups to cover the
- * domain. For instance Node-0 NUMA-2 would only get groups: 0-1,3 and 1-3.
- *
- * Because:
- *
- *  - the first group of each domain is its child domain; this
- *    gets us the first 0-1,3
- *  - the only uncovered node is 2, who's child domain is 1-3.
- *
- * However, because of the overlap, computing a unique CPU for each group is
- * more complicated. Consider for instance the groups of NODE-1 NUMA-2, both
- * groups include the CPUs of Node-0, while those CPUs would not in fact ever
- * end up at those groups (they would end up in group: 0-1,3).
- *
- * To correct this we have to introduce the group balance mask. This mask
- * will contain those CPUs in the group that can reach this group given the
- * (child) domain tree.
- *
- * With this we can once again compute balance_cpu and sched_group_capacity
- * relations.
- *
- * XXX include words on how balance_cpu is unique and therefore can be
- * used for sched_group_capacity links.
- *
- *
- * Another 'interesting' topology is:
- *
- *   node   0   1   2   3
- *     0:  10  20  20  30
- *     1:  20  10  20  20
- *     2:  20  20  10  20
- *     3:  30  20  20  10
- *
- * Which looks a little like:
- *
- *   0 ----- 1
- *   |     / |
- *   |   /   |
- *   | /     |
- *   2 ----- 3
- *
- * This topology is asymmetric, nodes 1,2 are fully connected, but nodes 0,3
- * are not.
- *
- * This leads to a few particularly weird cases where the sched_domain's are
- * not of the same number for each CPU. Consider:
- *
- * NUMA-2	0-3						0-3
- *  groups:	{0-2},{1-3}					{1-3},{0-2}
- *
- * NUMA-1	0-2		0-3		0-3		1-3
- *
- * NUMA-0	0		1		2		3
- *
- */
 
 
-/*
- * Build the balance mask; it contains only those CPUs that can arrive at this
- * group and should be considered to continue balancing.
- *
- * We do this during the group creation pass, therefore the group information
- * isn't complete yet, however since each group represents a (child) domain we
- * can fully construct this using the sched_domain bits (which are already
- * complete).
- */
 static void
 build_balance_mask(struct sched_domain *sd, struct sched_group *sg, struct cpumask *mask)
 {
@@ -908,10 +729,6 @@ build_balance_mask(struct sched_domain *sd, struct sched_group *sg, struct cpuma
 		sibling = *per_cpu_ptr(sdd->sd, i);
 
 		/*
-		 * Can happen in the asymmetric case, where these siblings are
-		 * unused. The mask will not be empty because those CPUs that
-		 * do have the top domain _should_ span the domain.
-		 */
 		if (!sibling->child)
 			continue;
 
@@ -926,11 +743,6 @@ build_balance_mask(struct sched_domain *sd, struct sched_group *sg, struct cpuma
 	WARN_ON_ONCE(cpumask_empty(mask));
 }
 
-/*
- * XXX: This creates per-node group entries; since the load-balancer will
- * immediately access remote memory to construct this group's load-balance
- * statistics having the groups node local is of dubious benefit.
- */
 static struct sched_group *
 build_group_from_child_sched_domain(struct sched_domain *sd, int cpu)
 {
@@ -973,10 +785,6 @@ static void init_overlap_sched_group(struct sched_domain *sd,
 		WARN_ON_ONCE(!cpumask_equal(group_balance_mask(sg), mask));
 
 	/*
-	 * Initialize sgc->capacity such that even if we mess up the
-	 * domains and no possible iteration will get us here, we won't
-	 * die on a /0 trap.
-	 */
 	sg_span = sched_group_span(sg);
 	sg->sgc->capacity = SCHED_CAPACITY_SCALE * cpumask_weight(sg_span);
 	sg->sgc->min_capacity = SCHED_CAPACITY_SCALE;
@@ -987,19 +795,12 @@ static struct sched_domain *
 find_descended_sibling(struct sched_domain *sd, struct sched_domain *sibling)
 {
 	/*
-	 * The proper descendant would be the one whose child won't span out
-	 * of sd
-	 */
 	while (sibling->child &&
 	       !cpumask_subset(sched_domain_span(sibling->child),
 			       sched_domain_span(sd)))
 		sibling = sibling->child;
 
 	/*
-	 * As we are referencing sgc across different topology level, we need
-	 * to go down to skip those sched_domains which don't contribute to
-	 * scheduling because they will be degenerated in cpu_attach_domain
-	 */
 	while (sibling->child &&
 	       cpumask_equal(sched_domain_span(sibling->child),
 			     sched_domain_span(sibling)))
@@ -1029,49 +830,10 @@ build_overlap_sched_groups(struct sched_domain *sd, int cpu)
 		sibling = *per_cpu_ptr(sdd->sd, i);
 
 		/*
-		 * Asymmetric node setups can result in situations where the
-		 * domain tree is of unequal depth, make sure to skip domains
-		 * that already cover the entire range.
-		 *
-		 * In that case build_sched_domains() will have terminated the
-		 * iteration early and our sibling sd spans will be empty.
-		 * Domains should always include the CPU they're built on, so
-		 * check that.
-		 */
 		if (!cpumask_test_cpu(i, sched_domain_span(sibling)))
 			continue;
 
 		/*
-		 * Usually we build sched_group by sibling's child sched_domain
-		 * But for machines whose NUMA diameter are 3 or above, we move
-		 * to build sched_group by sibling's proper descendant's child
-		 * domain because sibling's child sched_domain will span out of
-		 * the sched_domain being built as below.
-		 *
-		 * Smallest diameter=3 topology is:
-		 *
-		 *   node   0   1   2   3
-		 *     0:  10  20  30  40
-		 *     1:  20  10  20  30
-		 *     2:  30  20  10  20
-		 *     3:  40  30  20  10
-		 *
-		 *   0 --- 1 --- 2 --- 3
-		 *
-		 * NUMA-3       0-3             N/A             N/A             0-3
-		 *  groups:     {0-2},{1-3}                                     {1-3},{0-2}
-		 *
-		 * NUMA-2       0-2             0-3             0-3             1-3
-		 *  groups:     {0-1},{1-3}     {0-2},{2-3}     {1-3},{0-1}     {2-3},{0-2}
-		 *
-		 * NUMA-1       0-1             0-2             1-3             2-3
-		 *  groups:     {0},{1}         {1},{2},{0}     {2},{3},{1}     {3},{2}
-		 *
-		 * NUMA-0       0               1               2               3
-		 *
-		 * The NUMA-2 groups for nodes 0 and 3 are obviously buggered, as the
-		 * group span isn't a subset of the domain span.
-		 */
 		if (sibling->child &&
 		    !cpumask_subset(sched_domain_span(sibling->child), span))
 			sibling = find_descended_sibling(sd, sibling);
@@ -1103,76 +865,6 @@ fail:
 }
 
 
-/*
- * Package topology (also see the load-balance blurb in fair.c)
- *
- * The scheduler builds a tree structure to represent a number of important
- * topology features. By default (default_topology[]) these include:
- *
- *  - Simultaneous multithreading (SMT)
- *  - Multi-Core Cache (MC)
- *  - Package (DIE)
- *
- * Where the last one more or less denotes everything up to a NUMA node.
- *
- * The tree consists of 3 primary data structures:
- *
- *	sched_domain -> sched_group -> sched_group_capacity
- *	    ^ ^             ^ ^
- *          `-'             `-'
- *
- * The sched_domains are per-CPU and have a two way link (parent & child) and
- * denote the ever growing mask of CPUs belonging to that level of topology.
- *
- * Each sched_domain has a circular (double) linked list of sched_group's, each
- * denoting the domains of the level below (or individual CPUs in case of the
- * first domain level). The sched_group linked by a sched_domain includes the
- * CPU of that sched_domain [*].
- *
- * Take for instance a 2 threaded, 2 core, 2 cache cluster part:
- *
- * CPU   0   1   2   3   4   5   6   7
- *
- * DIE  [                             ]
- * MC   [             ] [             ]
- * SMT  [     ] [     ] [     ] [     ]
- *
- *  - or -
- *
- * DIE  0-7 0-7 0-7 0-7 0-7 0-7 0-7 0-7
- * MC	0-3 0-3 0-3 0-3 4-7 4-7 4-7 4-7
- * SMT  0-1 0-1 2-3 2-3 4-5 4-5 6-7 6-7
- *
- * CPU   0   1   2   3   4   5   6   7
- *
- * One way to think about it is: sched_domain moves you up and down among these
- * topology levels, while sched_group moves you sideways through it, at child
- * domain granularity.
- *
- * sched_group_capacity ensures each unique sched_group has shared storage.
- *
- * There are two related construction problems, both require a CPU that
- * uniquely identify each group (for a given domain):
- *
- *  - The first is the balance_cpu (see should_we_balance() and the
- *    load-balance blub in fair.c); for each group we only want 1 CPU to
- *    continue balancing at a higher domain.
- *
- *  - The second is the sched_group_capacity; we want all identical groups
- *    to share a single sched_group_capacity.
- *
- * Since these topologies are exclusive by construction. That is, its
- * impossible for an SMT thread to belong to multiple cores, and cores to
- * be part of multiple caches. There is a very clear and unique location
- * for each CPU in the hierarchy.
- *
- * Therefore computing a unique CPU for each group is trivial (the iteration
- * mask is redundant and set all 1s; all CPUs in a group will end up at _that_
- * group), we can simply pick the first CPU in each group.
- *
- *
- * [*] in other words, the first group of each domain is its child domain.
- */
 
 static struct sched_group *get_group(int cpu, struct sd_data *sdd)
 {
@@ -1212,13 +904,6 @@ static struct sched_group *get_group(int cpu, struct sd_data *sdd)
 	return sg;
 }
 
-/*
- * build_sched_groups will build a circular linked list of the groups
- * covered by the given span, will set each group's ->cpumask correctly,
- * and will initialize their ->sgc.
- *
- * Assumes the sched_domain tree is fully constructed
- */
 static int
 build_sched_groups(struct sched_domain *sd, int cpu)
 {
@@ -1255,16 +940,6 @@ build_sched_groups(struct sched_domain *sd, int cpu)
 	return 0;
 }
 
-/*
- * Initialize sched groups cpu_capacity.
- *
- * cpu_capacity indicates the capacity of sched group, which is used while
- * distributing the load between different sched groups in a sched domain.
- * Typically cpu_capacity for all the groups in a sched domain will be same
- * unless there are asymmetries in the topology. If there are asymmetries,
- * group having more cpu_capacity will pickup more load compared to the
- * group having less cpu_capacity.
- */
 static void init_sched_groups_capacity(int cpu, struct sched_domain *sd)
 {
 	struct sched_group *sg = sd->groups;
@@ -1297,29 +972,16 @@ next:
 	update_group_capacity(sd, cpu);
 }
 
-/*
- * Asymmetric CPU capacity bits
- */
 struct asym_cap_data {
 	struct list_head link;
 	unsigned long capacity;
 	unsigned long cpus[];
 };
 
-/*
- * Set of available CPUs grouped by their corresponding capacities
- * Each list entry contains a CPU mask reflecting CPUs that share the same
- * capacity.
- * The lifespan of data is unlimited.
- */
 static LIST_HEAD(asym_cap_list);
 
 #define cpu_capacity_span(asym_data) to_cpumask((asym_data)->cpus)
 
-/*
- * Verify whether there is any CPU capacity asymmetry in a given sched domain.
- * Provides sd_flags reflecting the asymmetry scope.
- */
 static inline int
 asym_cpu_capacity_classify(const struct cpumask *sd_span,
 			   const struct cpumask *cpu_map)
@@ -1328,11 +990,6 @@ asym_cpu_capacity_classify(const struct cpumask *sd_span,
 	int count = 0, miss = 0;
 
 	/*
-	 * Count how many unique CPU capacities this domain spans across
-	 * (compare sched_domain CPUs mask with ones representing  available
-	 * CPUs capacities). Take into account CPUs that might be offline:
-	 * skip those.
-	 */
 	list_for_each_entry(entry, &asym_cap_list, link) {
 		if (cpumask_intersects(sd_span, cpu_capacity_span(entry)))
 			++count;
@@ -1373,11 +1030,6 @@ done:
 	__cpumask_set_cpu(cpu, cpu_capacity_span(entry));
 }
 
-/*
- * Build-up/update list of CPUs grouped by their capacities
- * An update requires explicit request to rebuild sched domains
- * with state indicating CPU topology changes.
- */
 static void asym_cpu_capacity_scan(void)
 {
 	struct asym_cap_data *entry, *next;
@@ -1397,9 +1049,6 @@ static void asym_cpu_capacity_scan(void)
 	}
 
 	/*
-	 * Only one capacity value has been detected i.e. this system is symmetric.
-	 * No need to keep this data around.
-	 */
 	if (list_is_singular(&asym_cap_list)) {
 		entry = list_first_entry(&asym_cap_list, typeof(*entry), link);
 		list_del(&entry->link);
@@ -1407,10 +1056,6 @@ static void asym_cpu_capacity_scan(void)
 	}
 }
 
-/*
- * Initializers for schedule domains
- * Non-inlined to reduce accumulated stack pressure in build_sched_domains()
- */
 
 static int default_relax_domain_level = -1;
 int sched_domain_level_max;
@@ -1481,17 +1126,11 @@ __visit_domain_allocation_hell(struct s_data *d, const struct cpumask *cpu_map)
 	return sa_rootdomain;
 }
 
-/*
- * NULL the sd_data elements we've used to build the sched_domain and
- * sched_group structure so that the subsequent __free_domain_allocs()
- * will not free the data we're using.
- */
 static void claim_allocations(int cpu, struct sched_domain *sd)
 {
 	struct sd_data *sdd = sd->private;
 
 	WARN_ON_ONCE(*per_cpu_ptr(sdd->sd, cpu) != sd);
-	*per_cpu_ptr(sdd->sd, cpu) = NULL;
 
 	if (atomic_read(&(*per_cpu_ptr(sdd->sds, cpu))->ref))
 		*per_cpu_ptr(sdd->sds, cpu) = NULL;
@@ -1514,22 +1153,6 @@ static int			*sched_domains_numa_distance;
 static struct cpumask		***sched_domains_numa_masks;
 #endif
 
-/*
- * SD_flags allowed in topology descriptions.
- *
- * These flags are purely descriptive of the topology and do not prescribe
- * behaviour. Behaviour is artificial and mapped in the below sd_init()
- * function:
- *
- *   SD_SHARE_CPUCAPACITY   - describes SMT topologies
- *   SD_SHARE_PKG_RESOURCES - describes shared caches
- *   SD_NUMA                - describes NUMA topologies
- *
- * Odd one out, which beside describing the topology has a quirk also
- * prescribes the desired behaviour that goes along with it:
- *
- *   SD_ASYM_PACKING        - describes SMT quirks
- */
 #define TOPOLOGY_SD_FLAGS		\
 	(SD_SHARE_CPUCAPACITY	|	\
 	 SD_SHARE_PKG_RESOURCES |	\
@@ -1548,8 +1171,6 @@ sd_init(struct sched_domain_topology_level *tl,
 
 #ifdef CONFIG_NUMA
 	/*
-	 * Ugly hack to pass state to sd_numa_mask()...
-	 */
 	sched_domains_curr_level = tl->numa_level;
 #endif
 
@@ -1561,7 +1182,6 @@ sd_init(struct sched_domain_topology_level *tl,
 			"wrong sd_flags in topology description\n"))
 		sd_flags &= TOPOLOGY_SD_FLAGS;
 
-	*sd = (struct sched_domain){
 		.min_interval		= sd_weight,
 		.max_interval		= 2*sd_weight,
 		.busy_factor		= 16,
@@ -1603,8 +1223,6 @@ sd_init(struct sched_domain_topology_level *tl,
 		  "CPU capacity asymmetry not supported on SMT\n");
 
 	/*
-	 * Convert topological properties into behaviour.
-	 */
 	/* Don't attempt to spread across CPUs of different capacities. */
 	if ((sd->flags & SD_ASYM_CPUCAPACITY) && sd->child)
 		sd->child->flags &= ~SD_PREFER_SIBLING;
@@ -1634,9 +1252,6 @@ sd_init(struct sched_domain_topology_level *tl,
 	}
 
 	/*
-	 * For all levels sharing cache; connect a sched_domain_shared
-	 * instance.
-	 */
 	if (sd->flags & SD_SHARE_PKG_RESOURCES) {
 		sd->shared = *per_cpu_ptr(sdd->sds, sd_id);
 		atomic_inc(&sd->shared->ref);
@@ -1648,9 +1263,6 @@ sd_init(struct sched_domain_topology_level *tl,
 	return sd;
 }
 
-/*
- * Topology list, bottom-up.
- */
 static struct sched_domain_topology_level default_topology[] = {
 #ifdef CONFIG_SCHED_SMT
 	{ cpu_smt_mask, cpu_smt_flags, SD_INIT_NAME(SMT) },
@@ -1745,25 +1357,6 @@ unlock:
 			continue;		\
 		else
 
-/*
- * A system can have three types of NUMA topology:
- * NUMA_DIRECT: all nodes are directly connected, or not a NUMA system
- * NUMA_GLUELESS_MESH: some nodes reachable through intermediary nodes
- * NUMA_BACKPLANE: nodes can reach other nodes through a backplane
- *
- * The difference between a glueless mesh topology and a backplane
- * topology lies in whether communication between not directly
- * connected nodes goes through intermediary nodes (where programs
- * could run), or through backplane controllers. This affects
- * placement of programs.
- *
- * The type of topology can be discerned with the following tests:
- * - If the maximum distance between any nodes is 1 hop, the system
- *   is directly connected.
- * - If for two nodes A and B, located N > 1 hops away from each other,
- *   there is an intermediary node C, which is < N hops away from both
- *   nodes A and B, the system is a glueless mesh.
- */
 static void init_numa_topology_type(int offline_node)
 {
 	int a, b, c, n;
@@ -1813,9 +1406,6 @@ void sched_init_numa(int offline_node)
 	struct cpumask ***masks;
 
 	/*
-	 * O(nr_nodes^2) deduplicating selection sort -- in order to find the
-	 * unique distances in the node_distance() table.
-	 */
 	distance_map = bitmap_alloc(NR_DISTANCE_VALUES, GFP_KERNEL);
 	if (!distance_map)
 		return;
@@ -1835,9 +1425,6 @@ void sched_init_numa(int offline_node)
 		}
 	}
 	/*
-	 * We can now figure out how many unique distance values there are and
-	 * allocate memory accordingly.
-	 */
 	nr_levels = bitmap_weight(distance_map, NR_DISTANCE_VALUES);
 
 	distances = kcalloc(nr_levels, sizeof(int), GFP_KERNEL);
@@ -1855,21 +1442,8 @@ void sched_init_numa(int offline_node)
 	bitmap_free(distance_map);
 
 	/*
-	 * 'nr_levels' contains the number of unique distances
-	 *
-	 * The sched_domains_numa_distance[] array includes the actual distance
-	 * numbers.
-	 */
 
 	/*
-	 * Here, we should temporarily reset sched_domains_numa_levels to 0.
-	 * If it fails to allocate memory for array sched_domains_numa_masks[][],
-	 * the array will contain less then 'nr_levels' members. This could be
-	 * dangerous when we use it to iterate array sched_domains_numa_masks[][]
-	 * in other functions.
-	 *
-	 * We reset it to 'nr_levels' at the end of this function.
-	 */
 	sched_domains_numa_levels = 0;
 
 	masks = kzalloc(sizeof(void *) * nr_levels, GFP_KERNEL);
@@ -1877,9 +1451,6 @@ void sched_init_numa(int offline_node)
 		return;
 
 	/*
-	 * Now for each level, construct a mask per node which contains all
-	 * CPUs of nodes that are that many hops away from us.
-	 */
 	for (i = 0; i < nr_levels; i++) {
 		masks[i] = kzalloc(nr_node_ids * sizeof(void *), GFP_KERNEL);
 		if (!masks[i])
@@ -1916,14 +1487,10 @@ void sched_init_numa(int offline_node)
 		return;
 
 	/*
-	 * Copy the default topology bits..
-	 */
 	for (i = 0; sched_domain_topology[i].mask; i++)
 		tl[i] = sched_domain_topology[i];
 
 	/*
-	 * Add the NUMA identity distance, aka single NODE.
-	 */
 	tl[i++] = (struct sched_domain_topology_level){
 		.mask = sd_numa_mask,
 		.numa_level = 0,
@@ -1931,8 +1498,6 @@ void sched_init_numa(int offline_node)
 	};
 
 	/*
-	 * .. and append 'j' levels of NUMA goodness.
-	 */
 	for (j = 1; j < nr_levels; i++, j++) {
 		tl[i] = (struct sched_domain_topology_level){
 			.mask = sd_numa_mask,
@@ -1987,18 +1552,12 @@ static void sched_reset_numa(void)
 	}
 }
 
-/*
- * Call with hotplug lock held
- */
 void sched_update_numa(int cpu, bool online)
 {
 	int node;
 
 	node = cpu_to_node(cpu);
 	/*
-	 * Scheduler NUMA topology is updated when the first CPU of a
-	 * node is onlined or the last CPU of a node is offlined.
-	 */
 	if (cpumask_weight(cpumask_of_node(node)) != 1)
 		return;
 
@@ -2035,14 +1594,6 @@ void sched_domains_numa_masks_clear(unsigned int cpu)
 	}
 }
 
-/*
- * sched_numa_find_closest() - given the NUMA topology, find the cpu
- *                             closest to @cpu from @cpumask.
- * cpumask: cpumask to find a cpu from
- * cpu: cpu to be close to
- *
- * returns: cpu, or nr_cpu_ids when nothing found.
- */
 int sched_numa_find_closest(const struct cpumask *cpus, int cpu)
 {
 	int i, j = cpu_to_node(cpu), found = nr_cpu_ids;
@@ -2204,10 +1755,6 @@ static struct sched_domain *build_sched_domain(struct sched_domain_topology_leve
 	return sd;
 }
 
-/*
- * Ensure topology masks are sane, i.e. there are no conflicts (overlaps) for
- * any two given CPUs at this (non-NUMA) topology level.
- */
 static bool topology_span_sane(struct sched_domain_topology_level *tl,
 			      const struct cpumask *cpu_map, int cpu)
 {
@@ -2218,20 +1765,10 @@ static bool topology_span_sane(struct sched_domain_topology_level *tl,
 		return true;
 
 	/*
-	 * Non-NUMA levels cannot partially overlap - they must be either
-	 * completely equal or completely disjoint. Otherwise we can end up
-	 * breaking the sched_group lists - i.e. a later get_group() pass
-	 * breaks the linking done for an earlier span.
-	 */
 	for_each_cpu(i, cpu_map) {
 		if (i == cpu)
 			continue;
 		/*
-		 * We should 'and' all those masks with 'cpu_map' to exactly
-		 * match the topology we're about to build, but that can only
-		 * remove CPUs, which only lessens our ability to detect
-		 * overlaps
-		 */
 		if (!cpumask_equal(tl->mask(cpu), tl->mask(i)) &&
 		    cpumask_intersects(tl->mask(cpu), tl->mask(i)))
 			return false;
@@ -2240,10 +1777,6 @@ static bool topology_span_sane(struct sched_domain_topology_level *tl,
 	return true;
 }
 
-/*
- * Build sched domains for a given set of CPUs and attach the sched domains
- * to the individual CPUs
- */
 static int
 build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *attr)
 {
@@ -2299,9 +1832,6 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 	}
 
 	/*
-	 * Calculate an allowed NUMA imbalance such that LLCs do not get
-	 * imbalanced.
-	 */
 	for_each_cpu(i, cpu_map) {
 		unsigned int imb = 0;
 		unsigned int imb_span = 1;
@@ -2315,25 +1845,6 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 				unsigned int nr_llcs;
 
 				/*
-				 * For a single LLC per node, allow an
-				 * imbalance up to 12.5% of the node. This is
-				 * arbitrary cutoff based two factors -- SMT and
-				 * memory channels. For SMT-2, the intent is to
-				 * avoid premature sharing of HT resources but
-				 * SMT-4 or SMT-8 *may* benefit from a different
-				 * cutoff. For memory channels, this is a very
-				 * rough estimate of how many channels may be
-				 * active and is based on recent CPUs with
-				 * many cores.
-				 *
-				 * For multiple LLCs, allow an imbalance
-				 * until multiple tasks would share an LLC
-				 * on one node while LLCs on another node
-				 * remain idle. This assumes that there are
-				 * enough logical CPUs per LLC to avoid SMT
-				 * factors and that there is a correlation
-				 * between LLCs and memory channels.
-				 */
 				nr_llcs = sd->span_weight / child->span_weight;
 				if (nr_llcs == 1)
 					imb = sd->span_weight >> 3;
@@ -2396,27 +1907,14 @@ error:
 	return ret;
 }
 
-/* Current sched domains: */
 static cpumask_var_t			*doms_cur;
 
-/* Number of sched domains in 'doms_cur': */
 static int				ndoms_cur;
 
-/* Attributes of custom domains in 'doms_cur' */
 static struct sched_domain_attr		*dattr_cur;
 
-/*
- * Special case: If a kmalloc() of a doms_cur partition (array of
- * cpumask) fails, then fallback to a single sched domain,
- * as determined by the single cpumask fallback_doms.
- */
 static cpumask_var_t			fallback_doms;
 
-/*
- * arch_update_cpu_topology lets virtualized architectures update the
- * CPU core maps. It is supposed to return 1 if the topology changed
- * or 0 if it stayed the same.
- */
 int __weak arch_update_cpu_topology(void)
 {
 	return 0;
@@ -2447,10 +1945,6 @@ void free_sched_domains(cpumask_var_t doms[], unsigned int ndoms)
 	kfree(doms);
 }
 
-/*
- * Set up scheduler domains and groups.  For now this just excludes isolated
- * CPUs, but could be used to exclude other special cases in the future.
- */
 int sched_init_domains(const struct cpumask *cpu_map)
 {
 	int err;
@@ -2471,10 +1965,6 @@ int sched_init_domains(const struct cpumask *cpu_map)
 	return err;
 }
 
-/*
- * Detach sched domains from a group of CPUs specified in cpu_map
- * These CPUs will now be attached to the NULL domain
- */
 static void detach_destroy_domains(const struct cpumask *cpu_map)
 {
 	unsigned int cpu = cpumask_any(cpu_map);
@@ -2489,7 +1979,6 @@ static void detach_destroy_domains(const struct cpumask *cpu_map)
 	rcu_read_unlock();
 }
 
-/* handle null as "default" */
 static int dattrs_equal(struct sched_domain_attr *cur, int idx_cur,
 			struct sched_domain_attr *new, int idx_new)
 {
@@ -2506,32 +1995,6 @@ static int dattrs_equal(struct sched_domain_attr *cur, int idx_cur,
 			sizeof(struct sched_domain_attr));
 }
 
-/*
- * Partition sched domains as specified by the 'ndoms_new'
- * cpumasks in the array doms_new[] of cpumasks. This compares
- * doms_new[] to the current sched domain partitioning, doms_cur[].
- * It destroys each deleted domain and builds each new domain.
- *
- * 'doms_new' is an array of cpumask_var_t's of length 'ndoms_new'.
- * The masks don't intersect (don't overlap.) We should setup one
- * sched domain for each mask. CPUs not in any of the cpumasks will
- * not be load balanced. If the same cpumask appears both in the
- * current 'doms_cur' domains and in the new 'doms_new', we can leave
- * it as it is.
- *
- * The passed in 'doms_new' should be allocated using
- * alloc_sched_domains.  This routine takes ownership of it and will
- * free_sched_domains it when done with it. If the caller failed the
- * alloc call, then it can pass in doms_new == NULL && ndoms_new == 1,
- * and partition_sched_domains() will fallback to the single partition
- * 'fallback_doms', it also forces the domains to be rebuilt.
- *
- * If doms_new == NULL it will be replaced with cpu_online_mask.
- * ndoms_new == 0 is a special case for destroying existing domains,
- * and it will not create the default domain.
- *
- * Call with hotplug lock and sched_domains_mutex held
- */
 void partition_sched_domains_locked(int ndoms_new, cpumask_var_t doms_new[],
 				    struct sched_domain_attr *dattr_new)
 {
@@ -2568,11 +2031,6 @@ void partition_sched_domains_locked(int ndoms_new, cpumask_var_t doms_new[],
 				struct root_domain *rd;
 
 				/*
-				 * This domain won't be destroyed and as such
-				 * its dl_bw->total_bw needs to be cleared.  It
-				 * will be recomputed in function
-				 * update_tasks_root_domain().
-				 */
 				rd = cpu_rq(cpumask_any(doms_cur[i]))->rd;
 				dl_clear_root_domain(rd);
 				goto match1;
@@ -2635,9 +2093,6 @@ match3:
 	update_sched_domain_debugfs();
 }
 
-/*
- * Call with hotplug lock held
- */
 void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
 			     struct sched_domain_attr *dattr_new)
 {

@@ -1,9 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/**
- * Copyright(c) 2016-20 Intel Corporation.
- *
- * Contains the software defined data structures for enclaves.
- */
 #ifndef _X86_ENCL_H
 #define _X86_ENCL_H
 
@@ -19,10 +13,8 @@
 #include <linux/xarray.h>
 #include "sgx.h"
 
-/* 'desc' bits holding the offset in the VA (version array) page. */
 #define SGX_ENCL_PAGE_VA_OFFSET_MASK	GENMASK_ULL(11, 3)
 
-/* 'desc' bit marking that the page is being reclaimed. */
 #define SGX_ENCL_PAGE_BEING_RECLAIMED	BIT(3)
 
 struct sgx_encl_page {
@@ -95,7 +87,6 @@ static inline int sgx_encl_find(struct mm_struct *mm, unsigned long addr,
 	if (!result || result->vm_ops != &sgx_vm_ops)
 		return -EINVAL;
 
-	*vma = result;
 
 	return 0;
 }

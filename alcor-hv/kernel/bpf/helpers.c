@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2011-2014 PLUMgrid, http://plumgrid.com
- */
 #include <linux/bpf.h>
 #include <linux/btf.h>
 #include <linux/bpf-cgroup.h>
@@ -21,15 +18,6 @@
 
 #include "../../lib/kstrtox.h"
 
-/* If kernel subsystem is allowing eBPF programs to call this function,
- * inside its own verifier_ops->get_func_proto() callback it should return
- * bpf_map_lookup_elem_proto, so that verifier can properly check the arguments
- *
- * Different map implementations will rely on rcu in map methods
- * lookup/update/delete, therefore eBPF programs must run under rcu lock
- * if program is allowed to access maps, so check rcu_read_lock_held in
- * all three functions.
- */
 BPF_CALL_2(bpf_map_lookup_elem, struct bpf_map *, map, void *, key)
 {
 	WARN_ON_ONCE(!rcu_read_lock_held() && !rcu_read_lock_bh_held());
@@ -474,7 +462,6 @@ static int __bpf_strtoull(const char *buf, size_t buf_len, u64 flags,
 	while (cur_buf < buf + buf_len && isspace(*cur_buf))
 		++cur_buf;
 
-	*is_negative = (cur_buf < buf + buf_len && *cur_buf == '-');
 	if (*is_negative)
 		++cur_buf;
 
@@ -536,7 +523,6 @@ BPF_CALL_4(bpf_strtol, const char *, buf, size_t, buf_len, u64, flags,
 		return err;
 	if (_res != (long)_res)
 		return -ERANGE;
-	*res = _res;
 	return err;
 }
 
@@ -564,7 +550,6 @@ BPF_CALL_4(bpf_strtoul, const char *, buf, size_t, buf_len, u64, flags,
 		return -EINVAL;
 	if (_res != (unsigned long)_res)
 		return -ERANGE;
-	*res = _res;
 	return err;
 }
 
@@ -768,12 +753,8 @@ static int bpf_trace_copy_string(char *buf, void *unsafe_ptr, char fmt_ptype,
 	return -EINVAL;
 }
 
-/* Per-cpu temp buffers used by printf-like helpers to store the bprintf binary
- * arguments representation.
- */
 #define MAX_BPRINTF_BUF_LEN	512
 
-/* Support executing three nested bprintf helper calls on a given CPU */
 #define MAX_BPRINTF_NEST_LEVEL	3
 struct bpf_bprintf_buffers {
 	char tmp_bufs[MAX_BPRINTF_NEST_LEVEL][MAX_BPRINTF_BUF_LEN];
@@ -794,7 +775,6 @@ static int try_get_fmt_tmp_buf(char **tmp_buf)
 		return -EBUSY;
 	}
 	bufs = this_cpu_ptr(&bpf_bprintf_bufs);
-	*tmp_buf = bufs->tmp_bufs[nest_level - 1];
 
 	return 0;
 }
@@ -807,20 +787,6 @@ void bpf_bprintf_cleanup(void)
 	}
 }
 
-/*
- * bpf_bprintf_prepare - Generic pass on format strings for bprintf-like helpers
- *
- * Returns a negative value if fmt is an invalid format string or 0 otherwise.
- *
- * This can be used in two ways:
- * - Format string verification only: when bin_args is NULL
- * - Arguments preparation: in addition to the above verification, it writes in
- *   bin_args a binary representation of arguments usable by bstr_printf where
- *   pointers from BPF have been sanitized.
- *
- * In argument preparation mode, if 0 is returned, safe temporary buffers are
- * allocated and bpf_bprintf_cleanup should be called to free them after use.
- */
 int bpf_bprintf_prepare(char *fmt, u32 fmt_size, const u64 *raw_args,
 			u32 **bin_args, u32 num_args)
 {
@@ -1076,22 +1042,6 @@ const struct bpf_func_proto bpf_snprintf_proto = {
 	.arg5_type	= ARG_CONST_SIZE_OR_ZERO,
 };
 
-/* BPF map elements can contain 'struct bpf_timer'.
- * Such map owns all of its BPF timers.
- * 'struct bpf_timer' is allocated as part of map element allocation
- * and it's zero initialized.
- * That space is used to keep 'struct bpf_timer_kern'.
- * bpf_timer_init() allocates 'struct bpf_hrtimer', inits hrtimer, and
- * remembers 'struct bpf_map *' pointer it's part of.
- * bpf_timer_set_callback() increments prog refcnt and assign bpf callback_fn.
- * bpf_timer_start() arms the timer.
- * If user space reference to a map goes to zero at this point
- * ops->map_release_uref callback is responsible for cancelling the timers,
- * freeing their memory, and decrementing prog's refcnts.
- * bpf_timer_cancel() cancels the timer and decrements prog's refcnt.
- * Inner maps can contain bpf timers as well. ops->map_release_uref is
- * freeing the timers when inner map is replaced or deleted by user space.
- */
 struct bpf_hrtimer {
 	struct hrtimer timer;
 	struct bpf_map *map;
@@ -1100,7 +1050,6 @@ struct bpf_hrtimer {
 	void *value;
 };
 
-/* the actual struct hidden inside uapi struct bpf_timer */
 struct bpf_timer_kern {
 	struct bpf_hrtimer *timer;
 	/* bpf_spin_lock is used here instead of spinlock_t to make
@@ -1343,9 +1292,6 @@ static const struct bpf_func_proto bpf_timer_cancel_proto = {
 	.arg1_type	= ARG_PTR_TO_TIMER,
 };
 
-/* This function is called by map_delete/update_elem for individual element and
- * by ops->map_release_uref when the user space reference to a map reaches zero.
- */
 void bpf_timer_cancel_and_free(void *val)
 {
 	struct bpf_timer_kern *timer = val;
@@ -1397,9 +1343,6 @@ BPF_CALL_2(bpf_kptr_xchg, void *, map_value, void *, ptr)
 	return xchg(kptr, (unsigned long)ptr);
 }
 
-/* Unlike other PTR_TO_BTF_ID helpers the btf_id in bpf_kptr_xchg()
- * helper is determined dynamically by the verifier.
- */
 #define BPF_PTR_POISON ((void *)((0xeB9FUL << 2) + POISON_POINTER_DELTA))
 
 static const struct bpf_func_proto bpf_kptr_xchg_proto = {
@@ -1412,9 +1355,6 @@ static const struct bpf_func_proto bpf_kptr_xchg_proto = {
 	.arg2_btf_id  = BPF_PTR_POISON,
 };
 
-/* Since the upper 8 bits of dynptr->size is reserved, the
- * maximum supported size is 2^24 - 1.
- */
 #define DYNPTR_MAX_SIZE	((1UL << 24) - 1)
 #define DYNPTR_TYPE_SHIFT	28
 #define DYNPTR_SIZE_MASK	0xFFFFFF

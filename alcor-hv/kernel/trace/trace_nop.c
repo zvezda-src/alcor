@@ -1,23 +1,14 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * nop tracer
- *
- * Copyright (C) 2008 Steven Noonan <steven@uplinklabs.net>
- *
- */
 
 #include <linux/module.h>
 #include <linux/ftrace.h>
 
 #include "trace.h"
 
-/* Our two options */
 enum {
 	TRACE_NOP_OPT_ACCEPT = 0x1,
 	TRACE_NOP_OPT_REFUSE = 0x2
 };
 
-/* Options for the tracer (see trace_options file) */
 static struct tracer_opt nop_opts[] = {
 	/* Option that will be accepted by set_flag callback */
 	{ TRACER_OPT(test_nop_accept, TRACE_NOP_OPT_ACCEPT) },
@@ -56,17 +47,9 @@ static void nop_trace_reset(struct trace_array *tr)
 	stop_nop_trace(tr);
 }
 
-/* It only serves as a signal handler and a callback to
- * accept or refuse the setting of a flag.
- * If you don't implement it, then the flag setting will be
- * automatically accepted.
- */
 static int nop_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
 	/*
-	 * Note that you don't need to update nop_flags.val yourself.
-	 * The tracing Api will do it automatically if you return 0
-	 */
 	if (bit == TRACE_NOP_OPT_ACCEPT) {
 		printk(KERN_DEBUG "nop_test_accept flag set to %d: we accept."
 			" Now cat trace_options to see the result\n",

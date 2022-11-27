@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_E820_API_H
 #define _ASM_E820_API_H
 
@@ -43,10 +42,6 @@ extern void e820__register_nosave_regions(unsigned long limit_pfn);
 
 extern int  e820__get_entry_type(u64 start, u64 end);
 
-/*
- * Returns true iff the specified range [start,end) is completely contained inside
- * the ISA region.
- */
 static inline bool is_ISA_range(u64 start, u64 end)
 {
 	return start >= ISA_START_ADDRESS && end <= ISA_END_ADDRESS;

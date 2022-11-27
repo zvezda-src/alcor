@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/* auditfilter.c -- filtering of audit events
- *
- * Copyright 2003-2004 Red Hat, Inc.
- * Copyright 2005 Hewlett-Packard Development Company, L.P.
- * Copyright 2005 IBM Corporation
- */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -22,20 +15,7 @@
 #include <net/sock.h>
 #include "audit.h"
 
-/*
- * Locking model:
- *
- * audit_filter_mutex:
- *		Synchronizes writes and blocking reads of audit's filterlist
- *		data.  Rcu is used to traverse the filterlist and access
- *		contents of structs audit_entry, audit_watch and opaque
- *		LSM rules during filtering.  If modified, these structures
- *		must be copied and replace their counterparts in the filterlist.
- *		An audit_parent struct is not accessed during filtering, so may
- *		be written directly provided audit_filter_mutex is held.
- */
 
-/* Audit filter lists, defined in <linux/audit.h> */
 struct list_head audit_filter_list[AUDIT_NR_FILTERS] = {
 	LIST_HEAD_INIT(audit_filter_list[0]),
 	LIST_HEAD_INIT(audit_filter_list[1]),
@@ -102,7 +82,6 @@ void audit_free_rule_rcu(struct rcu_head *head)
 	audit_free_rule(e);
 }
 
-/* Initialize an audit filterlist entry. */
 static inline struct audit_entry *audit_init_entry(u32 field_count)
 {
 	struct audit_entry *entry;
@@ -122,8 +101,6 @@ static inline struct audit_entry *audit_init_entry(u32 field_count)
 	return entry;
 }
 
-/* Unpack a filter field's string representation from user-space
- * buffer. */
 char *audit_unpack_string(void **bufp, size_t *remain, size_t len)
 {
 	char *str;
@@ -143,13 +120,10 @@ char *audit_unpack_string(void **bufp, size_t *remain, size_t len)
 
 	memcpy(str, *bufp, len);
 	str[len] = 0;
-	*bufp += len;
-	*remain -= len;
 
 	return str;
 }
 
-/* Translate an inode field to kernel representation. */
 static inline int audit_to_inode(struct audit_krule *krule,
 				 struct audit_field *f)
 {
@@ -234,7 +208,6 @@ static int audit_match_signal(struct audit_entry *entry)
 }
 #endif
 
-/* Common user-space to kernel rule translation. */
 static inline struct audit_entry *audit_to_entry_common(struct audit_rule_data *rule)
 {
 	unsigned listnr;
@@ -323,7 +296,6 @@ static u32 audit_to_op(u32 op)
 	return n;
 }
 
-/* check if an audit field is valid */
 static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 {
 	switch (f->type) {
@@ -445,7 +417,6 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 	return 0;
 }
 
-/* Translate struct audit_rule_data to kernel's rule representation. */
 static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 					       size_t datasz)
 {
@@ -619,18 +590,15 @@ exit_free:
 	return ERR_PTR(err);
 }
 
-/* Pack a filter field's string representation into data block. */
 static inline size_t audit_pack_string(void **bufp, const char *str)
 {
 	size_t len = strlen(str);
 
 	memcpy(*bufp, str, len);
-	*bufp += len;
 
 	return len;
 }
 
-/* Translate kernel rule representation to struct audit_rule_data. */
 static struct audit_rule_data *audit_krule_to_data(struct audit_krule *krule)
 {
 	struct audit_rule_data *data;
@@ -699,8 +667,6 @@ static struct audit_rule_data *audit_krule_to_data(struct audit_krule *krule)
 	return data;
 }
 
-/* Compare two rules in kernel format.  Considered success if rules
- * don't match. */
 static int audit_compare_rule(struct audit_krule *a, struct audit_krule *b)
 {
 	int i;
@@ -782,8 +748,6 @@ static int audit_compare_rule(struct audit_krule *a, struct audit_krule *b)
 	return 0;
 }
 
-/* Duplicate LSM field information.  The lsm_rule is opaque, so must be
- * re-initialized. */
 static inline int audit_dupe_lsm_field(struct audit_field *df,
 					   struct audit_field *sf)
 {
@@ -810,12 +774,6 @@ static inline int audit_dupe_lsm_field(struct audit_field *df,
 	return ret;
 }
 
-/* Duplicate an audit rule.  This will be a deep copy with the exception
- * of the watch - that pointer is carried over.  The LSM specific fields
- * will be updated in the copy.  The point is to be able to replace the old
- * rule with the new rule in the filterlist, then free the old rule.
- * The rlist element is undefined; list manipulations are handled apart from
- * the initial copy. */
 struct audit_entry *audit_dupe_rule(struct audit_krule *old)
 {
 	u32 fcount = old->field_count;
@@ -841,12 +799,6 @@ struct audit_entry *audit_dupe_rule(struct audit_krule *old)
 	new->field_count = old->field_count;
 
 	/*
-	 * note that we are OK with not refcounting here; audit_match_tree()
-	 * never dereferences tree and we can't get false positives there
-	 * since we'd have to have rule gone from the list *and* removed
-	 * before the chunks found by lookup had been allocated, i.e. before
-	 * the beginning of list scan.
-	 */
 	new->tree = old->tree;
 	memcpy(new->fields, old->fields, sizeof(struct audit_field) * fcount);
 
@@ -894,8 +846,6 @@ struct audit_entry *audit_dupe_rule(struct audit_krule *old)
 	return entry;
 }
 
-/* Find an existing audit rule.
- * Caller must hold audit_filter_mutex to prevent stale rule data. */
 static struct audit_entry *audit_find_rule(struct audit_entry *entry,
 					   struct list_head **p)
 {
@@ -934,7 +884,6 @@ out:
 static u64 prio_low = ~0ULL/2;
 static u64 prio_high = ~0ULL/2 - 1;
 
-/* Add rule to given filterlist if not a duplicate. */
 static inline int audit_add_rule(struct audit_entry *entry)
 {
 	struct audit_entry *e;
@@ -971,9 +920,6 @@ static inline int audit_add_rule(struct audit_entry *entry)
 		if (err) {
 			mutex_unlock(&audit_filter_mutex);
 			/*
-			 * normally audit_add_tree_rule() will free it
-			 * on failure
-			 */
 			if (tree)
 				audit_put_tree(tree);
 			return err;
@@ -1018,7 +964,6 @@ static inline int audit_add_rule(struct audit_entry *entry)
 	return err;
 }
 
-/* Remove an existing rule from filterlist. */
 int audit_del_rule(struct audit_entry *entry)
 {
 	struct audit_entry  *e;
@@ -1074,7 +1019,6 @@ out:
 	return ret;
 }
 
-/* List rules using struct audit_rule_data. */
 static void audit_list_rules(int seq, struct sk_buff_head *q)
 {
 	struct sk_buff *skb;
@@ -1103,7 +1047,6 @@ static void audit_list_rules(int seq, struct sk_buff_head *q)
 		skb_queue_tail(q, skb);
 }
 
-/* Log rule additions and removals */
 static void audit_log_rule_change(char *action, struct audit_krule *rule, int res)
 {
 	struct audit_buffer *ab;
@@ -1122,13 +1065,6 @@ static void audit_log_rule_change(char *action, struct audit_krule *rule, int re
 	audit_log_end(ab);
 }
 
-/**
- * audit_rule_change - apply all rules to the specified message type
- * @type: audit message type
- * @seq: netlink audit message sequence (serial) number
- * @data: payload data
- * @datasz: size of payload data
- */
 int audit_rule_change(int type, int seq, void *data, size_t datasz)
 {
 	int err = 0;
@@ -1163,11 +1099,6 @@ int audit_rule_change(int type, int seq, void *data, size_t datasz)
 	return err;
 }
 
-/**
- * audit_list_rules_send - list the audit rules
- * @request_skb: skb of request we are replying to (used to target the reply)
- * @seq: netlink audit message sequence (serial) number
- */
 int audit_list_rules_send(struct sk_buff *request_skb, int seq)
 {
 	struct task_struct *tsk;
@@ -1269,10 +1200,6 @@ int audit_gid_comparator(kgid_t left, u32 op, kgid_t right)
 	}
 }
 
-/**
- * parent_len - find the length of the parent portion of a pathname
- * @path: pathname of which to determine length
- */
 int parent_len(const char *path)
 {
 	int plen;
@@ -1299,14 +1226,6 @@ int parent_len(const char *path)
 	return p - path;
 }
 
-/**
- * audit_compare_dname_path - compare given dentry name with last component in
- * 			      given path. Return of 0 indicates a match.
- * @dname:	dentry name that we're comparing
- * @path:	full pathname that we're comparing
- * @parentlen:	length of the parent if known. Passing in AUDIT_NAME_FULL
- * 		here indicates that we must compute this value.
- */
 int audit_compare_dname_path(const struct qstr *dname, const char *path, int parentlen)
 {
 	int dlen, pathlen;
@@ -1429,11 +1348,6 @@ static int update_lsm_rule(struct audit_krule *r)
 	return err;
 }
 
-/* This function will re-initialize the lsm_rule field of all applicable rules.
- * It will traverse the filter lists serarching for rules that contain LSM
- * specific filter fields.  When such a rule is found, it is copied, the
- * LSM field is re-initialized, and the old rule is replaced with the
- * updated rule. */
 int audit_update_lsm_rules(void)
 {
 	struct audit_krule *r, *n;

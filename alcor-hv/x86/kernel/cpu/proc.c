@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/smp.h>
 #include <linux/timex.h>
 #include <linux/string.h>
@@ -11,9 +10,6 @@
 extern const char * const x86_vmx_flags[NVMXINTS*32];
 #endif
 
-/*
- *	Get CPU information for use by the procfs.
- */
 static void show_cpuinfo_core(struct seq_file *m, struct cpuinfo_x86 *c,
 			      unsigned int cpu)
 {
@@ -153,7 +149,6 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
-	*pos = cpumask_next(*pos - 1, cpu_online_mask);
 	if ((*pos) < nr_cpu_ids)
 		return &cpu_data(*pos);
 	return NULL;

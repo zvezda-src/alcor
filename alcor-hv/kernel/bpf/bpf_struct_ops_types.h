@@ -1,5 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* internal file - do not include directly */
 
 #ifdef CONFIG_BPF_JIT
 #ifdef CONFIG_NET

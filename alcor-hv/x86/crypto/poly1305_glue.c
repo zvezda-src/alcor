@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0 OR MIT
-/*
- * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
- */
 
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
@@ -47,15 +43,6 @@ struct poly1305_arch_internal {
 	struct { u32 r2, r1, r4, r3; } rn[9];
 };
 
-/* The AVX code uses base 2^26, while the scalar code uses base 2^64. If we hit
- * the unfortunate situation of using AVX and then having to go back to scalar
- * -- because the user is silly and has called the update function from two
- * separate contexts -- then we need to convert back to the original base before
- * proceeding. It is possible to reason that the initial reduction below is
- * sufficient given the implementation invariants. However, for an avoidance of
- * doubt and because this is not performance critical, we do the full reduction
- * anyway. Z3 proof of below function: https://xn--4db.cc/ltPtHCKN/py
- */
 static void convert_to_base2_64(void *ctx)
 {
 	struct poly1305_arch_internal *state = ctx;
@@ -218,7 +205,6 @@ static int crypto_poly1305_init(struct shash_desc *desc)
 {
 	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
 
-	*dctx = (struct poly1305_desc_ctx){};
 	return 0;
 }
 

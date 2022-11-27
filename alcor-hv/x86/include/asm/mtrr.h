@@ -1,4 +1,3 @@
-/*  Generic MTRR (Memory Type Range Register) ioctls.
 
     Copyright (C) 1997-1999  Richard Gooch
 
@@ -19,7 +18,6 @@
     Richard Gooch may be reached by email at  rgooch@atnf.csiro.au
     The postal address is:
       Richard Gooch, c/o ATNF, P. O. Box 76, Epping, N.S.W., 2121, Australia.
-*/
 #ifndef _ASM_X86_MTRR_H
 #define _ASM_X86_MTRR_H
 
@@ -27,10 +25,6 @@
 
 void mtrr_bp_init(void);
 
-/*
- * The following functions are for use by other drivers that cannot use
- * arch_phys_wc_add and arch_phys_wc_del.
- */
 # ifdef CONFIG_MTRR
 extern u8 mtrr_type_lookup(u64 addr, u64 end, u8 *uniform);
 extern void mtrr_save_fixed_ranges(void *);
@@ -52,8 +46,6 @@ extern int amd_special_default_mtrr(void);
 static inline u8 mtrr_type_lookup(u64 addr, u64 end, u8 *uniform)
 {
 	/*
-	 * Return no-MTRRs:
-	 */
 	return MTRR_TYPE_INVALID;
 }
 #define mtrr_save_fixed_ranges(arg) do {} while (0)
@@ -120,7 +112,6 @@ struct mtrr_gentry32 {
 				 _IOW(MTRR_IOCTL_BASE,  9, struct mtrr_sentry32)
 #endif /* CONFIG_COMPAT */
 
-/* Bit fields for enabled in struct mtrr_state_type */
 #define MTRR_STATE_MTRR_FIXED_ENABLED	0x01
 #define MTRR_STATE_MTRR_ENABLED		0x02
 

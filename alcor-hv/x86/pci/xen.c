@@ -1,15 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Xen PCI - handle PCI (INTx) and MSI infrastructure calls for PV, HVM and
- * initial domain support. We also handle the DSDT _PRT callbacks for GSI's
- * used in HVM and initial domain mode (PV does not parse ACPI, so it has no
- * concept of GSIs). Under PV we hook under the pnbbios API for IRQs and
- * 0xcf8 PCI configuration read/write.
- *
- *   Author: Ryan Wilson <hap9@epoch.ncsc.mil>
- *           Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
- *           Stefano Stabellini <stefano.stabellini@eu.citrix.com>
- */
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -214,10 +202,6 @@ static void xen_msi_compose_msg(struct pci_dev *pdev, unsigned int pirq,
 		struct msi_msg *msg)
 {
 	/*
-	 * We set vector == 0 to tell the hypervisor we don't care about
-	 * it, but we want a pirq setup instead.  We use the dest_id fields
-	 * to pass the pirq that we want.
-	 */
 	memset(msg, 0, sizeof(*msg));
 	msg->address_hi = X86_MSI_BASE_ADDRESS_HIGH;
 	msg->arch_addr_hi.destid_8_31 = pirq >> 8;
@@ -315,11 +299,6 @@ static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 						    &map_irq);
 		if (type == PCI_CAP_ID_MSI && nvec > 1 && ret) {
 			/*
-			 * If MAP_PIRQ_TYPE_MULTI_MSI is not available
-			 * there's nothing else we can do in this case.
-			 * Just set ret > 0 so driver can retry with
-			 * single MSI.
-			 */
 			ret = 1;
 			goto out;
 		}
@@ -436,14 +415,6 @@ static struct msi_domain_info xen_pci_msi_domain_info = {
 	.ops			= &xen_pci_msi_domain_ops,
 };
 
-/*
- * This irq domain is a blatant violation of the irq domain design, but
- * distangling XEN into real irq domains is not a job for mere mortals with
- * limited XENology. But it's the least dangerous way for a mere mortal to
- * get rid of the arch_*_msi_irqs() hackery in order to store the irq
- * domain pointer in struct device. This irq domain wrappery allows to do
- * that without breaking XEN terminally.
- */
 static __init struct irq_domain *xen_create_pci_msi_domain(void)
 {
 	struct irq_domain *d = NULL;
@@ -476,14 +447,8 @@ static __init void xen_setup_pci_msi(void)
 	}
 
 	/*
-	 * Override the PCI/MSI irq domain init function. No point
-	 * in allocating the native domain and never use it.
-	 */
 	x86_init.irqs.create_pci_msi_domain = xen_create_pci_msi_domain;
 	/*
-	 * With XEN PIRQ/Eventchannels in use PCI/MSI[-X] masking is solely
-	 * controlled by the hypervisor.
-	 */
 	pci_msi_ignore_mask = 1;
 }
 
@@ -515,11 +480,6 @@ static void __init xen_hvm_msi_init(void)
 {
 	if (!disable_apic) {
 		/*
-		 * If hardware supports (x2)APIC virtualization (as indicated
-		 * by hypervisor's leaf 4) then we don't need to use pirqs/
-		 * event channels for MSI handling and instead use regular
-		 * APIC processing
-		 */
 		uint32_t eax = cpuid_eax(xen_cpuid_base() + 4);
 
 		if (((eax & XEN_HVM_CPUID_X2APIC_VIRT) && x2apic_mode) ||
@@ -537,18 +497,12 @@ int __init pci_xen_hvm_init(void)
 
 #ifdef CONFIG_ACPI
 	/*
-	 * We don't want to change the actual ACPI delivery model,
-	 * just how GSIs get registered.
-	 */
 	__acpi_register_gsi = acpi_register_gsi_xen_hvm;
 	__acpi_unregister_gsi = NULL;
 #endif
 
 #ifdef CONFIG_PCI_MSI
 	/*
-	 * We need to wait until after x2apic is initialized
-	 * before we can set MSI IRQ ops.
-	 */
 	x86_platform.apic_post_init = xen_hvm_msi_init;
 #endif
 	return 0;
@@ -563,9 +517,6 @@ int __init pci_xen_initial_domain(void)
 	__acpi_register_gsi = acpi_register_gsi_xen;
 	__acpi_unregister_gsi = NULL;
 	/*
-	 * Pre-allocate the legacy IRQs.  Use NR_LEGACY_IRQS here
-	 * because we don't have a PIC and thus nr_legacy_irqs() is zero.
-	 */
 	for (irq = 0; irq < NR_IRQS_LEGACY; irq++) {
 		int trigger, polarity;
 

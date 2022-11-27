@@ -1,22 +1,3 @@
-/*
- * MTRR (Memory Type Range Register) cleanup
- *
- *  Copyright (C) 2009 Yinghai Lu
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Library General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Library General Public License for more details.
- *
- * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the Free
- * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- */
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/smp.h>
@@ -47,7 +28,6 @@ struct var_mtrr_state {
 	unsigned int	reg;
 };
 
-/* Should be related to MTRR_VAR_RANGES nums */
 #define RANGE_NUM				256
 
 static struct range __initdata		range[RANGE_NUM];
@@ -240,7 +220,6 @@ static unsigned long to_size_factor(unsigned long sizek, char *factorp)
 		base >>= 20;
 	}
 
-	*factorp = factor;
 
 	return base;
 }
@@ -434,7 +413,6 @@ set_var_mtrr_range(struct var_mtrr_state *state, unsigned long base_pfn,
 	state->range_sizek  = sizek - second_sizek;
 }
 
-/* Minimum size of mtrr block that can take hole: */
 static u64 mtrr_chunk_size __initdata = (256ULL<<20);
 
 static int __init parse_mtrr_chunk_size_opt(char *p)
@@ -446,7 +424,6 @@ static int __init parse_mtrr_chunk_size_opt(char *p)
 }
 early_param("mtrr_chunk_size", parse_mtrr_chunk_size_opt);
 
-/* Granularity of mtrr of block: */
 static u64 mtrr_gran_size __initdata;
 
 static int __init parse_mtrr_gran_size_opt(char *p)
@@ -513,11 +490,6 @@ struct mtrr_cleanup_result {
 	int		bad;
 };
 
-/*
- * gran_size: 64K, 128K, 256K, 512K, 1M, 2M, ..., 2G
- * chunk size: gran_size, ..., 2G
- * so we need (1+16)*8
- */
 #define NUM_RESULT	136
 #define PSHIFT		(PAGE_SHIFT - 10)
 
@@ -592,12 +564,6 @@ mtrr_calc_range_state(u64 chunk_size, u64 gran_size,
 		      unsigned long x_remove_size, int i)
 {
 	/*
-	 * range_new should really be an automatic variable, but
-	 * putting 4096 bytes on the stack is frowned upon, to put it
-	 * mildly. It is safe to make it a static __initdata variable,
-	 * since mtrr_calc_range_state is only called during init and
-	 * there's no way it will call itself recursively.
-	 */
 	static struct range range_new[RANGE_NUM] __initdata;
 	unsigned long range_sums_new;
 	int nr_range_new;
@@ -721,9 +687,6 @@ int __init mtrr_cleanup(unsigned address_bits)
 		x_remove_size = (mtrr_tom2 >> PAGE_SHIFT) - x_remove_base;
 
 	/*
-	 * [0, 1M) should always be covered by var mtrr with WB
-	 * and fixed mtrrs should take effect before var mtrr for it:
-	 */
 	nr_range = add_range_with_merge(range, RANGE_NUM, 0, 0,
 					1ULL<<(20 - PAGE_SHIFT));
 	/* add from var mtrr at last */
@@ -817,12 +780,6 @@ static int __init disable_mtrr_trim_setup(char *str)
 }
 early_param("disable_mtrr_trim", disable_mtrr_trim_setup);
 
-/*
- * Newer AMD K8s and later CPUs have a special magic MSR way to force WB
- * for memory >4GB. Check for that here.
- * Note this won't check if the MTRRs < 4GB where the magic bit doesn't
- * apply to are wrong, but so far we don't know of any such case in the wild.
- */
 #define Tom2Enabled		(1U << 21)
 #define Tom2ForceMemTypeWB	(1U << 22)
 
@@ -839,9 +796,6 @@ int __init amd_special_default_mtrr(void)
 	if (rdmsr_safe(MSR_AMD64_SYSCFG, &l, &h) < 0)
 		return 0;
 	/*
-	 * Memory between 4GB and top of mem is forced WB by this magic bit.
-	 * Reserved before K8RevF, but should be zero there.
-	 */
 	if ((l & (Tom2Enabled | Tom2ForceMemTypeWB)) ==
 		 (Tom2Enabled | Tom2ForceMemTypeWB))
 		return 1;
@@ -863,17 +817,6 @@ real_trim_memory(unsigned long start_pfn, unsigned long limit_pfn)
 	return e820__range_update(trim_start, trim_size, E820_TYPE_RAM, E820_TYPE_RESERVED);
 }
 
-/**
- * mtrr_trim_uncached_memory - trim RAM not covered by MTRRs
- * @end_pfn: ending page frame number
- *
- * Some buggy BIOSes don't setup the MTRRs properly for systems with certain
- * memory configurations.  This routine checks that the highest MTRR matches
- * the end of memory, to make sure the MTRRs having a write back type cover
- * all of the memory the kernel is intending to use.  If not, it'll trim any
- * memory off the end by adjusting end_pfn, removing it from the kernel's
- * allocation pools, warning the user with an obnoxious message.
- */
 int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 {
 	unsigned long i, base, size, highest_pfn = 0, def, dummy;
@@ -883,9 +826,6 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 	int num[MTRR_NUM_TYPES + 1];
 
 	/*
-	 * Make sure we only trim uncachable memory on machines that
-	 * support the Intel MTRR architecture:
-	 */
 	if (!is_cpu(INTEL) || disable_mtrr_trim)
 		return 0;
 

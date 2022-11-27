@@ -1,9 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- * x86 KFENCE support.
- *
- * Copyright (C) 2020, Google LLC.
- */
 
 #ifndef _ASM_X86_KFENCE_H
 #define _ASM_X86_KFENCE_H
@@ -18,7 +12,6 @@
 #include <asm/set_memory.h>
 #include <asm/tlbflush.h>
 
-/* Force 4K pages for __kfence_pool. */
 static inline bool arch_kfence_init_pool(void)
 {
 	unsigned long addr;
@@ -37,7 +30,6 @@ static inline bool arch_kfence_init_pool(void)
 	return true;
 }
 
-/* Protect the given page and flush TLB. */
 static inline bool kfence_protect_page(unsigned long addr, bool protect)
 {
 	unsigned int level;
@@ -47,11 +39,6 @@ static inline bool kfence_protect_page(unsigned long addr, bool protect)
 		return false;
 
 	/*
-	 * We need to avoid IPIs, as we may get KFENCE allocations or faults
-	 * with interrupts disabled. Therefore, the below is best-effort, and
-	 * does not flush TLBs on all CPUs. We can tolerate some inaccuracy;
-	 * lazy fault handling takes care of faults after the page is PRESENT.
-	 */
 
 	if (protect)
 		set_pte(pte, __pte(pte_val(*pte) & ~_PAGE_PRESENT));
@@ -59,9 +46,6 @@ static inline bool kfence_protect_page(unsigned long addr, bool protect)
 		set_pte(pte, __pte(pte_val(*pte) | _PAGE_PRESENT));
 
 	/*
-	 * Flush this CPU's TLB, assuming whoever did the allocation/free is
-	 * likely to continue running on this CPU.
-	 */
 	preempt_disable();
 	flush_tlb_one_kernel(addr);
 	preempt_enable();

@@ -1,8 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0
 #define DISABLE_BRANCH_PROFILING
 #define pr_fmt(fmt) "kasan: " fmt
 
-/* cpu_feature_enabled() cannot be used this early */
 #define USE_EARLY_PGTABLE_L5
 
 #include <linux/memblock.h>
@@ -175,9 +173,6 @@ static void __init clear_pgds(unsigned long start,
 	for (; start < pgd_end; start += PGDIR_SIZE) {
 		pgd = pgd_offset_k(start);
 		/*
-		 * With folded p4d, pgd_clear() is nop, use p4d_clear()
-		 * instead.
-		 */
 		if (pgtable_l5_enabled())
 			pgd_clear(pgd);
 		else
@@ -278,9 +273,6 @@ static void __init kasan_shallow_populate_pgds(void *start, void *end)
 		}
 
 		/*
-		 * we need to populate p4ds to be synced when running in
-		 * four level mode - see sync_global_pgds_l4()
-		 */
 		kasan_shallow_populate_p4ds(pgd, addr, next);
 	} while (pgd++, addr = next, addr != (unsigned long)end);
 }
@@ -324,18 +316,6 @@ void __init kasan_init(void)
 	memcpy(early_top_pgt, init_top_pgt, sizeof(early_top_pgt));
 
 	/*
-	 * We use the same shadow offset for 4- and 5-level paging to
-	 * facilitate boot-time switching between paging modes.
-	 * As result in 5-level paging mode KASAN_SHADOW_START and
-	 * KASAN_SHADOW_END are not aligned to PGD boundary.
-	 *
-	 * KASAN_SHADOW_START doesn't share PGD with anything else.
-	 * We claim whole PGD entry to make things easier.
-	 *
-	 * KASAN_SHADOW_END lands in the last PGD entry and it collides with
-	 * bunch of things like kernel code, modules, EFI mapping, etc.
-	 * We need to take extra steps to not overwrite them.
-	 */
 	if (pgtable_l5_enabled()) {
 		void *ptr;
 
@@ -376,10 +356,6 @@ void __init kasan_init(void)
 		kasan_mem_to_shadow((void *)VMALLOC_START));
 
 	/*
-	 * If we're in full vmalloc mode, don't back vmalloc space with early
-	 * shadow pages. Instead, prepopulate pgds/p4ds so they are synced to
-	 * the global table and we can populate the lower levels on demand.
-	 */
 	if (IS_ENABLED(CONFIG_KASAN_VMALLOC))
 		kasan_shallow_populate_pgds(
 			kasan_mem_to_shadow((void *)VMALLOC_START),
@@ -410,10 +386,6 @@ void __init kasan_init(void)
 	__flush_tlb_all();
 
 	/*
-	 * kasan_early_shadow_page has been used as early shadow memory, thus
-	 * it may contain some garbage. Now we can clear and write protect it,
-	 * since after the TLB flush no one should write to it.
-	 */
 	memset(kasan_early_shadow_page, 0, PAGE_SIZE);
 	for (i = 0; i < PTRS_PER_PTE; i++) {
 		pte_t pte;

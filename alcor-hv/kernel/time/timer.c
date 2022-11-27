@@ -1,22 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- *  Kernel internal timers
- *
- *  Copyright (C) 1991, 1992  Linus Torvalds
- *
- *  1997-01-28  Modified by Finn Arne Gangstad to make timers scale better.
- *
- *  1997-09-10  Updated NTP code according to technical memorandum Jan '96
- *              "A Kernel Model for Precision Timekeeping" by Dave Mills
- *  1998-12-24  Fixed a xtime SMP race (we need the xtime_lock rw spinlock to
- *              serialize accesses to xtime/lost_ticks).
- *                              Copyright (C) 1998  Andrea Arcangeli
- *  1999-03-10  Improved NTP compatibility by Ulrich Windl
- *  2002-05-31	Move sys_sysinfo here and make its locking sane, Robert Love
- *  2000-10-05  Implemented scalable SMP per-CPU timer handling.
- *                              Copyright (C) 2000, 2001, 2002  Ingo Molnar
- *              Designed by David S. Miller, Alexey Kuznetsov and Ingo Molnar
- */
 
 #include <linux/kernel_stat.h>
 #include <linux/export.h>
@@ -61,129 +42,29 @@ __visible u64 jiffies_64 __cacheline_aligned_in_smp = INITIAL_JIFFIES;
 
 EXPORT_SYMBOL(jiffies_64);
 
-/*
- * The timer wheel has LVL_DEPTH array levels. Each level provides an array of
- * LVL_SIZE buckets. Each level is driven by its own clock and therefor each
- * level has a different granularity.
- *
- * The level granularity is:		LVL_CLK_DIV ^ lvl
- * The level clock frequency is:	HZ / (LVL_CLK_DIV ^ level)
- *
- * The array level of a newly armed timer depends on the relative expiry
- * time. The farther the expiry time is away the higher the array level and
- * therefor the granularity becomes.
- *
- * Contrary to the original timer wheel implementation, which aims for 'exact'
- * expiry of the timers, this implementation removes the need for recascading
- * the timers into the lower array levels. The previous 'classic' timer wheel
- * implementation of the kernel already violated the 'exact' expiry by adding
- * slack to the expiry time to provide batched expiration. The granularity
- * levels provide implicit batching.
- *
- * This is an optimization of the original timer wheel implementation for the
- * majority of the timer wheel use cases: timeouts. The vast majority of
- * timeout timers (networking, disk I/O ...) are canceled before expiry. If
- * the timeout expires it indicates that normal operation is disturbed, so it
- * does not matter much whether the timeout comes with a slight delay.
- *
- * The only exception to this are networking timers with a small expiry
- * time. They rely on the granularity. Those fit into the first wheel level,
- * which has HZ granularity.
- *
- * We don't have cascading anymore. timers with a expiry time above the
- * capacity of the last wheel level are force expired at the maximum timeout
- * value of the last wheel level. From data sampling we know that the maximum
- * value observed is 5 days (network connection tracking), so this should not
- * be an issue.
- *
- * The currently chosen array constants values are a good compromise between
- * array size and granularity.
- *
- * This results in the following granularity and range levels:
- *
- * HZ 1000 steps
- * Level Offset  Granularity            Range
- *  0      0         1 ms                0 ms -         63 ms
- *  1     64         8 ms               64 ms -        511 ms
- *  2    128        64 ms              512 ms -       4095 ms (512ms - ~4s)
- *  3    192       512 ms             4096 ms -      32767 ms (~4s - ~32s)
- *  4    256      4096 ms (~4s)      32768 ms -     262143 ms (~32s - ~4m)
- *  5    320     32768 ms (~32s)    262144 ms -    2097151 ms (~4m - ~34m)
- *  6    384    262144 ms (~4m)    2097152 ms -   16777215 ms (~34m - ~4h)
- *  7    448   2097152 ms (~34m)  16777216 ms -  134217727 ms (~4h - ~1d)
- *  8    512  16777216 ms (~4h)  134217728 ms - 1073741822 ms (~1d - ~12d)
- *
- * HZ  300
- * Level Offset  Granularity            Range
- *  0	   0         3 ms                0 ms -        210 ms
- *  1	  64        26 ms              213 ms -       1703 ms (213ms - ~1s)
- *  2	 128       213 ms             1706 ms -      13650 ms (~1s - ~13s)
- *  3	 192      1706 ms (~1s)      13653 ms -     109223 ms (~13s - ~1m)
- *  4	 256     13653 ms (~13s)    109226 ms -     873810 ms (~1m - ~14m)
- *  5	 320    109226 ms (~1m)     873813 ms -    6990503 ms (~14m - ~1h)
- *  6	 384    873813 ms (~14m)   6990506 ms -   55924050 ms (~1h - ~15h)
- *  7	 448   6990506 ms (~1h)   55924053 ms -  447392423 ms (~15h - ~5d)
- *  8    512  55924053 ms (~15h) 447392426 ms - 3579139406 ms (~5d - ~41d)
- *
- * HZ  250
- * Level Offset  Granularity            Range
- *  0	   0         4 ms                0 ms -        255 ms
- *  1	  64        32 ms              256 ms -       2047 ms (256ms - ~2s)
- *  2	 128       256 ms             2048 ms -      16383 ms (~2s - ~16s)
- *  3	 192      2048 ms (~2s)      16384 ms -     131071 ms (~16s - ~2m)
- *  4	 256     16384 ms (~16s)    131072 ms -    1048575 ms (~2m - ~17m)
- *  5	 320    131072 ms (~2m)    1048576 ms -    8388607 ms (~17m - ~2h)
- *  6	 384   1048576 ms (~17m)   8388608 ms -   67108863 ms (~2h - ~18h)
- *  7	 448   8388608 ms (~2h)   67108864 ms -  536870911 ms (~18h - ~6d)
- *  8    512  67108864 ms (~18h) 536870912 ms - 4294967288 ms (~6d - ~49d)
- *
- * HZ  100
- * Level Offset  Granularity            Range
- *  0	   0         10 ms               0 ms -        630 ms
- *  1	  64         80 ms             640 ms -       5110 ms (640ms - ~5s)
- *  2	 128        640 ms            5120 ms -      40950 ms (~5s - ~40s)
- *  3	 192       5120 ms (~5s)     40960 ms -     327670 ms (~40s - ~5m)
- *  4	 256      40960 ms (~40s)   327680 ms -    2621430 ms (~5m - ~43m)
- *  5	 320     327680 ms (~5m)   2621440 ms -   20971510 ms (~43m - ~5h)
- *  6	 384    2621440 ms (~43m) 20971520 ms -  167772150 ms (~5h - ~1d)
- *  7	 448   20971520 ms (~5h) 167772160 ms - 1342177270 ms (~1d - ~15d)
- */
 
-/* Clock divisor for the next level */
 #define LVL_CLK_SHIFT	3
 #define LVL_CLK_DIV	(1UL << LVL_CLK_SHIFT)
 #define LVL_CLK_MASK	(LVL_CLK_DIV - 1)
 #define LVL_SHIFT(n)	((n) * LVL_CLK_SHIFT)
 #define LVL_GRAN(n)	(1UL << LVL_SHIFT(n))
 
-/*
- * The time start value for each level to select the bucket at enqueue
- * time. We start from the last possible delta of the previous level
- * so that we can later add an extra LVL_GRAN(n) to n (see calc_index()).
- */
 #define LVL_START(n)	((LVL_SIZE - 1) << (((n) - 1) * LVL_CLK_SHIFT))
 
-/* Size of each clock level */
 #define LVL_BITS	6
 #define LVL_SIZE	(1UL << LVL_BITS)
 #define LVL_MASK	(LVL_SIZE - 1)
 #define LVL_OFFS(n)	((n) * LVL_SIZE)
 
-/* Level depth */
 #if HZ > 100
 # define LVL_DEPTH	9
 # else
 # define LVL_DEPTH	8
 #endif
 
-/* The cutoff (max. capacity of the wheel) */
 #define WHEEL_TIMEOUT_CUTOFF	(LVL_START(LVL_DEPTH))
 #define WHEEL_TIMEOUT_MAX	(WHEEL_TIMEOUT_CUTOFF - LVL_GRAN(LVL_DEPTH - 1))
 
-/*
- * The resulting wheel size. If NOHZ is configured we allocate two
- * wheels so we have a separate storage for the deferrable timers.
- */
 #define WHEEL_SIZE	(LVL_SIZE * LVL_DEPTH)
 
 #ifdef CONFIG_NO_HZ_COMMON
@@ -302,24 +183,11 @@ static unsigned long round_jiffies_common(unsigned long j, int cpu,
 	unsigned long original = j;
 
 	/*
-	 * We don't want all cpus firing their timers at once hitting the
-	 * same lock or cachelines, so we skew each extra cpu with an extra
-	 * 3 jiffies. This 3 jiffies came originally from the mm/ code which
-	 * already did this.
-	 * The skew is done by adding 3*cpunr, then round, then subtract this
-	 * extra offset again.
-	 */
 	j += cpu * 3;
 
 	rem = j % HZ;
 
 	/*
-	 * If the target jiffie is just after a whole second (which can happen
-	 * due to delays of the timer irq, long irq off times etc etc) then
-	 * we should round down to the whole second, not up. Use 1/4th second
-	 * as cutoff for this rounding as an extreme upper bound for this.
-	 * But never round down if @force_up is set.
-	 */
 	if (rem < HZ/4 && !force_up) /* round down */
 		j = j - rem;
 	else /* round up */
@@ -329,58 +197,15 @@ static unsigned long round_jiffies_common(unsigned long j, int cpu,
 	j -= cpu * 3;
 
 	/*
-	 * Make sure j is still in the future. Otherwise return the
-	 * unmodified value.
-	 */
 	return time_is_after_jiffies(j) ? j : original;
 }
 
-/**
- * __round_jiffies - function to round jiffies to a full second
- * @j: the time in (absolute) jiffies that should be rounded
- * @cpu: the processor number on which the timeout will happen
- *
- * __round_jiffies() rounds an absolute time in the future (in jiffies)
- * up or down to (approximately) full seconds. This is useful for timers
- * for which the exact time they fire does not matter too much, as long as
- * they fire approximately every X seconds.
- *
- * By rounding these timers to whole seconds, all such timers will fire
- * at the same time, rather than at various times spread out. The goal
- * of this is to have the CPU wake up less, which saves power.
- *
- * The exact rounding is skewed for each processor to avoid all
- * processors firing at the exact same time, which could lead
- * to lock contention or spurious cache line bouncing.
- *
- * The return value is the rounded version of the @j parameter.
- */
 unsigned long __round_jiffies(unsigned long j, int cpu)
 {
 	return round_jiffies_common(j, cpu, false);
 }
 EXPORT_SYMBOL_GPL(__round_jiffies);
 
-/**
- * __round_jiffies_relative - function to round jiffies to a full second
- * @j: the time in (relative) jiffies that should be rounded
- * @cpu: the processor number on which the timeout will happen
- *
- * __round_jiffies_relative() rounds a time delta  in the future (in jiffies)
- * up or down to (approximately) full seconds. This is useful for timers
- * for which the exact time they fire does not matter too much, as long as
- * they fire approximately every X seconds.
- *
- * By rounding these timers to whole seconds, all such timers will fire
- * at the same time, rather than at various times spread out. The goal
- * of this is to have the CPU wake up less, which saves power.
- *
- * The exact rounding is skewed for each processor to avoid all
- * processors firing at the exact same time, which could lead
- * to lock contention or spurious cache line bouncing.
- *
- * The return value is the rounded version of the @j parameter.
- */
 unsigned long __round_jiffies_relative(unsigned long j, int cpu)
 {
 	unsigned long j0 = jiffies;
@@ -390,74 +215,24 @@ unsigned long __round_jiffies_relative(unsigned long j, int cpu)
 }
 EXPORT_SYMBOL_GPL(__round_jiffies_relative);
 
-/**
- * round_jiffies - function to round jiffies to a full second
- * @j: the time in (absolute) jiffies that should be rounded
- *
- * round_jiffies() rounds an absolute time in the future (in jiffies)
- * up or down to (approximately) full seconds. This is useful for timers
- * for which the exact time they fire does not matter too much, as long as
- * they fire approximately every X seconds.
- *
- * By rounding these timers to whole seconds, all such timers will fire
- * at the same time, rather than at various times spread out. The goal
- * of this is to have the CPU wake up less, which saves power.
- *
- * The return value is the rounded version of the @j parameter.
- */
 unsigned long round_jiffies(unsigned long j)
 {
 	return round_jiffies_common(j, raw_smp_processor_id(), false);
 }
 EXPORT_SYMBOL_GPL(round_jiffies);
 
-/**
- * round_jiffies_relative - function to round jiffies to a full second
- * @j: the time in (relative) jiffies that should be rounded
- *
- * round_jiffies_relative() rounds a time delta  in the future (in jiffies)
- * up or down to (approximately) full seconds. This is useful for timers
- * for which the exact time they fire does not matter too much, as long as
- * they fire approximately every X seconds.
- *
- * By rounding these timers to whole seconds, all such timers will fire
- * at the same time, rather than at various times spread out. The goal
- * of this is to have the CPU wake up less, which saves power.
- *
- * The return value is the rounded version of the @j parameter.
- */
 unsigned long round_jiffies_relative(unsigned long j)
 {
 	return __round_jiffies_relative(j, raw_smp_processor_id());
 }
 EXPORT_SYMBOL_GPL(round_jiffies_relative);
 
-/**
- * __round_jiffies_up - function to round jiffies up to a full second
- * @j: the time in (absolute) jiffies that should be rounded
- * @cpu: the processor number on which the timeout will happen
- *
- * This is the same as __round_jiffies() except that it will never
- * round down.  This is useful for timeouts for which the exact time
- * of firing does not matter too much, as long as they don't fire too
- * early.
- */
 unsigned long __round_jiffies_up(unsigned long j, int cpu)
 {
 	return round_jiffies_common(j, cpu, true);
 }
 EXPORT_SYMBOL_GPL(__round_jiffies_up);
 
-/**
- * __round_jiffies_up_relative - function to round jiffies up to a full second
- * @j: the time in (relative) jiffies that should be rounded
- * @cpu: the processor number on which the timeout will happen
- *
- * This is the same as __round_jiffies_relative() except that it will never
- * round down.  This is useful for timeouts for which the exact time
- * of firing does not matter too much, as long as they don't fire too
- * early.
- */
 unsigned long __round_jiffies_up_relative(unsigned long j, int cpu)
 {
 	unsigned long j0 = jiffies;
@@ -467,30 +242,12 @@ unsigned long __round_jiffies_up_relative(unsigned long j, int cpu)
 }
 EXPORT_SYMBOL_GPL(__round_jiffies_up_relative);
 
-/**
- * round_jiffies_up - function to round jiffies up to a full second
- * @j: the time in (absolute) jiffies that should be rounded
- *
- * This is the same as round_jiffies() except that it will never
- * round down.  This is useful for timeouts for which the exact time
- * of firing does not matter too much, as long as they don't fire too
- * early.
- */
 unsigned long round_jiffies_up(unsigned long j)
 {
 	return round_jiffies_common(j, raw_smp_processor_id(), true);
 }
 EXPORT_SYMBOL_GPL(round_jiffies_up);
 
-/**
- * round_jiffies_up_relative - function to round jiffies up to a full second
- * @j: the time in (relative) jiffies that should be rounded
- *
- * This is the same as round_jiffies_relative() except that it will never
- * round down.  This is useful for timeouts for which the exact time
- * of firing does not matter too much, as long as they don't fire too
- * early.
- */
 unsigned long round_jiffies_up_relative(unsigned long j)
 {
 	return __round_jiffies_up_relative(j, raw_smp_processor_id());
@@ -509,24 +266,12 @@ static inline void timer_set_idx(struct timer_list *timer, unsigned int idx)
 			idx << TIMER_ARRAYSHIFT;
 }
 
-/*
- * Helper function to calculate the array index for a given expiry
- * time.
- */
 static inline unsigned calc_index(unsigned long expires, unsigned lvl,
 				  unsigned long *bucket_expiry)
 {
 
 	/*
-	 * The timer wheel has to guarantee that a timer does not fire
-	 * early. Early expiry can happen due to:
-	 * - Timer is armed at the edge of a tick
-	 * - Truncation of the expiry time in the outer wheel levels
-	 *
-	 * Round up with level granularity to prevent this.
-	 */
 	expires = (expires >> LVL_SHIFT(lvl)) + 1;
-	*bucket_expiry = expires << LVL_SHIFT(lvl);
 	return LVL_OFFS(lvl) + (expires & LVL_MASK);
 }
 
@@ -557,9 +302,6 @@ static int calc_wheel_index(unsigned long expires, unsigned long clk,
 		*bucket_expiry = clk;
 	} else {
 		/*
-		 * Force expire obscene large timeouts to expire at the
-		 * capacity limit of the wheel.
-		 */
 		if (delta >= WHEEL_TIMEOUT_CUTOFF)
 			expires = clk + WHEEL_TIMEOUT_MAX;
 
@@ -575,9 +317,6 @@ trigger_dyntick_cpu(struct timer_base *base, struct timer_list *timer)
 		return;
 
 	/*
-	 * TODO: This wants some optimizing similar to the code below, but we
-	 * will do that when we switch from push to pull for deferrable timers.
-	 */
 	if (timer->flags & TIMER_DEFERRABLE) {
 		if (tick_nohz_full_cpu(base->cpu))
 			wake_up_nohz_cpu(base->cpu);
@@ -585,19 +324,10 @@ trigger_dyntick_cpu(struct timer_base *base, struct timer_list *timer)
 	}
 
 	/*
-	 * We might have to IPI the remote CPU if the base is idle and the
-	 * timer is not deferrable. If the other CPU is on the way to idle
-	 * then it can't set base->is_idle as we hold the base lock:
-	 */
 	if (base->is_idle)
 		wake_up_nohz_cpu(base->cpu);
 }
 
-/*
- * Enqueue the timer into the hash bucket, mark it pending in
- * the bitmap, store the index in the timer flags then wake up
- * the target CPU if needed.
- */
 static void enqueue_timer(struct timer_base *base, struct timer_list *timer,
 			  unsigned int idx, unsigned long bucket_expiry)
 {
@@ -609,15 +339,8 @@ static void enqueue_timer(struct timer_base *base, struct timer_list *timer,
 	trace_timer_start(timer, timer->expires, timer->flags);
 
 	/*
-	 * Check whether this is the new first expiring timer. The
-	 * effective expiry time of the timer is required here
-	 * (bucket_expiry) instead of timer->expires.
-	 */
 	if (time_before(bucket_expiry, base->next_expiry)) {
 		/*
-		 * Set the next expiry time and kick the CPU so it
-		 * can reevaluate the wheel:
-		 */
 		base->next_expiry = bucket_expiry;
 		base->timers_pending = true;
 		base->next_expiry_recalc = false;
@@ -681,10 +404,6 @@ static bool timer_is_static_object(void *addr)
 		timer->entry.next == TIMER_ENTRY_STATIC);
 }
 
-/*
- * fixup_init is called when:
- * - an active object is initialized
- */
 static bool timer_fixup_init(void *addr, enum debug_obj_state state)
 {
 	struct timer_list *timer = addr;
@@ -699,17 +418,11 @@ static bool timer_fixup_init(void *addr, enum debug_obj_state state)
 	}
 }
 
-/* Stub timer callback for improperly used timers. */
 static void stub_timer(struct timer_list *unused)
 {
 	WARN_ON(1);
 }
 
-/*
- * fixup_activate is called when:
- * - an active object is activated
- * - an unknown non-static object is activated
- */
 static bool timer_fixup_activate(void *addr, enum debug_obj_state state)
 {
 	struct timer_list *timer = addr;
@@ -727,10 +440,6 @@ static bool timer_fixup_activate(void *addr, enum debug_obj_state state)
 	}
 }
 
-/*
- * fixup_free is called when:
- * - an active object is freed
- */
 static bool timer_fixup_free(void *addr, enum debug_obj_state state)
 {
 	struct timer_list *timer = addr;
@@ -745,10 +454,6 @@ static bool timer_fixup_free(void *addr, enum debug_obj_state state)
 	}
 }
 
-/*
- * fixup_assert_init is called when:
- * - an untracked/uninit-ed object is found
- */
 static bool timer_fixup_assert_init(void *addr, enum debug_obj_state state)
 {
 	struct timer_list *timer = addr;
@@ -850,18 +555,6 @@ static void do_init_timer(struct timer_list *timer,
 	lockdep_init_map(&timer->lockdep_map, name, key, 0);
 }
 
-/**
- * init_timer_key - initialize a timer
- * @timer: the timer to be initialized
- * @func: timer callback function
- * @flags: timer flags
- * @name: name of the timer
- * @key: lockdep class key of the fake lock used for tracking timer
- *       sync lock dependencies
- *
- * init_timer_key() must be done to a timer prior calling *any* of the
- * other timer functions.
- */
 void init_timer_key(struct timer_list *timer,
 		    void (*func)(struct timer_list *), unsigned int flags,
 		    const char *name, struct lock_class_key *key)
@@ -905,9 +598,6 @@ static inline struct timer_base *get_timer_cpu_base(u32 tflags, u32 cpu)
 	struct timer_base *base = per_cpu_ptr(&timer_bases[BASE_STD], cpu);
 
 	/*
-	 * If the timer is deferrable and NO_HZ_COMMON is set then we need
-	 * to use the deferrable base.
-	 */
 	if (IS_ENABLED(CONFIG_NO_HZ_COMMON) && (tflags & TIMER_DEFERRABLE))
 		base = per_cpu_ptr(&timer_bases[BASE_DEF], cpu);
 	return base;
@@ -918,9 +608,6 @@ static inline struct timer_base *get_timer_this_cpu_base(u32 tflags)
 	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
 
 	/*
-	 * If the timer is deferrable and NO_HZ_COMMON is set then we need
-	 * to use the deferrable base.
-	 */
 	if (IS_ENABLED(CONFIG_NO_HZ_COMMON) && (tflags & TIMER_DEFERRABLE))
 		base = this_cpu_ptr(&timer_bases[BASE_DEF]);
 	return base;
@@ -947,17 +634,10 @@ static inline void forward_timer_base(struct timer_base *base)
 	unsigned long jnow = READ_ONCE(jiffies);
 
 	/*
-	 * No need to forward if we are close enough below jiffies.
-	 * Also while executing timers, base->clk is 1 offset ahead
-	 * of jiffies to avoid endless requeuing to current jiffies.
-	 */
 	if ((long)(jnow - base->clk) < 1)
 		return;
 
 	/*
-	 * If the next expiry value is > jiffies, then we fast forward to
-	 * jiffies otherwise we forward to the next expiry value.
-	 */
 	if (time_after(base->next_expiry, jnow)) {
 		base->clk = jnow;
 	} else {
@@ -968,17 +648,6 @@ static inline void forward_timer_base(struct timer_base *base)
 }
 
 
-/*
- * We are using hashed locking: Holding per_cpu(timer_bases[x]).lock means
- * that all timers which are tied to this base are locked, and the base itself
- * is locked too.
- *
- * So __run_timers/migrate_timers can safely modify all timers which could
- * be found in the base->vectors array.
- *
- * When a timer is migrating then the TIMER_MIGRATING flag is set and we need
- * to wait until the migration is done.
- */
 static struct timer_base *lock_timer_base(struct timer_list *timer,
 					  unsigned long *flags)
 	__acquires(timer->base->lock)
@@ -988,10 +657,6 @@ static struct timer_base *lock_timer_base(struct timer_list *timer,
 		u32 tf;
 
 		/*
-		 * We need to use READ_ONCE() here, otherwise the compiler
-		 * might re-read @tf between the check for TIMER_MIGRATING
-		 * and spin_lock().
-		 */
 		tf = READ_ONCE(timer->flags);
 
 		if (!(tf & TIMER_MIGRATING)) {
@@ -1020,16 +685,8 @@ __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int option
 	BUG_ON(!timer->function);
 
 	/*
-	 * This is a common optimization triggered by the networking code - if
-	 * the timer is re-modified to have the same timeout or ends up in the
-	 * same array bucket then just return:
-	 */
 	if (!(options & MOD_TIMER_NOTPENDING) && timer_pending(timer)) {
 		/*
-		 * The downside of this optimization is that it can result in
-		 * larger granularity than you would get from adding a new
-		 * timer with this expiry.
-		 */
 		long diff = timer->expires - expires;
 
 		if (!diff)
@@ -1038,11 +695,6 @@ __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int option
 			return 1;
 
 		/*
-		 * We lock timer base and calculate the bucket index right
-		 * here. If the timer ends up in the same bucket, then we
-		 * just update the expiry time and avoid the whole
-		 * dequeue/enqueue dance.
-		 */
 		base = lock_timer_base(timer, &flags);
 		forward_timer_base(base);
 
@@ -1056,10 +708,6 @@ __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int option
 		idx = calc_wheel_index(expires, clk, &bucket_expiry);
 
 		/*
-		 * Retrieve and compare the array index of the pending
-		 * timer. If it matches set the expiry to the new value so a
-		 * subsequent call will exit in the expires check above.
-		 */
 		if (idx == timer_get_idx(timer)) {
 			if (!(options & MOD_TIMER_REDUCE))
 				timer->expires = expires;
@@ -1081,12 +729,6 @@ __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int option
 
 	if (base != new_base) {
 		/*
-		 * We are trying to schedule the timer on the new base.
-		 * However we can't change timer's base while it is running,
-		 * otherwise del_timer_sync() can't detect that the timer's
-		 * handler yet has not finished. This also guarantees that the
-		 * timer is serialized wrt itself.
-		 */
 		if (likely(base->running_timer != timer)) {
 			/* See the comment in lock_timer_base() */
 			timer->flags |= TIMER_MIGRATING;
@@ -1104,11 +746,6 @@ __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int option
 
 	timer->expires = expires;
 	/*
-	 * If 'idx' was calculated above and the base time did not advance
-	 * between calculating 'idx' and possibly switching the base, only
-	 * enqueue_timer() is required. Otherwise we need to (re)calculate
-	 * the wheel index via internal_add_timer().
-	 */
 	if (idx != UINT_MAX && clk == base->clk)
 		enqueue_timer(base, timer, idx, bucket_expiry);
 	else
@@ -1120,77 +757,24 @@ out_unlock:
 	return ret;
 }
 
-/**
- * mod_timer_pending - modify a pending timer's timeout
- * @timer: the pending timer to be modified
- * @expires: new timeout in jiffies
- *
- * mod_timer_pending() is the same for pending timers as mod_timer(),
- * but will not re-activate and modify already deleted timers.
- *
- * It is useful for unserialized use of timers.
- */
 int mod_timer_pending(struct timer_list *timer, unsigned long expires)
 {
 	return __mod_timer(timer, expires, MOD_TIMER_PENDING_ONLY);
 }
 EXPORT_SYMBOL(mod_timer_pending);
 
-/**
- * mod_timer - modify a timer's timeout
- * @timer: the timer to be modified
- * @expires: new timeout in jiffies
- *
- * mod_timer() is a more efficient way to update the expire field of an
- * active timer (if the timer is inactive it will be activated)
- *
- * mod_timer(timer, expires) is equivalent to:
- *
- *     del_timer(timer); timer->expires = expires; add_timer(timer);
- *
- * Note that if there are multiple unserialized concurrent users of the
- * same timer, then mod_timer() is the only safe way to modify the timeout,
- * since add_timer() cannot modify an already running timer.
- *
- * The function returns whether it has modified a pending timer or not.
- * (ie. mod_timer() of an inactive timer returns 0, mod_timer() of an
- * active timer returns 1.)
- */
 int mod_timer(struct timer_list *timer, unsigned long expires)
 {
 	return __mod_timer(timer, expires, 0);
 }
 EXPORT_SYMBOL(mod_timer);
 
-/**
- * timer_reduce - Modify a timer's timeout if it would reduce the timeout
- * @timer:	The timer to be modified
- * @expires:	New timeout in jiffies
- *
- * timer_reduce() is very similar to mod_timer(), except that it will only
- * modify a running timer if that would reduce the expiration time (it will
- * start a timer that isn't running).
- */
 int timer_reduce(struct timer_list *timer, unsigned long expires)
 {
 	return __mod_timer(timer, expires, MOD_TIMER_REDUCE);
 }
 EXPORT_SYMBOL(timer_reduce);
 
-/**
- * add_timer - start a timer
- * @timer: the timer to be added
- *
- * The kernel will do a ->function(@timer) callback from the
- * timer interrupt at the ->expires point in the future. The
- * current time is 'jiffies'.
- *
- * The timer's ->expires, ->function fields must be set prior calling this
- * function.
- *
- * Timers with an ->expires field in the past will be executed in the next
- * timer tick.
- */
 void add_timer(struct timer_list *timer)
 {
 	BUG_ON(timer_pending(timer));
@@ -1198,13 +782,6 @@ void add_timer(struct timer_list *timer)
 }
 EXPORT_SYMBOL(add_timer);
 
-/**
- * add_timer_on - start a timer on a particular CPU
- * @timer: the timer to be added
- * @cpu: the CPU to start it on
- *
- * This is not very scalable on SMP. Double adds are not possible.
- */
 void add_timer_on(struct timer_list *timer, int cpu)
 {
 	struct timer_base *new_base, *base;
@@ -1215,10 +792,6 @@ void add_timer_on(struct timer_list *timer, int cpu)
 	new_base = get_timer_cpu_base(timer->flags, cpu);
 
 	/*
-	 * If @timer was on a different CPU, it should be migrated with the
-	 * old base locked to prevent other operations proceeding with the
-	 * wrong base locked.  See lock_timer_base().
-	 */
 	base = lock_timer_base(timer, &flags);
 	if (base != new_base) {
 		timer->flags |= TIMER_MIGRATING;
@@ -1237,17 +810,6 @@ void add_timer_on(struct timer_list *timer, int cpu)
 }
 EXPORT_SYMBOL_GPL(add_timer_on);
 
-/**
- * del_timer - deactivate a timer.
- * @timer: the timer to be deactivated
- *
- * del_timer() deactivates a timer - this works on both active and inactive
- * timers.
- *
- * The function returns whether it has deactivated a pending timer or not.
- * (ie. del_timer() of an inactive timer returns 0, del_timer() of an
- * active timer returns 1.)
- */
 int del_timer(struct timer_list *timer)
 {
 	struct timer_base *base;
@@ -1266,13 +828,6 @@ int del_timer(struct timer_list *timer)
 }
 EXPORT_SYMBOL(del_timer);
 
-/**
- * try_to_del_timer_sync - Try to deactivate a timer
- * @timer: timer to delete
- *
- * This function tries to deactivate a timer. Upon successful (ret >= 0)
- * exit the timer is not queued and the handler is not running on any CPU.
- */
 int try_to_del_timer_sync(struct timer_list *timer)
 {
 	struct timer_base *base;
@@ -1308,13 +863,6 @@ static inline void timer_base_unlock_expiry(struct timer_base *base)
 	spin_unlock(&base->expiry_lock);
 }
 
-/*
- * The counterpart to del_timer_wait_running().
- *
- * If there is a waiter for base->expiry_lock, then it was waiting for the
- * timer callback to finish. Drop expiry_lock and reacquire it. That allows
- * the waiter to acquire the lock and make progress.
- */
 static void timer_sync_wait_running(struct timer_base *base)
 {
 	if (atomic_read(&base->timer_waiters)) {
@@ -1325,16 +873,6 @@ static void timer_sync_wait_running(struct timer_base *base)
 	}
 }
 
-/*
- * This function is called on PREEMPT_RT kernels when the fast path
- * deletion of a timer failed because the timer callback function was
- * running.
- *
- * This prevents priority inversion, if the softirq thread on a remote CPU
- * got preempted, and it prevents a life lock when the task which tries to
- * delete a timer preempted the softirq thread running the timer callback
- * function.
- */
 static void del_timer_wait_running(struct timer_list *timer)
 {
 	u32 tf;
@@ -1344,13 +882,6 @@ static void del_timer_wait_running(struct timer_list *timer)
 		struct timer_base *base = get_timer_base(tf);
 
 		/*
-		 * Mark the base as contended and grab the expiry lock,
-		 * which is held by the softirq across the timer
-		 * callback. Drop the lock immediately so the softirq can
-		 * expire the next timer. In theory the timer could already
-		 * be running again, but that's more than unlikely and just
-		 * causes another wait loop.
-		 */
 		atomic_inc(&base->timer_waiters);
 		spin_lock_bh(&base->expiry_lock);
 		atomic_dec(&base->timer_waiters);
@@ -1366,42 +897,6 @@ static inline void del_timer_wait_running(struct timer_list *timer) { }
 #endif
 
 #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT_RT)
-/**
- * del_timer_sync - deactivate a timer and wait for the handler to finish.
- * @timer: the timer to be deactivated
- *
- * This function only differs from del_timer() on SMP: besides deactivating
- * the timer it also makes sure the handler has finished executing on other
- * CPUs.
- *
- * Synchronization rules: Callers must prevent restarting of the timer,
- * otherwise this function is meaningless. It must not be called from
- * interrupt contexts unless the timer is an irqsafe one. The caller must
- * not hold locks which would prevent completion of the timer's
- * handler. The timer's handler must not call add_timer_on(). Upon exit the
- * timer is not queued and the handler is not running on any CPU.
- *
- * Note: For !irqsafe timers, you must not hold locks that are held in
- *   interrupt context while calling this function. Even if the lock has
- *   nothing to do with the timer in question.  Here's why::
- *
- *    CPU0                             CPU1
- *    ----                             ----
- *                                     <SOFTIRQ>
- *                                       call_timer_fn();
- *                                       base->running_timer = mytimer;
- *    spin_lock_irq(somelock);
- *                                     <IRQ>
- *                                        spin_lock(somelock);
- *    del_timer_sync(mytimer);
- *    while (base->running_timer == mytimer);
- *
- * Now del_timer_sync() will never return and never release somelock.
- * The interrupt on the other CPU is waiting to grab somelock but
- * it has interrupted the softirq that CPU0 is waiting to finish.
- *
- * The function returns whether it has deactivated a pending timer or not.
- */
 int del_timer_sync(struct timer_list *timer)
 {
 	int ret;
@@ -1410,24 +905,15 @@ int del_timer_sync(struct timer_list *timer)
 	unsigned long flags;
 
 	/*
-	 * If lockdep gives a backtrace here, please reference
-	 * the synchronization rules above.
-	 */
 	local_irq_save(flags);
 	lock_map_acquire(&timer->lockdep_map);
 	lock_map_release(&timer->lockdep_map);
 	local_irq_restore(flags);
 #endif
 	/*
-	 * don't use it in hardirq context, because it
-	 * could lead to deadlock.
-	 */
 	WARN_ON(in_irq() && !(timer->flags & TIMER_IRQSAFE));
 
 	/*
-	 * Must be able to sleep on PREEMPT_RT because of the slowpath in
-	 * del_timer_wait_running().
-	 */
 	if (IS_ENABLED(CONFIG_PREEMPT_RT) && !(timer->flags & TIMER_IRQSAFE))
 		lockdep_assert_preemption_enabled();
 
@@ -1453,21 +939,11 @@ static void call_timer_fn(struct timer_list *timer,
 
 #ifdef CONFIG_LOCKDEP
 	/*
-	 * It is permissible to free the timer from inside the
-	 * function that is called from it, this we need to take into
-	 * account for lockdep too. To avoid bogus "held lock freed"
-	 * warnings as well as problems when looking into
-	 * timer->lockdep_map, make a copy and use that here.
-	 */
 	struct lockdep_map lockdep_map;
 
 	lockdep_copy_map(&lockdep_map, &timer->lockdep_map);
 #endif
 	/*
-	 * Couple the lock chain with the lock chain at
-	 * del_timer_sync() by acquiring the lock_map around the fn()
-	 * call here and in del_timer_sync().
-	 */
 	lock_map_acquire(&lockdep_map);
 
 	trace_timer_expire_entry(timer, baseclk);
@@ -1480,11 +956,6 @@ static void call_timer_fn(struct timer_list *timer,
 		WARN_ONCE(1, "timer: %pS preempt leak: %08x -> %08x\n",
 			  fn, count, preempt_count());
 		/*
-		 * Restore the preempt count. That gives us a decent
-		 * chance to survive and extract information. If the
-		 * callback kept a lock held, bad luck, but not worse
-		 * than the BUG() we had.
-		 */
 		preempt_count_set(count);
 	}
 }
@@ -1492,10 +963,6 @@ static void call_timer_fn(struct timer_list *timer,
 static void expire_timers(struct timer_base *base, struct hlist_head *head)
 {
 	/*
-	 * This value is required only for tracing. base->clk was
-	 * incremented directly before expire_timers was called. But expiry
-	 * is related to the old base->clk value.
-	 */
 	unsigned long baseclk = base->clk - 1;
 
 	while (!hlist_empty(head)) {
@@ -1549,11 +1016,6 @@ static int collect_expired_timers(struct timer_base *base,
 	return levels;
 }
 
-/*
- * Find the next pending bucket of a level. Search from level start (@offset)
- * + @clk upwards and if nothing there, search from start of the level
- * (@offset) up to @offset + clk.
- */
 static int next_pending_bucket(struct timer_base *base, unsigned offset,
 			       unsigned clk)
 {
@@ -1568,10 +1030,6 @@ static int next_pending_bucket(struct timer_base *base, unsigned offset,
 	return pos < start ? pos + LVL_SIZE - start : -1;
 }
 
-/*
- * Search the first expiring timer in the various clock levels. Caller must
- * hold base->lock.
- */
 static unsigned long __next_timer_interrupt(struct timer_base *base)
 {
 	unsigned long clk, next, adj;
@@ -1591,48 +1049,10 @@ static unsigned long __next_timer_interrupt(struct timer_base *base)
 				next = tmp;
 
 			/*
-			 * If the next expiration happens before we reach
-			 * the next level, no need to check further.
-			 */
 			if (pos <= ((LVL_CLK_DIV - lvl_clk) & LVL_CLK_MASK))
 				break;
 		}
 		/*
-		 * Clock for the next level. If the current level clock lower
-		 * bits are zero, we look at the next level as is. If not we
-		 * need to advance it by one because that's going to be the
-		 * next expiring bucket in that level. base->clk is the next
-		 * expiring jiffie. So in case of:
-		 *
-		 * LVL5 LVL4 LVL3 LVL2 LVL1 LVL0
-		 *  0    0    0    0    0    0
-		 *
-		 * we have to look at all levels @index 0. With
-		 *
-		 * LVL5 LVL4 LVL3 LVL2 LVL1 LVL0
-		 *  0    0    0    0    0    2
-		 *
-		 * LVL0 has the next expiring bucket @index 2. The upper
-		 * levels have the next expiring bucket @index 1.
-		 *
-		 * In case that the propagation wraps the next level the same
-		 * rules apply:
-		 *
-		 * LVL5 LVL4 LVL3 LVL2 LVL1 LVL0
-		 *  0    0    0    0    F    2
-		 *
-		 * So after looking at LVL0 we get:
-		 *
-		 * LVL5 LVL4 LVL3 LVL2 LVL1
-		 *  0    0    0    1    0
-		 *
-		 * So no propagation from LVL1 to LVL2 because that happened
-		 * with the add already, but then we need to propagate further
-		 * from LVL2 to LVL3.
-		 *
-		 * So the simple check whether the lower bits of the current
-		 * level are 0 or not is sufficient for all cases.
-		 */
 		adj = lvl_clk ? 1 : 0;
 		clk >>= LVL_CLK_SHIFT;
 		clk += adj;
@@ -1645,47 +1065,22 @@ static unsigned long __next_timer_interrupt(struct timer_base *base)
 }
 
 #ifdef CONFIG_NO_HZ_COMMON
-/*
- * Check, if the next hrtimer event is before the next timer wheel
- * event:
- */
 static u64 cmp_next_hrtimer_event(u64 basem, u64 expires)
 {
 	u64 nextevt = hrtimer_get_next_event();
 
 	/*
-	 * If high resolution timers are enabled
-	 * hrtimer_get_next_event() returns KTIME_MAX.
-	 */
 	if (expires <= nextevt)
 		return expires;
 
 	/*
-	 * If the next timer is already expired, return the tick base
-	 * time so the tick is fired immediately.
-	 */
 	if (nextevt <= basem)
 		return basem;
 
 	/*
-	 * Round up to the next jiffie. High resolution timers are
-	 * off, so the hrtimers are expired in the tick and we need to
-	 * make sure that this tick really expires the timer to avoid
-	 * a ping pong of the nohz stop code.
-	 *
-	 * Use DIV_ROUND_UP_ULL to prevent gcc calling __divdi3
-	 */
 	return DIV_ROUND_UP_ULL(nextevt, TICK_NSEC) * TICK_NSEC;
 }
 
-/**
- * get_next_timer_interrupt - return the time (clock mono) of the next timer
- * @basej:	base time jiffies
- * @basem:	base time clock monotonic
- *
- * Returns the tick aligned clock monotonic time of the next pending
- * timer or KTIME_MAX if no timer is pending.
- */
 u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 {
 	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
@@ -1693,9 +1088,6 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 	unsigned long nextevt;
 
 	/*
-	 * Pretend that there is no timer pending if the cpu is offline.
-	 * Possible pending timers will be migrated later to an active cpu.
-	 */
 	if (cpu_is_offline(smp_processor_id()))
 		return expires;
 
@@ -1705,10 +1097,6 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 	nextevt = base->next_expiry;
 
 	/*
-	 * We have a fresh next event. Check whether we can forward the
-	 * base. We can only do that when @basej is past base->clk
-	 * otherwise we might rewind base->clk.
-	 */
 	if (time_after(basej, base->clk)) {
 		if (time_after(nextevt, basej))
 			base->clk = basej;
@@ -1723,12 +1111,6 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 		if (base->timers_pending)
 			expires = basem + (u64)(nextevt - basej) * TICK_NSEC;
 		/*
-		 * If we expect to sleep more than a tick, mark the base idle.
-		 * Also the tick is stopped so any added timer must forward
-		 * the base clk itself to keep granularity small. This idle
-		 * logic is only maintained for the BASE_STD base, deferrable
-		 * timers may still see large granularity skew (by design).
-		 */
 		if ((expires - basem) > TICK_NSEC)
 			base->is_idle = true;
 	}
@@ -1737,29 +1119,15 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 	return cmp_next_hrtimer_event(basem, expires);
 }
 
-/**
- * timer_clear_idle - Clear the idle state of the timer base
- *
- * Called with interrupts disabled
- */
 void timer_clear_idle(void)
 {
 	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
 
 	/*
-	 * We do this unlocked. The worst outcome is a remote enqueue sending
-	 * a pointless IPI, but taking the lock would just make the window for
-	 * sending the IPI a few instructions smaller for the cost of taking
-	 * the lock in the exit from idle path.
-	 */
 	base->is_idle = false;
 }
 #endif
 
-/**
- * __run_timers - run all expired timers (if any) on this CPU.
- * @base: the timer vector to be processed.
- */
 static inline void __run_timers(struct timer_base *base)
 {
 	struct hlist_head heads[LVL_DEPTH];
@@ -1775,12 +1143,6 @@ static inline void __run_timers(struct timer_base *base)
 	       time_after_eq(jiffies, base->next_expiry)) {
 		levels = collect_expired_timers(base, heads);
 		/*
-		 * The two possible reasons for not finding any expired
-		 * timer at this clk are that all matching timers have been
-		 * dequeued or no timer has been queued since
-		 * base::next_expiry was set to base::clk +
-		 * NEXT_TIMER_MAX_DELTA.
-		 */
 		WARN_ON_ONCE(!levels && !base->next_expiry_recalc
 			     && base->timers_pending);
 		base->clk++;
@@ -1793,9 +1155,6 @@ static inline void __run_timers(struct timer_base *base)
 	timer_base_unlock_expiry(base);
 }
 
-/*
- * This function runs timers and the timer-tq in bottom half context.
- */
 static __latent_entropy void run_timer_softirq(struct softirq_action *h)
 {
 	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
@@ -1805,9 +1164,6 @@ static __latent_entropy void run_timer_softirq(struct softirq_action *h)
 		__run_timers(this_cpu_ptr(&timer_bases[BASE_DEF]));
 }
 
-/*
- * Called by the local, per-CPU timer interrupt on SMP.
- */
 static void run_local_timers(void)
 {
 	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
@@ -1825,10 +1181,6 @@ static void run_local_timers(void)
 	raise_softirq(TIMER_SOFTIRQ);
 }
 
-/*
- * Called from the timer interrupt handler to charge one tick to the current
- * process.  user_tick is 1 if the tick is user time, 0 for system.
- */
 void update_process_times(int user_tick)
 {
 	struct task_struct *p = current;
@@ -1846,10 +1198,6 @@ void update_process_times(int user_tick)
 		run_posix_cpu_timers();
 }
 
-/*
- * Since schedule_timeout()'s timer is defined on the stack, it must store
- * the target task on the stack as well.
- */
 struct process_timer {
 	struct timer_list timer;
 	struct task_struct *task;
@@ -1862,37 +1210,6 @@ static void process_timeout(struct timer_list *t)
 	wake_up_process(timeout->task);
 }
 
-/**
- * schedule_timeout - sleep until timeout
- * @timeout: timeout value in jiffies
- *
- * Make the current task sleep until @timeout jiffies have elapsed.
- * The function behavior depends on the current task state
- * (see also set_current_state() description):
- *
- * %TASK_RUNNING - the scheduler is called, but the task does not sleep
- * at all. That happens because sched_submit_work() does nothing for
- * tasks in %TASK_RUNNING state.
- *
- * %TASK_UNINTERRUPTIBLE - at least @timeout jiffies are guaranteed to
- * pass before the routine returns unless the current task is explicitly
- * woken up, (e.g. by wake_up_process()).
- *
- * %TASK_INTERRUPTIBLE - the routine may return early if a signal is
- * delivered to the current task or the current task is explicitly woken
- * up.
- *
- * The current task state is guaranteed to be %TASK_RUNNING when this
- * routine returns.
- *
- * Specifying a @timeout value of %MAX_SCHEDULE_TIMEOUT will schedule
- * the CPU away without a bound on the timeout. In this case the return
- * value will be %MAX_SCHEDULE_TIMEOUT.
- *
- * Returns 0 when the timer has expired otherwise the remaining time in
- * jiffies will be returned. In all cases the return value is guaranteed
- * to be non-negative.
- */
 signed long __sched schedule_timeout(signed long timeout)
 {
 	struct process_timer timer;
@@ -1902,22 +1219,10 @@ signed long __sched schedule_timeout(signed long timeout)
 	{
 	case MAX_SCHEDULE_TIMEOUT:
 		/*
-		 * These two special cases are useful to be comfortable
-		 * in the caller. Nothing more. We could take
-		 * MAX_SCHEDULE_TIMEOUT from one of the negative value
-		 * but I' d like to return a valid offset (>=0) to allow
-		 * the caller to do everything it want with the retval.
-		 */
 		schedule();
 		goto out;
 	default:
 		/*
-		 * Another bit of PARANOID. Note that the retval will be
-		 * 0 since no piece of kernel is supposed to do a check
-		 * for a negative retval of schedule_timeout() (since it
-		 * should never happens anyway). You just have the printk()
-		 * that will tell you if something is gone wrong and where.
-		 */
 		if (timeout < 0) {
 			printk(KERN_ERR "schedule_timeout: wrong timeout "
 				"value %lx\n", timeout);
@@ -1945,10 +1250,6 @@ signed long __sched schedule_timeout(signed long timeout)
 }
 EXPORT_SYMBOL(schedule_timeout);
 
-/*
- * We can use __set_current_state() here because schedule_timeout() calls
- * schedule() unconditionally.
- */
 signed long __sched schedule_timeout_interruptible(signed long timeout)
 {
 	__set_current_state(TASK_INTERRUPTIBLE);
@@ -1970,10 +1271,6 @@ signed long __sched schedule_timeout_uninterruptible(signed long timeout)
 }
 EXPORT_SYMBOL(schedule_timeout_uninterruptible);
 
-/*
- * Like schedule_timeout_uninterruptible(), except this task will not contribute
- * to load average.
- */
 signed long __sched schedule_timeout_idle(signed long timeout)
 {
 	__set_current_state(TASK_IDLE);
@@ -2023,16 +1320,10 @@ int timers_dead_cpu(unsigned int cpu)
 		old_base = per_cpu_ptr(&timer_bases[b], cpu);
 		new_base = get_cpu_ptr(&timer_bases[b]);
 		/*
-		 * The caller is globally serialized and nobody else
-		 * takes two locks at once, deadlock is not possible.
-		 */
 		raw_spin_lock_irq(&new_base->lock);
 		raw_spin_lock_nested(&old_base->lock, SINGLE_DEPTH_NESTING);
 
 		/*
-		 * The current CPUs base clock might be stale. Update it
-		 * before moving the timers over.
-		 */
 		forward_timer_base(new_base);
 
 		BUG_ON(old_base->running_timer);
@@ -2079,10 +1370,6 @@ void __init init_timers(void)
 	open_softirq(TIMER_SOFTIRQ, run_timer_softirq);
 }
 
-/**
- * msleep - sleep safely even with waitqueue interruptions
- * @msecs: Time in milliseconds to sleep for
- */
 void msleep(unsigned int msecs)
 {
 	unsigned long timeout = msecs_to_jiffies(msecs) + 1;
@@ -2093,10 +1380,6 @@ void msleep(unsigned int msecs)
 
 EXPORT_SYMBOL(msleep);
 
-/**
- * msleep_interruptible - sleep waiting for signals
- * @msecs: Time in milliseconds to sleep for
- */
 unsigned long msleep_interruptible(unsigned int msecs)
 {
 	unsigned long timeout = msecs_to_jiffies(msecs) + 1;
@@ -2108,18 +1391,6 @@ unsigned long msleep_interruptible(unsigned int msecs)
 
 EXPORT_SYMBOL(msleep_interruptible);
 
-/**
- * usleep_range_state - Sleep for an approximate time in a given state
- * @min:	Minimum time in usecs to sleep
- * @max:	Maximum time in usecs to sleep
- * @state:	State of the current task that will be while sleeping
- *
- * In non-atomic context where the exact wakeup time is flexible, use
- * usleep_range_state() instead of udelay().  The sleep improves responsiveness
- * by avoiding the CPU-hogging busy-wait of udelay(), and the range reduces
- * power usage by allowing hrtimers to take advantage of an already-
- * scheduled interrupt instead of scheduling a new one just for this sleep.
- */
 void __sched usleep_range_state(unsigned long min, unsigned long max,
 				unsigned int state)
 {

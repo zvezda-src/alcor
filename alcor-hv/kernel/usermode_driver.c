@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * umd - User mode driver support
- */
 #include <linux/shmem_fs.h>
 #include <linux/pipe_fs_i.h>
 #include <linux/mount.h>
@@ -50,13 +46,6 @@ static struct vfsmount *blob_to_mnt(const void *data, size_t len, const char *na
 	return mnt;
 }
 
-/**
- * umd_load_blob - Remember a blob of bytes for fork_usermode_driver
- * @info: information about usermode driver
- * @data: a blob of bytes that can be executed as a file
- * @len:  The lentgh of the blob
- *
- */
 int umd_load_blob(struct umd_info *info, const void *data, size_t len)
 {
 	struct vfsmount *mnt;
@@ -74,11 +63,6 @@ int umd_load_blob(struct umd_info *info, const void *data, size_t len)
 }
 EXPORT_SYMBOL_GPL(umd_load_blob);
 
-/**
- * umd_unload_blob - Disassociate @info from a previously loaded blob
- * @info: information about usermode driver
- *
- */
 int umd_unload_blob(struct umd_info *info)
 {
 	if (WARN_ON_ONCE(!info->wd.mnt ||
@@ -143,10 +127,6 @@ static void umd_cleanup(struct subprocess_info *info)
 		umd_cleanup_helper(umd_info);
 }
 
-/**
- * umd_cleanup_helper - release the resources which were allocated in umd_setup
- * @info: information about usermode driver
- */
 void umd_cleanup_helper(struct umd_info *info)
 {
 	fput(info->pipe_to_umh);
@@ -156,16 +136,6 @@ void umd_cleanup_helper(struct umd_info *info)
 }
 EXPORT_SYMBOL_GPL(umd_cleanup_helper);
 
-/**
- * fork_usermode_driver - fork a usermode driver
- * @info: information about usermode driver (shouldn't be NULL)
- *
- * Returns either negative error or zero which indicates success in
- * executing a usermode driver. In such case 'struct umd_info *info'
- * is populated with two pipes and a tgid of the process. The caller is
- * responsible for health check of the user process, killing it via
- * tgid, and closing the pipes when user process is no longer needed.
- */
 int fork_usermode_driver(struct umd_info *info)
 {
 	struct subprocess_info *sub_info;

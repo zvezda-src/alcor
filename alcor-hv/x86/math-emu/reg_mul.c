@@ -1,10 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  reg_mul.c                                                                |
  |                                                                           |
  | Multiply one FPU_REG by another, put the result in a destination FPU_REG. |
  |                                                                           |
- | Copyright (C) 1992,1993,1997                                              |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
  |                  E-mail   billm@suburbia.net                              |
  |                                                                           |
@@ -12,7 +9,6 @@
  |                                                                           |
  +---------------------------------------------------------------------------*/
 
-/*---------------------------------------------------------------------------+
  | The destination may be any FPU_REG, including one of the source FPU_REGs. |
  +---------------------------------------------------------------------------*/
 
@@ -21,12 +17,6 @@
 #include "reg_constant.h"
 #include "fpu_system.h"
 
-/*
-  Multiply two registers to give a register result.
-  The sources are st(deststnr) and (b,tagb,signb).
-  The destination is st(deststnr).
-  */
-/* This routine must be called with non-empty source registers */
 int FPU_mul(FPU_REG const *b, u_char tagb, int deststnr, int control_w)
 {
 	FPU_REG *a = &st(deststnr);

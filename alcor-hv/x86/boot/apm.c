@@ -1,18 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* -*- linux-c -*- ------------------------------------------------------- *
- *
- *   Copyright (C) 1991, 1992 Linus Torvalds
- *   Copyright 2007 rPath, Inc. - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author H. Peter Anvin
- *
- *   Original APM BIOS checking by Stephen Rothwell, May 1994
- *   (sfr@canb.auug.org.au)
- *
- * ----------------------------------------------------------------------- */
 
-/*
- * Get APM BIOS information
- */
 
 #include "boot.h"
 

@@ -1,20 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * imr.h: Isolated Memory Region API
- *
- * Copyright(c) 2013 Intel Corporation.
- * Copyright(c) 2015 Bryan O'Donoghue <pure.logic@nexus-software.ie>
- */
 #ifndef _IMR_H
 #define _IMR_H
 
 #include <linux/types.h>
 
-/*
- * IMR agent access mask bits
- * See section 12.7.4.7 from quark-x1000-datasheet.pdf for register
- * definitions.
- */
 #define IMR_ESRAM_FLUSH		BIT(31)
 #define IMR_CPU_SNOOP		BIT(30)		/* Applicable only to write */
 #define IMR_RMU			BIT(29)
@@ -30,21 +18,12 @@
 #define IMR_CPU			BIT(0)		/* Non SMM mode */
 #define IMR_ACCESS_NONE		0
 
-/*
- * Read/Write access-all bits here include some reserved bits
- * These are the values firmware uses and are accepted by hardware.
- * The kernel defines read/write access-all in the same way as firmware
- * in order to have a consistent and crisp definition across firmware,
- * bootloader and kernel.
- */
 #define IMR_READ_ACCESS_ALL	0xBFFFFFFF
 #define IMR_WRITE_ACCESS_ALL	0xFFFFFFFF
 
-/* Number of IMRs provided by Quark X1000 SoC */
 #define QUARK_X1000_IMR_MAX	0x08
 #define QUARK_X1000_IMR_REGBASE 0x40
 
-/* IMR alignment bits - only bits 31:10 are checked for IMR validity */
 #define IMR_ALIGN		0x400
 #define IMR_MASK		(IMR_ALIGN - 1)
 

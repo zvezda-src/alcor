@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * trace context switch
- *
- * Copyright (C) 2007 Steven Rostedt <srostedt@redhat.com>
- *
- */
 #include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/uaccess.h>

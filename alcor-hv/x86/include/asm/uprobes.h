@@ -1,14 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _ASM_UPROBES_H
 #define _ASM_UPROBES_H
-/*
- * User-space Probes (UProbes) for x86
- *
- * Copyright (C) IBM Corporation, 2008-2011
- * Authors:
- *	Srikar Dronamraju
- *	Jim Keniston
- */
 
 #include <linux/notifier.h>
 

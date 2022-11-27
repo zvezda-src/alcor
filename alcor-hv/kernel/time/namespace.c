@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Author: Andrei Vagin <avagin@openvz.org>
- * Author: Dmitry Safonov <dima@arista.com>
- */
 
 #include <linux/time_namespace.h>
 #include <linux/user_namespace.h>
@@ -38,14 +33,8 @@ ktime_t do_timens_ktime_to_host(clockid_t clockid, ktime_t tim,
 	}
 
 	/*
-	 * Check that @tim value is in [offset, KTIME_MAX + offset]
-	 * and subtract offset.
-	 */
 	if (tim < offset) {
 		/*
-		 * User can specify @tim *absolute* value - if it's lesser than
-		 * the time namespace's offset - it's already expired.
-		 */
 		tim = 0;
 	} else {
 		tim = ktime_sub(tim, offset);
@@ -66,15 +55,6 @@ static void dec_time_namespaces(struct ucounts *ucounts)
 	dec_ucount(ucounts, UCOUNT_TIME_NAMESPACES);
 }
 
-/**
- * clone_time_ns - Clone a time namespace
- * @user_ns:	User namespace which owns a new namespace.
- * @old_ns:	Namespace to clone
- *
- * Clone @old_ns and set the clone refcount to 1
- *
- * Return: The new namespace or ERR_PTR.
- */
 static struct time_namespace *clone_time_ns(struct user_namespace *user_ns,
 					  struct time_namespace *old_ns)
 {
@@ -119,17 +99,6 @@ fail:
 	return ERR_PTR(err);
 }
 
-/**
- * copy_time_ns - Create timens_for_children from @old_ns
- * @flags:	Cloning flags
- * @user_ns:	User namespace which owns a new namespace.
- * @old_ns:	Namespace to clone
- *
- * If CLONE_NEWTIME specified in @flags, creates a new timens_for_children;
- * adds a refcounter to @old_ns otherwise.
- *
- * Return: timens_for_children namespace or ERR_PTR.
- */
 struct time_namespace *copy_time_ns(unsigned long flags,
 	struct user_namespace *user_ns, struct time_namespace *old_ns)
 {
@@ -149,33 +118,6 @@ static struct timens_offset offset_from_ts(struct timespec64 off)
 	return ret;
 }
 
-/*
- * A time namespace VVAR page has the same layout as the VVAR page which
- * contains the system wide VDSO data.
- *
- * For a normal task the VVAR pages are installed in the normal ordering:
- *     VVAR
- *     PVCLOCK
- *     HVCLOCK
- *     TIMENS   <- Not really required
- *
- * Now for a timens task the pages are installed in the following order:
- *     TIMENS
- *     PVCLOCK
- *     HVCLOCK
- *     VVAR
- *
- * The check for vdso_data->clock_mode is in the unlikely path of
- * the seq begin magic. So for the non-timens case most of the time
- * 'seq' is even, so the branch is not taken.
- *
- * If 'seq' is odd, i.e. a concurrent update is in progress, the extra check
- * for vdso_data->clock_mode is a non-issue. The task is spin waiting for the
- * update to finish and for 'seq' to become even anyway.
- *
- * Timens page has vdso_data->clock_mode set to VDSO_CLOCKMODE_TIMENS which
- * enforces the time namespace handling path.
- */
 static void timens_setup_vdso_data(struct vdso_data *vdata,
 				   struct time_namespace *ns)
 {
@@ -192,10 +134,6 @@ static void timens_setup_vdso_data(struct vdso_data *vdata,
 	offset[CLOCK_BOOTTIME_ALARM]	= boottime;
 }
 
-/*
- * Protects possibly multiple offsets writers racing each other
- * and tasks entering the namespace.
- */
 static DEFINE_MUTEX(offset_lock);
 
 static void timens_set_vvar_page(struct task_struct *task,
@@ -400,9 +338,6 @@ int proc_timens_set_offset(struct file *file, struct task_struct *p,
 
 		tp = timespec64_add(tp, off->val);
 		/*
-		 * KTIME_SEC_MAX is divided by 2 to be sure that KTIME_MAX is
-		 * still unreachable.
-		 */
 		if (tp.tv_sec < 0 || tp.tv_sec > KTIME_SEC_MAX / 2)
 			goto out;
 	}

@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/perf_event.h>
 #include <linux/types.h>
 
@@ -8,12 +7,6 @@
 
 #include "../perf_event.h"
 
-/*
- * Intel LBR_SELECT bits
- * Intel Vol3a, April 2011, Section 16.7 Table 16-10
- *
- * Hardware branch filter (not available on all CPUs)
- */
 #define LBR_KERNEL_BIT		0 /* do not capture at ring0 */
 #define LBR_USER_BIT		1 /* do not capture at ring > 0 */
 #define LBR_JCC_BIT		2 /* do not capture conditional branches */
@@ -25,11 +18,6 @@
 #define LBR_FAR_BIT		8 /* do not capture far branches */
 #define LBR_CALL_STACK_BIT	9 /* enable call stack */
 
-/*
- * Following bit only exists in Linux; we mask it out before writing it to
- * the actual MSR. But it helps the constraint perf code to understand
- * that this is a separate configuration.
- */
 #define LBR_NO_INFO_BIT	       63 /* don't read LBR_INFO. */
 
 #define LBR_KERNEL	(1 << LBR_KERNEL_BIT)
@@ -65,10 +53,6 @@
 
 #define LBR_FROM_SIGNEXT_2MSB	(BIT_ULL(60) | BIT_ULL(59))
 
-/*
- * x86control flow change classification
- * x86control flow changes include branches, interrupts, traps, faults
- */
 enum {
 	X86_BR_NONE		= 0,      /* unknown */
 
@@ -124,11 +108,6 @@ enum {
 	 X86_BR_IRQ		|\
 	 X86_BR_INT)
 
-/*
- * Intel LBR_CTL bits
- *
- * Hardware branch filter for Arch LBR
- */
 #define ARCH_LBR_KERNEL_BIT		1  /* capture at ring0 */
 #define ARCH_LBR_USER_BIT		2  /* capture at ring > 0 */
 #define ARCH_LBR_CALL_STACK_BIT		3  /* enable call stack */
@@ -172,10 +151,6 @@ static __always_inline bool is_lbr_call_stack_bit_set(u64 config)
 	return !!(config & LBR_CALL_STACK);
 }
 
-/*
- * We only support LBR implementations that have FREEZE_LBRS_ON_PMI
- * otherwise it becomes near impossible to get a reliable stack.
- */
 
 static void __intel_pmu_lbr_enable(bool pmi)
 {
@@ -183,16 +158,10 @@ static void __intel_pmu_lbr_enable(bool pmi)
 	u64 debugctl, lbr_select = 0, orig_debugctl;
 
 	/*
-	 * No need to unfreeze manually, as v4 can do that as part
-	 * of the GLOBAL_STATUS ack.
-	 */
 	if (pmi && x86_pmu.version >= 4)
 		return;
 
 	/*
-	 * No need to reprogram LBR_SELECT in a PMI, as it
-	 * did not change.
-	 */
 	if (cpuc->lbr_sel)
 		lbr_select = cpuc->lbr_sel->config & x86_pmu.lbr_sel_mask;
 	if (!static_cpu_has(X86_FEATURE_ARCH_LBR) && !pmi && cpuc->lbr_sel)
@@ -204,10 +173,6 @@ static void __intel_pmu_lbr_enable(bool pmi)
 	if (!static_cpu_has(X86_FEATURE_ARCH_LBR))
 		debugctl |= DEBUGCTLMSR_LBR;
 	/*
-	 * LBR callstack does not work well with FREEZE_LBRS_ON_PMI.
-	 * If FREEZE_LBRS_ON_PMI is set, PMI near call/return instructions
-	 * may cause superfluous increase/decrease of LBR_TOS.
-	 */
 	if (is_lbr_call_stack_bit_set(lbr_select))
 		debugctl &= ~DEBUGCTLMSR_FREEZE_LBRS_ON_PMI;
 	else
@@ -261,9 +226,6 @@ void intel_pmu_lbr_reset(void)
 		wrmsrl(MSR_LBR_SELECT, 0);
 }
 
-/*
- * TOS = most recently recorded branch
- */
 static inline u64 intel_pmu_lbr_tos(void)
 {
 	u64 tos;
@@ -277,24 +239,6 @@ enum {
 	LBR_VALID,
 };
 
-/*
- * For format LBR_FORMAT_EIP_FLAGS2, bits 61:62 in MSR_LAST_BRANCH_FROM_x
- * are the TSX flags when TSX is supported, but when TSX is not supported
- * they have no consistent behavior:
- *
- *   - For wrmsr(), bits 61:62 are considered part of the sign extension.
- *   - For HW updates (branch captures) bits 61:62 are always OFF and are not
- *     part of the sign extension.
- *
- * Therefore, if:
- *
- *   1) LBR format LBR_FORMAT_EIP_FLAGS2
- *   2) CPU has no TSX support enabled
- *
- * ... then any value passed to wrmsr() must be sign extended to 63 bits and any
- * value from rdmsr() must be converted to have a 61 bits sign extension,
- * ignoring the TSX flags.
- */
 static inline bool lbr_from_signext_quirk_needed(void)
 {
 	bool tsx_support = boot_cpu_has(X86_FEATURE_HLE) ||
@@ -305,34 +249,19 @@ static inline bool lbr_from_signext_quirk_needed(void)
 
 static DEFINE_STATIC_KEY_FALSE(lbr_from_quirk_key);
 
-/* If quirk is enabled, ensure sign extension is 63 bits: */
 inline u64 lbr_from_signext_quirk_wr(u64 val)
 {
 	if (static_branch_unlikely(&lbr_from_quirk_key)) {
 		/*
-		 * Sign extend into bits 61:62 while preserving bit 63.
-		 *
-		 * Quirk is enabled when TSX is disabled. Therefore TSX bits
-		 * in val are always OFF and must be changed to be sign
-		 * extension bits. Since bits 59:60 are guaranteed to be
-		 * part of the sign extension bits, we can just copy them
-		 * to 61:62.
-		 */
 		val |= (LBR_FROM_SIGNEXT_2MSB & val) << 2;
 	}
 	return val;
 }
 
-/*
- * If quirk is needed, ensure sign extension is 61 bits:
- */
 static u64 lbr_from_signext_quirk_rd(u64 val)
 {
 	if (static_branch_unlikely(&lbr_from_quirk_key)) {
 		/*
-		 * Quirk is on when TSX is not enabled. Therefore TSX
-		 * flags must be read as OFF.
-		 */
 		val &= ~(LBR_FROM_FLAG_IN_TX | LBR_FROM_FLAG_ABORT);
 	}
 	return val;
@@ -462,10 +391,6 @@ static void intel_pmu_arch_lbr_restore(void *ctx)
 	}
 }
 
-/*
- * Restore the Architecture LBR state from the xsave area in the perf
- * context data for the task via the XRSTORS instruction.
- */
 static void intel_pmu_arch_lbr_xrstors(void *ctx)
 {
 	struct x86_perf_task_context_arch_lbr_xsave *task_ctx = ctx;
@@ -492,10 +417,6 @@ static void __intel_pmu_lbr_restore(void *ctx)
 	}
 
 	/*
-	 * Does not restore the LBR registers, if
-	 * - No one else touched them, and
-	 * - Was not cleared in Cstate
-	 */
 	if ((ctx == cpuc->last_task_ctx) &&
 	    (task_context_opt(ctx)->log_id == cpuc->last_log_id) &&
 	    !lbr_is_reset_in_cstate(ctx)) {
@@ -547,10 +468,6 @@ static void intel_pmu_arch_lbr_save(void *ctx)
 		entries[x86_pmu.lbr_nr - 1].from = 0;
 }
 
-/*
- * Save the Architecture LBR state to the xsave area in the perf
- * context data for the task via the XSAVES instruction.
- */
 static void intel_pmu_arch_lbr_xsaves(void *ctx)
 {
 	struct x86_perf_task_context_arch_lbr_xsave *task_ctx = ctx;
@@ -583,10 +500,6 @@ void intel_pmu_lbr_swap_task_ctx(struct perf_event_context *prev,
 	swap(prev->task_ctx_data, next->task_ctx_data);
 
 	/*
-	 * Architecture specific synchronization makes sense in
-	 * case both prev->task_ctx_data and next->task_ctx_data
-	 * pointers are allocated.
-	 */
 
 	prev_ctx_data = next->task_ctx_data;
 	next_ctx_data = prev->task_ctx_data;
@@ -607,10 +520,6 @@ void intel_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in)
 		return;
 
 	/*
-	 * If LBR callstack feature is enabled and the stack was saved when
-	 * the task was scheduled out, restore the stack. Otherwise flush
-	 * the LBR stack.
-	 */
 	task_ctx = ctx ? ctx->task_ctx_data : NULL;
 	if (task_ctx) {
 		if (sched_in)
@@ -621,11 +530,6 @@ void intel_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in)
 	}
 
 	/*
-	 * Since a context switch can flip the address space and LBR entries
-	 * are not tagged with an identifier, we need to wipe the LBR, even for
-	 * per-cpu events. You simply cannot resolve the branches from the old
-	 * address space.
-	 */
 	if (sched_in)
 		intel_pmu_lbr_reset();
 }
@@ -651,24 +555,6 @@ void intel_pmu_lbr_add(struct perf_event *event)
 		task_context_opt(event->ctx->task_ctx_data)->lbr_callstack_users++;
 
 	/*
-	 * Request pmu::sched_task() callback, which will fire inside the
-	 * regular perf event scheduling, so that call will:
-	 *
-	 *  - restore or wipe; when LBR-callstack,
-	 *  - wipe; otherwise,
-	 *
-	 * when this is from __perf_event_task_sched_in().
-	 *
-	 * However, if this is from perf_install_in_context(), no such callback
-	 * will follow and we'll need to reset the LBR here if this is the
-	 * first LBR event.
-	 *
-	 * The problem is, we cannot tell these cases apart... but we can
-	 * exclude the biggest chunk of cases by looking at
-	 * event->total_time_running. An event that has accrued runtime cannot
-	 * be 'new'. Conversely, a new event can get installed through the
-	 * context switch path for the first time.
-	 */
 	if (x86_pmu.intel_cap.pebs_baseline && event->attr.precise_ip > 0)
 		cpuc->lbr_pebs_users++;
 	perf_sched_cb_inc(event->ctx->pmu);
@@ -795,11 +681,6 @@ void intel_pmu_lbr_read_32(struct cpu_hw_events *cpuc)
 	cpuc->lbr_stack.hw_idx = tos;
 }
 
-/*
- * Due to lack of segmentation in Linux the effective address (offset)
- * is the same as the linear address, allowing us to merge the LIP and EIP
- * LBR formats.
- */
 void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 {
 	bool need_info = false, call_stack = false;
@@ -825,9 +706,6 @@ void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 		to   = rdlbr_to(lbr_idx, NULL);
 
 		/*
-		 * Read LBR call stack entries
-		 * until invalid entry (0s) is detected.
-		 */
 		if (call_stack && !from)
 			break;
 
@@ -866,13 +744,6 @@ void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 		}
 
 		/*
-		 * Some CPUs report duplicated abort records,
-		 * with the second entry not having an abort bit set.
-		 * Skip them here. This loop runs backwards,
-		 * so we need to undo the previous record.
-		 * If the abort just happened outside the window
-		 * the extra entry cannot be removed.
-		 */
 		if (abort && x86_pmu.lbr_double_abort && out > 0)
 			out--;
 
@@ -940,8 +811,6 @@ static void intel_pmu_store_lbr(struct cpu_hw_events *cpuc,
 
 		from = rdlbr_from(i, lbr);
 		/*
-		 * Read LBR entries until invalid entry (0s) is detected.
-		 */
 		if (!from)
 			break;
 
@@ -986,11 +855,6 @@ void intel_pmu_lbr_read(void)
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
 	/*
-	 * Don't read when all LBRs users are using adaptive PEBS.
-	 *
-	 * This could be smarter and actually check the event,
-	 * but this simple approach seems to work for now.
-	 */
 	if (!cpuc->lbr_users || vlbr_exclude_host() ||
 	    cpuc->lbr_users == cpuc->lbr_pebs_users)
 		return;
@@ -1000,11 +864,6 @@ void intel_pmu_lbr_read(void)
 	intel_pmu_lbr_filter(cpuc);
 }
 
-/*
- * SW filter is used:
- * - in case there is no HW filter
- * - in case the HW filter has errata or limitations
- */
 static int intel_pmu_setup_sw_lbr_filter(struct perf_event *event)
 {
 	u64 br_type = event->attr.branch_sample_type;
@@ -1061,18 +920,10 @@ static int intel_pmu_setup_sw_lbr_filter(struct perf_event *event)
 		mask |= X86_BR_TYPE_SAVE;
 
 	/*
-	 * stash actual user request into reg, it may
-	 * be used by fixup code for some CPU
-	 */
 	event->hw.branch_reg.reg = mask;
 	return 0;
 }
 
-/*
- * setup the HW LBR filter
- * Used only when available, may not be enough to disambiguate
- * all branches, may need the help of the SW filter
- */
 static int intel_pmu_setup_hw_lbr_filter(struct perf_event *event)
 {
 	struct hw_perf_event_extra *reg;
@@ -1101,12 +952,6 @@ static int intel_pmu_setup_hw_lbr_filter(struct perf_event *event)
 	}
 
 	/*
-	 * The first 9 bits (LBR_SEL_MASK) in LBR_SELECT operate
-	 * in suppress mode. So LBR_SELECT should be set to
-	 * (~mask & LBR_SEL_MASK) | (mask & ~LBR_SEL_MASK)
-	 * But the 10th bit LBR_CALL_STACK does not operate
-	 * in suppress mode.
-	 */
 	reg->config = mask ^ (x86_pmu.lbr_sel_mask & ~LBR_CALL_STACK);
 
 	if ((br_type & PERF_SAMPLE_BRANCH_NO_CYCLES) &&
@@ -1122,38 +967,21 @@ int intel_pmu_setup_lbr_filter(struct perf_event *event)
 	int ret = 0;
 
 	/*
-	 * no LBR on this PMU
-	 */
 	if (!x86_pmu.lbr_nr)
 		return -EOPNOTSUPP;
 
 	/*
-	 * setup SW LBR filter
-	 */
 	ret = intel_pmu_setup_sw_lbr_filter(event);
 	if (ret)
 		return ret;
 
 	/*
-	 * setup HW LBR filter, if any
-	 */
 	if (x86_pmu.lbr_sel_map)
 		ret = intel_pmu_setup_hw_lbr_filter(event);
 
 	return ret;
 }
 
-/*
- * return the type of control flow change at address "from"
- * instruction is not necessarily a branch (in case of interrupt).
- *
- * The branch type returned also includes the priv level of the
- * target of the control flow change (X86_BR_USER, X86_BR_KERNEL).
- *
- * If a branch type is unknown OR the instruction cannot be
- * decoded (e.g., text page not present), then X86_BR_NONE is
- * returned.
- */
 static int branch_type(unsigned long from, unsigned long to, int abort)
 {
 	struct insn insn;
@@ -1168,9 +996,6 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 	from_plm = kernel_ip(from) ? X86_BR_KERNEL : X86_BR_USER;
 
 	/*
-	 * maybe zero if lbr did not fill up after a reset by the time
-	 * we get a PMU interrupt
-	 */
 	if (from == 0 || to == 0)
 		return X86_BR_NONE;
 
@@ -1179,9 +1004,6 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 
 	if (from_plm == X86_BR_USER) {
 		/*
-		 * can happen if measuring at the user level only
-		 * and we interrupt in a kernel thread, e.g., idle.
-		 */
 		if (!current->mm)
 			return X86_BR_NONE;
 
@@ -1195,20 +1017,9 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 		addr = buf;
 	} else {
 		/*
-		 * The LBR logs any address in the IP, even if the IP just
-		 * faulted. This means userspace can control the from address.
-		 * Ensure we don't blindly read any address by validating it is
-		 * a known text address.
-		 */
 		if (kernel_text_address(from)) {
 			addr = (void *)from;
 			/*
-			 * Assume we can get the maximum possible size
-			 * when grabbing kernel data.  This is not
-			 * _strictly_ true since we could possibly be
-			 * executing up next to a memory hole, but
-			 * it is very unlikely to be a problem.
-			 */
 			bytes_read = MAX_INSN_SIZE;
 		} else {
 			return X86_BR_NONE;
@@ -1216,9 +1027,6 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 	}
 
 	/*
-	 * decoder needs to know the ABI especially
-	 * on 64-bit systems running 32-bit apps
-	 */
 #ifdef CONFIG_X86_64
 	is64 = kernel_ip((unsigned long)addr) || any_64bit_mode(current_pt_regs());
 #endif
@@ -1295,24 +1103,11 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 		ret = X86_BR_NONE;
 	}
 	/*
-	 * interrupts, traps, faults (and thus ring transition) may
-	 * occur on any instructions. Thus, to classify them correctly,
-	 * we need to first look at the from and to priv levels. If they
-	 * are different and to is in the kernel, then it indicates
-	 * a ring transition. If the from instruction is not a ring
-	 * transition instr (syscall, systenter, int), then it means
-	 * it was a irq, trap or fault.
-	 *
-	 * we have no way of detecting kernel to kernel faults.
-	 */
 	if (from_plm == X86_BR_USER && to_plm == X86_BR_KERNEL
 	    && ret != X86_BR_SYSCALL && ret != X86_BR_INT)
 		ret = X86_BR_IRQ;
 
 	/*
-	 * branch priv level determined by target as
-	 * is done by HW when LBR_SELECT is implemented
-	 */
 	if (ret != X86_BR_NONE)
 		ret |= to_plm;
 
@@ -1377,13 +1172,6 @@ static const int arch_lbr_br_type_map[ARCH_LBR_BR_TYPE_MAP_MAX] = {
 	[ARCH_LBR_BR_TYPE_NEAR_RET]		= X86_BR_RET,
 };
 
-/*
- * implement actual branch filter based on user demand.
- * Hardware may not exactly satisfy that request, thus
- * we need to inspect opcodes. Mismatched branches are
- * discarded. Therefore, the number of branches returned
- * in PERF_SAMPLE_BRANCH_STACK sample may vary.
- */
 static void
 intel_pmu_lbr_filter(struct cpu_hw_events *cpuc)
 {
@@ -1404,10 +1192,6 @@ intel_pmu_lbr_filter(struct cpu_hw_events *cpuc)
 		type = cpuc->lbr_entries[i].type;
 
 		/*
-		 * Parse the branch type recorded in LBR_x_INFO MSR.
-		 * Doesn't support OTHER_BRANCH decoding for now.
-		 * OTHER_BRANCH branch type still rely on software decoding.
-		 */
 		if (static_cpu_has(X86_FEATURE_ARCH_LBR) &&
 		    type <= ARCH_LBR_BR_TYPE_KNOWN_MAX) {
 			to_plm = kernel_ip(to) ? X86_BR_KERNEL : X86_BR_USER;
@@ -1463,9 +1247,6 @@ void intel_pmu_store_pebs_lbrs(struct lbr_entry *lbr)
 	intel_pmu_lbr_filter(cpuc);
 }
 
-/*
- * Map interface branch filters onto LBR filters
- */
 static const int nhm_lbr_sel_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
 	[PERF_SAMPLE_BRANCH_ANY_SHIFT]		= LBR_ANY,
 	[PERF_SAMPLE_BRANCH_USER_SHIFT]		= LBR_USER,
@@ -1474,13 +1255,9 @@ static const int nhm_lbr_sel_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
 	[PERF_SAMPLE_BRANCH_ANY_RETURN_SHIFT]	= LBR_RETURN | LBR_REL_JMP
 						| LBR_IND_JMP | LBR_FAR,
 	/*
-	 * NHM/WSM erratum: must include REL_JMP+IND_JMP to get CALL branches
-	 */
 	[PERF_SAMPLE_BRANCH_ANY_CALL_SHIFT] =
 	 LBR_REL_CALL | LBR_IND_CALL | LBR_REL_JMP | LBR_IND_JMP | LBR_FAR,
 	/*
-	 * NHM/WSM erratum: must include IND_JMP to capture IND_CALL
-	 */
 	[PERF_SAMPLE_BRANCH_IND_CALL_SHIFT] = LBR_IND_CALL | LBR_IND_JMP,
 	[PERF_SAMPLE_BRANCH_COND_SHIFT]     = LBR_JCC,
 	[PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT] = LBR_IND_JMP,
@@ -1536,7 +1313,6 @@ static int arch_lbr_ctl_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
 	[PERF_SAMPLE_BRANCH_CALL_SHIFT]		= ARCH_LBR_REL_CALL,
 };
 
-/* core */
 void __init intel_pmu_lbr_init_core(void)
 {
 	x86_pmu.lbr_nr     = 4;
@@ -1545,12 +1321,8 @@ void __init intel_pmu_lbr_init_core(void)
 	x86_pmu.lbr_to     = MSR_LBR_CORE_TO;
 
 	/*
-	 * SW branch filter usage:
-	 * - compensate for lack of HW filter
-	 */
 }
 
-/* nehalem/westmere */
 void __init intel_pmu_lbr_init_nhm(void)
 {
 	x86_pmu.lbr_nr     = 16;
@@ -1562,15 +1334,8 @@ void __init intel_pmu_lbr_init_nhm(void)
 	x86_pmu.lbr_sel_map  = nhm_lbr_sel_map;
 
 	/*
-	 * SW branch filter usage:
-	 * - workaround LBR_SEL errata (see above)
-	 * - support syscall, sysret capture.
-	 *   That requires LBR_FAR but that means far
-	 *   jmp need to be filtered out
-	 */
 }
 
-/* sandy bridge */
 void __init intel_pmu_lbr_init_snb(void)
 {
 	x86_pmu.lbr_nr	 = 16;
@@ -1582,11 +1347,6 @@ void __init intel_pmu_lbr_init_snb(void)
 	x86_pmu.lbr_sel_map  = snb_lbr_sel_map;
 
 	/*
-	 * SW branch filter usage:
-	 * - support syscall, sysret capture.
-	 *   That requires LBR_FAR but that means far
-	 *   jmp need to be filtered out
-	 */
 }
 
 static inline struct kmem_cache *
@@ -1595,7 +1355,6 @@ create_lbr_kmem_cache(size_t size, size_t align)
 	return kmem_cache_create("x86_lbr", size, align, 0, NULL);
 }
 
-/* haswell */
 void intel_pmu_lbr_init_hsw(void)
 {
 	size_t size = sizeof(struct x86_perf_task_context);
@@ -1611,7 +1370,6 @@ void intel_pmu_lbr_init_hsw(void)
 	x86_get_pmu(smp_processor_id())->task_ctx_cache = create_lbr_kmem_cache(size, 0);
 }
 
-/* skylake */
 __init void intel_pmu_lbr_init_skl(void)
 {
 	size_t size = sizeof(struct x86_perf_task_context);
@@ -1628,21 +1386,11 @@ __init void intel_pmu_lbr_init_skl(void)
 	x86_get_pmu(smp_processor_id())->task_ctx_cache = create_lbr_kmem_cache(size, 0);
 
 	/*
-	 * SW branch filter usage:
-	 * - support syscall, sysret capture.
-	 *   That requires LBR_FAR but that means far
-	 *   jmp need to be filtered out
-	 */
 }
 
-/* atom */
 void __init intel_pmu_lbr_init_atom(void)
 {
 	/*
-	 * only models starting at stepping 10 seems
-	 * to have an operational LBR which can freeze
-	 * on PMU interrupt
-	 */
 	if (boot_cpu_data.x86_model == 28
 	    && boot_cpu_data.x86_stepping < 10) {
 		pr_cont("LBR disabled due to erratum");
@@ -1655,12 +1403,8 @@ void __init intel_pmu_lbr_init_atom(void)
 	x86_pmu.lbr_to     = MSR_LBR_CORE_TO;
 
 	/*
-	 * SW branch filter usage:
-	 * - compensate for lack of HW filter
-	 */
 }
 
-/* slm */
 void __init intel_pmu_lbr_init_slm(void)
 {
 	x86_pmu.lbr_nr	   = 8;
@@ -1672,13 +1416,9 @@ void __init intel_pmu_lbr_init_slm(void)
 	x86_pmu.lbr_sel_map  = nhm_lbr_sel_map;
 
 	/*
-	 * SW branch filter usage:
-	 * - compensate for lack of HW filter
-	 */
 	pr_cont("8-deep LBR, ");
 }
 
-/* Knights Landing */
 void intel_pmu_lbr_init_knl(void)
 {
 	x86_pmu.lbr_nr	   = 8;
@@ -1723,18 +1463,11 @@ void intel_pmu_lbr_init(void)
 
 	if (x86_pmu.lbr_has_info) {
 		/*
-		 * Only used in combination with baseline pebs.
-		 */
 		static_branch_enable(&x86_lbr_mispred);
 		static_branch_enable(&x86_lbr_cycles);
 	}
 }
 
-/*
- * LBR state size is variable based on the max number of registers.
- * This calculates the expected state size, which should match
- * what the hardware enumerates for the size of XFEATURE_LBR.
- */
 static inline unsigned int get_lbr_state_size(void)
 {
 	return sizeof(struct arch_lbr_state) +
@@ -1747,9 +1480,6 @@ static bool is_arch_lbr_xsave_available(void)
 		return false;
 
 	/*
-	 * Check the LBR state with the corresponding software structure.
-	 * Disable LBR XSAVES support if the size doesn't match.
-	 */
 	if (xfeature_size(XFEATURE_LBR) == 0)
 		return false;
 
@@ -1864,13 +1594,6 @@ clear_arch_lbr:
 	clear_cpu_cap(&boot_cpu_data, X86_FEATURE_ARCH_LBR);
 }
 
-/**
- * x86_perf_get_lbr - get the LBR records information
- *
- * @lbr: the caller's memory to store the LBR records information
- *
- * Returns: 0 indicates the LBR info has been successfully obtained
- */
 int x86_perf_get_lbr(struct x86_pmu_lbr *lbr)
 {
 	int lbr_fmt = x86_pmu.intel_cap.lbr_format;

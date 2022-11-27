@@ -1,23 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * kernel/power/suspend_test.c - Suspend to RAM and standby test facility.
- *
- * Copyright (c) 2009 Pavel Machek <pavel@ucw.cz>
- */
 
 #include <linux/init.h>
 #include <linux/rtc.h>
 
 #include "power.h"
 
-/*
- * We test the system suspend code by setting an RTC wakealarm a short
- * time in the future, then suspending.  Suspending the devices won't
- * normally take long ... some systems only need a few milliseconds.
- *
- * The time it takes is system-specific though, so when we test this
- * during system bootup we allow a LOT of time.
- */
 #define TEST_SUSPEND_SECONDS	10
 
 static unsigned long suspend_test_start_time;
@@ -54,10 +40,6 @@ void suspend_test_finish(const char *label)
 	     "Component: %s, time: %u\n", label, msec);
 }
 
-/*
- * To test system suspend, we need a hands-off mechanism to resume the
- * system.  RTCs wake alarms are a common self-contained mechanism.
- */
 
 static void __init test_wakealarm(struct rtc_device *rtc, suspend_state_t state)
 {
@@ -137,11 +119,6 @@ static int __init has_wakealarm(struct device *dev, const void *data)
 	return 1;
 }
 
-/*
- * Kernel options like "test_suspend=mem" force suspend/resume sanity tests
- * at startup time.  They're normally disabled, for faster boot and because
- * we can't know which states really work on this particular system.
- */
 static const char *test_state_label __initdata;
 
 static char warn_bad_state[] __initdata =

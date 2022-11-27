@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * P5 specific Machine Check Exception Reporting
- * (C) Copyright 2002 Alan Cox <alan@lxorguk.ukuu.org.uk>
- */
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -17,10 +12,8 @@
 
 #include "internal.h"
 
-/* By default disabled */
 int mce_p5_enabled __read_mostly;
 
-/* Machine check handler for Pentium class Intel CPUs: */
 noinstr void pentium_machine_check(struct pt_regs *regs)
 {
 	u32 loaddr, hi, lotype;
@@ -41,7 +34,6 @@ noinstr void pentium_machine_check(struct pt_regs *regs)
 	instrumentation_end();
 }
 
-/* Set up machine check reporting for processors with Intel style MCE: */
 void intel_p5_mcheck_init(struct cpuinfo_x86 *c)
 {
 	u32 l, h;

@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/acpi.h>
 #include <linux/cpu.h>
@@ -48,13 +47,6 @@ static void __init reserve_shared_info(void)
 	u64 pa;
 
 	/*
-	 * Search for a free page starting at 4kB physical address.
-	 * Low memory is preferred to avoid an EPT large page split up
-	 * by the mapping.
-	 * Starting below X86_RESERVE_LOW (usually 64kB) is fine as
-	 * the BIOS used for HVM guests is well behaved and won't
-	 * clobber memory other than the first 4kB.
-	 */
 	for (pa = PAGE_SIZE;
 	     !e820__mapped_all(pa, pa + PAGE_SIZE, E820_TYPE_RAM) ||
 	     memblock_is_reserved(pa);
@@ -73,16 +65,6 @@ static void __init xen_hvm_init_mem_mapping(void)
 	HYPERVISOR_shared_info = __va(PFN_PHYS(shared_info_pfn));
 
 	/*
-	 * The virtual address of the shared_info page has changed, so
-	 * the vcpu_info pointer for VCPU 0 is now stale.
-	 *
-	 * The prepare_boot_cpu callback will re-initialize it via
-	 * xen_vcpu_setup, but we can't rely on that to be called for
-	 * old Xen versions (xen_have_vector_callback == 0).
-	 *
-	 * It is, in any case, bad to have a stale vcpu_info pointer
-	 * so reset it now.
-	 */
 	xen_vcpu_info_reset(0);
 }
 
@@ -153,9 +135,6 @@ static int xen_cpu_up_prepare_hvm(unsigned int cpu)
 	int rc = 0;
 
 	/*
-	 * This can happen if CPU was offlined earlier and
-	 * offlining timed out in common_cpu_die().
-	 */
 	if (cpu_report_state(cpu) == CPU_DEAD_FROZEN) {
 		xen_smp_intr_free(cpu);
 		xen_uninit_lock_cpu(cpu);
@@ -205,10 +184,6 @@ static void __init xen_hvm_guest_init(void)
 	xen_hvm_init_shared_info();
 
 	/*
-	 * xen_vcpu is a pointer to the vcpu_info struct in the shared_info
-	 * page, we use it in the event channel upcall and in some pvclock
-	 * related functions.
-	 */
 	xen_vcpu_info_reset(0);
 
 	xen_panic_handler_init();
@@ -293,13 +268,6 @@ static uint32_t __init xen_platform_hvm(void)
 		nopv = false;
 	} else if (nopv && xen_domain) {
 		/*
-		 * Guest booting via normal boot entry (like via grub2) goes
-		 * here.
-		 *
-		 * Use interface functions for bare hardware if nopv,
-		 * xen_hvm_guest_late_init is an exception as we need to
-		 * detect PVH and panic there.
-		 */
 		h->init_platform = x86_init_noop;
 		h->x2apic_available = bool_x86_init_noop;
 		h->init_mem_mapping = x86_init_noop;

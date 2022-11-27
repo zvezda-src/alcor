@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_NUMA_H
 #define _ASM_X86_NUMA_H
 
@@ -12,23 +11,10 @@
 
 #define NR_NODE_MEMBLKS		(MAX_NUMNODES*2)
 
-/*
- * Too small node sizes may confuse the VM badly. Usually they
- * result from BIOS bugs. So dont recognize nodes as standalone
- * NUMA entities that have less than this amount of RAM listed:
- */
 #define NODE_MIN_SIZE (4*1024*1024)
 
 extern int numa_off;
 
-/*
- * __apicid_to_node[] stores the raw mapping between physical apicid and
- * node and is used to initialize cpu_to_node mapping.
- *
- * The mapping may be overridden by apic->numa_cpu_node() on 32bit and thus
- * should be accessed by the accessors - set_apicid_to_node() and
- * numa_cpu_node().
- */
 extern s16 __apicid_to_node[MAX_LOCAL_APIC];
 extern nodemask_t numa_nodes_parsed __initdata;
 

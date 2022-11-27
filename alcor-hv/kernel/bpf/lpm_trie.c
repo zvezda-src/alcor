@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Longest prefix match list implementation
- *
- * Copyright (c) 2016,2017 Daniel Mack
- * Copyright (c) 2016 David Herrmann
- */
 
 #include <linux/bpf.h>
 #include <linux/btf.h>
@@ -16,7 +9,6 @@
 #include <uapi/linux/btf.h>
 #include <linux/btf_ids.h>
 
-/* Intermediate node */
 #define LPM_TREE_NODE_FLAG_IM BIT(0)
 
 struct lpm_trie_node;
@@ -38,130 +30,12 @@ struct lpm_trie {
 	spinlock_t			lock;
 };
 
-/* This trie implements a longest prefix match algorithm that can be used to
- * match IP addresses to a stored set of ranges.
- *
- * Data stored in @data of struct bpf_lpm_key and struct lpm_trie_node is
- * interpreted as big endian, so data[0] stores the most significant byte.
- *
- * Match ranges are internally stored in instances of struct lpm_trie_node
- * which each contain their prefix length as well as two pointers that may
- * lead to more nodes containing more specific matches. Each node also stores
- * a value that is defined by and returned to userspace via the update_elem
- * and lookup functions.
- *
- * For instance, let's start with a trie that was created with a prefix length
- * of 32, so it can be used for IPv4 addresses, and one single element that
- * matches 192.168.0.0/16. The data array would hence contain
- * [0xc0, 0xa8, 0x00, 0x00] in big-endian notation. This documentation will
- * stick to IP-address notation for readability though.
- *
- * As the trie is empty initially, the new node (1) will be places as root
- * node, denoted as (R) in the example below. As there are no other node, both
- * child pointers are %NULL.
- *
- *              +----------------+
- *              |       (1)  (R) |
- *              | 192.168.0.0/16 |
- *              |    value: 1    |
- *              |   [0]    [1]   |
- *              +----------------+
- *
- * Next, let's add a new node (2) matching 192.168.0.0/24. As there is already
- * a node with the same data and a smaller prefix (ie, a less specific one),
- * node (2) will become a child of (1). In child index depends on the next bit
- * that is outside of what (1) matches, and that bit is 0, so (2) will be
- * child[0] of (1):
- *
- *              +----------------+
- *              |       (1)  (R) |
- *              | 192.168.0.0/16 |
- *              |    value: 1    |
- *              |   [0]    [1]   |
- *              +----------------+
- *                   |
- *    +----------------+
- *    |       (2)      |
- *    | 192.168.0.0/24 |
- *    |    value: 2    |
- *    |   [0]    [1]   |
- *    +----------------+
- *
- * The child[1] slot of (1) could be filled with another node which has bit #17
- * (the next bit after the ones that (1) matches on) set to 1. For instance,
- * 192.168.128.0/24:
- *
- *              +----------------+
- *              |       (1)  (R) |
- *              | 192.168.0.0/16 |
- *              |    value: 1    |
- *              |   [0]    [1]   |
- *              +----------------+
- *                   |      |
- *    +----------------+  +------------------+
- *    |       (2)      |  |        (3)       |
- *    | 192.168.0.0/24 |  | 192.168.128.0/24 |
- *    |    value: 2    |  |     value: 3     |
- *    |   [0]    [1]   |  |    [0]    [1]    |
- *    +----------------+  +------------------+
- *
- * Let's add another node (4) to the game for 192.168.1.0/24. In order to place
- * it, node (1) is looked at first, and because (4) of the semantics laid out
- * above (bit #17 is 0), it would normally be attached to (1) as child[0].
- * However, that slot is already allocated, so a new node is needed in between.
- * That node does not have a value attached to it and it will never be
- * returned to users as result of a lookup. It is only there to differentiate
- * the traversal further. It will get a prefix as wide as necessary to
- * distinguish its two children:
- *
- *                      +----------------+
- *                      |       (1)  (R) |
- *                      | 192.168.0.0/16 |
- *                      |    value: 1    |
- *                      |   [0]    [1]   |
- *                      +----------------+
- *                           |      |
- *            +----------------+  +------------------+
- *            |       (4)  (I) |  |        (3)       |
- *            | 192.168.0.0/23 |  | 192.168.128.0/24 |
- *            |    value: ---  |  |     value: 3     |
- *            |   [0]    [1]   |  |    [0]    [1]    |
- *            +----------------+  +------------------+
- *                 |      |
- *  +----------------+  +----------------+
- *  |       (2)      |  |       (5)      |
- *  | 192.168.0.0/24 |  | 192.168.1.0/24 |
- *  |    value: 2    |  |     value: 5   |
- *  |   [0]    [1]   |  |   [0]    [1]   |
- *  +----------------+  +----------------+
- *
- * 192.168.1.1/32 would be a child of (5) etc.
- *
- * An intermediate node will be turned into a 'real' node on demand. In the
- * example above, (4) would be re-used if 192.168.0.0/23 is added to the trie.
- *
- * A fully populated trie would have a height of 32 nodes, as the trie was
- * created with a prefix length of 32.
- *
- * The lookup starts at the root node. If the current node matches and if there
- * is a child that can be used to become more specific, the trie is traversed
- * downwards. The last node in the traversal that is a non-intermediate one is
- * returned.
- */
 
 static inline int extract_bit(const u8 *data, size_t index)
 {
 	return !!(data[index / 8] & (1 << (7 - (index % 8))));
 }
 
-/**
- * longest_prefix_match() - determine the longest prefix
- * @trie:	The trie to get internal sizes from
- * @node:	The node to operate on
- * @key:	The key to compare to @node
- *
- * Determine the longest prefix of @node that matches the bits in @key.
- */
 static size_t longest_prefix_match(const struct lpm_trie *trie,
 				   const struct lpm_trie_node *node,
 				   const struct bpf_lpm_trie_key *key)
@@ -224,7 +98,6 @@ static size_t longest_prefix_match(const struct lpm_trie *trie,
 	return prefixlen;
 }
 
-/* Called from syscall or from eBPF program */
 static void *trie_lookup_elem(struct bpf_map *map, void *_key)
 {
 	struct lpm_trie *trie = container_of(map, struct lpm_trie, map);
@@ -299,7 +172,6 @@ static struct lpm_trie_node *lpm_trie_node_alloc(const struct lpm_trie *trie,
 	return node;
 }
 
-/* Called from syscall or from eBPF program */
 static int trie_update_elem(struct bpf_map *map,
 			    void *_key, void *value, u64 flags)
 {
@@ -430,7 +302,6 @@ out:
 	return ret;
 }
 
-/* Called from syscall or from eBPF program */
 static int trie_delete_elem(struct bpf_map *map, void *_key)
 {
 	struct lpm_trie *trie = container_of(map, struct lpm_trie, map);

@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/bpf-cgroup.h>
 #include <linux/bpf.h>
 #include <linux/bpf_local_storage.h>
@@ -372,23 +371,17 @@ static int cgroup_storage_check_btf(const struct bpf_map *map,
 		 */
 
 		/*
-		 * Key_type must be a structure with two fields.
-		 */
 		if (BTF_INFO_KIND(key_type->info) != BTF_KIND_STRUCT ||
 		    BTF_INFO_VLEN(key_type->info) != 2)
 			return -EINVAL;
 
 		/*
-		 * The first field must be a 64 bit integer at 0 offset.
-		 */
 		m = (struct btf_member *)(key_type + 1);
 		size = sizeof_field(struct bpf_cgroup_storage_key, cgroup_inode_id);
 		if (!btf_member_is_reg_int(btf, key_type, m, 0, size))
 			return -EINVAL;
 
 		/*
-		 * The second field must be a 32 bit integer at 64 bit offset.
-		 */
 		m++;
 		offset = offsetof(struct bpf_cgroup_storage_key, attach_type);
 		size = sizeof_field(struct bpf_cgroup_storage_key, attach_type);
@@ -398,8 +391,6 @@ static int cgroup_storage_check_btf(const struct bpf_map *map,
 		u32 int_data;
 
 		/*
-		 * Key is expected to be u64, which stores the cgroup_inode_id
-		 */
 
 		if (BTF_INFO_KIND(key_type->info) != BTF_KIND_INT)
 			return -EINVAL;

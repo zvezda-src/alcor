@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * preemptoff and irqoff tracepoints
- *
- * Copyright (C) Joel Fernandes (Google) <joel@joelfernandes.org>
- */
 
 #include <linux/kallsyms.h>
 #include <linux/uaccess.h>
@@ -16,15 +10,8 @@
 #include <trace/events/preemptirq.h>
 
 #ifdef CONFIG_TRACE_IRQFLAGS
-/* Per-cpu variable to prevent redundant calls when IRQs already off */
 static DEFINE_PER_CPU(int, tracing_irq_cpu);
 
-/*
- * Like trace_hardirqs_on() but without the lockdep invocation. This is
- * used in the low level entry code where the ordering vs. RCU is important
- * and lockdep uses a staged approach which splits the lockdep hardirq
- * tracking into a RCU on and a RCU off section.
- */
 void trace_hardirqs_on_prepare(void)
 {
 	if (this_cpu_read(tracing_irq_cpu)) {
@@ -52,12 +39,6 @@ void trace_hardirqs_on(void)
 EXPORT_SYMBOL(trace_hardirqs_on);
 NOKPROBE_SYMBOL(trace_hardirqs_on);
 
-/*
- * Like trace_hardirqs_off() but without the lockdep invocation. This is
- * used in the low level entry code where the ordering vs. RCU is important
- * and lockdep uses a staged approach which splits the lockdep hardirq
- * tracking into a RCU on and a RCU off section.
- */
 void trace_hardirqs_off_finish(void)
 {
 	if (!this_cpu_read(tracing_irq_cpu)) {

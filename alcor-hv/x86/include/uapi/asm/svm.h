@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI__SVM_H
 #define _UAPI__SVM_H
 
@@ -100,7 +99,6 @@
 #define SVM_EXIT_AVIC_UNACCELERATED_ACCESS	0x402
 #define SVM_EXIT_VMGEXIT       0x403
 
-/* SEV-ES software-defined VMGEXIT events */
 #define SVM_VMGEXIT_MMIO_READ			0x80000001
 #define SVM_VMGEXIT_MMIO_WRITE			0x80000002
 #define SVM_VMGEXIT_NMI_COMPLETE		0x80000003
@@ -118,7 +116,6 @@
 #define SVM_VMGEXIT_HV_FEATURES			0x8000fffd
 #define SVM_VMGEXIT_UNSUPPORTED_EVENT		0x8000ffff
 
-/* Exit code reserved for hypervisor/software use */
 #define SVM_EXIT_SW				0xf0000000
 
 #define SVM_EXIT_ERR           -1

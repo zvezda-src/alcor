@@ -1,16 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Core of Xen paravirt_ops implementation.
- *
- * This file contains the xen_paravirt_ops structure itself, and the
- * implementations for:
- * - privileged instructions
- * - interrupt flags
- * - segment operations
- * - booting and setup
- *
- * Jeremy Fitzhardinge <jeremy@xensource.com>, XenSource Inc, 2007
- */
 
 #include <linux/cpu.h>
 #include <linux/kernel.h>
@@ -99,13 +86,6 @@ struct tls_descs {
 	struct desc_struct desc[3];
 };
 
-/*
- * Updating the 3 TLS descriptors in the GDT on every task switch is
- * surprisingly expensive so we avoid updating them if they haven't
- * changed.  Since Xen writes different descriptors than the one
- * passed in the update_descriptor hypercall we keep shadow copies to
- * compare against.
- */
 static DEFINE_PER_CPU(struct tls_descs, shadow_tls_desc);
 
 static void __init xen_pv_init_platform(void)
@@ -143,9 +123,6 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 	unsigned maskebx = ~0;
 
 	/*
-	 * Mask out inconvenient features, to try and disable as many
-	 * unsupported kernel subsystems as possible.
-	 */
 	switch (*ax) {
 	case CPUID_MWAIT_LEAF:
 		/* Synthesize the values.. */
@@ -168,7 +145,6 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 		  "=d" (*dx)
 		: "0" (*ax), "2" (*cx));
 
-	*bx &= maskebx;
 }
 
 static bool __init xen_check_mwait(void)
@@ -195,9 +171,6 @@ static bool __init xen_check_mwait(void)
 		return false;
 
 	/*
-	 * When running under platform earlier than Xen4.2, do not expose
-	 * mwait, to avoid the risk of loading native acpi pad driver
-	 */
 	if (!xen_running_on_version_or_later(4, 2))
 		return false;
 
@@ -267,9 +240,6 @@ static void __init xen_init_capabilities(void)
 	setup_clear_cpu_cap(X86_FEATURE_SME);
 
 	/*
-	 * Xen PV would need some work to support PCID: CR3 handling as well
-	 * as xen_flush_tlb_others() would need updating.
-	 */
 	setup_clear_cpu_cap(X86_FEATURE_PCID);
 
 	if (!xen_initial_domain())
@@ -307,12 +277,6 @@ static unsigned long xen_store_tr(void)
 	return 0;
 }
 
-/*
- * Set the page permissions for a particular virtual address.  If the
- * address is a vmalloc mapping (or other non-linear mapping), then
- * find the linear mapping of the page and also set its protections to
- * match.
- */
 static void set_aliased_prot(void *v, pgprot_t prot)
 {
 	int level;
@@ -329,24 +293,6 @@ static void set_aliased_prot(void *v, pgprot_t prot)
 	pte = pfn_pte(pfn, prot);
 
 	/*
-	 * Careful: update_va_mapping() will fail if the virtual address
-	 * we're poking isn't populated in the page tables.  We don't
-	 * need to worry about the direct map (that's always in the page
-	 * tables), but we need to be careful about vmap space.  In
-	 * particular, the top level page table can lazily propagate
-	 * entries between processes, so if we've switched mms since we
-	 * vmapped the target in the first place, we might not have the
-	 * top-level page table entry populated.
-	 *
-	 * We disable preemption because we want the same mm active when
-	 * we probe the target and when we issue the hypercall.  We'll
-	 * have the same nominal mm, but if we're a kernel thread, lazy
-	 * mm dropping could change our pgd.
-	 *
-	 * Out of an abundance of caution, this uses __get_user() to fault
-	 * in the target address just in case there's some obscure case
-	 * in which the target address isn't readable.
-	 */
 
 	preempt_disable();
 
@@ -369,15 +315,6 @@ static void xen_alloc_ldt(struct desc_struct *ldt, unsigned entries)
 	int i;
 
 	/*
-	 * We need to mark the all aliases of the LDT pages RO.  We
-	 * don't need to call vm_flush_aliases(), though, since that's
-	 * only responsible for flushing aliases out the TLBs, not the
-	 * page tables, and Xen will flush the TLB for us if needed.
-	 *
-	 * To avoid confusing future readers: none of this is necessary
-	 * to load the LDT.  The hypervisor only checks this when the
-	 * LDT is faulted in due to subsequent descriptor access.
-	 */
 
 	for (i = 0; i < entries; i += entries_per_page)
 		set_aliased_prot(ldt + i, PAGE_KERNEL_RO);
@@ -423,12 +360,6 @@ static void xen_load_gdt(const struct desc_ptr *dtr)
 	BUG_ON(va & ~PAGE_MASK);
 
 	/*
-	 * The GDT is per-cpu and is in the percpu data area.
-	 * That can be virtually mapped, so we need to do a
-	 * page-walk to get the underlying MFN for the
-	 * hypercall.  The page can also be in the kernel's
-	 * linear range, so we need to RO that mapping too.
-	 */
 	ptep = lookup_address(va, &level);
 	BUG_ON(ptep == NULL);
 
@@ -443,9 +374,6 @@ static void xen_load_gdt(const struct desc_ptr *dtr)
 		BUG();
 }
 
-/*
- * load_gdt for early boot, when the gdt is only mapped once
- */
 static void __init xen_load_gdt_boot(const struct desc_ptr *dtr)
 {
 	unsigned long va = dtr->address;
@@ -486,7 +414,6 @@ static void load_TLS_descriptor(struct thread_struct *t,
 	if (desc_equal(shadow, &t->tls_array[i]))
 		return;
 
-	*shadow = t->tls_array[i];
 
 	gdt = get_cpu_gdt_rw(cpu);
 	maddr = arbitrary_virt_to_machine(&gdt[GDT_ENTRY_TLS_MIN+i]);
@@ -498,10 +425,6 @@ static void load_TLS_descriptor(struct thread_struct *t,
 static void xen_load_tls(struct thread_struct *t, unsigned int cpu)
 {
 	/*
-	 * In lazy mode we need to zero %fs, otherwise we may get an
-	 * exception between the new %fs descriptor being loaded and
-	 * %fs being effectively cleared at __switch_to().
-	 */
 	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_CPU)
 		loadsegment(fs, 0);
 
@@ -554,9 +477,6 @@ DEFINE_IDTENTRY_RAW_ERRORCODE(xenpv_exc_double_fault)
 DEFINE_IDTENTRY_RAW(xenpv_exc_debug)
 {
 	/*
-	 * There's no IST on Xen PV, but we still need to dispatch
-	 * to the correct handler.
-	 */
 	if (user_mode(regs))
 		noist_exc_debug(regs);
 	else
@@ -576,9 +496,6 @@ DEFINE_IDTENTRY_RAW(exc_xen_unknown_trap)
 DEFINE_IDTENTRY_RAW(xenpv_exc_machine_check)
 {
 	/*
-	 * There's no IST on Xen PV, but we still need to dispatch
-	 * to the correct handler.
-	 */
 	if (user_mode(regs))
 		noist_exc_machine_check(regs);
 	else
@@ -640,12 +557,6 @@ static bool __ref get_trap_addr(void **addr, unsigned int ist)
 	bool found = false;
 
 	/*
-	 * Replace trap handler addresses by Xen specific ones.
-	 * Check for known traps using IST and whitelist them.
-	 * The debugger ones are the only ones we care about.
-	 * Xen will handle faults like double_fault, so we should never see
-	 * them.  Warn if there's an unexpected IST-using fault handler.
-	 */
 	for (nr = 0; nr < ARRAY_SIZE(trap_array); nr++) {
 		struct trap_array_entry *entry = trap_array + nr;
 
@@ -699,10 +610,8 @@ static int cvt_gate_to_trap(int vector, const gate_desc *val,
 	return 1;
 }
 
-/* Locations of each CPU's IDT */
 static DEFINE_PER_CPU(struct desc_ptr, idt_desc);
 
-/* Set an IDT entry.  If the entry is part of the current IDT, then
    also update Xen. */
 static void xen_write_idt_entry(gate_desc *dt, int entrynum, const gate_desc *g)
 {
@@ -758,7 +667,6 @@ void xen_copy_trap_info(struct trap_info *traps)
 	xen_convert_trap_info(desc, traps, true);
 }
 
-/* Load a new IDT into Xen.  In principle this can be per-CPU, so we
    hold a spinlock to protect the static traps[] array (static because
    it avoids allocation, and saves stack space). */
 static void xen_load_idt(const struct desc_ptr *desc)
@@ -783,7 +691,6 @@ static void xen_load_idt(const struct desc_ptr *desc)
 	spin_unlock(&lock);
 }
 
-/* Write a GDT descriptor entry.  Ignore LDT descriptors, since
    they're handled differently. */
 static void xen_write_gdt_entry(struct desc_struct *dt, int entry,
 				const void *desc, int type)
@@ -811,10 +718,6 @@ static void xen_write_gdt_entry(struct desc_struct *dt, int entry,
 	preempt_enable();
 }
 
-/*
- * Version of write_gdt_entry for use at early boot-time needed to
- * update an entry as simply as possible.
- */
 static void __init xen_write_gdt_entry_boot(struct desc_struct *dt, int entry,
 					    const void *desc, int type)
 {
@@ -974,9 +877,6 @@ static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 static u64 xen_read_msr(unsigned int msr)
 {
 	/*
-	 * This will silently swallow a #GP from RDMSR.  It may be worth
-	 * changing that.
-	 */
 	int err;
 
 	return xen_read_msr_safe(msr, &err);
@@ -985,13 +885,9 @@ static u64 xen_read_msr(unsigned int msr)
 static void xen_write_msr(unsigned int msr, unsigned low, unsigned high)
 {
 	/*
-	 * This will silently swallow a #GP from WRMSR.  It may be worth
-	 * changing that.
-	 */
 	xen_write_msr_safe(msr, low, high);
 }
 
-/* This is called once we have the cpu_possible_mask */
 void __init xen_setup_vcpu_info_placement(void)
 {
 	int cpu;
@@ -1157,11 +1053,6 @@ static void __init xen_boot_params_init_edd(void)
 #endif
 }
 
-/*
- * Set up the GDT and segment registers for -fstack-protector.  Until
- * we do this, we have to be careful not to call any stack-protected
- * function, which is most of the kernel.
- */
 static void __init xen_setup_gdt(int cpu)
 {
 	pv_ops.cpu.write_gdt_entry = xen_write_gdt_entry_boot;
@@ -1185,7 +1076,6 @@ static void __init xen_domu_set_legacy_features(void)
 
 extern void early_xen_iret_patch(void);
 
-/* First C function to be called on Xen boot */
 asmlinkage __visible void __init xen_start_kernel(struct start_info *si)
 {
 	struct physdev_set_iopl set_iopl;
@@ -1214,12 +1104,6 @@ asmlinkage __visible void __init xen_start_kernel(struct start_info *si)
 	xen_init_irq_ops();
 
 	/*
-	 * Setup xen_vcpu early because it is needed for
-	 * local_irq_disable(), irqs_disabled(), e.g. in printk().
-	 *
-	 * Don't do the full vcpu_info placement stuff until we have
-	 * the cpu_possible_mask and a non-dummy shared_info.
-	 */
 	xen_vcpu_info_reset(0);
 
 	x86_platform.get_nmi_reason = xen_get_nmi_reason;
@@ -1233,8 +1117,6 @@ asmlinkage __visible void __init xen_start_kernel(struct start_info *si)
 	x86_init.hyper.guest_late_init = xen_pv_guest_late_init;
 
 	/*
-	 * Set up some pagetable state before starting to set any ptes.
-	 */
 
 	xen_setup_machphys_mapping();
 	xen_init_mmu_ops();
@@ -1251,9 +1133,6 @@ asmlinkage __visible void __init xen_start_kernel(struct start_info *si)
 	x86_configure_nx();
 
 	/*
-	 * Set up kernel GDT and segment registers, mainly so that
-	 * -fstack-protector code can be executed.
-	 */
 	xen_setup_gdt(0);
 
 	/* Determine virtual and physical address sizes */
@@ -1268,28 +1147,18 @@ asmlinkage __visible void __init xen_start_kernel(struct start_info *si)
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	/*
-	 * set up the basic apic ops.
-	 */
 	xen_init_apic();
 #endif
 
 	machine_ops = xen_machine_ops;
 
 	/*
-	 * The only reliable way to retain the initial address of the
-	 * percpu gdt_page is to remember it here, so we can go and
-	 * mark it RW later, when the initial percpu area is freed.
-	 */
 	xen_initial_gdt = &per_cpu(gdt_page, 0);
 
 	xen_smp_init();
 
 #ifdef CONFIG_ACPI_NUMA
 	/*
-	 * The pages we from Xen are not related to machine pages, so
-	 * any NUMA information the kernel tries to get from ACPI will
-	 * be meaningless.  Prevent it from trying.
-	 */
 	disable_srat();
 #endif
 	WARN_ON(xen_cpuhp_setup(xen_cpu_up_prepare_pv, xen_cpu_dead_pv));
@@ -1303,10 +1172,6 @@ asmlinkage __visible void __init xen_start_kernel(struct start_info *si)
 	xen_reserve_special_pages();
 
 	/*
-	 * We used to do this in xen_arch_setup, but that is too late
-	 * on AMD were early_cpu_init (run before ->arch_setup()) calls
-	 * early_amd_init which pokes 0xcf8 port.
-	 */
 	set_iopl.iopl = 1;
 	rc = HYPERVISOR_physdev_op(PHYSDEVOP_set_iopl, &set_iopl);
 	if (rc != 0)
@@ -1360,10 +1225,6 @@ asmlinkage __visible void __init xen_start_kernel(struct start_info *si)
 
 #ifdef CONFIG_ACPI
 		/*
-		 * Disable selecting "Firmware First mode" for correctable
-		 * memory errors, as this is the duty of the hypervisor to
-		 * decide.
-		 */
 		acpi_disable_cmcff = 1;
 #endif
 	}

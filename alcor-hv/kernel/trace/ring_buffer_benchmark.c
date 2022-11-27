@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * ring buffer tester and benchmark
- *
- * Copyright (C) 2009 Steven Rostedt <srostedt@redhat.com>
- */
 #include <linux/ring_buffer.h>
 #include <linux/completion.h>
 #include <linux/kthread.h>
@@ -18,11 +12,9 @@ struct rb_page {
 	char		data[4080];
 };
 
-/* run time and sleep time in seconds */
 #define RUN_TIME	10ULL
 #define SLEEP_TIME	10
 
-/* number of events for writer to wake up the reader */
 static int wakeup_interval = 100;
 
 static int reader_finish;
@@ -186,9 +178,6 @@ static void ring_buffer_consumer(void)
 
 	read = 0;
 	/*
-	 * Continue running until the producer specifically asks to stop
-	 * and is ready for the completion.
-	 */
 	while (!READ_ONCE(reader_finish)) {
 		int found = 1;
 
@@ -239,9 +228,6 @@ static void ring_buffer_producer(void)
 	int cnt = 0;
 
 	/*
-	 * Hammer the buffer for 10 secs (this may
-	 * make the system stall)
-	 */
 	trace_printk("Starting ring buffer hammer\n");
 	start_time = ktime_get();
 	timeout = ktime_add_ns(start_time, RUN_TIME * NSEC_PER_SEC);
@@ -269,14 +255,6 @@ static void ring_buffer_producer(void)
 
 #ifndef CONFIG_PREEMPTION
 		/*
-		 * If we are a non preempt kernel, the 10 seconds run will
-		 * stop everything while it runs. Instead, we will call
-		 * cond_resched and also add any time that was lost by a
-		 * reschedule.
-		 *
-		 * Do a cond resched at the same frequency we would wake up
-		 * the reader.
-		 */
 		if (cnt % wakeup_interval)
 			cond_resched();
 #endif
@@ -452,8 +430,6 @@ static int __init ring_buffer_benchmark_init(void)
 		goto out_kill;
 
 	/*
-	 * Run them as low-prio background tasks by default:
-	 */
 	if (!disable_reader) {
 		if (consumer_fifo >= 2)
 			sched_set_fifo(consumer);

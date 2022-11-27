@@ -1,10 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- * linux/include/asm/dma.h: Defines for using and allocating dma channels.
- * Written by Hennus Bergman, 1992.
- * High DMA channel support & info by Hannu Savolainen
- * and John Boyd, Nov. 1992.
- */
 
 #ifndef _ASM_X86_DMA_H
 #define _ASM_X86_DMA_H
@@ -20,75 +13,22 @@
 
 #define dma_inb		inb
 
-/*
- * NOTES about DMA transfers:
- *
- *  controller 1: channels 0-3, byte operations, ports 00-1F
- *  controller 2: channels 4-7, word operations, ports C0-DF
- *
- *  - ALL registers are 8 bits only, regardless of transfer size
- *  - channel 4 is not used - cascades 1 into 2.
- *  - channels 0-3 are byte - addresses/counts are for physical bytes
- *  - channels 5-7 are word - addresses/counts are for physical words
- *  - transfers must not cross physical 64K (0-3) or 128K (5-7) boundaries
- *  - transfer count loaded to registers is 1 less than actual count
- *  - controller 2 offsets are all even (2x offsets for controller 1)
- *  - page registers for 5-7 don't use data bit 0, represent 128K pages
- *  - page registers for 0-3 use bit 0, represent 64K pages
- *
- * DMA transfers are limited to the lower 16MB of _physical_ memory.
- * Note that addresses loaded into registers must be _physical_ addresses,
- * not logical addresses (which may differ if paging is active).
- *
- *  Address mapping for channels 0-3:
- *
- *   A23 ... A16 A15 ... A8  A7 ... A0    (Physical addresses)
- *    |  ...  |   |  ... |   |  ... |
- *    |  ...  |   |  ... |   |  ... |
- *    |  ...  |   |  ... |   |  ... |
- *   P7  ...  P0  A7 ... A0  A7 ... A0
- * |    Page    | Addr MSB | Addr LSB |   (DMA registers)
- *
- *  Address mapping for channels 5-7:
- *
- *   A23 ... A17 A16 A15 ... A9 A8 A7 ... A1 A0    (Physical addresses)
- *    |  ...  |   \   \   ... \  \  \  ... \  \
- *    |  ...  |    \   \   ... \  \  \  ... \  (not used)
- *    |  ...  |     \   \   ... \  \  \  ... \
- *   P7  ...  P1 (0) A7 A6  ... A0 A7 A6 ... A0
- * |      Page      |  Addr MSB   |  Addr LSB  |   (DMA registers)
- *
- * Again, channels 5-7 transfer _physical_ words (16 bits), so addresses
- * and counts _must_ be word-aligned (the lowest address bit is _ignored_ at
- * the hardware level, so odd-byte transfers aren't possible).
- *
- * Transfer count (_not # bytes_) is limited to 64K, represented as actual
- * count - 1 : 64K => 0xFFFF, 1 => 0x0000.  Thus, count is always 1 or more,
- * and up to 128K bytes may be transferred on channels 5-7 in one operation.
- *
- */
 
 #define MAX_DMA_CHANNELS	8
 
-/* 16MB ISA DMA zone */
 #define MAX_DMA_PFN   ((16UL * 1024 * 1024) >> PAGE_SHIFT)
 
-/* 4GB broken PCI/AGP hardware bus master zone */
 #define MAX_DMA32_PFN (1UL << (32 - PAGE_SHIFT))
 
 #ifdef CONFIG_X86_32
-/* The maximum address that we can perform a DMA transfer to on this platform */
 #define MAX_DMA_ADDRESS      (PAGE_OFFSET + 0x1000000)
 #else
-/* Compat define for old dma zone */
 #define MAX_DMA_ADDRESS ((unsigned long)__va(MAX_DMA_PFN << PAGE_SHIFT))
 #endif
 
-/* 8237 DMA controllers */
 #define IO_DMA1_BASE	0x00	/* 8 bit slave DMA, channels 0..3 */
 #define IO_DMA2_BASE	0xC0	/* 16 bit master DMA, ch 4(=slave input)..7 */
 
-/* DMA controller registers */
 #define DMA1_CMD_REG		0x08	/* command register (w) */
 #define DMA1_STAT_REG		0x08	/* status register (r) */
 #define DMA1_REQ_REG		0x09    /* request register (w) */
@@ -137,11 +77,8 @@
 #define DMA_PAGE_6		0x89
 #define DMA_PAGE_7		0x8A
 
-/* I/O to memory, no autoinit, increment, single mode */
 #define DMA_MODE_READ		0x44
-/* memory to I/O, no autoinit, increment, single mode */
 #define DMA_MODE_WRITE		0x48
-/* pass thru DREQ->HRQ, DACK<-HLDA only */
 #define DMA_MODE_CASCADE	0xC0
 
 #define DMA_AUTOINIT		0x10
@@ -163,7 +100,6 @@ static inline void release_dma_lock(unsigned long flags)
 }
 #endif /* CONFIG_ISA_DMA_API */
 
-/* enable/disable a specific DMA channel */
 static inline void enable_dma(unsigned int dmanr)
 {
 	if (dmanr <= 3)
@@ -180,13 +116,6 @@ static inline void disable_dma(unsigned int dmanr)
 		dma_outb((dmanr & 3) | 4, DMA2_MASK_REG);
 }
 
-/* Clear the 'DMA Pointer Flip Flop'.
- * Write 0 for LSB/MSB, 1 for MSB/LSB access.
- * Use this once to initialize the FF to a known state.
- * After that, keep track of it. :-)
- * --- In order to do that, the DMA routines below should ---
- * --- only be used while holding the DMA lock ! ---
- */
 static inline void clear_dma_ff(unsigned int dmanr)
 {
 	if (dmanr <= 3)
@@ -195,7 +124,6 @@ static inline void clear_dma_ff(unsigned int dmanr)
 		dma_outb(0, DMA2_CLEAR_FF_REG);
 }
 
-/* set mode (above) for a specific DMA channel */
 static inline void set_dma_mode(unsigned int dmanr, char mode)
 {
 	if (dmanr <= 3)
@@ -204,11 +132,6 @@ static inline void set_dma_mode(unsigned int dmanr, char mode)
 		dma_outb(mode | (dmanr & 3), DMA2_MODE_REG);
 }
 
-/* Set only the page register bits of the transfer address.
- * This is used for successive transfers when we know the contents of
- * the lower 16 bits of the DMA current address register, but a 64k boundary
- * may have been crossed.
- */
 static inline void set_dma_page(unsigned int dmanr, char pagenr)
 {
 	switch (dmanr) {
@@ -237,9 +160,6 @@ static inline void set_dma_page(unsigned int dmanr, char pagenr)
 }
 
 
-/* Set transfer address & page bits for specific DMA channel.
- * Assumes dma flipflop is clear.
- */
 static inline void set_dma_addr(unsigned int dmanr, unsigned int a)
 {
 	set_dma_page(dmanr, a>>16);
@@ -253,14 +173,6 @@ static inline void set_dma_addr(unsigned int dmanr, unsigned int a)
 }
 
 
-/* Set transfer size (max 64k for DMA0..3, 128k for DMA5..7) for
- * a specific DMA channel.
- * You must ensure the parameters are valid.
- * NOTE: from a manual: "the number of transfers is one more
- * than the initial word count"! This is taken into account.
- * Assumes dma flip-flop is clear.
- * NOTE 2: "count" represents _bytes_ and must be even for channels 5-7.
- */
 static inline void set_dma_count(unsigned int dmanr, unsigned int count)
 {
 	count--;
@@ -277,14 +189,6 @@ static inline void set_dma_count(unsigned int dmanr, unsigned int count)
 }
 
 
-/* Get DMA residue count. After a DMA transfer, this
- * should return zero. Reading this while a DMA transfer is
- * still in progress will return unpredictable results.
- * If called before the channel has been used, it may return 1.
- * Otherwise, it returns the number of _bytes_ left to transfer.
- *
- * Assumes DMA flip-flop is clear.
- */
 static inline int get_dma_residue(unsigned int dmanr)
 {
 	unsigned int io_port;
@@ -301,7 +205,6 @@ static inline int get_dma_residue(unsigned int dmanr)
 }
 
 
-/* These are in kernel/dma.c because x86 uses CONFIG_GENERIC_ISA_DMA */
 #ifdef CONFIG_ISA_DMA_API
 extern int request_dma(unsigned int dmanr, const char *device_id);
 extern void free_dma(unsigned int dmanr);

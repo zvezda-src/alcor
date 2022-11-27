@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * KVM L1 hypervisor optimizations on Hyper-V.
- */
 
 #include <linux/kvm_host.h>
 #include <asm/mshyperv.h>
@@ -43,21 +39,12 @@ int hv_remote_flush_tlb_with_range(struct kvm *kvm,
 		nr_unique_valid_roots = 0;
 
 		/*
-		 * Flush all valid roots, and see if all vCPUs have converged
-		 * on a common root, in which case future flushes can skip the
-		 * loop and flush the common root.
-		 */
 		kvm_for_each_vcpu(i, vcpu, kvm) {
 			root = vcpu->arch.hv_root_tdp;
 			if (!VALID_PAGE(root) || root == kvm_arch->hv_root_tdp)
 				continue;
 
 			/*
-			 * Set the tracked root to the first valid root.  Keep
-			 * this root for the entirety of the loop even if more
-			 * roots are encountered as a low effort optimization
-			 * to avoid flushing the same (first) root again.
-			 */
 			if (++nr_unique_valid_roots == 1)
 				kvm_arch->hv_root_tdp = root;
 
@@ -65,17 +52,11 @@ int hv_remote_flush_tlb_with_range(struct kvm *kvm,
 				ret = hv_remote_flush_root_tdp(root, range);
 
 			/*
-			 * Stop processing roots if a failure occurred and
-			 * multiple valid roots have already been detected.
-			 */
 			if (ret && nr_unique_valid_roots > 1)
 				break;
 		}
 
 		/*
-		 * The optimized flush of a single root can't be used if there
-		 * are multiple valid roots (obviously).
-		 */
 		if (nr_unique_valid_roots > 1)
 			kvm_arch->hv_root_tdp = INVALID_PAGE;
 	} else {

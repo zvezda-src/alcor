@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _ASM_X86_STAT_H
 #define _ASM_X86_STAT_H
 
@@ -28,7 +27,6 @@ struct stat {
 	unsigned long  __unused5;
 };
 
-/* We don't need to memset the whole thing just to initialize the padding */
 #define INIT_STRUCT_STAT_PADDING(st) do {	\
 	st.__unused4 = 0;			\
 	st.__unused5 = 0;			\
@@ -36,9 +34,6 @@ struct stat {
 
 #define STAT64_HAS_BROKEN_ST_INO	1
 
-/* This matches struct stat64 in glibc2.1, hence the absolutely
- * insane amounts of padding around dev_t's.
- */
 struct stat64 {
 	unsigned long long	st_dev;
 	unsigned char	__pad0[4];
@@ -72,7 +67,6 @@ struct stat64 {
 	unsigned long long	st_ino;
 };
 
-/* We don't need to memset the whole thing just to initialize the padding */
 #define INIT_STRUCT_STAT64_PADDING(st) do {		\
 	memset(&st.__pad0, 0, sizeof(st.__pad0));	\
 	memset(&st.__pad3, 0, sizeof(st.__pad3));	\
@@ -103,7 +97,6 @@ struct stat {
 	__kernel_long_t		__unused[3];
 };
 
-/* We don't need to memset the whole thing just to initialize the padding */
 #define INIT_STRUCT_STAT_PADDING(st) do {	\
 	st.__pad0 = 0;				\
 	st.__unused[0] = 0;			\
@@ -113,7 +106,6 @@ struct stat {
 
 #endif
 
-/* for 32bit emulation and 32 bit kernels */
 struct __old_kernel_stat {
 	unsigned short st_dev;
 	unsigned short st_ino;

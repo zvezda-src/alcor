@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Interrupt descriptor table related code
- */
 #include <linux/interrupt.h>
 
 #include <asm/cpu_entry_area.h>
@@ -28,26 +24,19 @@
 		.segment	= _segment,		\
 	}
 
-/* Interrupt gate */
 #define INTG(_vector, _addr)				\
 	G(_vector, _addr, DEFAULT_STACK, GATE_INTERRUPT, DPL0, __KERNEL_CS)
 
-/* System interrupt gate */
 #define SYSG(_vector, _addr)				\
 	G(_vector, _addr, DEFAULT_STACK, GATE_INTERRUPT, DPL3, __KERNEL_CS)
 
 #ifdef CONFIG_X86_64
-/*
- * Interrupt gate with interrupt stack. The _ist index is the index in
- * the tss.ist[] array, but for the descriptor it needs to start at 1.
- */
 #define ISTG(_vector, _addr, _ist)			\
 	G(_vector, _addr, _ist + 1, GATE_INTERRUPT, DPL0, __KERNEL_CS)
 #else
 #define ISTG(_vector, _addr, _ist)	INTG(_vector, _addr)
 #endif
 
-/* Task gate */
 #define TSKG(_vector, _gdt)				\
 	G(_vector, NULL, DEFAULT_STACK, GATE_TASK, DPL0, _gdt << 3)
 
@@ -55,18 +44,12 @@
 
 static bool idt_setup_done __initdata;
 
-/*
- * Early traps running on the DEFAULT_STACK because the other interrupt
- * stacks work only after cpu_init().
- */
 static const __initconst struct idt_data early_idts[] = {
 	INTG(X86_TRAP_DB,		asm_exc_debug),
 	SYSG(X86_TRAP_BP,		asm_exc_int3),
 
 #ifdef CONFIG_X86_32
 	/*
-	 * Not possible on 64-bit. See idt_setup_early_pf() for details.
-	 */
 	INTG(X86_TRAP_PF,		asm_exc_page_fault),
 #endif
 #ifdef CONFIG_INTEL_TDX_GUEST
@@ -74,12 +57,6 @@ static const __initconst struct idt_data early_idts[] = {
 #endif
 };
 
-/*
- * The default IDT entries which are set up in trap_init() before
- * cpu_init() is invoked. Interrupt stacks cannot be used at that point and
- * the traps which use them are reinitialized with IST after cpu_init() has
- * set up TSS.
- */
 static const __initconst struct idt_data def_idts[] = {
 	INTG(X86_TRAP_DE,		asm_exc_divide_error),
 	ISTG(X86_TRAP_NMI,		asm_exc_nmi, IST_INDEX_NMI),
@@ -123,9 +100,6 @@ static const __initconst struct idt_data def_idts[] = {
 #endif
 };
 
-/*
- * The APIC and SMP idt entries
- */
 static const __initconst struct idt_data apic_idts[] = {
 #ifdef CONFIG_SMP
 	INTG(RESCHEDULE_VECTOR,			asm_sysvec_reschedule_ipi),
@@ -163,7 +137,6 @@ static const __initconst struct idt_data apic_idts[] = {
 #endif
 };
 
-/* Must be page-aligned because the real IDT is used in the cpu entry area */
 static gate_desc idt_table[IDT_ENTRIES] __page_aligned_bss;
 
 static struct desc_ptr idt_descr __ro_after_init = {
@@ -206,13 +179,6 @@ static __init void set_intr_gate(unsigned int n, const void *addr)
 	idt_setup_from_table(idt_table, &data, 1, false);
 }
 
-/**
- * idt_setup_early_traps - Initialize the idt table with early traps
- *
- * On X8664 these traps do not use interrupt stacks as they can't work
- * before cpu_init() is invoked and sets up TSS. The IST variants are
- * installed after that.
- */
 void __init idt_setup_early_traps(void)
 {
 	idt_setup_from_table(idt_table, early_idts, ARRAY_SIZE(early_idts),
@@ -220,35 +186,16 @@ void __init idt_setup_early_traps(void)
 	load_idt(&idt_descr);
 }
 
-/**
- * idt_setup_traps - Initialize the idt table with default traps
- */
 void __init idt_setup_traps(void)
 {
 	idt_setup_from_table(idt_table, def_idts, ARRAY_SIZE(def_idts), true);
 }
 
 #ifdef CONFIG_X86_64
-/*
- * Early traps running on the DEFAULT_STACK because the other interrupt
- * stacks work only after cpu_init().
- */
 static const __initconst struct idt_data early_pf_idts[] = {
 	INTG(X86_TRAP_PF,		asm_exc_page_fault),
 };
 
-/**
- * idt_setup_early_pf - Initialize the idt table with early pagefault handler
- *
- * On X8664 this does not use interrupt stacks as they can't work before
- * cpu_init() is invoked and sets up TSS. The IST variant is installed
- * after that.
- *
- * Note, that X86_64 cannot install the real #PF handler in
- * idt_setup_early_traps() because the memory initialization needs the #PF
- * handler from the early_idt_handler_array to initialize the early page
- * tables.
- */
 void __init idt_setup_early_pf(void)
 {
 	idt_setup_from_table(idt_table, early_pf_idts,
@@ -259,19 +206,11 @@ void __init idt_setup_early_pf(void)
 static void __init idt_map_in_cea(void)
 {
 	/*
-	 * Set the IDT descriptor to a fixed read-only location in the cpu
-	 * entry area, so that the "sidt" instruction will not leak the
-	 * location of the kernel, and to defend the IDT against arbitrary
-	 * memory write vulnerabilities.
-	 */
 	cea_set_pte(CPU_ENTRY_AREA_RO_IDT_VADDR, __pa_symbol(idt_table),
 		    PAGE_KERNEL_RO);
 	idt_descr.address = CPU_ENTRY_AREA_RO_IDT;
 }
 
-/**
- * idt_setup_apic_and_irq_gates - Setup APIC/SMP and normal interrupt gates
- */
 void __init idt_setup_apic_and_irq_gates(void)
 {
 	int i = FIRST_EXTERNAL_VECTOR;
@@ -287,10 +226,6 @@ void __init idt_setup_apic_and_irq_gates(void)
 #ifdef CONFIG_X86_LOCAL_APIC
 	for_each_clear_bit_from(i, system_vectors, NR_VECTORS) {
 		/*
-		 * Don't set the non assigned system vectors in the
-		 * system_vectors bitmap. Otherwise they show up in
-		 * /proc/interrupts.
-		 */
 		entry = spurious_entries_start + IDT_ALIGN * (i - FIRST_SYSTEM_VECTOR);
 		set_intr_gate(i, entry);
 	}
@@ -305,9 +240,6 @@ void __init idt_setup_apic_and_irq_gates(void)
 	idt_setup_done = true;
 }
 
-/**
- * idt_setup_early_handler - Initializes the idt table with early handlers
- */
 void __init idt_setup_early_handler(void)
 {
 	int i;
@@ -321,9 +253,6 @@ void __init idt_setup_early_handler(void)
 	load_idt(&idt_descr);
 }
 
-/**
- * idt_invalidate - Invalidate interrupt descriptor table
- */
 void idt_invalidate(void)
 {
 	static const struct desc_ptr idt = { .address = 0, .size = 0 };

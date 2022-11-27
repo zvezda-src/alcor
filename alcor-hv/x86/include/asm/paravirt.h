@@ -1,8 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PARAVIRT_H
 #define _ASM_X86_PARAVIRT_H
-/* Various instructions on x86 need to be replaced for
- * para-virtualization: those hooks are defined here. */
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/pgtable_types.h>
@@ -49,7 +46,6 @@ static inline u64 paravirt_steal_clock(int cpu)
 void __init paravirt_set_cap(void);
 #endif
 
-/* The paravirtualized I/O functions */
 static inline void slow_down_io(void)
 {
 	PVOP_VCALL0(cpu.io_delay);
@@ -109,16 +105,12 @@ static inline void load_sp0(unsigned long sp0)
 	PVOP_VCALL1(cpu.load_sp0, sp0);
 }
 
-/* The paravirtualized CPUID instruction. */
 static inline void __cpuid(unsigned int *eax, unsigned int *ebx,
 			   unsigned int *ecx, unsigned int *edx)
 {
 	PVOP_VCALL4(cpu.cpuid, eax, ebx, ecx, edx);
 }
 
-/*
- * These special macros can be used to get or set a debugging register
- */
 static __always_inline unsigned long paravirt_get_debugreg(int reg)
 {
 	return PVOP_CALL1(unsigned long, cpu.get_debugreg, reg);
@@ -229,7 +221,6 @@ static inline void wrmsrl(unsigned msr, u64 val)
 
 #define wrmsr_safe(msr, a, b)	paravirt_write_msr_safe(msr, a, b)
 
-/* rdmsr with exception handling */
 #define rdmsr_safe(msr, a, b)				\
 ({							\
 	int _err;					\
@@ -243,7 +234,6 @@ static inline int rdmsrl_safe(unsigned msr, unsigned long long *p)
 {
 	int err;
 
-	*p = paravirt_read_msr_safe(msr, &err);
 	return err;
 }
 
@@ -621,11 +611,9 @@ bool __raw_callee_save___native_vcpu_is_preempted(long cpu);
 #endif /* SMP && PARAVIRT_SPINLOCKS */
 
 #ifdef CONFIG_X86_32
-/* save and restore all caller-save registers, except return value */
 #define PV_SAVE_ALL_CALLER_REGS		"pushl %ecx;"
 #define PV_RESTORE_ALL_CALLER_REGS	"popl  %ecx;"
 #else
-/* save and restore all caller-save registers, except return value */
 #define PV_SAVE_ALL_CALLER_REGS						\
 	"push %rcx;"							\
 	"push %rdx;"							\
@@ -646,18 +634,6 @@ bool __raw_callee_save___native_vcpu_is_preempted(long cpu);
 	"pop %rcx;"
 #endif
 
-/*
- * Generate a thunk around a function which saves all caller-save
- * registers except for the return value.  This allows C functions to
- * be called from assembler code where fewer than normal registers are
- * available.  It may also help code generation around calls from C
- * code if the common case doesn't use many registers.
- *
- * When a callee is wrapped in a thunk, the caller can assume that all
- * arg regs and all scratch registers are preserved across the
- * call. The return value in rax/eax will not be saved, even for void
- * functions.
- */
 #define PV_THUNK_NAME(func) "__raw_callee_save_" #func
 #define __PV_CALLEE_SAVE_REGS_THUNK(func, section)			\
 	extern typeof(func) __raw_callee_save_##func;			\
@@ -679,11 +655,9 @@ bool __raw_callee_save___native_vcpu_is_preempted(long cpu);
 #define PV_CALLEE_SAVE_REGS_THUNK(func)			\
 	__PV_CALLEE_SAVE_REGS_THUNK(func, ".text")
 
-/* Get a reference to a callee-save function */
 #define PV_CALLEE_SAVE(func)						\
 	((struct paravirt_callee_save) { __raw_callee_save_##func })
 
-/* Promise that "func" already uses the right calling convention */
 #define __PV_IS_CALLEE_SAVE(func)			\
 	((struct paravirt_callee_save) { func })
 
@@ -715,7 +689,6 @@ static __always_inline unsigned long arch_local_irq_save(void)
 #endif
 
 
-/* Make sure as little as possible of this mess escapes. */
 #undef PARAVIRT_CALL
 #undef __PVOP_CALL
 #undef __PVOP_VCALL

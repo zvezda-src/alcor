@@ -1,8 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ARCH_X86_CPU_H
 #define ARCH_X86_CPU_H
 
-/* attempt to consolidate cpu attributes */
 struct cpu_dev {
 	const char	*c_vendor;
 

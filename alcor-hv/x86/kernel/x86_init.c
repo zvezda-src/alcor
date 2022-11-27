@@ -1,8 +1,3 @@
-/*
- * Copyright (C) 2009 Thomas Gleixner <tglx@linutronix.de>
- *
- *  For licencing details see kernel-base/COPYING
- */
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/export.h>
@@ -40,11 +35,6 @@ static __initconst const struct of_device_id of_cmos_match[] = {
 	{}
 };
 
-/*
- * Allow devicetree configured systems to disable the RTC by setting the
- * corresponding DT node's status property to disabled. Code is optimized
- * out for CONFIG_OF=n builds.
- */
 static __init void x86_wallclock_init(void)
 {
 	struct device_node *node = of_find_matching_node(NULL, of_cmos_match);
@@ -55,10 +45,6 @@ static __init void x86_wallclock_init(void)
 	}
 }
 
-/*
- * The platform setup functions are preset with the default functions
- * for standard PC hardware.
- */
 struct x86_init_ops x86_init __initdata = {
 
 	.resources = {

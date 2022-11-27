@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_HPET_H
 #define _ASM_X86_HPET_H
 
@@ -53,15 +52,9 @@
 #define HPET_TN_FSB_CAP		0x8000
 #define HPET_TN_ROUTE_SHIFT	9
 
-/* Max HPET Period is 10^8 femto sec as in HPET spec */
 #define HPET_MAX_PERIOD		100000000UL
-/*
- * Min HPET period is 10^5 femto sec just for safety. If it is less than this,
- * then 32 bit HPET counter wrapsaround in less than 0.5 sec.
- */
 #define HPET_MIN_PERIOD		100000UL
 
-/* hpet memory map physical address */
 extern unsigned long hpet_address;
 extern unsigned long force_hpet_address;
 extern bool boot_hpet_disable;

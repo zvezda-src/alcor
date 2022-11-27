@@ -1,5 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*---------------------------------------------------------------------------+
  |  control_w.h                                                              |
  |                                                                           |
  | Copyright (C) 1992,1993                                                   |
@@ -34,13 +32,11 @@
 #define RC_UP		_Const_(0x0800)
 #define RC_CHOP		_Const_(0x0C00)
 
-/* p 15-5: Precision control bits affect only the following:
    ADD, SUB(R), MUL, DIV(R), and SQRT */
 #define PR_24_BITS        _Const_(0x000)
 #define PR_53_BITS        _Const_(0x200)
 #define PR_64_BITS        _Const_(0x300)
 #define PR_RESERVED_BITS  _Const_(0x100)
-/* FULL_PRECISION simulates all exceptions masked */
 #define FULL_PRECISION  (PR_64_BITS | RC_RND | 0x3f)
 
 #endif /* _CONTROLW_H_ */

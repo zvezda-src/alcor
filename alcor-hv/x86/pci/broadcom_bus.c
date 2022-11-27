@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Read address ranges from a Broadcom CNB20LE Host Bridge
- *
- * Copyright (c) 2010 Ira W. Snyder <iws@ovro.caltech.edu>
- */
 
 #include <linux/acpi.h>
 #include <linux/delay.h>
@@ -29,11 +23,6 @@ static void __init cnb20le_res(u8 bus, u8 slot, u8 func)
 	info = alloc_pci_root_info(fbus, lbus, 0, 0);
 
 	/*
-	 * Add the legacy IDE ports on bus 0
-	 *
-	 * These do not exist anywhere in the bridge registers, AFAICT. I do
-	 * not have the datasheet, so this is the best I can do.
-	 */
 	if (fbus == 0) {
 		update_res(info, 0x01f0, 0x01f7, IORESOURCE_IO, 0);
 		update_res(info, 0x03f6, 0x03f6, IORESOURCE_IO, 0);
@@ -90,9 +79,6 @@ static int __init broadcom_postcore_init(void)
 
 #ifdef CONFIG_ACPI
 	/*
-	 * We should get host bridge information from ACPI unless the BIOS
-	 * doesn't support it.
-	 */
 	if (!acpi_disabled && acpi_os_get_root_pointer())
 		return 0;
 #endif

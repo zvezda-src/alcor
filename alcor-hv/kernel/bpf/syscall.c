@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2011-2014 PLUMgrid, http://plumgrid.com
- */
 #include <linux/bpf.h>
 #include <linux/bpf-cgroup.h>
 #include <linux/bpf_trace.h>
@@ -68,15 +65,6 @@ static const struct bpf_map_ops * const bpf_map_types[] = {
 #undef BPF_LINK_TYPE
 };
 
-/*
- * If we're handed a bigger struct than we know of, ensure all the unknown bits
- * are 0 - i.e. new user-space does not rely on any kernel feature extensions
- * we don't know about yet.
- *
- * There is a ToCToU between this function call and the following
- * copy_from_user() call. However, this is not a concern since this function is
- * meant to be a future-proofing of bits.
- */
 int bpf_check_uarg_tail_zero(bpfptr_t uaddr,
 			     size_t expected_size,
 			     size_t actual_size)
@@ -293,10 +281,6 @@ static int bpf_map_copy_value(struct bpf_map *map, void *key, void *value,
 	return err;
 }
 
-/* Please, do not use this function outside from the map creation path
- * (e.g. in map update path) without taking care of setting the active
- * memory cgroup (see at bpf_map_kmalloc_node() for example).
- */
 static void *__bpf_map_area_alloc(u64 size, int numa_node, bool mmapable)
 {
 	/* We really just want to fail instead of triggering OOM killer
@@ -579,11 +563,6 @@ bool bpf_map_equal_kptr_off_tab(const struct bpf_map *map_a, const struct bpf_ma
 	return !memcmp(tab_a, tab_b, size);
 }
 
-/* Caller must ensure map_value_has_kptrs is true. Note that this function can
- * be called on a map value while the map_value is visible to BPF programs, as
- * it ensures the correct synchronization, and we already enforce the same using
- * the bpf_kptr_xchg helper on the BPF program side for referenced kptrs.
- */
 void bpf_map_free_kptrs(struct bpf_map *map, void *map_value)
 {
 	struct bpf_map_value_off *tab = map->kptr_off_tab;
@@ -606,7 +585,6 @@ void bpf_map_free_kptrs(struct bpf_map *map, void *map_value)
 	}
 }
 
-/* called from workqueue */
 static void bpf_map_free_deferred(struct work_struct *work)
 {
 	struct bpf_map *map = container_of(work, struct bpf_map, work);
@@ -628,9 +606,6 @@ static void bpf_map_put_uref(struct bpf_map *map)
 	}
 }
 
-/* decrement map refcnt and schedule it for freeing via workqueue
- * (unrelying map implementation ops->map_free() might sleep)
- */
 static void __bpf_map_put(struct bpf_map *map, bool do_idr_lock)
 {
 	if (atomic64_dec_and_test(&map->refcnt)) {
@@ -678,10 +653,6 @@ static fmode_t map_get_sys_perms(struct bpf_map *map, struct fd f)
 }
 
 #ifdef CONFIG_PROC_FS
-/* Provides an approximation of the map's memory footprint.
- * Used only to provide a backward compatibility and display
- * a reasonable "memlock" info.
- */
 static unsigned long bpf_map_memory_footprint(const struct bpf_map *map)
 {
 	unsigned long size;
@@ -747,7 +718,6 @@ static ssize_t bpf_dummy_write(struct file *filp, const char __user *buf,
 	return -EINVAL;
 }
 
-/* called for any extra memory-mapped regions (except initial) */
 static void bpf_map_mmap_open(struct vm_area_struct *vma)
 {
 	struct bpf_map *map = vma->vm_file->private_data;
@@ -756,7 +726,6 @@ static void bpf_map_mmap_open(struct vm_area_struct *vma)
 		bpf_map_write_active_inc(map);
 }
 
-/* called for all unmapped memory region (including initial) */
 static void bpf_map_mmap_close(struct vm_area_struct *vma)
 {
 	struct bpf_map *map = vma->vm_file->private_data;
@@ -863,7 +832,6 @@ int bpf_get_file_flag(int flags)
 	return O_RDWR;
 }
 
-/* helper macro to check that unused fields 'union bpf_attr' are zero */
 #define CHECK_ATTR(CMD) \
 	memchr_inv((void *) &attr->CMD##_LAST_FIELD + \
 		   sizeof(attr->CMD##_LAST_FIELD), 0, \
@@ -871,9 +839,6 @@ int bpf_get_file_flag(int flags)
 		   offsetof(union bpf_attr, CMD##_LAST_FIELD) - \
 		   sizeof(attr->CMD##_LAST_FIELD)) != NULL
 
-/* dst and src must have at least "size" number of bytes.
- * Return strlen on success and < 0 on error.
- */
 int bpf_obj_name_cpy(char *dst, const char *src, unsigned int size)
 {
 	const char *end = src + size;
@@ -1065,7 +1030,6 @@ free_map_tab:
 }
 
 #define BPF_MAP_CREATE_LAST_FIELD map_extra
-/* called via syscall */
 static int map_create(union bpf_attr *attr)
 {
 	int numa_node = bpf_map_attr_numa_node(attr);
@@ -1188,9 +1152,6 @@ free_map:
 	return err;
 }
 
-/* if error is returned, fd is released.
- * On success caller should complete fd access with matching fdput()
- */
 struct bpf_map *__bpf_map_get(struct fd f)
 {
 	if (!f.file)
@@ -1247,7 +1208,6 @@ struct bpf_map *bpf_map_get_with_uref(u32 ufd)
 	return map;
 }
 
-/* map_idr_lock should have been held */
 static struct bpf_map *__bpf_map_inc_not_zero(struct bpf_map *map, bool uref)
 {
 	int refold;
@@ -1298,7 +1258,6 @@ static void *___bpf_copy_key(bpfptr_t ukey, u64 key_size)
 	return NULL;
 }
 
-/* last field in 'union bpf_attr' used by this command */
 #define BPF_MAP_LOOKUP_ELEM_LAST_FIELD flags
 
 static int map_lookup_elem(union bpf_attr *attr)
@@ -1489,7 +1448,6 @@ err_put:
 	return err;
 }
 
-/* last field in 'union bpf_attr' used by this command */
 #define BPF_MAP_GET_NEXT_KEY_LAST_FIELD next_key
 
 static int map_get_next_key(union bpf_attr *attr)
@@ -2208,7 +2166,6 @@ void bpf_prog_inc(struct bpf_prog *prog)
 }
 EXPORT_SYMBOL_GPL(bpf_prog_inc);
 
-/* prog_idr_lock should have been held */
 struct bpf_prog *bpf_prog_inc_not_zero(struct bpf_prog *prog)
 {
 	int refold;
@@ -2269,18 +2226,6 @@ struct bpf_prog *bpf_prog_get_type_dev(u32 ufd, enum bpf_prog_type type,
 }
 EXPORT_SYMBOL_GPL(bpf_prog_get_type_dev);
 
-/* Initially all BPF programs could be loaded w/o specifying
- * expected_attach_type. Later for some of them specifying expected_attach_type
- * at load time became required so that program could be validated properly.
- * Programs of types that are allowed to be loaded both w/ and w/o (for
- * backward compatibility) expected_attach_type, should have the default attach
- * type assigned to expected_attach_type for the latter case, so that it can be
- * validated later at attach time.
- *
- * bpf_prog_load_fixup_attach_type() sets expected_attach_type in @attr if
- * prog type requires it but has some attach types that have to be backward
- * compatible.
- */
 static void bpf_prog_load_fixup_attach_type(union bpf_attr *attr)
 {
 	switch (attr->prog_type) {
@@ -2447,7 +2392,6 @@ static bool is_perfmon_prog_type(enum bpf_prog_type prog_type)
 	}
 }
 
-/* last field in 'union bpf_attr' used by this command */
 #define	BPF_PROG_LOAD_LAST_FIELD core_relo_rec_size
 
 static int bpf_prog_load(union bpf_attr *attr, bpfptr_t uattr)
@@ -2684,13 +2628,6 @@ static void bpf_link_free_id(int id)
 	spin_unlock_bh(&link_idr_lock);
 }
 
-/* Clean up bpf_link and corresponding anon_inode file and FD. After
- * anon_inode is created, bpf_link can't be just kfree()'d due to deferred
- * anon_inode's release() call. This helper marksbpf_link as
- * defunct, releases anon_inode file and puts reserved FD. bpf_prog's refcnt
- * is not decremented, it's the responsibility of a calling code that failed
- * to complete bpf_link initialization.
- */
 void bpf_link_cleanup(struct bpf_link_primer *primer)
 {
 	primer->link->prog = NULL;
@@ -2704,7 +2641,6 @@ void bpf_link_inc(struct bpf_link *link)
 	atomic64_inc(&link->refcnt);
 }
 
-/* bpf_link_free is guaranteed to be called from process context */
 static void bpf_link_free(struct bpf_link *link)
 {
 	bpf_link_free_id(link->id);
@@ -2724,9 +2660,6 @@ static void bpf_link_put_deferred(struct work_struct *work)
 	bpf_link_free(link);
 }
 
-/* bpf_link_put can be called from atomic context, but ensures that resources
- * are freed from process context
- */
 void bpf_link_put(struct bpf_link *link)
 {
 	if (!atomic64_dec_and_test(&link->refcnt))
@@ -2804,19 +2737,6 @@ static int bpf_link_alloc_id(struct bpf_link *link)
 	return id;
 }
 
-/* Prepare bpf_link to be exposed to user-space by allocating anon_inode file,
- * reserving unused FD and allocating ID from link_idr. This is to be paired
- * with bpf_link_settle() to install FD and ID and expose bpf_link to
- * user-space, if bpf_link is successfully attached. If not, bpf_link and
- * pre-allocated resources are to be freed with bpf_cleanup() call. All the
- * transient state is passed around in struct bpf_link_primer.
- * This is preferred way to create and initialize bpf_link, especially when
- * there are complicated and expensive operations in between creating bpf_link
- * itself and attaching it to BPF hook. By using bpf_link_prime() and
- * bpf_link_settle() kernel code using bpf_link doesn't have to perform
- * expensive (and potentially failing) roll back operations in a rare case
- * that file, FD, or ID can't be allocated.
- */
 int bpf_link_prime(struct bpf_link *link, struct bpf_link_primer *primer)
 {
 	struct file *file;
@@ -3031,11 +2951,6 @@ static int bpf_tracing_prog_attach(struct bpf_prog *prog,
 	 */
 	if (!prog->aux->dst_trampoline && !tgt_prog) {
 		/*
-		 * Allow re-attach for TRACING and LSM programs. If it's
-		 * currently linked, bpf_trampoline_link_prog will fail.
-		 * EXT programs need to specify tgt_prog_fd, so they
-		 * re-attach in separate code path.
-		 */
 		if (prog->type != BPF_PROG_TYPE_TRACING &&
 		    prog->type != BPF_PROG_TYPE_LSM) {
 			err = -EINVAL;
@@ -3852,14 +3767,6 @@ static struct bpf_insn *bpf_insn_prepare_dump(const struct bpf_prog *prog,
 static int set_info_rec_size(struct bpf_prog_info *info)
 {
 	/*
-	 * Ensure info.*_rec_size is the same as kernel expected size
-	 *
-	 * or
-	 *
-	 * Only allow zero *_rec_size if both _rec_size and _cnt are
-	 * zero.  In this case, the kernel will set the expected
-	 * _rec_size back to the info.
-	 */
 
 	if ((info->nr_func_info || info->func_info_rec_size) &&
 	    info->func_info_rec_size != sizeof(struct bpf_func_info))
@@ -5163,7 +5070,6 @@ BPF_CALL_4(bpf_kallsyms_lookup_name, const char *, name, int, name_sz, int, flag
 	if (!bpf_dump_raw_ok(current_cred()))
 		return -EPERM;
 
-	*res = kallsyms_lookup_name(name);
 	return *res ? 0 : -ENOENT;
 }
 

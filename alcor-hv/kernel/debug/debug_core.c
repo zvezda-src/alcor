@@ -1,29 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Kernel Debug Core
- *
- * Maintainer: Jason Wessel <jason.wessel@windriver.com>
- *
- * Copyright (C) 2000-2001 VERITAS Software Corporation.
- * Copyright (C) 2002-2004 Timesys Corporation
- * Copyright (C) 2003-2004 Amit S. Kale <amitkale@linsyssoft.com>
- * Copyright (C) 2004 Pavel Machek <pavel@ucw.cz>
- * Copyright (C) 2004-2006 Tom Rini <trini@kernel.crashing.org>
- * Copyright (C) 2004-2006 LinSysSoft Technologies Pvt. Ltd.
- * Copyright (C) 2005-2009 Wind River Systems, Inc.
- * Copyright (C) 2007 MontaVista Software, Inc.
- * Copyright (C) 2008 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
- *
- * Contributors at various stages not listed above:
- *  Jason Wessel ( jason.wessel@windriver.com )
- *  George Anzinger <george@mvista.com>
- *  Anurekh Saxena (anurekh.saxena@timesys.com)
- *  Lake Stevens Instrument Division (Glenn Engel)
- *  Jim Kingdon, Cygnus Support.
- *
- * Original KGDB stub: David Grothe <dave@gcom.com>,
- * Tigran Aivazian <tigran@sco.com>
- */
 
 #define pr_fmt(fmt) "KGDB: " fmt
 
@@ -65,56 +39,36 @@ static int kgdb_break_asap;
 
 struct debuggerinfo_struct kgdb_info[NR_CPUS];
 
-/* kgdb_connected - Is a host GDB connected to us? */
 int				kgdb_connected;
 EXPORT_SYMBOL_GPL(kgdb_connected);
 
-/* All the KGDB handlers are installed */
 int			kgdb_io_module_registered;
 
-/* Guard for recursive entry */
 static int			exception_level;
 
 struct kgdb_io		*dbg_io_ops;
 static DEFINE_SPINLOCK(kgdb_registration_lock);
 
-/* Action for the reboot notifier, a global allow kdb to change it */
 static int kgdbreboot;
-/* kgdb console driver is loaded */
 static int kgdb_con_registered;
-/* determine if kgdb console output should be used */
 static int kgdb_use_con;
-/* Flag for alternate operations for early debugging */
 bool dbg_is_early = true;
-/* Next cpu to become the master debug core */
 int dbg_switch_cpu;
 
-/* Use kdb or gdbserver mode */
 int dbg_kdb_mode = 1;
 
 module_param(kgdb_use_con, int, 0644);
 module_param(kgdbreboot, int, 0644);
 
-/*
- * Holds information about breakpoints in a kernel. These breakpoints are
- * added and removed by gdb.
- */
 static struct kgdb_bkpt		kgdb_break[KGDB_MAX_BREAKPOINTS] = {
 	[0 ... KGDB_MAX_BREAKPOINTS-1] = { .state = BP_UNDEFINED }
 };
 
-/*
- * The CPU# of the active CPU, or -1 if none:
- */
 atomic_t			kgdb_active = ATOMIC_INIT(-1);
 EXPORT_SYMBOL_GPL(kgdb_active);
 static DEFINE_RAW_SPINLOCK(dbg_master_lock);
 static DEFINE_RAW_SPINLOCK(dbg_slave_lock);
 
-/*
- * We use NR_CPUs not PERCPU, in case kgdb is used to debug early
- * bootup code (which might not have percpu set up yet):
- */
 static atomic_t			masters_in_kgdb;
 static atomic_t			slaves_in_kgdb;
 atomic_t			kgdb_setting_breakpoint;
@@ -125,16 +79,8 @@ struct task_struct		*kgdb_contthread;
 int				kgdb_single_step;
 static pid_t			kgdb_sstep_pid;
 
-/* to keep track of the CPU which is doing the single stepping*/
 atomic_t			kgdb_cpu_doing_single_step = ATOMIC_INIT(-1);
 
-/*
- * If you are debugging a problem where roundup (the collection of
- * all other CPUs) is a problem [this should be extremely rare],
- * then use the nokgdbroundup option to avoid roundup. In that case
- * the other CPUs might interfere with your debugging context, so
- * use this with care:
- */
 static int kgdb_do_roundup = 1;
 
 static int __init opt_nokgdbroundup(char *str)
@@ -146,14 +92,7 @@ static int __init opt_nokgdbroundup(char *str)
 
 early_param("nokgdbroundup", opt_nokgdbroundup);
 
-/*
- * Finally, some KGDB code :-)
- */
 
-/*
- * Weak aliases for breakpoint management,
- * can be overridden by architectures when needed:
- */
 int __weak kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 {
 	int err;
@@ -218,20 +157,10 @@ NOKPROBE_SYMBOL(kgdb_skipexception);
 
 #ifdef CONFIG_SMP
 
-/*
- * Default (weak) implementation for kgdb_roundup_cpus
- */
 
 void __weak kgdb_call_nmi_hook(void *ignored)
 {
 	/*
-	 * NOTE: get_irq_regs() is supposed to get the registers from
-	 * before the IPI interrupt happened and so is supposed to
-	 * show where the processor was.  In some situations it's
-	 * possible we might be called without an IPI, so it might be
-	 * safer to figure out how to make kgdb_breakpoint() work
-	 * properly here.
-	 */
 	kgdb_nmicallback(raw_smp_processor_id(), get_irq_regs());
 }
 NOKPROBE_SYMBOL(kgdb_call_nmi_hook);
@@ -254,13 +183,6 @@ void __weak kgdb_roundup_cpus(void)
 		csd = &per_cpu(kgdb_roundup_csd, cpu);
 
 		/*
-		 * If it didn't round up last time, don't try again
-		 * since smp_call_function_single_async() will block.
-		 *
-		 * If rounding_up is false then we know that the
-		 * previous call must have at least started and that
-		 * means smp_call_function_single_async() won't block.
-		 */
 		if (kgdb_info[cpu].rounding_up)
 			continue;
 		kgdb_info[cpu].rounding_up = true;
@@ -274,10 +196,6 @@ NOKPROBE_SYMBOL(kgdb_roundup_cpus);
 
 #endif
 
-/*
- * Some architectures need cache flushes when we set/clear a
- * breakpoint:
- */
 static void kgdb_flush_swbreak_addr(unsigned long addr)
 {
 	if (!CACHE_FLUSH_IS_SAFE)
@@ -299,9 +217,6 @@ static void kgdb_flush_swbreak_addr(unsigned long addr)
 }
 NOKPROBE_SYMBOL(kgdb_flush_swbreak_addr);
 
-/*
- * SW breakpoint management:
- */
 int dbg_activate_sw_breakpoints(void)
 {
 	int error;
@@ -479,31 +394,12 @@ void kdb_dump_stack_on_cpu(int cpu)
 	}
 
 	/*
-	 * In general, architectures don't support dumping the stack of a
-	 * "running" process that's not the current one.  From the point of
-	 * view of the Linux, kernel processes that are looping in the kgdb
-	 * slave loop are still "running".  There's also no API (that actually
-	 * works across all architectures) that can do a stack crawl based
-	 * on registers passed as a parameter.
-	 *
-	 * Solve this conundrum by asking slave CPUs to do the backtrace
-	 * themselves.
-	 */
 	kgdb_info[cpu].exception_state |= DCPU_WANT_BT;
 	while (kgdb_info[cpu].exception_state & DCPU_WANT_BT)
 		cpu_relax();
 }
 #endif
 
-/*
- * Return true if there is a valid kgdb I/O module.  Also if no
- * debugger is attached a message can be printed to the console about
- * waiting for the debugger to attach.
- *
- * The print_wait argument is only to be true when called from inside
- * the core kgdb_handle_exception, because it will wait for the
- * debugger to attach.
- */
 static int kgdb_io_ready(int print_wait)
 {
 	if (!dbg_io_ops)
@@ -537,11 +433,6 @@ static int kgdb_reenter_check(struct kgdb_state *ks)
 	dbg_deactivate_sw_breakpoints();
 
 	/*
-	 * If the break point removed ok at the place exception
-	 * occurred, try to recover and print a warning to the end
-	 * user because the user planted a breakpoint in a place that
-	 * KGDB needs in order to function.
-	 */
 	if (dbg_remove_sw_break(addr) == 0) {
 		exception_level = 0;
 		kgdb_skipexception(ks->ex_vector, ks->linux_regs);
@@ -605,9 +496,6 @@ static int kgdb_cpu_enter(struct kgdb_state *ks, struct pt_regs *regs,
 acquirelock:
 	rcu_read_lock();
 	/*
-	 * Interrupts will be restored by the 'trap return' code, except when
-	 * single stepping.
-	 */
 	local_irq_save(flags);
 
 	cpu = ks->cpu;
@@ -626,9 +514,6 @@ acquirelock:
 	}
 
 	/*
-	 * CPU will loop if it is a slave or request to become a kgdb
-	 * master cpu and acquire the kgdb_active lock:
-	 */
 	while (1) {
 cpu_loop:
 		if (kgdb_info[cpu].exception_state & DCPU_NEXT_MASTER) {
@@ -670,11 +555,6 @@ return_normal:
 	}
 
 	/*
-	 * For single stepping, try to only enter on the processor
-	 * that was single stepping.  To guard against a deadlock, the
-	 * kernel will only try for the value of sstep_tries before
-	 * giving up and continuing on.
-	 */
 	if (atomic_read(&kgdb_cpu_doing_single_step) != -1 &&
 	    (kgdb_info[cpu].task &&
 	     kgdb_info[cpu].task->pid != kgdb_sstep_pid) && --sstep_tries) {
@@ -693,8 +573,6 @@ return_normal:
 	}
 
 	/*
-	 * Don't enter if we have hit a removed breakpoint.
-	 */
 	if (kgdb_skipexception(ks->ex_vector, ks->linux_regs))
 		goto kgdb_restore;
 
@@ -705,9 +583,6 @@ return_normal:
 		dbg_io_ops->pre_exception();
 
 	/*
-	 * Get the passive CPU lock which will hold all the non-primary
-	 * CPU in a spin state while the debugger is active
-	 */
 	if (!kgdb_single_step)
 		raw_spin_lock(&dbg_slave_lock);
 
@@ -722,8 +597,6 @@ return_normal:
 #endif
 
 	/*
-	 * Wait for the other CPUs to be notified and be waiting for us:
-	 */
 	time_left = MSEC_PER_SEC;
 	while (kgdb_do_roundup && --time_left &&
 	       (atomic_read(&masters_in_kgdb) + atomic_read(&slaves_in_kgdb)) !=
@@ -733,9 +606,6 @@ return_normal:
 		pr_crit("Timed out waiting for secondary CPUs.\n");
 
 	/*
-	 * At this point the primary processor is completely
-	 * in the debugger and all secondary CPUs are quiescent
-	 */
 	dbg_deactivate_sw_breakpoints();
 	kgdb_single_step = 0;
 	kgdb_contthread = current;
@@ -754,18 +624,6 @@ cpu_master_loop:
 			kgdb_connected = 0;
 		} else {
 			/*
-			 * This is a brutal way to interfere with the debugger
-			 * and prevent gdb being used to poke at kernel memory.
-			 * This could cause trouble if lockdown is applied when
-			 * there is already an active gdb session. For now the
-			 * answer is simply "don't do that". Typically lockdown
-			 * *will* be applied before the debug core gets started
-			 * so only developers using kgdb for fairly advanced
-			 * early kernel debug can be biten by this. Hopefully
-			 * they are sophisticated enough to take care of
-			 * themselves, especially with help from the lockdown
-			 * message printed on the console!
-			 */
 			if (security_locked_down(LOCKDOWN_DBG_WRITE_KERNEL)) {
 				if (IS_ENABLED(CONFIG_KGDB_KDB)) {
 					/* Switch back to kdb if possible... */
@@ -837,13 +695,6 @@ kgdb_restore:
 }
 NOKPROBE_SYMBOL(kgdb_cpu_enter);
 
-/*
- * kgdb_handle_exception() - main entry point from a kernel exception
- *
- * Locking hierarchy:
- *	interface locks, if any (begin_session)
- *	kgdb lock (kgdb_active)
- */
 int
 kgdb_handle_exception(int evector, int signo, int ecode, struct pt_regs *regs)
 {
@@ -854,11 +705,6 @@ kgdb_handle_exception(int evector, int signo, int ecode, struct pt_regs *regs)
 	if (arch_kgdb_ops.enable_nmi)
 		arch_kgdb_ops.enable_nmi(0);
 	/*
-	 * Avoid entering the debugger if we were triggered due to an oops
-	 * but panic_timeout indicates the system should automatically
-	 * reboot on panic. We don't want to get stuck waiting for input
-	 * on such systems, especially if its "just" an oops.
-	 */
 	if (signo != SIGTRAP && panic_timeout)
 		return 1;
 
@@ -882,9 +728,6 @@ out:
 }
 NOKPROBE_SYMBOL(kgdb_handle_exception);
 
-/*
- * GDB places a breakpoint at this function to know dynamically loaded objects.
- */
 static int module_event(struct notifier_block *self, unsigned long val,
 	void *data)
 {
@@ -1011,10 +854,6 @@ void kgdb_panic(const char *msg)
 		return;
 
 	/*
-	 * We don't want to get stuck waiting for input from user if
-	 * "panic_timeout" indicates the system should automatically
-	 * reboot on panic.
-	 */
 	if (panic_timeout)
 		return;
 
@@ -1051,11 +890,6 @@ static int
 dbg_notify_reboot(struct notifier_block *this, unsigned long code, void *x)
 {
 	/*
-	 * Take the following action on reboot notify depending on value:
-	 *    1 == Enter debugger
-	 *    0 == [the default] detach debug client
-	 *   -1 == Do nothing... and use this until the board resets
-	 */
 	switch (kgdbreboot) {
 	case 1:
 		kgdb_breakpoint();
@@ -1097,10 +931,6 @@ static void kgdb_register_callbacks(void)
 static void kgdb_unregister_callbacks(void)
 {
 	/*
-	 * When this routine is called KGDB should unregister from
-	 * handlers and clean up, making sure it is not handling any
-	 * break exceptions at the time.
-	 */
 	if (kgdb_io_module_registered) {
 		kgdb_io_module_registered = 0;
 		unregister_reboot_notifier(&dbg_reboot_notifier);
@@ -1116,12 +946,6 @@ static void kgdb_unregister_callbacks(void)
 	}
 }
 
-/**
- *	kgdb_register_io_module - register KGDB IO module
- *	@new_dbg_io_ops: the io ops vector
- *
- *	Register it with the KGDB core.
- */
 int kgdb_register_io_module(struct kgdb_io *new_dbg_io_ops)
 {
 	struct kgdb_io *old_dbg_io_ops;
@@ -1172,20 +996,11 @@ int kgdb_register_io_module(struct kgdb_io *new_dbg_io_ops)
 }
 EXPORT_SYMBOL_GPL(kgdb_register_io_module);
 
-/**
- *	kgdb_unregister_io_module - unregister KGDB IO module
- *	@old_dbg_io_ops: the io ops vector
- *
- *	Unregister it with the KGDB core.
- */
 void kgdb_unregister_io_module(struct kgdb_io *old_dbg_io_ops)
 {
 	BUG_ON(kgdb_connected);
 
 	/*
-	 * KGDB is no longer able to communicate out, so
-	 * unregister our callbacks and reset state.
-	 */
 	kgdb_unregister_callbacks();
 
 	spin_lock(&kgdb_registration_lock);
@@ -1215,14 +1030,6 @@ int dbg_io_get_char(void)
 	return ret;
 }
 
-/**
- * kgdb_breakpoint - generate breakpoint exception
- *
- * This function will generate a breakpoint exception.  It is used at the
- * beginning of a program to sync up with a debugger and can be used
- * otherwise as a quick means to stop program execution and "break" into
- * the debugger.
- */
 noinline void kgdb_breakpoint(void)
 {
 	atomic_inc(&kgdb_setting_breakpoint);

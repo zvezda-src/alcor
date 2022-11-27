@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Clang Control Flow Integrity (CFI) error and slowpath handling.
- *
- * Copyright (C) 2021 Google LLC
- */
 
 #include <linux/hardirq.h>
 #include <linux/kallsyms.h>
@@ -16,7 +10,6 @@
 #include <asm/cacheflush.h>
 #include <asm/set_memory.h>
 
-/* Compiler-defined handler names */
 #ifdef CONFIG_CFI_PERMISSIVE
 #define cfi_failure_handler	__ubsan_handle_cfi_check_fail
 #else
@@ -33,10 +26,6 @@ static inline void handle_cfi_failure(void *ptr)
 
 #ifdef CONFIG_MODULES
 #ifdef CONFIG_CFI_CLANG_SHADOW
-/*
- * Index type. A 16-bit index can address at most (2^16)-2 pages (taking
- * into account SHADOW_INVALID), i.e. ~256M with 4k pages.
- */
 typedef u16 shadow_t;
 #define SHADOW_INVALID		((shadow_t)~0UL)
 
@@ -47,25 +36,18 @@ struct cfi_shadow {
 	shadow_t shadow[1];
 } __packed;
 
-/*
- * The shadow covers ~128M from the beginning of the module region. If
- * the region is larger, we fall back to __module_address for the rest.
- */
 #define __SHADOW_RANGE		(_UL(SZ_128M) >> PAGE_SHIFT)
 
-/* The in-memory size of struct cfi_shadow, always at least one page */
 #define __SHADOW_PAGES		((__SHADOW_RANGE * sizeof(shadow_t)) >> PAGE_SHIFT)
 #define SHADOW_PAGES		max(1UL, __SHADOW_PAGES)
 #define SHADOW_SIZE		(SHADOW_PAGES << PAGE_SHIFT)
 
-/* The actual size of the shadow array, minus metadata */
 #define SHADOW_ARR_SIZE		(SHADOW_SIZE - offsetof(struct cfi_shadow, shadow))
 #define SHADOW_ARR_SLOTS	(SHADOW_ARR_SIZE / sizeof(shadow_t))
 
 static DEFINE_MUTEX(shadow_update_lock);
 static struct cfi_shadow __rcu *cfi_shadow __read_mostly;
 
-/* Returns the index in the shadow for the given address */
 static inline int ptr_to_shadow(const struct cfi_shadow *s, unsigned long ptr)
 {
 	unsigned long index;
@@ -82,7 +64,6 @@ static inline int ptr_to_shadow(const struct cfi_shadow *s, unsigned long ptr)
 	return (int)index;
 }
 
-/* Returns the page address for an index in the shadow */
 static inline unsigned long shadow_to_ptr(const struct cfi_shadow *s,
 	int index)
 {
@@ -92,7 +73,6 @@ static inline unsigned long shadow_to_ptr(const struct cfi_shadow *s,
 	return (s->base + index) << PAGE_SHIFT;
 }
 
-/* Returns the __cfi_check function address for the given shadow location */
 static inline unsigned long shadow_to_check_fn(const struct cfi_shadow *s,
 	int index)
 {
@@ -288,10 +268,6 @@ static inline cfi_check_fn find_check_fn(unsigned long ptr)
 		return __cfi_check;
 
 	/*
-	 * Indirect call checks can happen when RCU is not watching. Both
-	 * the shadow and __module_address use RCU, so we need to wake it
-	 * up if necessary.
-	 */
 	rcu_idle = !rcu_is_watching();
 	if (rcu_idle) {
 		local_irq_save(flags);

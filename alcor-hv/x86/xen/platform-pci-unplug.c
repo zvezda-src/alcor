@@ -1,11 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
 
-/******************************************************************************
- * platform-pci-unplug.c
- *
- * Xen platform PCI device driver
- * Copyright (c) 2010, Citrix
- */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -21,7 +14,6 @@
 #define XEN_PLATFORM_ERR_PROTOCOL -2
 #define XEN_PLATFORM_ERR_BLACKLIST -3
 
-/* store the value of xen_emul_unplug after the unplug is done */
 static int xen_platform_pci_unplug;
 static int xen_emul_unplug;
 
@@ -111,11 +103,6 @@ bool xen_has_pv_disk_devices(void)
 }
 EXPORT_SYMBOL_GPL(xen_has_pv_disk_devices);
 
-/*
- * This one is odd - it determines whether you want to run PV _and_
- * legacy (IDE) drivers together. This combination is only possible
- * under HVM.
- */
 bool xen_has_pv_and_legacy_disk_devices(void)
 {
 	if (!xen_domain())

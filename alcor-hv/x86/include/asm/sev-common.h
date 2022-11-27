@@ -1,9 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- * AMD SEV header common between the guest and the hypervisor.
- *
- * Author: Brijesh Singh <brijesh.singh@amd.com>
- */
 
 #ifndef __ASM_X86_SEV_COMMON_H
 #define __ASM_X86_SEV_COMMON_H
@@ -15,7 +9,6 @@
 #define GHCB_DATA(v)			\
 	(((unsigned long)(v) & ~GHCB_MSR_INFO_MASK) >> GHCB_DATA_LOW)
 
-/* SEV Information Request/Response */
 #define GHCB_MSR_SEV_INFO_RESP		0x001
 #define GHCB_MSR_SEV_INFO_REQ		0x002
 
@@ -32,7 +25,6 @@
 #define GHCB_MSR_PROTO_MAX(v)		(((v) >> 48) & 0xffff)
 #define GHCB_MSR_PROTO_MIN(v)		(((v) >> 32) & 0xffff)
 
-/* CPUID Request/Response */
 #define GHCB_MSR_CPUID_REQ		0x004
 #define GHCB_MSR_CPUID_RESP		0x005
 #define GHCB_MSR_CPUID_FUNC_POS		32
@@ -53,11 +45,9 @@
 	/* GHCBData[63:32] */				\
 	(((unsigned long)fn) << 32))
 
-/* AP Reset Hold */
 #define GHCB_MSR_AP_RESET_HOLD_REQ	0x006
 #define GHCB_MSR_AP_RESET_HOLD_RESP	0x007
 
-/* GHCB GPA Register */
 #define GHCB_MSR_REG_GPA_REQ		0x012
 #define GHCB_MSR_REG_GPA_REQ_VAL(v)			\
 	/* GHCBData[63:12] */				\
@@ -70,13 +60,6 @@
 	/* GHCBData[63:12] */				\
 	(((u64)(v) & GENMASK_ULL(63, 12)) >> 12)
 
-/*
- * SNP Page State Change Operation
- *
- * GHCBData[55:52] - Page operation:
- *   0x0001	Page assignment, Private
- *   0x0002	Page assignment, Shared
- */
 enum psc_op {
 	SNP_PAGE_STATE_PRIVATE = 1,
 	SNP_PAGE_STATE_SHARED,
@@ -96,7 +79,6 @@ enum psc_op {
 	/* GHCBData[63:32] */				\
 	(((u64)(val) & GENMASK_ULL(63, 32)) >> 32)
 
-/* GHCB Hypervisor Feature Request/Response */
 #define GHCB_MSR_HV_FT_REQ		0x080
 #define GHCB_MSR_HV_FT_RESP		0x081
 #define GHCB_MSR_HV_FT_RESP_VAL(v)			\
@@ -106,7 +88,6 @@ enum psc_op {
 #define GHCB_HV_FT_SNP			BIT_ULL(0)
 #define GHCB_HV_FT_SNP_AP_CREATION	BIT_ULL(1)
 
-/* SNP Page State Change NAE event */
 #define VMGEXIT_PSC_MAX_ENTRY		253
 
 struct psc_hdr {
@@ -128,7 +109,6 @@ struct snp_psc_desc {
 	struct psc_entry entries[VMGEXIT_PSC_MAX_ENTRY];
 } __packed;
 
-/* Guest message request error code */
 #define SNP_GUEST_REQ_INVALID_LEN	BIT_ULL(32)
 
 #define GHCB_MSR_TERM_REQ		0x100
@@ -143,13 +123,11 @@ struct snp_psc_desc {
 	 /* GHCBData[23:16] */				\
 	((((u64)reason_val) & 0xff) << 16))
 
-/* Error codes from reason set 0 */
 #define SEV_TERM_SET_GEN		0
 #define GHCB_SEV_ES_GEN_REQ		0
 #define GHCB_SEV_ES_PROT_UNSUPPORTED	1
 #define GHCB_SNP_UNSUPPORTED		2
 
-/* Linux-specific reason codes (used with reason set 1) */
 #define SEV_TERM_SET_LINUX		1
 #define GHCB_TERM_REGISTER		0	/* GHCB GPA registration failure */
 #define GHCB_TERM_PSC			1	/* Page State Change failure */
@@ -160,10 +138,6 @@ struct snp_psc_desc {
 
 #define GHCB_RESP_CODE(v)		((v) & GHCB_MSR_INFO_MASK)
 
-/*
- * Error codes related to GHCB input that can be communicated back to the guest
- * by setting the lower 32-bits of the GHCB SW_EXITINFO1 field to 2.
- */
 #define GHCB_ERR_NOT_REGISTERED		1
 #define GHCB_ERR_INVALID_USAGE		2
 #define GHCB_ERR_INVALID_SCRATCH_AREA	3

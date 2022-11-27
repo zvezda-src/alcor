@@ -1,12 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
 
-/*
- * Irqdomain for Linux to run as the root partition on Microsoft Hypervisor.
- *
- * Authors:
- *  Sunil Muthuswamy <sunilmut@microsoft.com>
- *  Wei Liu <wei.liu@kernel.org>
- */
 
 #include <linux/pci.h>
 #include <linux/irq.h>
@@ -51,15 +43,10 @@ static int hv_map_interrupt(union hv_device_id device_id, bool level,
 	intr_desc->target.flags = HV_DEVICE_INTERRUPT_TARGET_PROCESSOR_SET;
 
 	/*
-	 * var-sized hypercall, var-size starts after vp_mask (thus
-	 * vp_set.format does not count, but vp_set.valid_bank_mask
-	 * does).
-	 */
 	var_size = nr_bank + 1;
 
 	status = hv_do_rep_hypercall(HVCALL_MAP_DEVICE_INTERRUPT, 0, var_size,
 			input, output);
-	*entry = output->interrupt_entry;
 
 	local_irq_restore(flags);
 
@@ -83,7 +70,6 @@ static int hv_unmap_interrupt(u64 id, struct hv_interrupt_entry *old_entry)
 	intr_entry = &input->interrupt_entry;
 	input->partition_id = hv_current_partition_id;
 	input->device_id = id;
-	*intr_entry = *old_entry;
 
 	status = hv_do_hypercall(HVCALL_UNMAP_DEVICE_INTERRUPT, input, NULL);
 	local_irq_restore(flags);
@@ -133,17 +119,6 @@ static union hv_device_id hv_build_pci_dev_id(struct pci_dev *dev)
 		int pos;
 
 		/*
-		 * Microsoft Hypervisor requires a bus range when the bridge is
-		 * running in PCI-X mode.
-		 *
-		 * To distinguish conventional vs PCI-X bridge, we can check
-		 * the bridge's PCI-X Secondary Status Register, Secondary Bus
-		 * Mode and Frequency bits. See PCI Express to PCI/PCI-X Bridge
-		 * Specification Revision 1.0 5.2.2.1.3.
-		 *
-		 * Value zero means it is in conventional mode, otherwise it is
-		 * in PCI-X mode.
-		 */
 
 		pos = pci_find_capability(data.bridge, PCI_CAP_ID_PCIX);
 		if (pos) {
@@ -209,13 +184,6 @@ static void hv_irq_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 
 	if (data->chip_data) {
 		/*
-		 * This interrupt is already mapped. Let's unmap first.
-		 *
-		 * We don't use retarget interrupt hypercalls here because
-		 * Microsoft Hypervisor doens't allow root to change the vector
-		 * or specify VPs outside of the set that is initially used
-		 * during mapping.
-		 */
 		stored_entry = data->chip_data;
 		data->chip_data = NULL;
 
@@ -241,7 +209,6 @@ static void hv_irq_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 		return;
 	}
 
-	*stored_entry = out_entry;
 	data->chip_data = stored_entry;
 	entry_to_msi_msg(&out_entry, msg);
 
@@ -292,10 +259,6 @@ static void hv_msi_free_irq(struct irq_domain *domain,
 	hv_teardown_msi_irq(to_pci_dev(desc->dev), irqd);
 }
 
-/*
- * IRQ Chip for MSI PCI/PCI-X/PCI-Express Devices,
- * which implement the MSI or MSI-X Capability Structure.
- */
 static struct irq_chip hv_pci_msi_controller = {
 	.name			= "HV-PCI-MSI",
 	.irq_unmask		= pci_msi_unmask_irq,

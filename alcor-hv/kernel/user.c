@@ -1,13 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * The "user cache".
- *
- * (C) Copyright 1991-2000 Linus Torvalds
- *
- * We have a per-user structure to keep track of how many
- * processes, files etc the user has claimed, in order to be
- * able to have per-user limits for system resources. 
- */
 
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -20,10 +10,6 @@
 #include <linux/user_namespace.h>
 #include <linux/proc_ns.h>
 
-/*
- * userns count is 1 for root user, 1 for init_uts_ns,
- * and 1 for... ?
- */
 struct user_namespace init_user_ns = {
 	.uid_map = {
 		.nr_extents = 1,
@@ -70,10 +56,6 @@ struct user_namespace init_user_ns = {
 };
 EXPORT_SYMBOL_GPL(init_user_ns);
 
-/*
- * UID task count cache, to get fast user lookup in "alloc_uid"
- * when changing user ID's (ie setuid() and friends).
- */
 
 #define UIDHASH_BITS	(CONFIG_BASE_SMALL ? 3 : 7)
 #define UIDHASH_SZ	(1 << UIDHASH_BITS)
@@ -84,27 +66,14 @@ EXPORT_SYMBOL_GPL(init_user_ns);
 static struct kmem_cache *uid_cachep;
 static struct hlist_head uidhash_table[UIDHASH_SZ];
 
-/*
- * The uidhash_lock is mostly taken from process context, but it is
- * occasionally also taken from softirq/tasklet context, when
- * task-structs get RCU-freed. Hence all locking must be softirq-safe.
- * But free_uid() is also called with local interrupts disabled, and running
- * local_bh_enable() with local interrupts disabled is an error - we'll run
- * softirq callbacks, and they can unconditionally enable interrupts, and
- * the caller of free_uid() didn't expect that..
- */
 static DEFINE_SPINLOCK(uidhash_lock);
 
-/* root_user.__count is 1, for init task cred */
 struct user_struct root_user = {
 	.__count	= REFCOUNT_INIT(1),
 	.uid		= GLOBAL_ROOT_UID,
 	.ratelimit	= RATELIMIT_STATE_INIT(root_user.ratelimit, 0, 0),
 };
 
-/*
- * These routines must be called with the uidhash spinlock held!
- */
 static void uid_hash_insert(struct user_struct *up, struct hlist_head *hashent)
 {
 	hlist_add_head(&up->uidhash_node, hashent);
@@ -145,10 +114,6 @@ static void user_epoll_free(struct user_struct *up)
 #endif
 }
 
-/* IRQs are disabled and uidhash_lock is held upon function entry.
- * IRQ state (as stored in flags) is restored and uidhash_lock released
- * upon function exit.
- */
 static void free_user(struct user_struct *up, unsigned long flags)
 	__releases(&uidhash_lock)
 {
@@ -158,12 +123,6 @@ static void free_user(struct user_struct *up, unsigned long flags)
 	kmem_cache_free(uid_cachep, up);
 }
 
-/*
- * Locate the user_struct for the passed UID.  If found, take a ref on it.  The
- * caller must undo that ref with free_uid().
- *
- * If the user_struct could not be found, return NULL.
- */
 struct user_struct *find_user(kuid_t uid)
 {
 	struct user_struct *ret;
@@ -210,9 +169,6 @@ struct user_struct *alloc_uid(kuid_t uid)
 		ratelimit_set_flags(&new->ratelimit, RATELIMIT_MSG_ON_RELEASE);
 
 		/*
-		 * Before adding this, check whether we raced
-		 * on adding the same user already..
-		 */
 		spin_lock_irq(&uidhash_lock);
 		up = uid_hash_find(uid, hashent);
 		if (up) {

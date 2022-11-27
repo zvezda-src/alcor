@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Memory mapped I/O tracing
- *
- * Copyright (C) 2008 Pekka Paalanen <pq@iki.fi>
- */
 
 #include <linux/kernel.h>
 #include <linux/mmiotrace.h>
@@ -109,7 +103,6 @@ static void mmio_pipe_open(struct trace_iterator *iter)
 	iter->private = hiter;
 }
 
-/* XXX: This is not called when the pipe is closed! */
 static void mmio_close(struct trace_iterator *iter)
 {
 	struct header_iter *hiter = iter->private;

@@ -1,13 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_ASM_X86_PROCESSOR_FLAGS_H
 #define _UAPI_ASM_X86_PROCESSOR_FLAGS_H
-/* Various flags defined: can be included from assembler. */
 
 #include <linux/const.h>
 
-/*
- * EFLAGS bits
- */
 #define X86_EFLAGS_CF_BIT	0 /* Carry Flag */
 #define X86_EFLAGS_CF		_BITUL(X86_EFLAGS_CF_BIT)
 #define X86_EFLAGS_FIXED_BIT	1 /* Bit 1 - always on */
@@ -45,9 +40,6 @@
 #define X86_EFLAGS_ID_BIT	21 /* CPUID detection */
 #define X86_EFLAGS_ID		_BITUL(X86_EFLAGS_ID_BIT)
 
-/*
- * Basic CPU control in CR0
- */
 #define X86_CR0_PE_BIT		0 /* Protection Enable */
 #define X86_CR0_PE		_BITUL(X86_CR0_PE_BIT)
 #define X86_CR0_MP_BIT		1 /* Monitor Coprocessor */
@@ -71,9 +63,6 @@
 #define X86_CR0_PG_BIT		31 /* Paging */
 #define X86_CR0_PG		_BITUL(X86_CR0_PG_BIT)
 
-/*
- * Paging options in CR3
- */
 #define X86_CR3_PWT_BIT		3 /* Page Write Through */
 #define X86_CR3_PWT		_BITUL(X86_CR3_PWT_BIT)
 #define X86_CR3_PCD_BIT		4 /* Page Cache Disable */
@@ -85,9 +74,6 @@
 #define X86_CR3_PCID_NOFLUSH_BIT 63 /* Preserve old PCID */
 #define X86_CR3_PCID_NOFLUSH    _BITULL(X86_CR3_PCID_NOFLUSH_BIT)
 
-/*
- * Intel CPU features in CR4
- */
 #define X86_CR4_VME_BIT		0 /* enable vm86 extensions */
 #define X86_CR4_VME		_BITUL(X86_CR4_VME_BIT)
 #define X86_CR4_PVI_BIT		1 /* virtual interrupts flag enable */
@@ -133,18 +119,9 @@
 #define X86_CR4_CET_BIT		23 /* enable Control-flow Enforcement Technology */
 #define X86_CR4_CET		_BITUL(X86_CR4_CET_BIT)
 
-/*
- * x86-64 Task Priority Register, CR8
- */
 #define X86_CR8_TPR		_AC(0x0000000f,UL) /* task priority register */
 
-/*
- * AMD and Transmeta use MSRs for configuration; see <asm/msr-index.h>
- */
 
-/*
- *      NSC/Cyrix CPU configuration register indexes
- */
 #define CX86_PCR0	0x20
 #define CX86_GCR	0xb8
 #define CX86_CCR0	0xc0

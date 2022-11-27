@@ -1,9 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- * CPUID-related helpers/definitions
- *
- * Derived from arch/x86/kvm/cpuid.c
- */
 
 #ifndef _ASM_X86_CPUID_H
 #define _ASM_X86_CPUID_H

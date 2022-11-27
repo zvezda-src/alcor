@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_TRAPS_H
 #define _ASM_X86_TRAPS_H
 
@@ -21,7 +20,6 @@ asmlinkage __visible noinstr struct pt_regs *vc_switch_off_ist(struct pt_regs *e
 extern bool ibt_selftest(void);
 
 #ifdef CONFIG_X86_F00F_BUG
-/* For handling the FOOF bug */
 void handle_invalid_op(struct pt_regs *regs);
 #endif
 

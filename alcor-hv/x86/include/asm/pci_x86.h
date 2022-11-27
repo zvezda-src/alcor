@@ -1,9 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- *	Low-Level PCI Access for i386 machines.
- *
- *	(c) 1999 Martin Mares <mj@ucw.cz>
- */
 
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -55,19 +49,16 @@ enum pci_bf_sort_state {
 	pci_dmi_bf,
 };
 
-/* pci-i386.c */
 
 void pcibios_resource_survey(void);
 void pcibios_set_cache_line_size(void);
 
-/* pci-pc.c */
 
 extern int pcibios_last_bus;
 extern struct pci_ops pci_root_ops;
 
 void pcibios_scan_specific_bus(int busn);
 
-/* pci-irq.c */
 
 struct pci_dev;
 
@@ -129,7 +120,6 @@ extern const struct pci_raw_ops pci_mmcfg;
 extern const struct pci_raw_ops pci_direct_conf1;
 extern bool port_cf9_safe;
 
-/* arch_initcall level */
 #ifdef CONFIG_PCI_DIRECT
 extern int pci_direct_probe(void);
 extern void pci_direct_init(int type);
@@ -147,7 +137,6 @@ static inline void pci_pcbios_init(void) { }
 extern void __init dmi_check_pciprobe(void);
 extern void __init dmi_check_skip_isa_align(void);
 
-/* some common used subsys_initcalls */
 #ifdef CONFIG_PCI
 extern int __init pci_acpi_init(void);
 #else
@@ -161,9 +150,7 @@ extern int __init pcibios_init(void);
 extern int pci_legacy_init(void);
 extern void pcibios_fixup_irqs(void);
 
-/* pci-mmconfig.c */
 
-/* "PCI MMCONFIG %04x [bus %02x-%02x]" */
 #define PCI_MMCFG_RESOURCE_NAME_LEN (22 + 4 + 2 + 2)
 
 struct pci_mmcfg_region {
@@ -192,13 +179,6 @@ extern struct list_head pci_mmcfg_list;
 
 #define PCI_MMCFG_BUS_OFFSET(bus)      ((bus) << 20)
 
-/*
- * On AMD Fam10h CPUs, all PCI MMIO configuration space accesses must use
- * %eax.  No other source or target registers may be used.  The following
- * mmio_config_* accessors enforce this.  See "BIOS and Kernel Developer's
- * Guide (BKDG) For AMD Family 10h Processors", rev. 3.48, sec 2.11.1,
- * "MMIO Configuration Coding Requirements".
- */
 static inline unsigned char mmio_config_readb(void __iomem *pos)
 {
 	u8 val;

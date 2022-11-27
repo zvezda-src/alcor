@@ -1,8 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
-/*
- *  Fault Injection Test harness (FI)
- *  Copyright (C) Intel Crop.
- */
 
 #ifndef __PF_H_
 #define __PF_H_

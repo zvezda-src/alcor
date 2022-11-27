@@ -19,18 +19,14 @@ enum pconfig_leaf {
 
 #define PCONFIG ".byte 0x0f, 0x01, 0xc5"
 
-/* Defines and structure for MKTME_KEY_PROGRAM of PCONFIG instruction */
 
-/* mktme_key_program::keyid_ctrl COMMAND, bits [7:0] */
 #define MKTME_KEYID_SET_KEY_DIRECT	0
 #define MKTME_KEYID_SET_KEY_RANDOM	1
 #define MKTME_KEYID_CLEAR_KEY		2
 #define MKTME_KEYID_NO_ENCRYPT		3
 
-/* mktme_key_program::keyid_ctrl ENC_ALG, bits [23:8] */
 #define MKTME_AES_XTS_128	(1 << 8)
 
-/* Return codes from the PCONFIG MKTME_KEY_PROGRAM */
 #define MKTME_PROG_SUCCESS	0
 #define MKTME_INVALID_PROG_CMD	1
 #define MKTME_ENTROPY_ERROR	2
@@ -38,7 +34,6 @@ enum pconfig_leaf {
 #define MKTME_INVALID_ENC_ALG	4
 #define MKTME_DEVICE_BUSY	5
 
-/* Hardware requires the structure to be 256 byte aligned. Otherwise #GP(0). */
 struct mktme_key_program {
 	u16 keyid;
 	u32 keyid_ctrl;

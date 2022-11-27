@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>
@@ -6,32 +5,11 @@
 
 #include "futex.h"
 
-/*
- * Support for robust futexes: the kernel cleans up held futexes at
- * thread exit time.
- *
- * Implementation: user-space maintains a per-thread list of locks it
- * is holding. Upon do_exit(), the kernel carefully walks this list,
- * and marks all locks that are owned by this thread with the
- * FUTEX_OWNER_DIED bit, and wakes up a waiter (if any). The list is
- * always manipulated with the lock held, so the list is private and
- * per-thread. Userspace also maintains a per-thread 'list_op_pending'
- * field, to allow the kernel to clean up if the thread dies after
- * acquiring the lock, but just before it could have added itself to
- * the list. There can only be one such pending lock.
- */
 
-/**
- * sys_set_robust_list() - Set the robust-futex list head of a task
- * @head:	pointer to the list-head
- * @len:	length of the list-head, as userspace expects
- */
 SYSCALL_DEFINE2(set_robust_list, struct robust_list_head __user *, head,
 		size_t, len)
 {
 	/*
-	 * The kernel knows only one size for now:
-	 */
 	if (unlikely(len != sizeof(*head)))
 		return -EINVAL;
 
@@ -40,12 +18,6 @@ SYSCALL_DEFINE2(set_robust_list, struct robust_list_head __user *, head,
 	return 0;
 }
 
-/**
- * sys_get_robust_list() - Get the robust-futex list head of a task
- * @pid:	pid of the process [zero for current task]
- * @head_ptr:	pointer to a list-head pointer, the kernel fills it in
- * @len_ptr:	pointer to a length field, the kernel fills in the header size
- */
 SYSCALL_DEFINE3(get_robust_list, int, pid,
 		struct robust_list_head __user * __user *, head_ptr,
 		size_t __user *, len_ptr)
@@ -153,7 +125,6 @@ futex_init_timeout(u32 cmd, u32 op, struct timespec64 *ts, ktime_t *t)
 	if (!timespec64_valid(ts))
 		return -EINVAL;
 
-	*t = timespec64_to_ktime(*ts);
 	if (cmd == FUTEX_WAIT)
 		*t = ktime_add_safe(ktime_get(), *t);
 	else if (cmd != FUTEX_LOCK_PI && !(op & FUTEX_CLOCK_REALTIME))
@@ -183,17 +154,8 @@ SYSCALL_DEFINE6(futex, u32 __user *, uaddr, int, op, u32, val,
 	return do_futex(uaddr, op, val, tp, uaddr2, (unsigned long)utime, val3);
 }
 
-/* Mask of available flags for each futex in futex_waitv list */
 #define FUTEXV_WAITER_MASK (FUTEX_32 | FUTEX_PRIVATE_FLAG)
 
-/**
- * futex_parse_waitv - Parse a waitv array from userspace
- * @futexv:	Kernel side list of waiters to be filled
- * @uwaitv:     Userspace list to be parsed
- * @nr_futexes: Length of futexv
- *
- * Return: Error code on failure, 0 on success
- */
 static int futex_parse_waitv(struct futex_vector *futexv,
 			     struct futex_waitv __user *uwaitv,
 			     unsigned int nr_futexes)
@@ -220,28 +182,6 @@ static int futex_parse_waitv(struct futex_vector *futexv,
 	return 0;
 }
 
-/**
- * sys_futex_waitv - Wait on a list of futexes
- * @waiters:    List of futexes to wait on
- * @nr_futexes: Length of futexv
- * @flags:      Flag for timeout (monotonic/realtime)
- * @timeout:	Optional absolute timeout.
- * @clockid:	Clock to be used for the timeout, realtime or monotonic.
- *
- * Given an array of `struct futex_waitv`, wait on each uaddr. The thread wakes
- * if a futex_wake() is performed at any uaddr. The syscall returns immediately
- * if any waiter has *uaddr != val. *timeout is an optional timeout value for
- * the operation. Each waiter has individual flags. The `flags` argument for
- * the syscall should be used solely for specifying the timeout as realtime, if
- * needed. Flags for private futexes, sizes, etc. should be used on the
- * individual flags of each waiter.
- *
- * Returns the array index of one of the woken futexes. No further information
- * is provided: any number of other futexes may also have been woken by the
- * same event, and if more than one futex was woken, the retrned index may
- * refer to any one of them. (It is not necessaryily the futex with the
- * smallest index, nor the one most recently woken, nor...)
- */
 
 SYSCALL_DEFINE5(futex_waitv, struct futex_waitv __user *, waiters,
 		unsigned int, nr_futexes, unsigned int, flags,
@@ -275,9 +215,6 @@ SYSCALL_DEFINE5(futex_waitv, struct futex_waitv __user *, waiters,
 			return -EFAULT;
 
 		/*
-		 * Since there's no opcode for futex_waitv, use
-		 * FUTEX_WAIT_BITSET that uses absolute timeout as well
-		 */
 		ret = futex_init_timeout(FUTEX_WAIT_BITSET, flag_init, &ts, &time);
 		if (ret)
 			return ret;

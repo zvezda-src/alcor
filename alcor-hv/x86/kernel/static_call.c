@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/static_call.h>
 #include <linux/memory.h>
 #include <linux/bug.h>
@@ -11,16 +10,8 @@ enum insn_type {
 	RET = 3,  /* tramp / site cond-tail-call */
 };
 
-/*
- * ud1 %esp, %ecx - a 3 byte #UD that is unique to trampolines, chosen such
- * that there is no false-positive trampoline identification while also being a
- * speculation stop.
- */
 static const u8 tramp_ud[] = { 0x0f, 0xb9, 0xcc };
 
-/*
- * cs cs cs xorl %eax, %eax - a single 5 byte instruction that clears %[er]ax
- */
 static const u8 xor5rax[] = { 0x2e, 0x2e, 0x2e, 0x31, 0xc0 };
 
 static const u8 retinsn[] = { RET_INSN_OPCODE, 0xcc, 0xcc, 0xcc, 0xcc };
@@ -88,8 +79,6 @@ static void __static_call_validate(void *insn, bool tail, bool tramp)
 	}
 
 	/*
-	 * If we ever trigger this, our text is corrupt, we'll probably not live long.
-	 */
 	pr_err("unexpected static_call insn opcode 0x%x at %pS\n", opcode, insn);
 	BUG();
 }
@@ -97,15 +86,6 @@ static void __static_call_validate(void *insn, bool tail, bool tramp)
 static inline enum insn_type __sc_insn(bool null, bool tail)
 {
 	/*
-	 * Encode the following table without branches:
-	 *
-	 *	tail	null	insn
-	 *	-----+-------+------
-	 *	  0  |   0   |  CALL
-	 *	  0  |   1   |  NOP
-	 *	  1  |   0   |  JMP
-	 *	  1  |   1   |  RET
-	 */
 	return 2*tail + null;
 }
 
@@ -128,17 +108,6 @@ void arch_static_call_transform(void *site, void *tramp, void *func, bool tail)
 EXPORT_SYMBOL_GPL(arch_static_call_transform);
 
 #ifdef CONFIG_RETHUNK
-/*
- * This is called by apply_returns() to fix up static call trampolines,
- * specifically ARCH_DEFINE_STATIC_CALL_NULL_TRAMP which is recorded as
- * having a return trampoline.
- *
- * The problem is that static_call() is available before determining
- * X86_FEATURE_RETHUNK and, by implication, running alternatives.
- *
- * This means that __static_call_transform() above can have overwritten the
- * return trampoline and we now need to fix things up to be consistent.
- */
 bool __static_call_fixup(void *tramp, u8 op, void *dest)
 {
 	if (memcmp(tramp+5, tramp_ud, 3)) {

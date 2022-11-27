@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Performance events - AMD Processor Power Reporting Mechanism
- *
- * Copyright (C) 2016 Advanced Micro Devices, Inc.
- *
- * Author: Huang Rui <ray.huang@amd.com>
- */
 
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -13,31 +5,16 @@
 #include <asm/cpu_device_id.h>
 #include "../perf_event.h"
 
-/* Event code: LSB 8 bits, passed in attr->config any other bit is reserved. */
 #define AMD_POWER_EVENT_MASK		0xFFULL
 
-/*
- * Accumulated power status counters.
- */
 #define AMD_POWER_EVENTSEL_PKG		1
 
-/*
- * The ratio of compute unit power accumulator sample period to the
- * PTSC period.
- */
 static unsigned int cpu_pwr_sample_ratio;
 
-/* Maximum accumulated power of a compute unit. */
 static u64 max_cu_acc_power;
 
 static struct pmu pmu_class;
 
-/*
- * Accumulated power represents the sum of each compute unit's (CU) power
- * consumption. On any core of each CU we read the total accumulated power from
- * MSR_F15H_CU_PWR_ACCUMULATOR. cpu_mask represents CPU bit map of all cores
- * which are picked to measure the power for the CUs they belong to.
- */
 static cpumask_t cpu_mask;
 
 static void event_update(struct perf_event *event)
@@ -52,9 +29,6 @@ static void event_update(struct perf_event *event)
 	rdmsrl(MSR_F15H_PTSC, new_ptsc);
 
 	/*
-	 * Calculate the CU power consumption over a time period, the unit of
-	 * final value (delta) is micro-Watts. Then add it to the event count.
-	 */
 	if (new_pwr_acc < prev_pwr_acc) {
 		delta = max_cu_acc_power + new_pwr_acc;
 		delta -= prev_pwr_acc;
@@ -95,9 +69,6 @@ static void pmu_event_stop(struct perf_event *event, int mode)
 	/* Check if software counter update is necessary. */
 	if ((mode & PERF_EF_UPDATE) && !(hwc->state & PERF_HES_UPTODATE)) {
 		/*
-		 * Drain the remaining delta count out of an event
-		 * that we are disabling:
-		 */
 		event_update(event);
 		hwc->state |= PERF_HES_UPTODATE;
 	}
@@ -160,15 +131,10 @@ static struct attribute_group pmu_attr_group = {
 	.attrs = pmu_attrs,
 };
 
-/*
- * Currently it only supports to report the power of each
- * processor/package.
- */
 EVENT_ATTR_STR(power-pkg, power_pkg, "event=0x01");
 
 EVENT_ATTR_STR(power-pkg.unit, power_pkg_unit, "mWatts");
 
-/* Convert the count from micro-Watts to milli-Watts. */
 EVENT_ATTR_STR(power-pkg.scale, power_pkg_scale, "1.000000e-3");
 
 static struct attribute *events_attr[] = {
@@ -224,10 +190,6 @@ static int power_cpu_exit(unsigned int cpu)
 		return 0;
 
 	/*
-	 * Find a new CPU on the same compute unit, if was set in cpumask
-	 * and still some CPUs on compute unit. Then migrate event and
-	 * context to new CPU.
-	 */
 	target = cpumask_any_but(topology_sibling_cpumask(cpu), cpu);
 	if (target < nr_cpumask_bits) {
 		cpumask_set_cpu(target, &cpu_mask);
@@ -241,14 +203,6 @@ static int power_cpu_init(unsigned int cpu)
 	int target;
 
 	/*
-	 * 1) If any CPU is set at cpu_mask in the same compute unit, do
-	 * nothing.
-	 * 2) If no CPU is set at cpu_mask in the same compute unit,
-	 * set current ONLINE CPU.
-	 *
-	 * Note: if there is a CPU aside of the new one already in the
-	 * sibling mask, then it is also in cpu_mask.
-	 */
 	target = cpumask_any_but(topology_sibling_cpumask(cpu), cpu);
 	if (target >= nr_cpumask_bits)
 		cpumask_set_cpu(cpu, &cpu_mask);

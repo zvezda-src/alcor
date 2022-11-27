@@ -1,7 +1,6 @@
 #ifndef _ASM_X86_REQUIRED_FEATURES_H
 #define _ASM_X86_REQUIRED_FEATURES_H
 
-/* Define minimum CPUID feature set for kernel These bits are checked
    really early to actually display a visible error message before the
    kernel dies.  Make sure to assign features to the proper mask!
 
@@ -51,7 +50,6 @@
 
 #ifdef CONFIG_X86_64
 #ifdef CONFIG_PARAVIRT_XXL
-/* Paravirtualized systems may not have PSE or PGE available */
 #define NEED_PSE	0
 #define NEED_PGE	0
 #else

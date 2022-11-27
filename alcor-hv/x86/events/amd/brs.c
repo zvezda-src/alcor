@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Implement support for AMD Fam19h Branch Sampling feature
- * Based on specifications published in AMD PPR Fam19 Model 01
- *
- * Copyright 2021 Google LLC
- * Contributed by Stephane Eranian <eranian@google.com>
- */
 #include <linux/kernel.h>
 #include <linux/jump_label.h>
 #include <asm/msr.h>
@@ -15,7 +7,6 @@
 
 #define BRS_POISON	0xFFFFFFFFFFFFFFFEULL /* mark limit of valid entries */
 
-/* Debug Extension Configuration register layout */
 union amd_debug_extn_cfg {
 	__u64 val;
 	struct {
@@ -75,12 +66,6 @@ static bool __init amd_brs_detect(void)
 	return true;
 }
 
-/*
- * Current BRS implementation does not support branch type or privilege level
- * filtering. Therefore, this function simply enforces these limitations. No need for
- * a br_sel_map. Software filtering is not supported because it would not correlate well
- * with a sampling period.
- */
 int amd_brs_setup_filter(struct perf_event *event)
 {
 	u64 type = event->attr.branch_sample_type;
@@ -96,33 +81,21 @@ int amd_brs_setup_filter(struct perf_event *event)
 	return 0;
 }
 
-/* tos = top of stack, i.e., last valid entry written */
 static inline int amd_brs_get_tos(union amd_debug_extn_cfg *cfg)
 {
 	/*
-	 * msroff: index of next entry to write so top-of-stack is one off
-	 * if BRS is full then msroff is set back to 0.
-	 */
 	return (cfg->msroff ? cfg->msroff : x86_pmu.lbr_nr) - 1;
 }
 
-/*
- * make sure we have a sane BRS offset to begin with
- * especially with kexec
- */
 void amd_brs_reset(void)
 {
 	if (!cpu_feature_enabled(X86_FEATURE_BRS))
 		return;
 
 	/*
-	 * Reset config
-	 */
 	set_debug_extn_cfg(0);
 
 	/*
-	 * Mark first entry as poisoned
-	 */
 	wrmsrl(brs_to(0), BRS_POISON);
 }
 
@@ -173,15 +146,9 @@ void amd_brs_disable(void)
 		return;
 
 	/*
-	 * Clear the brsmen bit but preserve the others as they contain
-	 * useful state such as vb and msroff
-	 */
 	cfg.val = get_debug_extn_cfg();
 
 	/*
-	 * When coming in on interrupt and BRS is full, then hw will have
-	 * already stopped BRS, no need to issue wrmsr again
-	 */
 	if (cfg.brsmen) {
 		cfg.brsmen = 0;
 		set_debug_extn_cfg(cfg.val);
@@ -210,10 +177,6 @@ static bool amd_brs_match_plm(struct perf_event *event, u64 to)
 	return 1;
 }
 
-/*
- * Caller must ensure amd_brs_inuse() is true before calling
- * return:
- */
 void amd_brs_drain(void)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
@@ -224,11 +187,6 @@ void amd_brs_drain(void)
 	u32 shift = 64 - boot_cpu_data.x86_virt_bits;
 
 	/*
-	 * BRS event forced on PMC0,
-	 * so check if there is an event.
-	 * It is possible to have lbr_users > 0 but the event
-	 * not yet scheduled due to long latency PMU irq
-	 */
 	if (!event)
 		goto empty;
 
@@ -243,20 +201,12 @@ void amd_brs_drain(void)
 		goto empty;
 
 	/*
-	 * msr.off points to next entry to be written
-	 * tos = most recent entry index = msr.off - 1
-	 * BRS register buffer saturates, so we know we have
-	 * start < tos and that we have to read from start to tos
-	 */
 	start = 0;
 	tos = amd_brs_get_tos(&cfg);
 
 	num = tos - start + 1;
 
 	/*
-	 * BRS is only one pass (saturation) from MSROFF to depth-1
-	 * MSROFF wraps to zero when buffer is full
-	 */
 	for (i = 0; i < num; i++) {
 		u32 brs_idx = tos - i;
 		u64 from, to;
@@ -268,10 +218,6 @@ void amd_brs_drain(void)
 			break;
 
 		/*
-		 * Sign-extend SAMP_BR_TO to 64 bits, bits 61-63 are reserved.
-		 * Necessary to generate proper virtual addresses suitable for
-		 * symbolization
-		 */
 		to = (u64)(((s64)to << shift) >> shift);
 
 		if (!amd_brs_match_plm(event, to))
@@ -291,10 +237,6 @@ empty:
 	cpuc->lbr_stack.nr = nr;
 }
 
-/*
- * Poison most recent entry to prevent reuse by next task
- * required because BRS entry are not tagged by PID
- */
 static void amd_brs_poison_buffer(void)
 {
 	union amd_debug_extn_cfg cfg;
@@ -310,13 +252,6 @@ static void amd_brs_poison_buffer(void)
 	wrmsrl(brs_to(idx), BRS_POISON);
 }
 
-/*
- * On context switch in, we need to make sure no samples from previous user
- * are left in the BRS.
- *
- * On ctxswin, sched_in = true, called after the PMU has started
- * On ctxswout, sched_in = false, called before the PMU is stopped
- */
 void amd_pmu_brs_sched_task(struct perf_event_context *ctx, bool sched_in)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
@@ -326,31 +261,16 @@ void amd_pmu_brs_sched_task(struct perf_event_context *ctx, bool sched_in)
 		return;
 
 	/*
-	 * On context switch in, we need to ensure we do not use entries
-	 * from previous BRS user on that CPU, so we poison the buffer as
-	 * a faster way compared to resetting all entries.
-	 */
 	if (sched_in)
 		amd_brs_poison_buffer();
 }
 
-/*
- * called from ACPI processor_idle.c or acpi_pad.c
- * with interrupts disabled
- */
 void perf_amd_brs_lopwr_cb(bool lopwr_in)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	union amd_debug_extn_cfg cfg;
 
 	/*
-	 * on mwait in, we may end up in non C0 state.
-	 * we must disable branch sampling to avoid holding the NMI
-	 * for too long. We disable it in hardware but we
-	 * keep the state in cpuc, so we can re-enable.
-	 *
-	 * The hardware will deliver the NMI if needed when brsmen cleared
-	 */
 	if (cpuc->brs_active) {
 		cfg.val = get_debug_extn_cfg();
 		cfg.brsmen = !lopwr_in;

@@ -1,8 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- * Generate .byte code for some instructions not supported by old
- * binutils.
- */
 #ifndef X86_ASM_INST_H
 #define X86_ASM_INST_H
 

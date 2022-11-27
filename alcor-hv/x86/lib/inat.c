@@ -1,15 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * x86 instruction attribute tables
- *
- * Written by Masami Hiramatsu <mhiramat@redhat.com>
- */
 #include <asm/insn.h> /* __ignore_sync_check__ */
 
-/* Attribute tables are generated from opcode map */
 #include "inat-tables.c"
 
-/* Attribute search APIs */
 insn_attr_t inat_get_opcode_attribute(insn_byte_t opcode)
 {
 	return inat_primary_table[opcode];

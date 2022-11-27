@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -11,12 +10,6 @@
 #include <asm/proto.h>
 #include <asm/setup.h>
 
-/*
- * Some BIOSes seem to corrupt the low 64k of memory during events
- * like suspend/resume and unplugging an HDMI cable.  Reserve all
- * remaining free memory in that area and fill it with a distinct
- * pattern.
- */
 #define MAX_SCAN_AREAS	8
 
 static int __read_mostly memory_corruption_check = -1;

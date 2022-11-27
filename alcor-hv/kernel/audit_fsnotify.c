@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/* audit_fsnotify.c -- tracking inodes
- *
- * Copyright 2003-2009,2014-2015 Red Hat, Inc.
- * Copyright 2005 Hewlett-Packard Development Company, L.P.
- * Copyright 2005 IBM Corporation
- */
 
 #include <linux/kernel.h>
 #include <linux/audit.h>
@@ -19,10 +12,6 @@
 #include <linux/security.h>
 #include "audit.h"
 
-/*
- * this mark lives on the parent directory of the inode in question.
- * but dev, ino, and path are about the child
- */
 struct audit_fsnotify_mark {
 	dev_t dev;		/* associated superblock device */
 	unsigned long ino;	/* associated inode number */
@@ -31,10 +20,8 @@ struct audit_fsnotify_mark {
 	struct audit_krule *rule;
 };
 
-/* fsnotify handle. */
 static struct fsnotify_group *audit_fsnotify_group;
 
-/* fsnotify events we care about. */
 #define AUDIT_FS_EVENTS (FS_MOVE | FS_CREATE | FS_DELETE | FS_DELETE_SELF |\
 			 FS_MOVE_SELF)
 
@@ -151,7 +138,6 @@ static void audit_autoremove_mark_rule(struct audit_fsnotify_mark *audit_mark)
 	audit_del_rule(entry);
 }
 
-/* Update mark data in audit rules based on fsnotify events. */
 static int audit_mark_handle_event(struct fsnotify_mark *inode_mark, u32 mask,
 				   struct inode *inode, struct inode *dir,
 				   const struct qstr *dname, u32 cookie)

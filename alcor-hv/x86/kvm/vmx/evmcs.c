@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/errno.h>
 #include <linux/smp.h>
@@ -133,25 +132,10 @@ const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 	EVMCS1_FIELD(EXIT_QUALIFICATION, exit_qualification,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
 	/*
-	 * Not defined in KVM:
-	 *
-	 * EVMCS1_FIELD(0x00006402, exit_io_instruction_ecx,
-	 *		HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE);
-	 * EVMCS1_FIELD(0x00006404, exit_io_instruction_esi,
-	 *		HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE);
-	 * EVMCS1_FIELD(0x00006406, exit_io_instruction_esi,
-	 *		HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE);
-	 * EVMCS1_FIELD(0x00006408, exit_io_instruction_eip,
-	 *		HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE);
-	 */
 	EVMCS1_FIELD(GUEST_LINEAR_ADDRESS, guest_linear_address,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
 
 	/*
-	 * No mask defined in the spec as Hyper-V doesn't currently support
-	 * these. Future proof by resetting the whole clean field mask on
-	 * access.
-	 */
 	EVMCS1_FIELD(VM_EXIT_MSR_STORE_ADDR, vm_exit_msr_store_addr,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL),
 	EVMCS1_FIELD(VM_EXIT_MSR_LOAD_ADDR, vm_exit_msr_load_addr,
@@ -311,7 +295,6 @@ bool nested_enlightened_vmentry(struct kvm_vcpu *vcpu, u64 *evmcs_gpa)
 {
 	struct hv_vp_assist_page assist_page;
 
-	*evmcs_gpa = -1ull;
 
 	if (unlikely(!kvm_hv_get_assist_page(vcpu, &assist_page)))
 		return false;
@@ -322,7 +305,6 @@ bool nested_enlightened_vmentry(struct kvm_vcpu *vcpu, u64 *evmcs_gpa)
 	if (unlikely(!evmptr_is_valid(assist_page.current_nested_vmcs)))
 		return false;
 
-	*evmcs_gpa = assist_page.current_nested_vmcs;
 
 	return true;
 }
@@ -330,11 +312,6 @@ bool nested_enlightened_vmentry(struct kvm_vcpu *vcpu, u64 *evmcs_gpa)
 uint16_t nested_get_evmcs_version(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * vmcs_version represents the range of supported Enlightened VMCS
-	 * versions: lower 8 bits is the minimal version, higher 8 bits is the
-	 * maximum supported version. KVM supports versions from 1 to
-	 * KVM_EVMCS_VERSION.
-	 */
 	if (kvm_cpu_cap_get(X86_FEATURE_VMX) &&
 	    (!vcpu || to_vmx(vcpu)->nested.enlightened_vmcs_enabled))
 		return (KVM_EVMCS_VERSION << 8) | 1;
@@ -348,9 +325,6 @@ void nested_evmcs_filter_control_msr(u32 msr_index, u64 *pdata)
 	u32 ctl_high = (u32)(*pdata >> 32);
 
 	/*
-	 * Hyper-V 2016 and 2019 try using these features even when eVMCS
-	 * is enabled but there are no corresponding fields.
-	 */
 	switch (msr_index) {
 	case MSR_IA32_VMX_EXIT_CTLS:
 	case MSR_IA32_VMX_TRUE_EXIT_CTLS:
@@ -372,7 +346,6 @@ void nested_evmcs_filter_control_msr(u32 msr_index, u64 *pdata)
 		break;
 	}
 
-	*pdata = ctl_low | ((u64)ctl_high << 32);
 }
 
 int nested_evmcs_check_controls(struct vmcs12 *vmcs12)

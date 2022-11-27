@@ -1,15 +1,3 @@
-/*
- * Kernel Debugger Architecture Independent Main Code
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * Copyright (C) 1999-2004 Silicon Graphics, Inc.  All Rights Reserved.
- * Copyright (C) 2000 Stephane Eranian <eranian@hpl.hp.com>
- * Xscale (R) modifications copyright (C) 2003 Intel Corporation.
- * Copyright (c) 2009 Wind River Systems, Inc.  All Rights Reserved.
- */
 
 #include <linux/ctype.h>
 #include <linux/types.h>
@@ -59,15 +47,8 @@ EXPORT_SYMBOL(kdb_grepping_flag);
 int kdb_grep_leading;
 int kdb_grep_trailing;
 
-/*
- * Kernel debugger state flags
- */
 unsigned int kdb_flags;
 
-/*
- * kdb_lock protects updates to kdb_initial_cpu.  Used to
- * single thread processors through the kernel debugger.
- */
 int kdb_initial_cpu = -1;	/* cpu number that owns kdb */
 int kdb_nextline = 1;
 int kdb_state;			/* General KDB state */
@@ -84,7 +65,6 @@ static unsigned int kdb_continue_catastrophic =
 static unsigned int kdb_continue_catastrophic;
 #endif
 
-/* kdb_cmds_head describes the available commands. */
 static LIST_HEAD(kdb_cmds_head);
 
 typedef struct _kdbmsg {
@@ -129,15 +109,6 @@ static kdbmsg_t kdbmsgs[] = {
 static const int __nkdb_err = ARRAY_SIZE(kdbmsgs);
 
 
-/*
- * Initial environment.   This is all kept static and local to
- * this file.   We don't want to rely on the memory allocation
- * mechanisms in the kernel, so we use a very limited allocate-only
- * heap for new and altered environment variables.  The entire
- * environment is limited to a fixed number of entries (add more
- * to __env[] if required) and a fixed amount of heap (add more to
- * KDB_ENVBUFSIZE if required).
- */
 
 static char *__env[31] = {
 #if defined(CONFIG_SMP)
@@ -165,27 +136,6 @@ struct task_struct *kdb_curr_task(int cpu)
 	return p;
 }
 
-/*
- * Update the permissions flags (kdb_cmd_enabled) to match the
- * current lockdown state.
- *
- * Within this function the calls to security_locked_down() are "lazy". We
- * avoid calling them if the current value of kdb_cmd_enabled already excludes
- * flags that might be subject to lockdown. Additionally we deliberately check
- * the lockdown flags independently (even though read lockdown implies write
- * lockdown) since that results in both simpler code and clearer messages to
- * the user on first-time debugger entry.
- *
- * The permission masks during a read+write lockdown permits the following
- * flags: INSPECT, SIGNAL, REBOOT (and ALWAYS_SAFE).
- *
- * The INSPECT commands are not blocked during lockdown because they are
- * not arbitrary memory reads. INSPECT covers the backtrace family (sometimes
- * forcing them to have no arguments) and lsmod. These commands do expose
- * some kernel state but do not allow the developer seated at the console to
- * choose what state is reported. SIGNAL and REBOOT should not be controversial,
- * given these are allowed for root during lockdown already.
- */
 static void kdb_check_for_lockdown(void)
 {
 	const int write_flags = KDB_ENABLE_MEM_WRITE |
@@ -217,10 +167,6 @@ static void kdb_check_for_lockdown(void)
 		kdb_cmd_enabled &= ~read_flags;
 }
 
-/*
- * Check whether the flags of the current command, the permissions of the kdb
- * console and the lockdown state allow a command to be run.
- */
 static bool kdb_check_flags(kdb_cmdflags_t flags, int permissions,
 				   bool no_args)
 {
@@ -237,15 +183,6 @@ static bool kdb_check_flags(kdb_cmdflags_t flags, int permissions,
 	return permissions & flags;
 }
 
-/*
- * kdbgetenv - This function will return the character string value of
- *	an environment variable.
- * Parameters:
- *	match	A character string representing an environment variable.
- * Returns:
- *	NULL	No environment variable matches 'match'
- *	char*	Pointer to string value of environment variable.
- */
 char *kdbgetenv(const char *match)
 {
 	char **ep = __env;
@@ -268,22 +205,6 @@ char *kdbgetenv(const char *match)
 	return NULL;
 }
 
-/*
- * kdballocenv - This function is used to allocate bytes for
- *	environment entries.
- * Parameters:
- *	match	A character string representing a numeric value
- * Outputs:
- *	*value  the unsigned long representation of the env variable 'match'
- * Returns:
- *	Zero on success, a kdb diagnostic on failure.
- * Remarks:
- *	We use a static environment buffer (envbuffer) to hold the values
- *	of dynamically generated environment variables (see kdb_set).  Buffer
- *	space once allocated is never free'd, so over time, the amount of space
- *	(currently 512 bytes) will be exhausted if env variables are changed
- *	frequently.
- */
 static char *kdballocenv(size_t bytes)
 {
 #define	KDB_ENVBUFSIZE	512
@@ -298,16 +219,6 @@ static char *kdballocenv(size_t bytes)
 	return ep;
 }
 
-/*
- * kdbgetulenv - This function will return the value of an unsigned
- *	long-valued environment variable.
- * Parameters:
- *	match	A character string representing a numeric value
- * Outputs:
- *	*value  the unsigned long representation of the env variable 'match'
- * Returns:
- *	Zero on success, a kdb diagnostic on failure.
- */
 static int kdbgetulenv(const char *match, unsigned long *value)
 {
 	char *ep;
@@ -318,21 +229,10 @@ static int kdbgetulenv(const char *match, unsigned long *value)
 	if (strlen(ep) == 0)
 		return KDB_NOENVVALUE;
 
-	*value = simple_strtoul(ep, NULL, 0);
 
 	return 0;
 }
 
-/*
- * kdbgetintenv - This function will return the value of an
- *	integer-valued environment variable.
- * Parameters:
- *	match	A character string representing an integer-valued env variable
- * Outputs:
- *	*value  the integer representation of the environment variable 'match'
- * Returns:
- *	Zero on success, a kdb diagnostic on failure.
- */
 int kdbgetintenv(const char *match, int *value)
 {
 	unsigned long val;
@@ -344,13 +244,6 @@ int kdbgetintenv(const char *match, int *value)
 	return diag;
 }
 
-/*
- * kdb_setenv() - Alter an existing environment variable or create a new one.
- * @var: Name of the variable
- * @val: Value of the variable
- *
- * Return: Zero on success, a kdb diagnostic on failure.
- */
 static int kdb_setenv(const char *var, const char *val)
 {
 	int i;
@@ -376,8 +269,6 @@ static int kdb_setenv(const char *var, const char *val)
 	}
 
 	/*
-	 * Wasn't existing variable.  Fit into slot.
-	 */
 	for (i = 0; i < __nenv-1; i++) {
 		if (__env[i] == (char *)0) {
 			__env[i] = ep;
@@ -388,9 +279,6 @@ static int kdb_setenv(const char *var, const char *val)
 	return KDB_ENVFULL;
 }
 
-/*
- * kdb_printenv() - Display the current environment variables.
- */
 static void kdb_printenv(void)
 {
 	int i;
@@ -401,16 +289,6 @@ static void kdb_printenv(void)
 	}
 }
 
-/*
- * kdbgetularg - This function will convert a numeric string into an
- *	unsigned long value.
- * Parameters:
- *	arg	A character string representing a numeric value
- * Outputs:
- *	*value  the unsigned long representation of arg.
- * Returns:
- *	Zero on success, a kdb diagnostic on failure.
- */
 int kdbgetularg(const char *arg, unsigned long *value)
 {
 	char *endp;
@@ -420,15 +298,11 @@ int kdbgetularg(const char *arg, unsigned long *value)
 
 	if (endp == arg) {
 		/*
-		 * Also try base 16, for us folks too lazy to type the
-		 * leading 0x...
-		 */
 		val = simple_strtoul(arg, &endp, 16);
 		if (endp == arg)
 			return KDB_BADINT;
 	}
 
-	*value = val;
 
 	return 0;
 }
@@ -447,23 +321,13 @@ int kdbgetu64arg(const char *arg, u64 *value)
 			return KDB_BADINT;
 	}
 
-	*value = val;
 
 	return 0;
 }
 
-/*
- * kdb_set - This function implements the 'set' command.  Alter an
- *	existing environment variable or create a new one.
- */
 int kdb_set(int argc, const char **argv)
 {
 	/*
-	 * we can be invoked two ways:
-	 *   set var=value    argv[1]="var", argv[2]="value"
-	 *   set var = value  argv[1]="var", argv[2]="=", argv[3]="value"
-	 * - if the latter, shift 'em down.
-	 */
 	if (argc == 3) {
 		argv[2] = argv[3];
 		argc--;
@@ -473,15 +337,11 @@ int kdb_set(int argc, const char **argv)
 		return KDB_ARGCOUNT;
 
 	/*
-	 * Censor sensitive variables
-	 */
 	if (strcmp(argv[1], "PROMPT") == 0 &&
 	    !kdb_check_flags(KDB_ENABLE_MEM_READ, kdb_cmd_enabled, false))
 		return KDB_NOPERM;
 
 	/*
-	 * Check for internal variables
-	 */
 	if (strcmp(argv[1], "KDBDEBUG") == 0) {
 		unsigned int debugflags;
 		char *cp;
@@ -499,9 +359,6 @@ int kdb_set(int argc, const char **argv)
 	}
 
 	/*
-	 * Tokenizer squashed the '=' sign.  argv[1] is variable
-	 * name, argv[2] = value.
-	 */
 	return kdb_setenv(argv[1], argv[2]);
 }
 
@@ -515,31 +372,6 @@ static int kdb_check_regs(void)
 	return 0;
 }
 
-/*
- * kdbgetaddrarg - This function is responsible for parsing an
- *	address-expression and returning the value of the expression,
- *	symbol name, and offset to the caller.
- *
- *	The argument may consist of a numeric value (decimal or
- *	hexadecimal), a symbol name, a register name (preceded by the
- *	percent sign), an environment variable with a numeric value
- *	(preceded by a dollar sign) or a simple arithmetic expression
- *	consisting of a symbol name, +/-, and a numeric constant value
- *	(offset).
- * Parameters:
- *	argc	- count of arguments in argv
- *	argv	- argument vector
- *	*nextarg - index to next unparsed argument in argv[]
- *	regs	- Register state at time of KDB entry
- * Outputs:
- *	*value	- receives the value of the address-expression
- *	*offset - receives the offset specified, if any
- *	*name   - receives the symbol name, if any
- *	*nextarg - index to next unparsed argument in argv[]
- * Returns:
- *	zero is returned on success, a kdb diagnostic code is
- *      returned on error.
- */
 int kdbgetaddrarg(int argc, const char **argv, int *nextarg,
 		  unsigned long *value,  long *offset,
 		  char **name)
@@ -555,21 +387,11 @@ int kdbgetaddrarg(int argc, const char **argv, int *nextarg,
 	kdb_symtab_t symtab;
 
 	/*
-	 * If the enable flags prohibit both arbitrary memory access
-	 * and flow control then there are no reasonable grounds to
-	 * provide symbol lookup.
-	 */
 	if (!kdb_check_flags(KDB_ENABLE_MEM_READ | KDB_ENABLE_FLOW_CTRL,
 			     kdb_cmd_enabled, false))
 		return KDB_NOPERM;
 
 	/*
-	 * Process arguments which follow the following syntax:
-	 *
-	 *  symbol | numeric-address [+/- numeric-offset]
-	 *  %register
-	 *  $environment-variable
-	 */
 
 	if (*nextarg > argc)
 		return KDB_ARGCOUNT;
@@ -577,11 +399,6 @@ int kdbgetaddrarg(int argc, const char **argv, int *nextarg,
 	symname = (char *)argv[*nextarg];
 
 	/*
-	 * If there is no whitespace between the symbol
-	 * or address and the '+' or '-' symbols, we
-	 * remember the character and replace it with a
-	 * null so the symbol/value can be properly parsed
-	 */
 	cp = strpbrk(symname, "+-");
 	if (cp != NULL) {
 		symbol = *cp;
@@ -628,15 +445,11 @@ int kdbgetaddrarg(int argc, const char **argv, int *nextarg,
 		return 0;
 
 	/*
-	 * check for +/- and offset
-	 */
 
 	if (symbol == '\0') {
 		if ((argv[*nextarg][0] != '+')
 		 && (argv[*nextarg][0] != '-')) {
 			/*
-			 * Not our argument.  Return.
-			 */
 			return 0;
 		} else {
 			positive = (argv[*nextarg][0] == '+');
@@ -646,8 +459,6 @@ int kdbgetaddrarg(int argc, const char **argv, int *nextarg,
 		positive = (symbol == '+');
 
 	/*
-	 * Now there must be an offset!
-	 */
 	if ((*nextarg > argc)
 	 && (symbol == '\0')) {
 		return KDB_INVADDRFMT;
@@ -693,18 +504,6 @@ static void kdb_cmderror(int diag)
 	kdb_printf("Unknown diag %d\n", -diag);
 }
 
-/*
- * kdb_defcmd, kdb_defcmd2 - This function implements the 'defcmd'
- *	command which defines one command as a set of other commands,
- *	terminated by endefcmd.  kdb_defcmd processes the initial
- *	'defcmd' command, kdb_defcmd2 is invoked from kdb_parse for
- *	the following commands until 'endefcmd'.
- * Inputs:
- *	argc	argument count
- *	argv	argument vector
- * Returns:
- *	zero for success, a kdb diagnostic if error
- */
 struct kdb_macro {
 	kdbtab_t cmd;			/* Macro command */
 	struct list_head statements;	/* Associated statement list */
@@ -718,7 +517,6 @@ struct kdb_macro_statement {
 static struct kdb_macro *kdb_macro;
 static bool defcmd_in_progress;
 
-/* Forward references */
 static int kdb_exec_defcmd(int argc, const char **argv);
 
 static int kdb_defcmd2(const char *cmdstr, const char *argv0)
@@ -821,15 +619,6 @@ fail_defcmd:
 	return KDB_NOTIMP;
 }
 
-/*
- * kdb_exec_defcmd - Execute the set of commands associated with this
- *	defcmd name.
- * Inputs:
- *	argc	argument count
- *	argv	argument vector
- * Returns:
- *	zero for success, a kdb diagnostic if error
- */
 static int kdb_exec_defcmd(int argc, const char **argv)
 {
 	int ret;
@@ -852,8 +641,6 @@ static int kdb_exec_defcmd(int argc, const char **argv)
 	kmp = container_of(kp, struct kdb_macro, cmd);
 	list_for_each_entry(kms, &kmp->statements, list_node) {
 		/*
-		 * Recursive use of kdb_parse, do not use argv after this point.
-		 */
 		argv = NULL;
 		kdb_printf("[%s]kdb> %s\n", kmp->cmd.name, kms->statement);
 		ret = kdb_parse(kms->statement);
@@ -863,7 +650,6 @@ static int kdb_exec_defcmd(int argc, const char **argv)
 	return 0;
 }
 
-/* Command history */
 #define KDB_CMD_HISTORY_COUNT	32
 #define CMD_BUFLEN		200	/* kdb_printf: max printline
 					 * size == 256 */
@@ -872,9 +658,6 @@ static unsigned int cmdptr;
 static char cmd_hist[KDB_CMD_HISTORY_COUNT][CMD_BUFLEN];
 static char cmd_cur[CMD_BUFLEN];
 
-/*
- * The "str" argument may point to something like  | grep xyz
- */
 static void parse_grep(const char *str)
 {
 	int	len;
@@ -936,31 +719,6 @@ static void parse_grep(const char *str)
 	return;
 }
 
-/*
- * kdb_parse - Parse the command line, search the command table for a
- *	matching command and invoke the command function.  This
- *	function may be called recursively, if it is, the second call
- *	will overwrite argv and cbuf.  It is the caller's
- *	responsibility to save their argv if they recursively call
- *	kdb_parse().
- * Parameters:
- *      cmdstr	The input command line to be parsed.
- *	regs	The registers at the time kdb was entered.
- * Returns:
- *	Zero for success, a kdb diagnostic if failure.
- * Remarks:
- *	Limited to 20 tokens.
- *
- *	Real rudimentary tokenization. Basically only whitespace
- *	is considered a token delimiter (but special consideration
- *	is taken of the '=' sign as used by the 'set' command).
- *
- *	The algorithm used to tokenize the input string relies on
- *	there being at least one whitespace (or otherwise useless)
- *	character between tokens as the character immediately following
- *	the token is altered in-place to a null-byte to terminate the
- *	token string.
- */
 
 #define MAXARGC	20
 
@@ -975,8 +733,6 @@ int kdb_parse(const char *cmdstr)
 	int escaped, ignore_errors = 0, check_grep = 0;
 
 	/*
-	 * First tokenize the command string.
-	 */
 	cp = (char *)cmdstr;
 
 	if (KDB_FLAG(CMD_INTERRUPT)) {
@@ -1064,9 +820,6 @@ int kdb_parse(const char *cmdstr)
 
 	list_for_each_entry(tp, &kdb_cmds_head, list_node) {
 		/*
-		 * If this command is allowed to be abbreviated,
-		 * check to see if this is it.
-		 */
 		if (tp->minlen && (strlen(argv[0]) <= tp->minlen) &&
 		    (strncmp(argv[0], tp->name, tp->minlen) == 0))
 			break;
@@ -1076,10 +829,6 @@ int kdb_parse(const char *cmdstr)
 	}
 
 	/*
-	 * If we don't find a command by this name, see if the first
-	 * few characters of this match any of the known commands.
-	 * e.g., md1c20 should match md.
-	 */
 	if (list_entry_is_head(tp, &kdb_cmds_head, list_node)) {
 		list_for_each_entry(tp, &kdb_cmds_head, list_node) {
 			if (strncmp(argv[0], tp->name, strlen(tp->name)) == 0)
@@ -1109,12 +858,6 @@ int kdb_parse(const char *cmdstr)
 	}
 
 	/*
-	 * If the input with which we were presented does not
-	 * map to an existing command, attempt to parse it as an
-	 * address argument and display the result.   Useful for
-	 * obtaining the address of a variable, or the nearest symbol
-	 * to an address contained in a register.
-	 */
 	{
 		unsigned long value;
 		char *name = NULL;
@@ -1158,10 +901,6 @@ static int handle_ctrl_cmd(char *cmd)
 	return 0;
 }
 
-/*
- * kdb_reboot - This function implements the 'reboot' command.  Reboot
- *	the system immediately, or loop for ever on failure.
- */
 static int kdb_reboot(int argc, const char **argv)
 {
 	emergency_restart();
@@ -1204,25 +943,6 @@ static void drop_newline(char *buf)
 		*(buf + len - 1) = '\0';
 }
 
-/*
- * kdb_local - The main code for kdb.  This routine is invoked on a
- *	specific processor, it is not global.  The main kdb() routine
- *	ensures that only one processor at a time is in this routine.
- *	This code is called with the real reason code on the first
- *	entry to a kdb session, thereafter it is called with reason
- *	SWITCH, even if the user goes back to the original cpu.
- * Inputs:
- *	reason		The reason KDB was invoked
- *	error		The hardware-defined error code
- *	regs		The exception frame at time of fault/breakpoint.
- *	db_result	Result code from the break or debug point.
- * Returns:
- *	0	KDB was invoked for an event which it wasn't responsible
- *	1	KDB handled the event for which it was invoked.
- *	KDB_CMD_GO	User typed 'go'.
- *	KDB_CMD_CPU	User switched to another cpu.
- *	KDB_CMD_SS	Single step.
- */
 static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 		     kdb_dbtrap_t db_result)
 {
@@ -1250,9 +970,6 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 	case KDB_REASON_DEBUG:
 	{
 		/*
-		 * If re-entering kdb after a single step
-		 * command, don't print the message.
-		 */
 		switch (db_result) {
 		case KDB_DB_BPT:
 			kdb_printf("\nEntering kdb (0x%px, pid %d) ",
@@ -1311,9 +1028,6 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 			   reason == KDB_REASON_BREAK ?
 			   "Breakpoint" : "SS trap", instruction_pointer(regs));
 		/*
-		 * Determine if this breakpoint is one that we
-		 * are interested in.
-		 */
 		if (db_result != KDB_DB_BPT) {
 			kdb_printf("kdb: error return from kdba_bp_trap: %d\n",
 				   db_result);
@@ -1333,8 +1047,6 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 
 	while (1) {
 		/*
-		 * Initialize pager context.
-		 */
 		kdb_nextline = 1;
 		KDB_STATE_CLEAR(SUPPRESS);
 		kdb_grepping_flag = 0;
@@ -1353,8 +1065,6 @@ do_full_getstr:
 			strncat(kdb_prompt_str, "[defcmd]", CMD_BUFLEN);
 
 		/*
-		 * Fetch command from keyboard
-		 */
 		cmdbuf = kdb_getstr(cmdbuf, CMD_BUFLEN, kdb_prompt_str);
 		if (*cmdbuf != '\n') {
 			if (*cmdbuf < 32) {
@@ -1399,13 +1109,6 @@ do_full_getstr:
 }
 
 
-/*
- * kdb_print_state - Print the state data for the current processor
- *	for debugging.
- * Inputs:
- *	text		Identifies the debug point
- *	value		Any integer value to be printed, e.g. reason code.
- */
 void kdb_print_state(const char *text, int value)
 {
 	kdb_printf("state: %s cpu %d value %d initial %d state %x\n",
@@ -1413,31 +1116,6 @@ void kdb_print_state(const char *text, int value)
 		   kdb_state);
 }
 
-/*
- * kdb_main_loop - After initial setup and assignment of the
- *	controlling cpu, all cpus are in this loop.  One cpu is in
- *	control and will issue the kdb prompt, the others will spin
- *	until 'go' or cpu switch.
- *
- *	To get a consistent view of the kernel stacks for all
- *	processes, this routine is invoked from the main kdb code via
- *	an architecture specific routine.  kdba_main_loop is
- *	responsible for making the kernel stacks consistent for all
- *	processes, there should be no difference between a blocked
- *	process and a running process as far as kdb is concerned.
- * Inputs:
- *	reason		The reason KDB was invoked
- *	error		The hardware-defined error code
- *	reason2		kdb's current reason code.
- *			Initially error but can change
- *			according to kdb state.
- *	db_result	Result code from break or debug point.
- *	regs		The exception frame at time of fault/breakpoint.
- *			should always be valid.
- * Returns:
- *	0	KDB was invoked for an event which it wasn't responsible
- *	1	KDB handled the event for which it was invoked.
- */
 int kdb_main_loop(kdb_reason_t reason, kdb_reason_t reason2, int error,
 	      kdb_dbtrap_t db_result, struct pt_regs *regs)
 {
@@ -1445,9 +1123,6 @@ int kdb_main_loop(kdb_reason_t reason, kdb_reason_t reason2, int error,
 	/* Stay in kdb() until 'go', 'ss[b]' or an error */
 	while (1) {
 		/*
-		 * All processors except the one that is in control
-		 * will spin here.
-		 */
 		KDB_DEBUG_STATE("kdb_main_loop 1", reason);
 		while (KDB_STATE(HOLD_CPU)) {
 			/* state KDB is turned off by kdb_cpu to see if the
@@ -1495,16 +1170,6 @@ int kdb_main_loop(kdb_reason_t reason, kdb_reason_t reason2, int error,
 	return result;
 }
 
-/*
- * kdb_mdr - This function implements the guts of the 'mdr', memory
- * read command.
- *	mdr  <addr arg>,<byte count>
- * Inputs:
- *	addr	Start address
- *	count	Number of bytes
- * Returns:
- *	Always 0.  Any errors are detected and printed by kdb_getarea.
- */
 static int kdb_mdr(unsigned long addr, unsigned int count)
 {
 	unsigned char c;
@@ -1518,16 +1183,6 @@ static int kdb_mdr(unsigned long addr, unsigned int count)
 	return 0;
 }
 
-/*
- * kdb_md - This function implements the 'md', 'md1', 'md2', 'md4',
- *	'md8' 'mdr' and 'mds' commands.
- *
- *	md|mds  [<addr arg> [<line count> [<radix>]]]
- *	mdWcN	[<addr arg> [<line count> [<radix>]]]
- *		where W = is the width (1, 2, 4 or 8) and N is the count.
- *		for eg., md1c20 reads 20 bytes, 1 at a time.
- *	mdr  <addr arg>,<byte count>
- */
 static void kdb_md_line(const char *fmtstr, unsigned long addr,
 			int symbolic, int nosect, int bytesperword,
 			int num, int repeat, int phys)
@@ -1785,12 +1440,6 @@ static int kdb_md(int argc, const char **argv)
 	return 0;
 }
 
-/*
- * kdb_mm - This function implements the 'mm' command.
- *	mm address-expression new-value
- * Remarks:
- *	mm works on machine words, mmW works on bytes.
- */
 static int kdb_mm(int argc, const char **argv)
 {
 	int diag;
@@ -1830,10 +1479,6 @@ static int kdb_mm(int argc, const char **argv)
 	return 0;
 }
 
-/*
- * kdb_go - This function implements the 'go' command.
- *	go [address-expression]
- */
 static int kdb_go(int argc, const char **argv)
 {
 	unsigned long addr;
@@ -1876,9 +1521,6 @@ static int kdb_go(int argc, const char **argv)
 	return diag;
 }
 
-/*
- * kdb_rd - This function implements the 'rd' command.
- */
 static int kdb_rd(int argc, const char **argv)
 {
 	int len = kdb_check_regs();
@@ -1943,12 +1585,6 @@ static int kdb_rd(int argc, const char **argv)
 	return 0;
 }
 
-/*
- * kdb_rm - This function implements the 'rm' (register modify)  command.
- *	rm register-name new-contents
- * Remarks:
- *	Allows register modification with the same restrictions as gdb
- */
 static int kdb_rm(int argc, const char **argv)
 {
 #if DBG_MAX_REG_NUM > 0
@@ -1963,8 +1599,6 @@ static int kdb_rm(int argc, const char **argv)
 	if (argc != 2)
 		return KDB_ARGCOUNT;
 	/*
-	 * Allow presence or absence of leading '%' symbol.
-	 */
 	rname = argv[1];
 	if (*rname == '%')
 		rname++;
@@ -2011,11 +1645,6 @@ static int kdb_rm(int argc, const char **argv)
 }
 
 #if defined(CONFIG_MAGIC_SYSRQ)
-/*
- * kdb_sr - This function implements the 'sr' (SYSRQ key) command
- *	which interfaces to the soi-disant MAGIC SYSRQ functionality.
- *		sr <magic-sysrq-code>
- */
 static int kdb_sr(int argc, const char **argv)
 {
 	bool check_mask =
@@ -2032,15 +1661,6 @@ static int kdb_sr(int argc, const char **argv)
 }
 #endif	/* CONFIG_MAGIC_SYSRQ */
 
-/*
- * kdb_ef - This function implements the 'regs' (display exception
- *	frame) command.  This command takes an address and expects to
- *	find an exception frame at that address, formats and prints
- *	it.
- *		regs address-expression
- * Remarks:
- *	Not done yet.
- */
 static int kdb_ef(int argc, const char **argv)
 {
 	int diag;
@@ -2059,10 +1679,6 @@ static int kdb_ef(int argc, const char **argv)
 	return 0;
 }
 
-/*
- * kdb_env - This function implements the 'env' command.  Display the
- *	current environment variables.
- */
 
 static int kdb_env(int argc, const char **argv)
 {
@@ -2076,11 +1692,6 @@ static int kdb_env(int argc, const char **argv)
 }
 
 #ifdef CONFIG_PRINTK
-/*
- * kdb_dmesg - This function implements the 'dmesg' command to display
- *	the contents of the syslog buffer.
- *		dmesg [lines] [adjust]
- */
 static int kdb_dmesg(int argc, const char **argv)
 {
 	int diag;
@@ -2165,7 +1776,6 @@ static int kdb_dmesg(int argc, const char **argv)
 }
 #endif /* CONFIG_PRINTK */
 
-/* Make sure we balance enable/disable calls, must disable first. */
 static atomic_t kdb_nmi_disabled;
 
 static int kdb_disable_nmi(int argc, const char *argv[])
@@ -2190,12 +1800,6 @@ static const struct kernel_param_ops kdb_param_ops_enable_nmi = {
 };
 module_param_cb(enable_nmi, &kdb_param_ops_enable_nmi, NULL, 0600);
 
-/*
- * kdb_cpu - This function implements the 'cpu' command.
- *	cpu	[<cpunum>]
- * Returns:
- *	KDB_CMD_CPU for success, a kdb diagnostic if error
- */
 static void kdb_cpu_status(void)
 {
 	int i, start_cpu, first_print = 1;
@@ -2259,22 +1863,15 @@ static int kdb_cpu(int argc, const char **argv)
 		return diag;
 
 	/*
-	 * Validate cpunum
-	 */
 	if ((cpunum >= CONFIG_NR_CPUS) || !kgdb_info[cpunum].enter_kgdb)
 		return KDB_BADCPUNUM;
 
 	dbg_switch_cpu = cpunum;
 
 	/*
-	 * Switch to other cpu
-	 */
 	return KDB_CMD_CPU;
 }
 
-/* The user may not realize that ps/bta with no parameters does not print idle
- * or sleeping system daemon processes, so tell them how many were suppressed.
- */
 void kdb_ps_suppressed(void)
 {
 	int idle = 0, daemon = 0;
@@ -2330,13 +1927,6 @@ void kdb_ps1(const struct task_struct *p)
 	}
 }
 
-/*
- * kdb_ps - This function implements the 'ps' command which shows a
- *	    list of the active processes.
- *
- * ps [<state_chars>]   Show processes, optionally selecting only those whose
- *                      state character is found in <state_chars>.
- */
 static int kdb_ps(int argc, const char **argv)
 {
 	struct task_struct *g, *p;
@@ -2369,11 +1959,6 @@ static int kdb_ps(int argc, const char **argv)
 	return 0;
 }
 
-/*
- * kdb_pid - This function implements the 'pid' command which switches
- *	the currently active process.
- *		pid [<pid> | R]
- */
 static int kdb_pid(int argc, const char **argv)
 {
 	struct task_struct *p;
@@ -2411,9 +1996,6 @@ static int kdb_kgdb(int argc, const char **argv)
 	return KDB_CMD_KGDB;
 }
 
-/*
- * kdb_help - This function implements the 'help' and '?' commands.
- */
 static int kdb_help(int argc, const char **argv)
 {
 	kdbtab_t *kt;
@@ -2435,9 +2017,6 @@ static int kdb_help(int argc, const char **argv)
 	return 0;
 }
 
-/*
- * kdb_kill - This function implements the 'kill' commands.
- */
 static int kdb_kill(int argc, const char **argv)
 {
 	long sig, pid;
@@ -2475,11 +2054,6 @@ static int kdb_kill(int argc, const char **argv)
 	return 0;
 }
 
-/*
- * Most of this code has been lifted from kernel/timer.c::sys_sysinfo().
- * I cannot call that code directly from kdb, it has an unconditional
- * cli()/sti() and calls routines that take locks which can stop the debugger.
- */
 static void kdb_sysinfo(struct sysinfo *val)
 {
 	u64 uptime = ktime_get_mono_fast_ns();
@@ -2495,9 +2069,6 @@ static void kdb_sysinfo(struct sysinfo *val)
 	return;
 }
 
-/*
- * kdb_summary - This function implements the 'summary' command.
- */
 static int kdb_summary(int argc, const char **argv)
 {
 	time64_t now;
@@ -2537,9 +2108,6 @@ static int kdb_summary(int argc, const char **argv)
 	return 0;
 }
 
-/*
- * kdb_per_cpu - This function implements the 'per_cpu' command.
- */
 static int kdb_per_cpu(int argc, const char **argv)
 {
 	char fmtstr[64];
@@ -2607,9 +2175,6 @@ static int kdb_per_cpu(int argc, const char **argv)
 	return 0;
 }
 
-/*
- * display help for the use of cmd | grep pattern
- */
 static int kdb_grep_help(int argc, const char **argv)
 {
 	kdb_printf("Usage of  cmd args | grep pattern:\n");
@@ -2626,14 +2191,6 @@ static int kdb_grep_help(int argc, const char **argv)
 	return 0;
 }
 
-/**
- * kdb_register() - This function is used to register a kernel debugger
- *                  command.
- * @cmd: pointer to kdb command
- *
- * Note that it's the job of the caller to keep the memory for the cmd
- * allocated until unregister is called.
- */
 int kdb_register(kdbtab_t *cmd)
 {
 	kdbtab_t *kp;
@@ -2651,12 +2208,6 @@ int kdb_register(kdbtab_t *cmd)
 }
 EXPORT_SYMBOL_GPL(kdb_register);
 
-/**
- * kdb_register_table() - This function is used to register a kdb command
- *                        table.
- * @kp: pointer to kdb command table
- * @len: length of kdb command table
- */
 void kdb_register_table(kdbtab_t *kp, size_t len)
 {
 	while (len--) {
@@ -2665,12 +2216,6 @@ void kdb_register_table(kdbtab_t *kp, size_t len)
 	}
 }
 
-/**
- * kdb_unregister() - This function is used to unregister a kernel debugger
- *                    command. It is generally called when a module which
- *                    implements kdb command is unloaded.
- * @cmd: pointer to kdb command
- */
 void kdb_unregister(kdbtab_t *cmd)
 {
 	list_del(&cmd->list_node);
@@ -2850,10 +2395,6 @@ static kdbtab_t maintab[] = {
 		.usage = "name \"usage\" \"help\"",
 		.help = "Define a set of commands, down to endefcmd",
 		/*
-		 * Macros are always safe because when executed each
-		 * internal command re-enters kdb_parse() and is safety
-		 * checked individually.
-		 */
 		.flags = KDB_ENABLE_ALWAYS_SAFE,
 	},
 	{	.name = "kill",
@@ -2892,7 +2433,6 @@ static kdbtab_t nmicmd = {
 	.flags = KDB_ENABLE_ALWAYS_SAFE,
 };
 
-/* Initialize the kdb command table. */
 static void __init kdb_inittab(void)
 {
 	kdb_register_table(maintab, ARRAY_SIZE(maintab));
@@ -2900,7 +2440,6 @@ static void __init kdb_inittab(void)
 		kdb_register_table(&nmicmd, 1);
 }
 
-/* Execute any commands defined in kdb_cmds.  */
 static void __init kdb_cmd_init(void)
 {
 	int i, diag;
@@ -2916,7 +2455,6 @@ static void __init kdb_cmd_init(void)
 	}
 }
 
-/* Initialize kdb_printf, breakpoint tables and kdb state */
 void __init kdb_init(int lvl)
 {
 	static int kdb_init_lvl = KDB_NOT_INITIALIZED;

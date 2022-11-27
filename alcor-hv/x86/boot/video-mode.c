@@ -1,17 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* -*- linux-c -*- ------------------------------------------------------- *
- *
- *   Copyright (C) 1991, 1992 Linus Torvalds
- *   Copyright 2007-2008 rPath, Inc. - All Rights Reserved
- *
- * ----------------------------------------------------------------------- */
 
-/*
- * arch/i386/boot/video-mode.c
- *
- * Set the video mode.  This is separated out into a different
- * file in order to be shared with the ACPI wakeup code.
- */
 
 #include "boot.h"
 #include "video.h"
@@ -19,15 +6,11 @@
 
 #include <uapi/asm/boot.h>
 
-/*
- * Common variables
- */
 int adapter;		/* 0=CGA/MDA/HGC, 1=EGA, 2=VGA+ */
 int force_x, force_y;	/* Don't query the BIOS for cols/rows */
 int do_restore;		/* Screen contents changed during mode flip */
 int graphic_mode;	/* Graphic mode with linear frame buffer */
 
-/* Probe the video drivers and have them generate their mode lists. */
 void probe_cards(int unsafe)
 {
 	struct card_info *card;
@@ -48,7 +31,6 @@ void probe_cards(int unsafe)
 	}
 }
 
-/* Test if a mode is defined */
 int mode_defined(u16 mode)
 {
 	struct card_info *card;
@@ -66,7 +48,6 @@ int mode_defined(u16 mode)
 	return 0;
 }
 
-/* Set mode (without recalc) */
 static int raw_set_mode(u16 mode, u16 *real_mode)
 {
 	int nmode, i;
@@ -110,9 +91,6 @@ static int raw_set_mode(u16 mode, u16 *real_mode)
 	return -1;
 }
 
-/*
- * Recalculate the vertical video cutoff (hack!)
- */
 static void vga_recalc_vertical(void)
 {
 	unsigned int font_size, rows;
@@ -141,7 +119,6 @@ static void vga_recalc_vertical(void)
 	out_idx(ov, crtc, 0x07);
 }
 
-/* Set mode (with recalc if specified) */
 int set_mode(u16 mode)
 {
 	int rv;

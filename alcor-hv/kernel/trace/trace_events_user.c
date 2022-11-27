@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Copyright (c) 2021, Microsoft Corporation.
- *
- * Authors:
- *   Beau Belgrave <beaub@linux.microsoft.com>
- */
 
 #include <linux/bitmap.h>
 #include <linux/cdev.h>
@@ -18,7 +11,6 @@
 #include <linux/tracefs.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
-/* Reminder to move to uapi when everything works */
 #ifdef CONFIG_COMPILE_TEST
 #include <linux/user_events.h>
 #else
@@ -33,15 +25,10 @@
 #define FIELD_DEPTH_NAME 1
 #define FIELD_DEPTH_SIZE 2
 
-/*
- * Limits how many trace_event calls user processes can create:
- * Must be a power of two of PAGE_SIZE.
- */
 #define MAX_PAGE_ORDER 0
 #define MAX_PAGES (1 << MAX_PAGE_ORDER)
 #define MAX_EVENTS (MAX_PAGES * PAGE_SIZE)
 
-/* Limit how long of an event name plus args within the subsystem. */
 #define MAX_EVENT_DESC 512
 #define EVENT_NAME(user_event) ((user_event)->tracepoint.name)
 #define MAX_FIELD_ARRAY_SIZE 1024
@@ -53,13 +40,6 @@ static DEFINE_MUTEX(reg_mutex);
 static DEFINE_HASHTABLE(register_table, 4);
 static DECLARE_BITMAP(page_bitmap, MAX_EVENTS);
 
-/*
- * Stores per-event properties, as users register events
- * within a file a user_event might be created if it does not
- * already exist. These are globally used and their lifetime
- * is tied to the refcnt member. These cannot go away until the
- * refcnt reaches zero.
- */
 struct user_event {
 	struct tracepoint tracepoint;
 	struct trace_event_call call;
@@ -74,12 +54,6 @@ struct user_event {
 	int min_size;
 };
 
-/*
- * Stores per-file events references, as users register events
- * within a file this structure is modified and freed via RCU.
- * The lifetime of this struct is tied to the lifetime of the file.
- * These are not shared and only accessible by the file that created it.
- */
 struct user_event_refs {
 	struct rcu_head rcu;
 	int count;
@@ -127,20 +101,6 @@ static struct list_head *user_event_get_fields(struct trace_event_call *call)
 	return &user->fields;
 }
 
-/*
- * Parses a register command for user_events
- * Format: event_name[:FLAG1[,FLAG2...]] [field1[;field2...]]
- *
- * Example event named 'test' with a 20 char 'msg' field with an unsigned int
- * 'id' field after:
- * test char[20] msg;unsigned int id
- *
- * NOTE: Offsets are from the user data perspective, they are not from the
- * trace_entry/buffer perspective. We automatically add the common properties
- * sizes to the offset for the user.
- *
- * Upon success user_event has its ref count increased by 1.
- */
 static int user_event_parse_cmd(char *raw_command, struct user_event **newuser)
 {
 	char *name = raw_command;
@@ -176,7 +136,6 @@ static int user_field_array_size(const char *type)
 	if (!bracket)
 		return -EINVAL;
 
-	*bracket = '\0';
 
 	if (kstrtouint(val, 0, &size))
 		return -EINVAL;
@@ -304,18 +263,11 @@ add_field:
 	list_add(&field->link, &user->fields);
 
 	/*
-	 * Min size from user writes that are required, this does not include
-	 * the size of trace_entry (common fields).
-	 */
 	user->min_size = (offset + size) - sizeof(struct trace_entry);
 
 	return 0;
 }
 
-/*
- * Parses the values of a field within the description
- * Format: type name [size]
- */
 static int user_event_parse_field(char *field, struct user_event *user,
 				  u32 *offset)
 {
@@ -364,7 +316,6 @@ skip_next:
 	if (field == NULL)
 		return -EINVAL;
 
-	*field++ = '\0';
 	depth++;
 parse:
 	name = NULL;
@@ -401,7 +352,6 @@ parse:
 	if (size < 0)
 		return size;
 
-	*offset = saved_offset + size;
 
 	return user_event_add_field(user, type, name, saved_offset, size,
 				    type[0] != 'u', FILTER_OTHER);
@@ -563,14 +513,6 @@ static int user_event_set_call_visible(struct user_event *user, bool visible)
 		return -ENOMEM;
 
 	/*
-	 * While by default tracefs is locked down, systems can be configured
-	 * to allow user_event files to be less locked down. The extreme case
-	 * being "other" has read/write access to user_events_data/status.
-	 *
-	 * When not locked down, processes may not have permissions to
-	 * add/remove calls themselves to tracefs. We need to temporarily
-	 * switch to root file permission to allow for this scenario.
-	 */
 	cred->fsuid = GLOBAL_ROOT_UID;
 
 	old_cred = override_creds(cred);
@@ -617,7 +559,6 @@ static struct user_event *find_user_event(char *name, u32 *outkey)
 	struct user_event *user;
 	u32 key = user_event_key(name);
 
-	*outkey = key;
 
 	hash_for_each_possible(register_table, user, node, key)
 		if (!strcmp(EVENT_NAME(user), name)) {
@@ -661,9 +602,6 @@ static int user_event_validate(struct user_event *user, void *data, int len)
 	return 0;
 }
 
-/*
- * Writes the user supplied payload out to a trace file.
- */
 static void user_event_ftrace(struct user_event *user, struct iov_iter *i,
 			      void *tpdata, bool *faulted)
 {
@@ -696,15 +634,11 @@ static void user_event_ftrace(struct user_event *user, struct iov_iter *i,
 
 	return;
 discard:
-	*faulted = true;
 	__trace_event_discard_commit(event_buffer.buffer,
 				     event_buffer.event);
 }
 
 #ifdef CONFIG_PERF_EVENTS
-/*
- * Writes the user supplied payload out to perf ring buffer.
- */
 static void user_event_perf(struct user_event *user, struct iov_iter *i,
 			    void *tpdata, bool *faulted)
 {
@@ -745,9 +679,6 @@ discard:
 }
 #endif
 
-/*
- * Update the register page that is shared between user processes.
- */
 static void update_reg_page_for(struct user_event *user)
 {
 	struct tracepoint *tp = &user->tracepoint;
@@ -782,9 +713,6 @@ static void update_reg_page_for(struct user_event *user)
 	register_page_data[user->index] = status;
 }
 
-/*
- * Register callback for our events from tracing sub-systems.
- */
 static int user_event_reg(struct trace_event_call *call,
 			  enum trace_reg type,
 			  void *data)
@@ -964,7 +892,6 @@ static bool user_field_match(struct ftrace_event_field *field, int argc,
 	if (colon)
 		pos += snprintf(field_name + pos, len - pos, ";");
 
-	*iout = i;
 
 	match = strcmp(arg_name, field_name) == 0;
 out:
@@ -1031,11 +958,6 @@ static int user_event_trace_register(struct user_event *user)
 	return ret;
 }
 
-/*
- * Parses the event name, arguments and flags then registers if successful.
- * The name buffer lifetime is owned by this method for success cases only.
- * Upon success the returned user_event has its ref count increased by 1.
- */
 static int user_event_parse(char *name, char *args, char *flags,
 			    struct user_event **newuser)
 {
@@ -1052,9 +974,6 @@ static int user_event_parse(char *name, char *args, char *flags,
 	if (user) {
 		*newuser = user;
 		/*
-		 * Name is allocated by caller, free it since it already exists.
-		 * Caller only worries about failure cases for freeing.
-		 */
 		kfree(name);
 		return 0;
 	}
@@ -1120,7 +1039,6 @@ static int user_event_parse(char *name, char *args, char *flags,
 
 	mutex_unlock(&event_mutex);
 
-	*newuser = user;
 	return 0;
 put_user_lock:
 	mutex_unlock(&event_mutex);
@@ -1131,9 +1049,6 @@ put_user:
 	return ret;
 }
 
-/*
- * Deletes a previously created event if it is no longer being used.
- */
 static int delete_user_event(char *name)
 {
 	u32 key;
@@ -1162,9 +1077,6 @@ put_ref:
 	return ret;
 }
 
-/*
- * Validates the user payload and writes via iterator.
- */
 static ssize_t user_events_write_core(struct file *file, struct iov_iter *i)
 {
 	struct user_event_refs *refs;
@@ -1181,10 +1093,6 @@ static ssize_t user_events_write_core(struct file *file, struct iov_iter *i)
 	refs = rcu_dereference_sched(file->private_data);
 
 	/*
-	 * The refs->events array is protected by RCU, and new items may be
-	 * added. But the user retrieved from indexing into the events array
-	 * shall be immutable while the file is opened.
-	 */
 	if (likely(refs && idx < refs->count))
 		user = refs->events[idx];
 
@@ -1199,9 +1107,6 @@ static ssize_t user_events_write_core(struct file *file, struct iov_iter *i)
 	tp = &user->tracepoint;
 
 	/*
-	 * It's possible key.enabled disables after this check, however
-	 * we don't mind if a few events are included in this condition.
-	 */
 	if (likely(atomic_read(&tp->key.enabled) > 0)) {
 		struct tracepoint_func *probe_func_ptr;
 		user_event_func_t probe_func;
@@ -1312,9 +1217,6 @@ static long user_reg_get(struct user_reg __user *ureg, struct user_reg *kreg)
 	return copy_struct_from_user(kreg, sizeof(*kreg), ureg, size);
 }
 
-/*
- * Registers a user_event on behalf of a user process.
- */
 static long user_events_ioctl_reg(struct file *file, unsigned long uarg)
 {
 	struct user_reg __user *ureg = (struct user_reg __user *)uarg;
@@ -1358,9 +1260,6 @@ static long user_events_ioctl_reg(struct file *file, unsigned long uarg)
 	return 0;
 }
 
-/*
- * Deletes a user_event on behalf of a user process.
- */
 static long user_events_ioctl_del(struct file *file, unsigned long uarg)
 {
 	void __user *ubuf = (void __user *)uarg;
@@ -1382,9 +1281,6 @@ static long user_events_ioctl_del(struct file *file, unsigned long uarg)
 	return ret;
 }
 
-/*
- * Handles the ioctl from user mode to register or alter operations.
- */
 static long user_events_ioctl(struct file *file, unsigned int cmd,
 			      unsigned long uarg)
 {
@@ -1407,9 +1303,6 @@ static long user_events_ioctl(struct file *file, unsigned int cmd,
 	return ret;
 }
 
-/*
- * Handles the final close of the file from user mode.
- */
 static int user_events_release(struct inode *node, struct file *file)
 {
 	struct user_event_refs *refs;
@@ -1417,9 +1310,6 @@ static int user_events_release(struct inode *node, struct file *file)
 	int i;
 
 	/*
-	 * Ensure refs cannot change under any situation by taking the
-	 * register mutex during the final freeing of the references.
-	 */
 	mutex_lock(&reg_mutex);
 
 	refs = file->private_data;
@@ -1428,10 +1318,6 @@ static int user_events_release(struct inode *node, struct file *file)
 		goto out;
 
 	/*
-	 * The lifetime of refs has reached an end, it's tied to this file.
-	 * The underlying user_events are ref counted, and cannot be freed.
-	 * After this decrement, the user_events may be freed elsewhere.
-	 */
 	for (i = 0; i < refs->count; ++i) {
 		user = refs->events[i];
 
@@ -1455,9 +1341,6 @@ static const struct file_operations user_data_fops = {
 	.release = user_events_release,
 };
 
-/*
- * Maps the shared page into the user process for checking if event is enabled.
- */
 static int user_status_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	unsigned long size = vma->vm_end - vma->vm_start;
@@ -1550,9 +1433,6 @@ static const struct file_operations user_status_fops = {
 	.release = seq_release,
 };
 
-/*
- * Creates a set of tracefs files to allow user mode interactions.
- */
 static int create_user_tracefs(void)
 {
 	struct dentry *edata, *emmap;

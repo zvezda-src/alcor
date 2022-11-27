@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Strings for the various x86 power flags
- *
- * This file must not contain any executable code.
- */
 
 #include <asm/cpufeature.h>
 

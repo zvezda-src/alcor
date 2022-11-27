@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Range add and subtract
- */
 #include <linux/init.h>
 #include <linux/minmax.h>
 #include <linux/printk.h>

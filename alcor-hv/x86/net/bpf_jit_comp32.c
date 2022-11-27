@@ -1,13 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Just-In-Time compiler for eBPF filters on IA32 (32bit x86)
- *
- * Author: Wang YanQing (udknight@gmail.com)
- * The code based on code and ideas from:
- * Eric Dumazet (eric.dumazet@gmail.com)
- * and from:
- * Shubham Bansal <illusionist.neo@gmail.com>
- */
 
 #include <linux/netdevice.h>
 #include <linux/filter.h>
@@ -18,35 +8,6 @@
 #include <asm/asm-prototypes.h>
 #include <linux/bpf.h>
 
-/*
- * eBPF prog stack layout:
- *
- *                         high
- * original ESP =>        +-----+
- *                        |     | callee saved registers
- *                        +-----+
- *                        | ... | eBPF JIT scratch space
- * BPF_FP,IA32_EBP  =>    +-----+
- *                        | ... | eBPF prog stack
- *                        +-----+
- *                        |RSVD | JIT scratchpad
- * current ESP =>         +-----+
- *                        |     |
- *                        | ... | Function call stack
- *                        |     |
- *                        +-----+
- *                          low
- *
- * The callee saved registers:
- *
- *                                high
- * original ESP =>        +------------------+ \
- *                        |        ebp       | |
- * current EBP =>         +------------------+ } callee saved registers
- *                        |    ebx,esi,edi   | |
- *                        +------------------+ /
- *                                low
- */
 
 static u8 *emit_code(u8 *ptr, u32 bytes, unsigned int len)
 {
@@ -103,10 +64,6 @@ static bool is_simm32(s64 value)
 #define IA32_EBP	(0x5)
 #define IA32_ESP	(0x4)
 
-/*
- * List of x86 cond jumps opcodes (. + s8)
- * Add 0x10 (and an extra 0x0f) to generate far jumps (. + s32)
- */
 #define IA32_JB  0x72
 #define IA32_JAE 0x73
 #define IA32_JE  0x74
@@ -120,21 +77,6 @@ static bool is_simm32(s64 value)
 
 #define COND_JMP_OPCODE_INVALID	(0xFF)
 
-/*
- * Map eBPF registers to IA32 32bit registers or stack scratch space.
- *
- * 1. All the registers, R0-R10, are mapped to scratch space on stack.
- * 2. We need two 64 bit temp registers to do complex operations on eBPF
- *    registers.
- * 3. For performance reason, the BPF_REG_AX for blinding constant, is
- *    mapped to real hardware register pair, IA32_ESI and IA32_EDI.
- *
- * As the eBPF registers are all 64 bit registers and IA32 has only 32 bit
- * registers, we have to map each eBPF registers with two IA32 32 bit regs
- * or scratch memory space and we have to build eBPF 64 bit register from those.
- *
- * We use IA32_EAX, IA32_EDX, IA32_ECX, IA32_EBX as temporary registers.
- */
 static const u8 bpf2ia32[][2] = {
 	/* Return value from in-kernel function, and exit value from eBPF */
 	[BPF_REG_0] = {STACK_OFFSET(0), STACK_OFFSET(4)},
@@ -170,28 +112,19 @@ static const u8 bpf2ia32[][2] = {
 #define src_hi	src[1]
 
 #define STACK_ALIGNMENT	8
-/*
- * Stack space for BPF_REG_1, BPF_REG_2, BPF_REG_3, BPF_REG_4,
- * BPF_REG_5, BPF_REG_6, BPF_REG_7, BPF_REG_8, BPF_REG_9,
- * BPF_REG_FP, BPF_REG_AX and Tail call counts.
- */
 #define SCRATCH_SIZE 96
 
-/* Total stack size used in JITed code */
 #define _STACK_SIZE	(stack_depth + SCRATCH_SIZE)
 
 #define STACK_SIZE ALIGN(_STACK_SIZE, STACK_ALIGNMENT)
 
-/* Get the offset of eBPF REGISTERs stored on scratch space. */
 #define STACK_VAR(off) (off)
 
-/* Encode 'dst_reg' register into IA32 opcode 'byte' */
 static u8 add_1reg(u8 byte, u32 dst_reg)
 {
 	return byte + dst_reg;
 }
 
-/* Encode 'dst_reg' and 'src_reg' registers into IA32 opcode 'byte' */
 static u8 add_2reg(u8 byte, u32 dst_reg, u32 src_reg)
 {
 	return byte + dst_reg + (src_reg << 3);
@@ -227,10 +160,8 @@ static inline void emit_ia32_mov_i(const u8 dst, const u32 val, bool dstk,
 			EMIT2_off32(0xC7, add_1reg(0xC0, dst),
 				    val);
 	}
-	*pprog = prog;
 }
 
-/* dst = imm (4 bytes)*/
 static inline void emit_ia32_mov_r(const u8 dst, const u8 src, bool dstk,
 				   bool sstk, u8 **pprog)
 {
@@ -248,10 +179,8 @@ static inline void emit_ia32_mov_r(const u8 dst, const u8 src, bool dstk,
 		/* mov dst,sreg */
 		EMIT2(0x89, add_2reg(0xC0, dst, sreg));
 
-	*pprog = prog;
 }
 
-/* dst = src */
 static inline void emit_ia32_mov_r64(const bool is64, const u8 dst[],
 				     const u8 src[], bool dstk,
 				     bool sstk, u8 **pprog,
@@ -266,7 +195,6 @@ static inline void emit_ia32_mov_r64(const bool is64, const u8 dst[],
 		emit_ia32_mov_i(dst_hi, 0, dstk, pprog);
 }
 
-/* Sign extended move */
 static inline void emit_ia32_mov_i64(const bool is64, const u8 dst[],
 				     const u32 val, bool dstk, u8 **pprog)
 {
@@ -278,10 +206,6 @@ static inline void emit_ia32_mov_i64(const bool is64, const u8 dst[],
 	emit_ia32_mov_i(dst_hi, hi, dstk, pprog);
 }
 
-/*
- * ALU operation (32 bit)
- * dst = dst * src
- */
 static inline void emit_ia32_mul_r(const u8 dst, const u8 src, bool dstk,
 				   bool sstk, u8 **pprog)
 {
@@ -311,7 +235,6 @@ static inline void emit_ia32_mul_r(const u8 dst, const u8 src, bool dstk,
 		/* mov dst,eax */
 		EMIT2(0x89, add_2reg(0xC0, dst, IA32_EAX));
 
-	*pprog = prog;
 }
 
 static inline void emit_ia32_to_le_r64(const u8 dst[], s32 val,
@@ -332,9 +255,6 @@ static inline void emit_ia32_to_le_r64(const u8 dst[], s32 val,
 	switch (val) {
 	case 16:
 		/*
-		 * Emit 'movzwl eax,ax' to zero extend 16-bit
-		 * into 64 bit
-		 */
 		EMIT2(0x0F, 0xB7);
 		EMIT1(add_2reg(0xC0, dreg_lo, dreg_lo));
 		if (!aux->verifier_zext)
@@ -359,7 +279,6 @@ static inline void emit_ia32_to_le_r64(const u8 dst[], s32 val,
 		EMIT3(0x89, add_2reg(0x40, IA32_EBP, dreg_hi),
 		      STACK_VAR(dst_hi));
 	}
-	*pprog = prog;
 }
 
 static inline void emit_ia32_to_be_r64(const u8 dst[], s32 val,
@@ -425,13 +344,8 @@ static inline void emit_ia32_to_be_r64(const u8 dst[], s32 val,
 		EMIT3(0x89, add_2reg(0x40, IA32_EBP, dreg_hi),
 		      STACK_VAR(dst_hi));
 	}
-	*pprog = prog;
 }
 
-/*
- * ALU operation (32 bit)
- * dst = dst (div|mod) src
- */
 static inline void emit_ia32_div_mod_r(const u8 op, const u8 dst, const u8 src,
 				       bool dstk, bool sstk, u8 **pprog)
 {
@@ -472,13 +386,8 @@ static inline void emit_ia32_div_mod_r(const u8 op, const u8 dst, const u8 src,
 		else
 			EMIT2(0x89, add_2reg(0xC0, dst, IA32_EAX));
 	}
-	*pprog = prog;
 }
 
-/*
- * ALU operation (32 bit)
- * dst = dst (shift) src
- */
 static inline void emit_ia32_shift_r(const u8 op, const u8 dst, const u8 src,
 				     bool dstk, bool sstk, u8 **pprog)
 {
@@ -513,13 +422,8 @@ static inline void emit_ia32_shift_r(const u8 op, const u8 dst, const u8 src,
 	if (dstk)
 		/* mov dword ptr [ebp+off],dreg */
 		EMIT3(0x89, add_2reg(0x40, IA32_EBP, dreg), STACK_VAR(dst));
-	*pprog = prog;
 }
 
-/*
- * ALU operation (32 bit)
- * dst = dst (op) src
- */
 static inline void emit_ia32_alu_r(const bool is64, const bool hi, const u8 op,
 				   const u8 dst, const u8 src, bool dstk,
 				   bool sstk, u8 **pprog)
@@ -570,10 +474,8 @@ static inline void emit_ia32_alu_r(const bool is64, const bool hi, const u8 op,
 		/* mov dword ptr [ebp+off],dreg */
 		EMIT3(0x89, add_2reg(0x40, IA32_EBP, dreg),
 		      STACK_VAR(dst));
-	*pprog = prog;
 }
 
-/* ALU operation (64 bit) */
 static inline void emit_ia32_alu_r64(const bool is64, const u8 op,
 				     const u8 dst[], const u8 src[],
 				     bool dstk,  bool sstk,
@@ -587,13 +489,8 @@ static inline void emit_ia32_alu_r64(const bool is64, const u8 op,
 				&prog);
 	else if (!aux->verifier_zext)
 		emit_ia32_mov_i(dst_hi, 0, dstk, &prog);
-	*pprog = prog;
 }
 
-/*
- * ALU operation (32 bit)
- * dst = dst (op) val
- */
 static inline void emit_ia32_alu_i(const bool is64, const bool hi, const u8 op,
 				   const u8 dst, const s32 val, bool dstk,
 				   u8 **pprog)
@@ -670,10 +567,8 @@ static inline void emit_ia32_alu_i(const bool is64, const bool hi, const u8 op,
 		/* mov dword ptr [ebp+off],dreg */
 		EMIT3(0x89, add_2reg(0x40, IA32_EBP, dreg),
 		      STACK_VAR(dst));
-	*pprog = prog;
 }
 
-/* ALU operation (64 bit) */
 static inline void emit_ia32_alu_i64(const bool is64, const u8 op,
 				     const u8 dst[], const u32 val,
 				     bool dstk, u8 **pprog,
@@ -691,10 +586,8 @@ static inline void emit_ia32_alu_i64(const bool is64, const u8 op,
 	else if (!aux->verifier_zext)
 		emit_ia32_mov_i(dst_hi, 0, dstk, &prog);
 
-	*pprog = prog;
 }
 
-/* dst = ~dst (64 bit) */
 static inline void emit_ia32_neg64(const u8 dst[], bool dstk, u8 **pprog)
 {
 	u8 *prog = *pprog;
@@ -724,10 +617,8 @@ static inline void emit_ia32_neg64(const u8 dst[], bool dstk, u8 **pprog)
 		EMIT3(0x89, add_2reg(0x40, IA32_EBP, dreg_hi),
 		      STACK_VAR(dst_hi));
 	}
-	*pprog = prog;
 }
 
-/* dst = dst << src */
 static inline void emit_ia32_lsh_r64(const u8 dst[], const u8 src[],
 				     bool dstk, bool sstk, u8 **pprog)
 {
@@ -777,10 +668,8 @@ static inline void emit_ia32_lsh_r64(const u8 dst[], const u8 src[],
 		      STACK_VAR(dst_hi));
 	}
 	/* out: */
-	*pprog = prog;
 }
 
-/* dst = dst >> src (signed)*/
 static inline void emit_ia32_arsh_r64(const u8 dst[], const u8 src[],
 				      bool dstk, bool sstk, u8 **pprog)
 {
@@ -830,10 +719,8 @@ static inline void emit_ia32_arsh_r64(const u8 dst[], const u8 src[],
 		      STACK_VAR(dst_hi));
 	}
 	/* out: */
-	*pprog = prog;
 }
 
-/* dst = dst >> src */
 static inline void emit_ia32_rsh_r64(const u8 dst[], const u8 src[], bool dstk,
 				     bool sstk, u8 **pprog)
 {
@@ -883,10 +770,8 @@ static inline void emit_ia32_rsh_r64(const u8 dst[], const u8 src[], bool dstk,
 		      STACK_VAR(dst_hi));
 	}
 	/* out: */
-	*pprog = prog;
 }
 
-/* dst = dst << val */
 static inline void emit_ia32_lsh_i64(const u8 dst[], const u32 val,
 				     bool dstk, u8 **pprog)
 {
@@ -931,10 +816,8 @@ static inline void emit_ia32_lsh_i64(const u8 dst[], const u32 val,
 		EMIT3(0x89, add_2reg(0x40, IA32_EBP, dreg_hi),
 		      STACK_VAR(dst_hi));
 	}
-	*pprog = prog;
 }
 
-/* dst = dst >> val */
 static inline void emit_ia32_rsh_i64(const u8 dst[], const u32 val,
 				     bool dstk, u8 **pprog)
 {
@@ -980,10 +863,8 @@ static inline void emit_ia32_rsh_i64(const u8 dst[], const u32 val,
 		EMIT3(0x89, add_2reg(0x40, IA32_EBP, dreg_hi),
 		      STACK_VAR(dst_hi));
 	}
-	*pprog = prog;
 }
 
-/* dst = dst >> val (signed) */
 static inline void emit_ia32_arsh_i64(const u8 dst[], const u32 val,
 				      bool dstk, u8 **pprog)
 {
@@ -1029,7 +910,6 @@ static inline void emit_ia32_arsh_i64(const u8 dst[], const u32 val,
 		EMIT3(0x89, add_2reg(0x40, IA32_EBP, dreg_hi),
 		      STACK_VAR(dst_hi));
 	}
-	*pprog = prog;
 }
 
 static inline void emit_ia32_mul_r64(const u8 dst[], const u8 src[], bool dstk,
@@ -1106,7 +986,6 @@ static inline void emit_ia32_mul_r64(const u8 dst[], const u8 src[], bool dstk,
 		EMIT2(0x89, add_2reg(0xC0, dst_hi, IA32_ECX));
 	}
 
-	*pprog = prog;
 }
 
 static inline void emit_ia32_mul_i64(const u8 dst[], const u32 val,
@@ -1166,7 +1045,6 @@ static inline void emit_ia32_mul_i64(const u8 dst[], const u32 val,
 		EMIT2(0x89, add_2reg(0xC0, dst_hi, IA32_ECX));
 	}
 
-	*pprog = prog;
 }
 
 static int bpf_size_to_x86_bytes(int bpf_size)
@@ -1187,16 +1065,11 @@ struct jit_context {
 	int cleanup_addr; /* Epilogue code offset */
 };
 
-/* Maximum number of bytes emitted while JITing one eBPF insn */
 #define BPF_MAX_INSN_SIZE	128
 #define BPF_INSN_SAFETY		64
 
 #define PROLOGUE_SIZE 35
 
-/*
- * Emit prologue code for BPF program and check it's size.
- * bpf_tail_call helper will skip it while jumping into another program.
- */
 static void emit_prologue(u8 **pprog, u32 stack_depth)
 {
 	u8 *prog = *pprog;
@@ -1238,10 +1111,8 @@ static void emit_prologue(u8 **pprog, u32 stack_depth)
 	EMIT3(0x89, add_2reg(0x40, IA32_EBP, IA32_EBX), STACK_VAR(tcc[1]));
 
 	BUILD_BUG_ON(cnt != PROLOGUE_SIZE);
-	*pprog = prog;
 }
 
-/* Emit epilogue code for BPF program */
 static void emit_epilogue(u8 **pprog, u32 stack_depth)
 {
 	u8 *prog = *pprog;
@@ -1265,7 +1136,6 @@ static void emit_epilogue(u8 **pprog, u32 stack_depth)
 
 	EMIT1(0xC9); /* leave */
 	EMIT1(0xC3); /* ret */
-	*pprog = prog;
 }
 
 static int emit_jmp_edx(u8 **pprog, u8 *ip)
@@ -1278,24 +1148,10 @@ static int emit_jmp_edx(u8 **pprog, u8 *ip)
 #else
 	EMIT2(0xFF, 0xE2);
 #endif
-	*pprog = prog;
 
 	return cnt;
 }
 
-/*
- * Generate the following code:
- * ... bpf_tail_call(void *ctx, struct bpf_array *array, u64 index) ...
- *   if (index >= array->map.max_entries)
- *     goto out;
- *   if (++tail_call_cnt > MAX_TAIL_CALL_CNT)
- *     goto out;
- *   prog = array->ptrs[index];
- *   if (prog == NULL)
- *     goto out;
- *   goto *(prog->bpf_func + prologue_size);
- * out:
- */
 static void emit_bpf_tail_call(u8 **pprog, u8 *ip)
 {
 	u8 *prog = *pprog;
@@ -1308,9 +1164,6 @@ static void emit_bpf_tail_call(u8 **pprog, u8 *ip)
 	static int jmp_label1 = -1;
 
 	/*
-	 * if (index >= array->map.max_entries)
-	 *     goto out;
-	 */
 	/* mov eax,dword ptr [ebp+off] */
 	EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_EAX), STACK_VAR(r2[0]));
 	/* mov edx,dword ptr [ebp+off] */
@@ -1323,9 +1176,6 @@ static void emit_bpf_tail_call(u8 **pprog, u8 *ip)
 	EMIT2(IA32_JBE, jmp_label(jmp_label1, 2));
 
 	/*
-	 * if (tail_call_cnt++ >= MAX_TAIL_CALL_CNT)
-	 *     goto out;
-	 */
 	lo = (u32)MAX_TAIL_CALL_CNT;
 	hi = (u32)((u64)MAX_TAIL_CALL_CNT >> 32);
 	EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_ECX), STACK_VAR(tcc[0]));
@@ -1355,9 +1205,6 @@ static void emit_bpf_tail_call(u8 **pprog, u8 *ip)
 	EMIT3_off32(0x8B, 0x94, 0x90, offsetof(struct bpf_array, ptrs));
 
 	/*
-	 * if (prog == NULL)
-	 *     goto out;
-	 */
 	/* test edx,edx */
 	EMIT2(0x85, add_2reg(0xC0, IA32_EDX, IA32_EDX));
 	/* je out */
@@ -1374,20 +1221,14 @@ static void emit_bpf_tail_call(u8 **pprog, u8 *ip)
 	EMIT3(0x8B, add_2reg(0x40, IA32_EBP, IA32_EAX), STACK_VAR(r1[0]));
 
 	/*
-	 * Now we're ready to jump into next BPF program:
-	 * eax == ctx (1st arg)
-	 * edx == prog->bpf_func + prologue_size
-	 */
 	cnt += emit_jmp_edx(&prog, ip + cnt);
 
 	if (jmp_label1 == -1)
 		jmp_label1 = cnt;
 
 	/* out: */
-	*pprog = prog;
 }
 
-/* Push the scratch stack register on top of the stack. */
 static inline void emit_push_r64(const u8 src[], u8 **pprog)
 {
 	u8 *prog = *pprog;
@@ -1403,7 +1244,6 @@ static inline void emit_push_r64(const u8 src[], u8 **pprog)
 	/* push ecx */
 	EMIT1(0x51);
 
-	*pprog = prog;
 }
 
 static void emit_push_r32(const u8 src[], u8 **pprog)
@@ -1416,7 +1256,6 @@ static void emit_push_r32(const u8 src[], u8 **pprog)
 	/* push ecx */
 	EMIT1(0x51);
 
-	*pprog = prog;
 }
 
 static u8 get_cond_jmp_opcode(const u8 op, bool is_cmp_lo)
@@ -1488,84 +1327,6 @@ static u8 get_cond_jmp_opcode(const u8 op, bool is_cmp_lo)
 	return jmp_cond;
 }
 
-/* i386 kernel compiles with "-mregparm=3".  From gcc document:
- *
- * ==== snippet ====
- * regparm (number)
- *	On x86-32 targets, the regparm attribute causes the compiler
- *	to pass arguments number one to (number) if they are of integral
- *	type in registers EAX, EDX, and ECX instead of on the stack.
- *	Functions that take a variable number of arguments continue
- *	to be passed all of their arguments on the stack.
- * ==== snippet ====
- *
- * The first three args of a function will be considered for
- * putting into the 32bit register EAX, EDX, and ECX.
- *
- * Two 32bit registers are used to pass a 64bit arg.
- *
- * For example,
- * void foo(u32 a, u32 b, u32 c, u32 d):
- *	u32 a: EAX
- *	u32 b: EDX
- *	u32 c: ECX
- *	u32 d: stack
- *
- * void foo(u64 a, u32 b, u32 c):
- *	u64 a: EAX (lo32) EDX (hi32)
- *	u32 b: ECX
- *	u32 c: stack
- *
- * void foo(u32 a, u64 b, u32 c):
- *	u32 a: EAX
- *	u64 b: EDX (lo32) ECX (hi32)
- *	u32 c: stack
- *
- * void foo(u32 a, u32 b, u64 c):
- *	u32 a: EAX
- *	u32 b: EDX
- *	u64 c: stack
- *
- * The return value will be stored in the EAX (and EDX for 64bit value).
- *
- * For example,
- * u32 foo(u32 a, u32 b, u32 c):
- *	return value: EAX
- *
- * u64 foo(u32 a, u32 b, u32 c):
- *	return value: EAX (lo32) EDX (hi32)
- *
- * Notes:
- *	The verifier only accepts function having integer and pointers
- *	as its args and return value, so it does not have
- *	struct-by-value.
- *
- * emit_kfunc_call() finds out the btf_func_model by calling
- * bpf_jit_find_kfunc_model().  A btf_func_model
- * has the details about the number of args, size of each arg,
- * and the size of the return value.
- *
- * It first decides how many args can be passed by EAX, EDX, and ECX.
- * That will decide what args should be pushed to the stack:
- * [first_stack_regno, last_stack_regno] are the bpf regnos
- * that should be pushed to the stack.
- *
- * It will first push all args to the stack because the push
- * will need to use ECX.  Then, it moves
- * [BPF_REG_1, first_stack_regno) to EAX, EDX, and ECX.
- *
- * When emitting a call (0xE8), it needs to figure out
- * the jmp_offset relative to the jit-insn address immediately
- * following the call (0xE8) instruction.  At this point, it knows
- * the end of the jit-insn address after completely translated the
- * current (BPF_JMP | BPF_CALL) bpf-insn.  It is passed as "end_addr"
- * to the emit_kfunc_call().  Thus, it can learn the "immediate-follow-call"
- * address by figuring out how many jit-insn is generated between
- * the call (0xE8) and the end_addr:
- *	- 0-1 jit-insn (3 bytes each) to restore the esp pointer if there
- *	  is arg pushed to the stack.
- *	- 0-2 jit-insns (3 bytes each) to handle the return value.
- */
 static int emit_kfunc_call(const struct bpf_prog *bpf_prog, u8 *end_addr,
 			   const struct bpf_insn *insn, u8 **pprog)
 {
@@ -1651,7 +1412,6 @@ static int emit_kfunc_call(const struct bpf_prog *bpf_prog, u8 *end_addr,
 		/* add esp,"bytes_in_stack" */
 		EMIT3(0x83, add_1reg(0xC0, IA32_ESP), bytes_in_stack);
 
-	*pprog = prog;
 
 	return 0;
 }
@@ -2404,9 +2164,6 @@ emit_cond_jmp:		jmp_cond = get_cond_jmp_opcode(BPF_OP(code), false);
 			EMIT2(0x39, add_2reg(0xC0, dreg_lo, sreg_lo));
 
 			/*
-			 * For simplicity of branch offset computation,
-			 * let's use fixed jump coding here.
-			 */
 emit_cond_jmp_signed:	/* Check the condition for low 32-bit comparison */
 			jmp_cond = get_cond_jmp_opcode(BPF_OP(code), true);
 			if (jmp_cond == COND_JMP_OPCODE_INVALID)
@@ -2476,10 +2233,6 @@ notyet:
 			return -EFAULT;
 		default:
 			/*
-			 * This error will be seen if new instruction was added
-			 * to interpreter, but not to JIT or if there is junk in
-			 * bpf_prog
-			 */
 			pr_err("bpf_jit: unknown opcode %02x\n", code);
 			return -EINVAL;
 		}
@@ -2492,13 +2245,6 @@ notyet:
 
 		if (image) {
 			/*
-			 * When populating the image, assert that:
-			 *
-			 *  i) We do not write beyond the allocated space, and
-			 * ii) addrs[i] did not change from the prior run, in order
-			 *     to validate assumptions made for computing branch
-			 *     displacements.
-			 */
 			if (unlikely(proglen + ilen > oldproglen ||
 				     proglen + ilen != addrs[i])) {
 				pr_err("bpf_jit: fatal error\n");
@@ -2535,9 +2281,6 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 
 	tmp = bpf_jit_blind_constants(prog);
 	/*
-	 * If blinding was requested and we failed during blinding,
-	 * we must fall back to the interpreter.
-	 */
 	if (IS_ERR(tmp))
 		return orig_prog;
 	if (tmp != prog) {
@@ -2552,9 +2295,6 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	}
 
 	/*
-	 * Before first pass, make a rough estimation of addrs[]
-	 * each BPF instruction is translated to less than 64 bytes
-	 */
 	for (proglen = 0, i = 0; i < prog->len; i++) {
 		proglen += 64;
 		addrs[i] = proglen;
@@ -2562,11 +2302,6 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	ctx.cleanup_addr = proglen;
 
 	/*
-	 * JITed image shrinks with every pass and the loop iterates
-	 * until the image stops shrinking. Very large BPF programs
-	 * may converge on the last pass. In such case do one more
-	 * pass to emit the final image.
-	 */
 	for (pass = 0; pass < 20 || image; pass++) {
 		proglen = do_jit(prog, addrs, image, oldproglen, &ctx);
 		if (proglen <= 0) {

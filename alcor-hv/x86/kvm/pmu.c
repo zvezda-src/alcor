@@ -1,14 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Kernel-based Virtual Machine -- Performance Monitoring Unit support
- *
- * Copyright 2015 Red Hat, Inc. and/or its affiliates.
- *
- * Authors:
- *   Avi Kivity   <avi@redhat.com>
- *   Gleb Natapov <gleb@redhat.com>
- *   Wei Huang    <wei@redhat.com>
- */
 
 #include <linux/types.h>
 #include <linux/kvm_host.h>
@@ -22,7 +11,6 @@
 #include "lapic.h"
 #include "pmu.h"
 
-/* This is enough to filter the vast majority of currently defined events. */
 #define KVM_PMU_EVENT_FILTER_MAX_EVENTS 300
 
 struct x86_pmu_capability __read_mostly kvm_pmu_cap;
@@ -34,33 +22,6 @@ static const struct x86_cpu_id vmx_icl_pebs_cpu[] = {
 	{}
 };
 
-/* NOTE:
- * - Each perf counter is defined as "struct kvm_pmc";
- * - There are two types of perf counters: general purpose (gp) and fixed.
- *   gp counters are stored in gp_counters[] and fixed counters are stored
- *   in fixed_counters[] respectively. Both of them are part of "struct
- *   kvm_pmu";
- * - pmu.c understands the difference between gp counters and fixed counters.
- *   However AMD doesn't support fixed-counters;
- * - There are three types of index to access perf counters (PMC):
- *     1. MSR (named msr): For example Intel has MSR_IA32_PERFCTRn and AMD
- *        has MSR_K7_PERFCTRn and, for families 15H and later,
- *        MSR_F15H_PERF_CTRn, where MSR_F15H_PERF_CTR[0-3] are
- *        aliased to MSR_K7_PERFCTRn.
- *     2. MSR Index (named idx): This normally is used by RDPMC instruction.
- *        For instance AMD RDPMC instruction uses 0000_0003h in ECX to access
- *        C001_0007h (MSR_K7_PERCTR3). Intel has a similar mechanism, except
- *        that it also supports fixed counters. idx can be used to as index to
- *        gp and fixed counters.
- *     3. Global PMC Index (named pmc): pmc is an index specific to PMU
- *        code. Each pmc, stored in kvm_pmc.idx field, is unique across
- *        all perf counters (both gp and fixed). The mapping relationship
- *        between pmc and perf counters is as the following:
- *        * Intel: [0 .. INTEL_PMC_MAX_GENERIC-1] <=> gp counters
- *                 [INTEL_PMC_IDX_FIXED .. INTEL_PMC_IDX_FIXED + 2] <=> fixed
- *        * AMD:   [0 .. AMD64_NUM_COUNTERS-1] and, for families 15H
- *          and later, [0 .. AMD64_NUM_COUNTERS_CORE-1] <=> gp counters
- */
 
 static struct kvm_pmu_ops kvm_pmu_ops __read_mostly;
 
@@ -118,13 +79,6 @@ static inline void __kvm_perf_overflow(struct kvm_pmc *pmc, bool in_pmi)
 		return;
 
 	/*
-	 * Inject PMI. If vcpu was in a guest mode during NMI PMI
-	 * can be ejected on a guest mode re-entry. Otherwise we can't
-	 * be sure that vcpu wasn't executing hlt instruction at the
-	 * time of vmexit and is not going to re-enter guest mode until
-	 * woken up. So we should wake it, but this is impossible from
-	 * NMI context. Do it from irq work instead.
-	 */
 	if (in_pmi && !kvm_handling_nmi_from_guest(pmc->vcpu))
 		irq_work_queue(&pmc_to_pmu(pmc)->irq_work);
 	else
@@ -163,27 +117,10 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 	if ((attr.config & HSW_IN_TX_CHECKPOINTED) &&
 	    guest_cpuid_is_intel(pmc->vcpu)) {
 		/*
-		 * HSW_IN_TX_CHECKPOINTED is not supported with nonzero
-		 * period. Just clear the sample period so at least
-		 * allocating the counter doesn't fail.
-		 */
 		attr.sample_period = 0;
 	}
 	if (pebs) {
 		/*
-		 * The non-zero precision level of guest event makes the ordinary
-		 * guest event becomes a guest PEBS event and triggers the host
-		 * PEBS PMI handler to determine whether the PEBS overflow PMI
-		 * comes from the host counters or the guest.
-		 *
-		 * For most PEBS hardware events, the difference in the software
-		 * precision levels of guest and host PEBS events will not affect
-		 * the accuracy of the PEBS profiling result, because the "event IP"
-		 * in the PEBS record is calibrated on the guest side.
-		 *
-		 * On Icelake everything is fine. Other hardware (GLC+, TNT+) that
-		 * could possibly care here is unsupported and needs changes.
-		 */
 		attr.precise_ip = 1;
 		if (x86_match_cpu(vmx_icl_pebs_cpu) && pmc->idx == 32)
 			attr.precise_ip = 3;
@@ -343,15 +280,10 @@ void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 	}
 
 	/*
-	 * Unused perf_events are only released if the corresponding MSRs
-	 * weren't accessed during the last vCPU time slice. kvm_arch_sched_in
-	 * triggers KVM_REQ_PMU if cleanup is needed.
-	 */
 	if (unlikely(pmu->need_cleanup))
 		kvm_pmu_cleanup(vcpu);
 }
 
-/* check if idx is a valid index to access PMU */
 bool kvm_pmu_is_valid_rdpmc_ecx(struct kvm_vcpu *vcpu, unsigned int idx)
 {
 	return static_call(kvm_x86_pmu_is_valid_rdpmc_ecx)(vcpu, idx);
@@ -387,7 +319,6 @@ static int kvm_pmu_rdpmc_vmware(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
 		return 1;
 	}
 
-	*data = ctr_val;
 	return 0;
 }
 
@@ -413,7 +344,6 @@ int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
 	    (kvm_read_cr0(vcpu) & X86_CR0_PE))
 		return 1;
 
-	*data = pmc_read_counter(pmc) & mask;
 	return 0;
 }
 
@@ -451,10 +381,6 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	return static_call(kvm_x86_pmu_set_msr)(vcpu, msr_info);
 }
 
-/* refresh PMU settings. This function generally is called when underlying
- * settings are changed (such as changes of PMU CPUID by guest VMs), which
- * should rarely happen.
- */
 void kvm_pmu_refresh(struct kvm_vcpu *vcpu)
 {
 	static_call(kvm_x86_pmu_refresh)(vcpu);
@@ -480,7 +406,6 @@ void kvm_pmu_init(struct kvm_vcpu *vcpu)
 	kvm_pmu_refresh(vcpu);
 }
 
-/* Release perf_events for vPMCs that have been unused for a full time slice.  */
 void kvm_pmu_cleanup(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
@@ -593,11 +518,8 @@ int kvm_vm_ioctl_set_pmu_event_filter(struct kvm *kvm, void __user *argp)
 		goto cleanup;
 
 	/* Ensure nevents can't be changed between the user copies. */
-	*filter = tmp;
 
 	/*
-	 * Sort the in-kernel list so that we can search it with bsearch.
-	 */
 	sort(&filter->events, filter->nevents, sizeof(__u64), cmp_u64, NULL);
 
 	mutex_lock(&kvm->lock);

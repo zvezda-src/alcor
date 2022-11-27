@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PGTABLE_2LEVEL_DEFS_H
 #define _ASM_X86_PGTABLE_2LEVEL_DEFS_H
 
@@ -22,22 +21,14 @@ typedef union {
 
 #define ARCH_PAGE_TABLE_SYNC_MASK	PGTBL_PMD_MODIFIED
 
-/*
- * traditional i386 two-level paging structure:
- */
 
 #define PGDIR_SHIFT	22
 #define PTRS_PER_PGD	1024
 
 
-/*
- * the i386 is two-level, so we don't really have any
- * PMD directory physically.
- */
 
 #define PTRS_PER_PTE	1024
 
-/* This covers all VMSPLIT_* and VMSPLIT_*_OPT variants */
 #define PGD_KERNEL_START	(CONFIG_PAGE_OFFSET >> PGDIR_SHIFT)
 
 #endif /* _ASM_X86_PGTABLE_2LEVEL_DEFS_H */

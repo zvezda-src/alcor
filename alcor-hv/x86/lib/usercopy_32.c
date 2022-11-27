@@ -1,19 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * User address space access functions.
- * The non inlined parts of asm-i386/uaccess.h are here.
- *
- * Copyright 1997 Andi Kleen <ak@muc.de>
- * Copyright 1997 Linus Torvalds
- */
 #include <linux/export.h>
 #include <linux/uaccess.h>
 #include <asm/asm.h>
 
 #ifdef CONFIG_X86_INTEL_USERCOPY
-/*
- * Alignment at which movsl is preferred for bulk memory copies.
- */
 struct movsl_mask movsl_mask __read_mostly;
 #endif
 
@@ -28,9 +17,6 @@ static inline int __movsl_is_ok(unsigned long a1, unsigned long a2, unsigned lon
 #define movsl_is_ok(a1, a2, n) \
 	__movsl_is_ok((unsigned long)(a1), (unsigned long)(a2), (n))
 
-/*
- * Zero Userspace
- */
 
 #define __do_clear_user(addr,size)					\
 do {									\
@@ -48,16 +34,6 @@ do {									\
 		: "r"(size & 3), "0"(size / 4), "1"(addr), "a"(0));	\
 } while (0)
 
-/**
- * clear_user - Zero a block of memory in user space.
- * @to:   Destination address, in user space.
- * @n:    Number of bytes to zero.
- *
- * Zero a block of memory in user space.
- *
- * Return: number of bytes that could not be cleared.
- * On success, this will be zero.
- */
 unsigned long
 clear_user(void __user *to, unsigned long n)
 {
@@ -68,17 +44,6 @@ clear_user(void __user *to, unsigned long n)
 }
 EXPORT_SYMBOL(clear_user);
 
-/**
- * __clear_user - Zero a block of memory in user space, with less checking.
- * @to:   Destination address, in user space.
- * @n:    Number of bytes to zero.
- *
- * Zero a block of memory in user space.  Caller must check
- * the specified block with access_ok() before calling this function.
- *
- * Return: number of bytes that could not be cleared.
- * On success, this will be zero.
- */
 unsigned long
 __clear_user(void __user *to, unsigned long n)
 {
@@ -274,15 +239,10 @@ static unsigned long __copy_user_intel_nocache(void *to,
 
 #else
 
-/*
- * Leave these declared but undefined.  They should not be any references to
- * them
- */
 unsigned long __copy_user_intel(void __user *to, const void *from,
 					unsigned long size);
 #endif /* CONFIG_X86_INTEL_USERCOPY */
 
-/* Generic arbitrary sized copy.  */
 #define __copy_user(to, from, size)					\
 do {									\
 	int __d0, __d1, __d2;						\

@@ -1,15 +1,3 @@
-/*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * Numascale NumaConnect-Specific APIC Code
- *
- * Copyright (C) 2011 Numascale AS. All rights reserved.
- *
- * Send feedback to <support@numascale.com>
- *
- */
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/pgtable.h>
@@ -228,12 +216,10 @@ static int numachip2_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 1;
 }
 
-/* APIC IPIs are queued */
 static void numachip_apic_wait_icr_idle(void)
 {
 }
 
-/* APIC NMI IPIs are queued */
 static u32 numachip_safe_apic_wait_icr_idle(void)
 {
 	return 0;

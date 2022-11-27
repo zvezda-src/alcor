@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Dummy DMA ops that always fail.
- */
 #include <linux/dma-map-ops.h>
 
 static int dma_dummy_mmap(struct device *dev, struct vm_area_struct *vma,

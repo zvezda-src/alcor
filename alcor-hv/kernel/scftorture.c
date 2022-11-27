@@ -1,8 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0+
 //
 // Torture test for smp_call_function() and friends.
 //
-// Copyright (C) Facebook, 2020.
 //
 // Author: Paul E. McKenney <paulmck@kernel.org>
 

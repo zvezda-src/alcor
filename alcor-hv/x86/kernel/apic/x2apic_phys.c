@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/cpumask.h>
 #include <linux/acpi.h>
@@ -103,7 +102,6 @@ static int x2apic_phys_probe(void)
 	return apic == &apic_x2apic_phys;
 }
 
-/* Common x2apic functions, also used by x2apic_cluster */
 int x2apic_apic_id_valid(u32 apicid)
 {
 	if (x2apic_max_apicid && apicid > x2apic_max_apicid)

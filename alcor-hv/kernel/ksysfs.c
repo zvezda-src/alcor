@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * kernel/ksysfs.c - sysfs attributes in /sys/kernel, which
- * 		     are not related to any other subsystem
- *
- * Copyright (C) 2004 Kay Sievers <kay.sievers@vrfy.org>
- */
 
 #include <linux/kobject.h>
 #include <linux/string.h>
@@ -26,7 +19,6 @@ static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
 #define KERNEL_ATTR_RW(_name) \
 static struct kobj_attribute _name##_attr = __ATTR_RW(_name)
 
-/* current uevent sequence number */
 static ssize_t uevent_seqnum_show(struct kobject *kobj,
 				  struct kobj_attribute *attr, char *buf)
 {
@@ -35,7 +27,6 @@ static ssize_t uevent_seqnum_show(struct kobject *kobj,
 KERNEL_ATTR_RO(uevent_seqnum);
 
 #ifdef CONFIG_UEVENT_HELPER
-/* uevent helper program, used during early boot */
 static ssize_t uevent_helper_show(struct kobject *kobj,
 				  struct kobj_attribute *attr, char *buf)
 {
@@ -71,10 +62,6 @@ static ssize_t profiling_store(struct kobject *kobj,
 	if (prof_on)
 		return -EEXIST;
 	/*
-	 * This eventually calls into get_option() which
-	 * has a ton of callers and is not const.  It is
-	 * easiest to cast it away here.
-	 */
 	profile_setup((char *)buf);
 	ret = profile_init();
 	if (ret)
@@ -137,7 +124,6 @@ KERNEL_ATTR_RO(vmcoreinfo);
 
 #endif /* CONFIG_CRASH_CORE */
 
-/* whether file capabilities are enabled */
 static ssize_t fscaps_show(struct kobject *kobj,
 				  struct kobj_attribute *attr, char *buf)
 {
@@ -181,9 +167,6 @@ static ssize_t rcu_normal_store(struct kobject *kobj,
 KERNEL_ATTR_RW(rcu_normal);
 #endif /* #ifndef CONFIG_TINY_RCU */
 
-/*
- * Make /sys/kernel/notes give the raw contents of our kernel .notes section.
- */
 extern const void __start_notes __weak;
 extern const void __stop_notes __weak;
 #define	notes_size (&__stop_notes - &__start_notes)

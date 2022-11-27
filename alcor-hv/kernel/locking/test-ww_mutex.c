@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Module-based API test facility for ww_mutexes
- */
 
 #include <linux/kernel.h>
 

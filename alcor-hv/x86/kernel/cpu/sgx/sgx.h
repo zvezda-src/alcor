@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _X86_SGX_H
 #define _X86_SGX_H
 
@@ -23,10 +22,8 @@
 #define SGX_NR_LOW_PAGES		32
 #define SGX_NR_HIGH_PAGES		64
 
-/* Pages, which are being tracked by the page reclaimer. */
 #define SGX_EPC_PAGE_RECLAIMER_TRACKED	BIT(0)
 
-/* Pages on free list */
 #define SGX_EPC_PAGE_IS_FREE		BIT(1)
 
 struct sgx_epc_page {
@@ -37,10 +34,6 @@ struct sgx_epc_page {
 	struct list_head list;
 };
 
-/*
- * Contains the tracking data for NUMA nodes having EPC pages. Most importantly,
- * the free page list local to the node is stored here.
- */
 struct sgx_numa_node {
 	struct list_head free_page_list;
 	struct list_head sgx_poison_page_list;
@@ -48,12 +41,6 @@ struct sgx_numa_node {
 	spinlock_t lock;
 };
 
-/*
- * The firmware can define multiple chunks of EPC to the different areas of the
- * physical memory e.g. for memory areas of the each node. This structure is
- * used to store EPC pages for one EPC section and virtual memory area where
- * the pages have been mapped.
- */
 struct sgx_epc_section {
 	unsigned long phys_addr;
 	void *virt_addr;

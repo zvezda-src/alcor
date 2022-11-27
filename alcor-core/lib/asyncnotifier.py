@@ -1,31 +1,4 @@
-#
-#
 
-# Copyright (C) 2009 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 """Asynchronous pyinotify implementation"""
@@ -35,7 +8,6 @@ import asyncore
 import logging
 
 try:
-  # pylint: disable=E0611
   from pyinotify import pyinotify
 except ImportError:
   import pyinotify
@@ -44,14 +16,10 @@ from alcor import daemon
 from alcor import errors
 
 
-# We contributed the AsyncNotifier class back to python-pyinotify, and it's
-# part of their codebase since version 0.8.7. This code can be removed once
-# we'll be ready to depend on python-pyinotify >= 0.8.7
 class AsyncNotifier(asyncore.file_dispatcher):
   """An asyncore dispatcher for inotify events.
 
   """
-  # pylint: disable=W0622,W0212
   def __init__(self, watch_manager, default_proc_fun=None, map=None):
     """Initializes this class.
 
@@ -64,10 +32,6 @@ class AsyncNotifier(asyncore.file_dispatcher):
 
     self.notifier = pyinotify.Notifier(watch_manager, default_proc_fun)
 
-    # here we need to steal the file descriptor from the notifier, so we can
-    # use it in the global asyncore select, and avoid calling the
-    # check_events() function of the notifier (which doesn't allow us to select
-    # together with other file descriptors)
     self.fd = self.notifier._fd
     asyncore.file_dispatcher.__init__(self, self.fd, map)
 
@@ -99,8 +63,6 @@ class FileEventHandlerBase(pyinotify.ProcessEvent):
     @param watch_manager: inotify watch manager
 
     """
-    # pylint: disable=W0231
-    # no need to call the parent's constructor
     self.watch_manager = watch_manager
 
   def process_default(self, event):
@@ -165,8 +127,6 @@ class SingleFileEventHandler(FileEventHandlerBase):
     if self._watch_handle is not None:
       return
 
-    # Different Pyinotify versions have the flag constants at different places,
-    # hence not accessing them directly
     mask = (pyinotify.EventsCodes.ALL_FLAGS["IN_MODIFY"] |
             pyinotify.EventsCodes.ALL_FLAGS["IN_IGNORED"])
 
@@ -179,26 +139,11 @@ class SingleFileEventHandler(FileEventHandlerBase):
     if self._watch_handle is not None and self.RemoveWatch(self._watch_handle):
       self._watch_handle = None
 
-  # pylint: disable=C0103
-  # this overrides a method in pyinotify.ProcessEvent
   def process_IN_IGNORED(self, event):
-    # Since we monitor a single file rather than the directory it resides in,
-    # when that file is replaced with another one (which is what happens when
-    # utils.WriteFile, the most normal way of updating files in alcor, is
-    # called) we're going to receive an IN_IGNORED event from inotify, because
-    # of the file removal (which is contextual with the replacement). In such a
-    # case we'll need to create a watcher for the "new" file. This can be done
-    # by the callback by calling "enable" again on us.
     logging.debug("Received 'ignored' inotify event for %s", event.path)
     self._watch_handle = None
     self._callback(False)
 
-  # pylint: disable=C0103
-  # this overrides a method in pyinotify.ProcessEvent
   def process_IN_MODIFY(self, event):
-    # This gets called when the monitored file is modified. Note that this
-    # doesn't usually happen in Alcor, as most of the time we're just
-    # replacing any file with a new one, at filesystem level, rather than
-    # actually changing it. (see utils.WriteFile)
     logging.debug("Received 'modify' inotify event for %s", event.path)
     self._callback(True)

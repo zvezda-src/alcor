@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*  Copyright(c) 2021 Intel Corporation. */
 
 #include <asm/sgx.h>
 
@@ -13,13 +11,8 @@
 bool __read_mostly enable_sgx = 1;
 module_param_named(sgx, enable_sgx, bool, 0444);
 
-/* Initial value of guest's virtual SGX_LEPUBKEYHASHn MSRs */
 static u64 sgx_pubkey_hash[4] __ro_after_init;
 
-/*
- * ENCLS's memory operands use a fixed segment (DS) and a fixed
- * address size based on the mode.  Related prefixes are ignored.
- */
 static int sgx_get_encls_gva(struct kvm_vcpu *vcpu, unsigned long offset,
 			     int size, int alignment, gva_t *gva)
 {
@@ -27,7 +20,6 @@ static int sgx_get_encls_gva(struct kvm_vcpu *vcpu, unsigned long offset,
 	bool fault;
 
 	/* Skip vmcs.GUEST_DS retrieval for 64-bit mode to avoid VMREADs. */
-	*gva = offset;
 	if (!is_long_mode(vcpu)) {
 		vmx_get_segment(vcpu, &s, VCPU_SREG_DS);
 		*gva += s.base;
@@ -89,13 +81,11 @@ static int sgx_gva_to_gpa(struct kvm_vcpu *vcpu, gva_t gva, bool write,
 
 static int sgx_gpa_to_hva(struct kvm_vcpu *vcpu, gpa_t gpa, unsigned long *hva)
 {
-	*hva = kvm_vcpu_gfn_to_hva(vcpu, PFN_DOWN(gpa));
 	if (kvm_is_error_hva(*hva)) {
 		sgx_handle_emulation_failure(vcpu, gpa, 1);
 		return -EFAULT;
 	}
 
-	*hva |= gpa & ~PAGE_MASK;
 
 	return 0;
 }
@@ -105,21 +95,12 @@ static int sgx_inject_fault(struct kvm_vcpu *vcpu, gva_t gva, int trapnr)
 	struct x86_exception ex;
 
 	/*
-	 * A non-EPCM #PF indicates a bad userspace HVA.  This *should* check
-	 * for PFEC.SGX and not assume any #PF on SGX2 originated in the EPC,
-	 * but the error code isn't (yet) plumbed through the ENCLS helpers.
-	 */
 	if (trapnr == PF_VECTOR && !boot_cpu_has(X86_FEATURE_SGX2)) {
 		kvm_prepare_emulation_failure_exit(vcpu);
 		return 0;
 	}
 
 	/*
-	 * If the guest thinks it's running on SGX2 hardware, inject an SGX
-	 * #PF if the fault matches an EPCM fault signature (#GP on SGX1,
-	 * #PF on SGX2).  The assumption is that EPCM faults are much more
-	 * likely than a bad userspace address.
-	 */
 	if ((trapnr == PF_VECTOR || !boot_cpu_has(X86_FEATURE_SGX2)) &&
 	    guest_cpuid_has(vcpu, X86_FEATURE_SGX2)) {
 		memset(&ex, 0, sizeof(ex));
@@ -186,14 +167,6 @@ static int __handle_encls_ecreate(struct kvm_vcpu *vcpu,
 		kvm_inject_gp(vcpu, 0);
 
 	/*
-	 * sgx_virt_ecreate() returns:
-	 *  1) 0:	ECREATE was successful
-	 *  2) -EFAULT:	ECREATE was run but faulted, and trapnr was set to the
-	 *		exception number.
-	 *  3) -EINVAL:	access_ok() on @secs_hva failed. This should never
-	 *		happen as KVM checks host addresses at memslot creation.
-	 *		sgx_virt_ecreate() has already warned in this case.
-	 */
 	ret = sgx_virt_ecreate(pageinfo, (void __user *)secs_hva, &trapnr);
 	if (!ret)
 		return kvm_skip_emulated_instruction(vcpu);
@@ -219,9 +192,6 @@ static int handle_encls_ecreate(struct kvm_vcpu *vcpu)
 		return 1;
 
 	/*
-	 * Copy the PAGEINFO to local memory, its pointers need to be
-	 * translated, i.e. we need to do a deep copy/translate.
-	 */
 	r = kvm_read_guest_virt(vcpu, pageinfo_gva, &pageinfo,
 				sizeof(pageinfo), &ex);
 	if (r == X86EMUL_PROPAGATE_FAULT) {
@@ -239,30 +209,18 @@ static int handle_encls_ecreate(struct kvm_vcpu *vcpu)
 		return 1;
 
 	/*
-	 * Translate the SECINFO, SOURCE and SECS pointers from GVA to GPA.
-	 * Resume the guest on failure to inject a #PF.
-	 */
 	if (sgx_gva_to_gpa(vcpu, metadata_gva, false, &metadata_gpa) ||
 	    sgx_gva_to_gpa(vcpu, contents_gva, false, &contents_gpa) ||
 	    sgx_gva_to_gpa(vcpu, secs_gva, true, &secs_gpa))
 		return 1;
 
 	/*
-	 * ...and then to HVA.  The order of accesses isn't architectural, i.e.
-	 * KVM doesn't have to fully process one address at a time.  Exit to
-	 * userspace if a GPA is invalid.
-	 */
 	if (sgx_gpa_to_hva(vcpu, metadata_gpa, &metadata_hva) ||
 	    sgx_gpa_to_hva(vcpu, contents_gpa, &contents_hva) ||
 	    sgx_gpa_to_hva(vcpu, secs_gpa, &secs_hva))
 		return 0;
 
 	/*
-	 * Copy contents into kernel memory to prevent TOCTOU attack. E.g. the
-	 * guest could do ECREATE w/ SECS.SGX_ATTR_PROVISIONKEY=0, and
-	 * simultaneously set SGX_ATTR_PROVISIONKEY to bypass the check to
-	 * enforce restriction of access to the PROVISIONKEY.
-	 */
 	contents = (struct sgx_secs *)__get_free_page(GFP_KERNEL_ACCOUNT);
 	if (!contents)
 		return -ENOMEM;
@@ -297,20 +255,12 @@ static int handle_encls_einit(struct kvm_vcpu *vcpu)
 		return 1;
 
 	/*
-	 * Translate the SIGSTRUCT, SECS and TOKEN pointers from GVA to GPA.
-	 * Resume the guest on failure to inject a #PF.
-	 */
 	if (sgx_gva_to_gpa(vcpu, sig_gva, false, &sig_gpa) ||
 	    sgx_gva_to_gpa(vcpu, secs_gva, true, &secs_gpa) ||
 	    sgx_gva_to_gpa(vcpu, token_gva, false, &token_gpa))
 		return 1;
 
 	/*
-	 * ...and then to HVA.  The order of accesses isn't architectural, i.e.
-	 * KVM doesn't have to fully process one address at a time.  Exit to
-	 * userspace if a GPA is invalid.  Note, all structures are aligned and
-	 * cannot split pages.
-	 */
 	if (sgx_gpa_to_hva(vcpu, sig_gpa, &sig_hva) ||
 	    sgx_gpa_to_hva(vcpu, secs_gpa, &secs_hva) ||
 	    sgx_gpa_to_hva(vcpu, token_gpa, &token_hva))
@@ -324,11 +274,6 @@ static int handle_encls_einit(struct kvm_vcpu *vcpu)
 		return sgx_inject_fault(vcpu, secs_gva, trapnr);
 
 	/*
-	 * sgx_virt_einit() returns -EINVAL when access_ok() fails on @sig_hva,
-	 * @token_hva or @secs_hva. This should never happen as KVM checks host
-	 * addresses at memslot creation. sgx_virt_einit() has already warned
-	 * in this case, so just return.
-	 */
 	if (ret < 0)
 		return ret;
 
@@ -390,13 +335,6 @@ int handle_encls(struct kvm_vcpu *vcpu)
 void setup_default_sgx_lepubkeyhash(void)
 {
 	/*
-	 * Use Intel's default value for Skylake hardware if Launch Control is
-	 * not supported, i.e. Intel's hash is hardcoded into silicon, or if
-	 * Launch Control is supported and enabled, i.e. mimic the reset value
-	 * and let the guest write the MSRs at will.  If Launch Control is
-	 * supported but disabled, then use the current MSR values as the hash
-	 * MSRs exist but are read-only (locked and not writable).
-	 */
 	if (!enable_sgx || boot_cpu_has(X86_FEATURE_SGX_LC) ||
 	    rdmsrl_safe(MSR_IA32_SGXLEPUBKEYHASH0, &sgx_pubkey_hash[0])) {
 		sgx_pubkey_hash[0] = 0xa6053e051270b7acULL;
@@ -419,10 +357,6 @@ void vcpu_setup_sgx_lepubkeyhash(struct kvm_vcpu *vcpu)
 	       sizeof(sgx_pubkey_hash));
 }
 
-/*
- * ECREATE must be intercepted to enforce MISCSELECT, ATTRIBUTES and XFRM
- * restrictions if the guest's allowed-1 settings diverge from hardware.
- */
 static bool sgx_intercept_encls_ecreate(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpuid_entry2 *guest_cpuid;
@@ -454,12 +388,6 @@ static bool sgx_intercept_encls_ecreate(struct kvm_vcpu *vcpu)
 void vmx_write_encls_bitmap(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 {
 	/*
-	 * There is no software enable bit for SGX that is virtualized by
-	 * hardware, e.g. there's no CR4.SGXE, so when SGX is disabled in the
-	 * guest (either by the host or by the guest's BIOS) but enabled in the
-	 * host, trap all ENCLS leafs and inject #UD/#GP as needed to emulate
-	 * the expected system behavior for ENCLS.
-	 */
 	u64 bitmap = -1ull;
 
 	/* Nothing to do if hardware doesn't support SGX */
@@ -478,12 +406,6 @@ void vmx_write_encls_bitmap(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 			bitmap &= ~GENMASK_ULL(EMODT, EAUG);
 
 		/*
-		 * Trap and execute EINIT if launch control is enabled in the
-		 * host using the guest's values for launch control MSRs, even
-		 * if the guest's values are fixed to hardware default values.
-		 * The MSRs are not loaded/saved on VM-Enter/VM-Exit as writing
-		 * the MSRs is extraordinarily expensive.
-		 */
 		if (boot_cpu_has(X86_FEATURE_SGX_LC))
 			bitmap |= (1 << EINIT);
 

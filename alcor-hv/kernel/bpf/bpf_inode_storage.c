@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (c) 2019 Facebook
- * Copyright 2020 Google LLC.
- */
 
 #include <linux/rculist.h>
 #include <linux/list.h>
@@ -169,7 +164,6 @@ static int bpf_fd_inode_storage_delete_elem(struct bpf_map *map, void *key)
 	return err;
 }
 
-/* *gfp_flags* is a hidden argument provided by the verifier */
 BPF_CALL_5(bpf_inode_storage_get, struct bpf_map *, map, struct inode *, inode,
 	   void *, value, u64, flags, gfp_t, gfp_flags)
 {

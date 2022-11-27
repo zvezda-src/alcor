@@ -1,13 +1,3 @@
-/*
- * Kernel Debugger Architecture Independent Stack Traceback
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * Copyright (c) 1999-2004 Silicon Graphics, Inc.  All Rights Reserved.
- * Copyright (c) 2009 Wind River Systems, Inc.  All Rights Reserved.
- */
 
 #include <linux/ctype.h>
 #include <linux/string.h>
@@ -36,42 +26,6 @@ static void kdb_show_stack(struct task_struct *p, void *addr)
 	kdb_trap_printk--;
 }
 
-/*
- * kdb_bt
- *
- *	This function implements the 'bt' command.  Print a stack
- *	traceback.
- *
- *	bt [<address-expression>]	(addr-exp is for alternate stacks)
- *	btp <pid>			Kernel stack for <pid>
- *	btt <address-expression>	Kernel stack for task structure at
- *					<address-expression>
- *	bta [state_chars>|A]		All useful processes, optionally
- *					filtered by state
- *	btc [<cpu>]			The current process on one cpu,
- *					default is all cpus
- *
- *	bt <address-expression> refers to a address on the stack, that location
- *	is assumed to contain a return address.
- *
- *	btt <address-expression> refers to the address of a struct task.
- *
- * Inputs:
- *	argc	argument count
- *	argv	argument vector
- * Outputs:
- *	None.
- * Returns:
- *	zero for success, a kdb diagnostic if error
- * Locking:
- *	none.
- * Remarks:
- *	Backtrack works best when the code uses frame pointers.  But even
- *	without frame pointers we should get a reasonable trace.
- *
- *	mds comes in handy when examining the stack to do a manual traceback or
- *	to get a starting point for bt <address-expression>.
- */
 
 static int
 kdb_bt1(struct task_struct *p, const char *mask, bool btaprompt)
@@ -190,9 +144,6 @@ kdb_bt(int argc, const char **argv)
 			kdb_bt_cpu(cpu);
 		} else {
 			/*
-			 * Recursive use of kdb_parse, do not use argv after
-			 * this point.
-			 */
 			argv = NULL;
 			kdb_printf("btc: cpu status: ");
 			kdb_parse("cpu\n");

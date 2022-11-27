@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Supplementary group IDs
- */
 #include <linux/cred.h>
 #include <linux/export.h>
 #include <linux/slab.h>
@@ -33,7 +29,6 @@ void groups_free(struct group_info *group_info)
 
 EXPORT_SYMBOL(groups_free);
 
-/* export the group_info to a user-space array */
 static int groups_to_user(gid_t __user *grouplist,
 			  const struct group_info *group_info)
 {
@@ -50,7 +45,6 @@ static int groups_to_user(gid_t __user *grouplist,
 	return 0;
 }
 
-/* fill a group_info from a user-space array - it must be allocated already */
 static int groups_from_user(struct group_info *group_info,
     gid_t __user *grouplist)
 {
@@ -88,7 +82,6 @@ void groups_sort(struct group_info *group_info)
 }
 EXPORT_SYMBOL(groups_sort);
 
-/* a simple bsearch */
 int groups_search(const struct group_info *group_info, kgid_t grp)
 {
 	unsigned int left, right;
@@ -110,11 +103,6 @@ int groups_search(const struct group_info *group_info, kgid_t grp)
 	return 0;
 }
 
-/**
- * set_groups - Change a group subscription in a set of credentials
- * @new: The newly prepared set of credentials to alter
- * @group_info: The group list to install
- */
 void set_groups(struct cred *new, struct group_info *group_info)
 {
 	put_group_info(new->group_info);
@@ -124,13 +112,6 @@ void set_groups(struct cred *new, struct group_info *group_info)
 
 EXPORT_SYMBOL(set_groups);
 
-/**
- * set_current_groups - Change current's group subscription
- * @group_info: The group list to impose
- *
- * Validate a group subscription and, if valid, impose it upon current's task
- * security record.
- */
 int set_current_groups(struct group_info *group_info)
 {
 	struct cred *new;
@@ -190,10 +171,6 @@ bool may_setgroups(void)
 		userns_may_setgroups(user_ns);
 }
 
-/*
- *	SMP: Our groups are copy-on-write. We can set them safely
- *	without another task interfering.
- */
 
 SYSCALL_DEFINE2(setgroups, int, gidsetsize, gid_t __user *, grouplist)
 {
@@ -221,9 +198,6 @@ SYSCALL_DEFINE2(setgroups, int, gidsetsize, gid_t __user *, grouplist)
 	return retval;
 }
 
-/*
- * Check whether we're fsgid/egid or in the supplemental group..
- */
 int in_group_p(kgid_t grp)
 {
 	const struct cred *cred = current_cred();

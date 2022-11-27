@@ -1,14 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/* ----------------------------------------------------------------------- *
- *
- *   Copyright 2008 rPath, Inc. - All Rights Reserved
- *
- * ----------------------------------------------------------------------- */
 
-/*
- * This is a host program to preprocess the CPU strings into a
- * compact format suitable for the setup code.
- */
 
 #include <stdio.h>
 

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_ASM_X86_SIGNAL_H
 #define _UAPI_ASM_X86_SIGNAL_H
 
@@ -7,11 +6,9 @@
 #include <linux/time.h>
 #include <linux/compiler.h>
 
-/* Avoid too many header ordering problems.  */
 struct siginfo;
 
 #ifndef __KERNEL__
-/* Here we must cater to libcs that poke about in kernel headers.  */
 
 #define NSIG		32
 typedef unsigned long sigset_t;
@@ -51,14 +48,10 @@ typedef unsigned long sigset_t;
 #define SIGWINCH	28
 #define SIGIO		29
 #define SIGPOLL		SIGIO
-/*
-#define SIGLOST		29
-*/
 #define SIGPWR		30
 #define SIGSYS		31
 #define	SIGUNUSED	31
 
-/* These should not be considered constants from userland.  */
 #define SIGRTMIN	32
 #define SIGRTMAX	_NSIG
 
@@ -73,7 +66,6 @@ typedef unsigned long sigset_t;
 
 
 # ifndef __KERNEL__
-/* Here we must cater to libcs that poke about in kernel headers.  */
 #ifdef __i386__
 
 struct sigaction {

@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Support for OLPC XO-1.5 System Control Interrupts (SCI)
- *
- * Copyright (C) 2009-2010 One Laptop per Child
- */
 
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -22,17 +16,6 @@
 static unsigned long			xo15_sci_gpe;
 static bool				lid_wake_on_close;
 
-/*
- * The normal ACPI LID wakeup behavior is wake-on-open, but not
- * wake-on-close. This is implemented as standard by the XO-1.5 DSDT.
- *
- * We provide here a sysfs attribute that will additionally enable
- * wake-on-close behavior. This is useful (e.g.) when we opportunistically
- * suspend with the display running; if the lid is then closed, we want to
- * wake up to turn the display off.
- *
- * This is controlled through a custom method in the XO-1.5 DSDT.
- */
 static int set_lid_wake_behavior(bool wake_on_close)
 {
 	acpi_status status;

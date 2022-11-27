@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ARCH_X86_KVM_REVERSE_CPUID_H
 #define ARCH_X86_KVM_REVERSE_CPUID_H
 
@@ -6,11 +5,6 @@
 #include <asm/cpufeature.h>
 #include <asm/cpufeatures.h>
 
-/*
- * Hardware-defined CPUID leafs that are scattered in the kernel, but need to
- * be directly used by KVM.  Note, these word values conflict with the kernel's
- * "bug" caps, but KVM doesn't use those.
- */
 enum kvm_only_cpuid_leafs {
 	CPUID_12_EAX	 = NCAPINTS,
 	NR_KVM_CPU_CAPS,
@@ -20,7 +14,6 @@ enum kvm_only_cpuid_leafs {
 
 #define KVM_X86_FEATURE(w, f)		((w)*32 + (f))
 
-/* Intel-defined SGX sub-features, CPUID level 0x12 (EAX). */
 #define KVM_X86_FEATURE_SGX1		KVM_X86_FEATURE(CPUID_12_EAX, 0)
 #define KVM_X86_FEATURE_SGX2		KVM_X86_FEATURE(CPUID_12_EAX, 1)
 
@@ -50,14 +43,6 @@ static const struct cpuid_reg reverse_cpuid[] = {
 	[CPUID_8000_001F_EAX] = {0x8000001f, 0, CPUID_EAX},
 };
 
-/*
- * Reverse CPUID and its derivatives can only be used for hardware-defined
- * feature words, i.e. words whose bits directly correspond to a CPUID leaf.
- * Retrieving a feature bit or masking guest CPUID from a Linux-defined word
- * is nonsensical as the bit number/mask is an arbitrary software-defined value
- * and can't be used by KVM to query/control guest capabilities.  And obviously
- * the leaf being queried must have an entry in the lookup table.
- */
 static __always_inline void reverse_cpuid_check(unsigned int x86_leaf)
 {
 	BUILD_BUG_ON(x86_leaf == CPUID_LNX_1);
@@ -68,10 +53,6 @@ static __always_inline void reverse_cpuid_check(unsigned int x86_leaf)
 	BUILD_BUG_ON(reverse_cpuid[x86_leaf].function == 0);
 }
 
-/*
- * Translate feature bits that are scattered in the kernel's cpufeatures word
- * into KVM feature words that align with hardware's definitions.
- */
 static __always_inline u32 __feature_translate(int x86_feature)
 {
 	if (x86_feature == X86_FEATURE_SGX1)
@@ -87,12 +68,6 @@ static __always_inline u32 __feature_leaf(int x86_feature)
 	return __feature_translate(x86_feature) / 32;
 }
 
-/*
- * Retrieve the bit mask from an X86_FEATURE_* definition.  Features contain
- * the hardware defined bit number (stored in bits 4:0) and a software defined
- * "word" (stored in bits 31:5).  The word is used to index into arrays of
- * bit masks that hold the per-cpu feature capabilities, e.g. this_cpu_has().
- */
 static __always_inline u32 __feature_bit(int x86_feature)
 {
 	x86_feature = __feature_translate(x86_feature);
@@ -156,7 +131,6 @@ static __always_inline void cpuid_entry_clear(struct kvm_cpuid_entry2 *entry,
 {
 	u32 *reg = cpuid_entry_get_reg(entry, x86_feature);
 
-	*reg &= ~__feature_bit(x86_feature);
 }
 
 static __always_inline void cpuid_entry_set(struct kvm_cpuid_entry2 *entry,
@@ -164,7 +138,6 @@ static __always_inline void cpuid_entry_set(struct kvm_cpuid_entry2 *entry,
 {
 	u32 *reg = cpuid_entry_get_reg(entry, x86_feature);
 
-	*reg |= __feature_bit(x86_feature);
 }
 
 static __always_inline void cpuid_entry_change(struct kvm_cpuid_entry2 *entry,
@@ -174,9 +147,6 @@ static __always_inline void cpuid_entry_change(struct kvm_cpuid_entry2 *entry,
 	u32 *reg = cpuid_entry_get_reg(entry, x86_feature);
 
 	/*
-	 * Open coded instead of using cpuid_entry_{clear,set}() to coerce the
-	 * compiler into using CMOV instead of Jcc when possible.
-	 */
 	if (set)
 		*reg |= __feature_bit(x86_feature);
 	else

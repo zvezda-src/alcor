@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/* Watch queue and general notification mechanism, built on pipes
- *
- * Copyright (C) 2020 Red Hat, Inc. All Rights Reserved.
- * Written by David Howells (dhowells@redhat.com)
- *
- * See Documentation/core-api/watch_queue.rst
- */
 
 #define pr_fmt(fmt) "watchq: " fmt
 #include <linux/module.h>
@@ -34,12 +26,6 @@ MODULE_LICENSE("GPL");
 #define WATCH_QUEUE_NOTE_SIZE 128
 #define WATCH_QUEUE_NOTES_PER_PAGE (PAGE_SIZE / WATCH_QUEUE_NOTE_SIZE)
 
-/*
- * This must be called under the RCU read-lock, which makes
- * sure that the wqueue still exists. It can then take the lock,
- * and check that the wqueue hasn't been destroyed, which in
- * turn makes sure that the notification pipe still exists.
- */
 static inline bool lock_wqueue(struct watch_queue *wqueue)
 {
 	spin_lock_bh(&wqueue->lock);
@@ -81,20 +67,12 @@ static void watch_queue_pipe_buf_release(struct pipe_inode_info *pipe,
 // No try_steal function => no stealing
 #define watch_queue_pipe_buf_try_steal NULL
 
-/* New data written to a pipe may be appended to a buffer with this type. */
 static const struct pipe_buf_operations watch_queue_pipe_buf_ops = {
 	.release	= watch_queue_pipe_buf_release,
 	.try_steal	= watch_queue_pipe_buf_try_steal,
 	.get		= generic_pipe_buf_get,
 };
 
-/*
- * Post a notification to a watch queue.
- *
- * Must be called with the RCU lock for reading, and the
- * watch_queue lock held, which guarantees that the pipe
- * hasn't been released.
- */
 static bool post_one_notification(struct watch_queue *wqueue,
 				  struct watch_notification *n)
 {
@@ -156,9 +134,6 @@ lost:
 	goto out;
 }
 
-/*
- * Apply filter rules to a notification.
- */
 static bool filter_watch_notification(const struct watch_filter *wf,
 				      const struct watch_notification *n)
 {
@@ -182,19 +157,6 @@ static bool filter_watch_notification(const struct watch_filter *wf,
 	return false; /* If there is a filter, the default is to reject. */
 }
 
-/**
- * __post_watch_notification - Post an event notification
- * @wlist: The watch list to post the event to.
- * @n: The notification record to post.
- * @cred: The creds of the process that triggered the notification.
- * @id: The ID to match on the watch.
- *
- * Post a notification of an event into a set of watch queues and let the users
- * know.
- *
- * The size of the notification should be set in n->info & WATCH_INFO_LENGTH and
- * should be in units of sizeof(*n).
- */
 void __post_watch_notification(struct watch_list *wlist,
 			       struct watch_notification *n,
 			       const struct cred *cred,
@@ -235,10 +197,6 @@ void __post_watch_notification(struct watch_list *wlist,
 }
 EXPORT_SYMBOL(__post_watch_notification);
 
-/*
- * Allocate sufficient pages to preallocation for the requested number of
- * notifications.
- */
 long watch_queue_set_size(struct pipe_inode_info *pipe, unsigned int nr_notes)
 {
 	struct watch_queue *wqueue = pipe->watch_queue;
@@ -304,9 +262,6 @@ error:
 	return ret;
 }
 
-/*
- * Set the filter on a watch queue.
- */
 long watch_queue_set_filter(struct pipe_inode_info *pipe,
 			    struct watch_notification_filter __user *_filter)
 {
@@ -404,10 +359,6 @@ static void __put_watch_queue(struct kref *kref)
 	kfree_rcu(wqueue, rcu);
 }
 
-/**
- * put_watch_queue - Dispose of a ref on a watchqueue.
- * @wqueue: The watch queue to unref.
- */
 void put_watch_queue(struct watch_queue *wqueue)
 {
 	kref_put(&wqueue->usage, __put_watch_queue);
@@ -431,21 +382,11 @@ static void __put_watch(struct kref *kref)
 	call_rcu(&watch->rcu, free_watch);
 }
 
-/*
- * Discard a watch.
- */
 static void put_watch(struct watch *watch)
 {
 	kref_put(&watch->usage, __put_watch);
 }
 
-/**
- * init_watch - Initialise a watch
- * @watch: The watch to initialise.
- * @wqueue: The queue to assign.
- *
- * Initialise a watch and set the watch queue.
- */
 void init_watch(struct watch *watch, struct watch_queue *wqueue)
 {
 	kref_init(&watch->usage);
@@ -481,18 +422,6 @@ static int add_one_watch(struct watch *watch, struct watch_list *wlist, struct w
 	return 0;
 }
 
-/**
- * add_watch_to_object - Add a watch on an object to a watch list
- * @watch: The watch to add
- * @wlist: The watch list to add to
- *
- * @watch->queue must have been set to point to the queue to post notifications
- * to and the watch list of the object to be watched.  @watch->cred must also
- * have been set to the appropriate credentials and a ref taken on them.
- *
- * The caller must pin the queue and the list both and must hold the list
- * locked against racing watch additions/removals.
- */
 int add_watch_to_object(struct watch *watch, struct watch_list *wlist)
 {
 	struct watch_queue *wqueue;
@@ -513,16 +442,6 @@ int add_watch_to_object(struct watch *watch, struct watch_list *wlist)
 }
 EXPORT_SYMBOL(add_watch_to_object);
 
-/**
- * remove_watch_from_object - Remove a watch or all watches from an object.
- * @wlist: The watch list to remove from
- * @wq: The watch queue of interest (ignored if @all is true)
- * @id: The ID of the watch to remove (ignored if @all is true)
- * @all: True to remove all objects
- *
- * Remove a specific watch or all watches from an object.  A notification is
- * sent to the watcher to tell them that this happened.
- */
 int remove_watch_from_object(struct watch_list *wlist, struct watch_queue *wq,
 			     u64 id, bool all)
 {
@@ -589,11 +508,6 @@ out:
 }
 EXPORT_SYMBOL(remove_watch_from_object);
 
-/*
- * Remove all the watches that are contributory to a queue.  This has the
- * potential to race with removal of the watches by the destruction of the
- * objects being watched or with the distribution of notifications.
- */
 void watch_queue_clear(struct watch_queue *wqueue)
 {
 	struct watch_list *wlist;
@@ -655,10 +569,6 @@ void watch_queue_clear(struct watch_queue *wqueue)
 	rcu_read_unlock();
 }
 
-/**
- * get_watch_queue - Get a watch queue from its file descriptor.
- * @fd: The fd to query.
- */
 struct watch_queue *get_watch_queue(int fd)
 {
 	struct pipe_inode_info *pipe;
@@ -679,9 +589,6 @@ struct watch_queue *get_watch_queue(int fd)
 }
 EXPORT_SYMBOL(get_watch_queue);
 
-/*
- * Initialise a watch queue
- */
 int watch_queue_init(struct pipe_inode_info *pipe)
 {
 	struct watch_queue *wqueue;

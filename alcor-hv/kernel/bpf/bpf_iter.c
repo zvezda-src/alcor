@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2020 Facebook */
 
 #include <linux/fs.h>
 #include <linux/anon_inodes.h>
@@ -32,10 +30,8 @@ struct bpf_iter_priv_data {
 static struct list_head targets = LIST_HEAD_INIT(targets);
 static DEFINE_MUTEX(targets_mutex);
 
-/* protect bpf_iter_link changes */
 static DEFINE_MUTEX(link_mutex);
 
-/* incremented on every opened seq_file */
 static atomic64_t session_id;
 
 static int prepare_seq_file(struct file *file, struct bpf_iter_link *link,
@@ -77,15 +73,8 @@ static bool bpf_iter_support_resched(struct seq_file *seq)
 	return iter_priv->tinfo->reg_info->feature & BPF_ITER_RESCHED;
 }
 
-/* maximum visited objects before bailing out */
 #define MAX_ITER_OBJECTS	1000000
 
-/* bpf_seq_read, a customized and simpler version for bpf iterator.
- * The following are differences from seq_read():
- *  . fixed buffer size (PAGE_SIZE)
- *  . assuming NULL ->llseek()
- *  . stop() may call bpf program, handling potential overflow there
- */
 static ssize_t bpf_seq_read(struct file *file, char __user *buf, size_t size,
 			    loff_t *ppos)
 {
@@ -278,11 +267,6 @@ const struct file_operations bpf_iter_fops = {
 	.release	= iter_release,
 };
 
-/* The argument reg_info will be cached in bpf_iter_target_info.
- * The common practice is to declare target reg_info as
- * a const static variable and passed as an argument to
- * bpf_iter_reg_target().
- */
 int bpf_iter_reg_target(const struct bpf_iter_reg *reg_info)
 {
 	struct bpf_iter_target_info *tinfo;

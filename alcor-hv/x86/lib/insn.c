@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * x86 instruction analysis
- *
- * Copyright (C) IBM Corporation, 2002, 2004, 2009
- */
 
 #include <linux/kernel.h>
 #ifdef __KERNEL__
@@ -33,7 +27,6 @@
 	v;								\
 })
 
-/* Verify next sizeof(t) bytes can be on the same instruction */
 #define validate_next(t, insn, n)	\
 	((insn)->next_byte + sizeof(t) + n <= (insn)->end_kaddr)
 
@@ -51,19 +44,9 @@
 
 #define peek_next(t, insn)	peek_nbyte_next(t, insn, 0)
 
-/**
- * insn_init() - initialize struct insn
- * @insn:	&struct insn to be initialized
- * @kaddr:	address (in kernel memory) of instruction (or copy thereof)
- * @buf_len:	length of the insn buffer at @kaddr
- * @x86_64:	!0 for 64-bit kernel or 64-bit app
- */
 void insn_init(struct insn *insn, const void *kaddr, int buf_len, int x86_64)
 {
 	/*
-	 * Instructions longer than MAX_INSN_SIZE (15 bytes) are invalid
-	 * even if the input buffer is long enough to hold them.
-	 */
 	if (buf_len > MAX_INSN_SIZE)
 		buf_len = MAX_INSN_SIZE;
 
@@ -109,18 +92,6 @@ static void insn_get_emulate_prefix(struct insn *insn)
 	__insn_get_emulate_prefix(insn, kvm_prefix, sizeof(kvm_prefix));
 }
 
-/**
- * insn_get_prefixes - scan x86 instruction prefix bytes
- * @insn:	&struct insn containing instruction
- *
- * Populates the @insn->prefixes bitmap, and updates @insn->next_byte
- * to point to the (first) opcode.  No effect if @insn->prefixes.got
- * is already set.
- *
- * * Returns:
- * 0:  on success
- * < 0: on error
- */
 int insn_get_prefixes(struct insn *insn)
 {
 	struct insn_field *prefixes = &insn->prefixes;
@@ -196,10 +167,6 @@ found:
 		insn_byte_t b2 = peek_nbyte_next(insn_byte_t, insn, 1);
 		if (!insn->x86_64) {
 			/*
-			 * In 32-bits mode, if the [7:6] bits (mod bits of
-			 * ModRM) on the second byte are not 11b, it is
-			 * LDS or LES or BOUND.
-			 */
 			if (X86_MODRM_MOD(b2) != 3)
 				goto vex_end;
 		}
@@ -225,10 +192,6 @@ found:
 				insn->opnd_bytes = 8;
 		} else {
 			/*
-			 * For VEX2, fake VEX3-like byte#2.
-			 * Makes it easier to decode vex.W, vex.vvvv,
-			 * vex.L and vex.pp. Masking with 0x7f sets vex.W == 0.
-			 */
 			insn_set_byte(&insn->vex_prefix, 2, b2 & 0x7f);
 			insn->vex_prefix.nbytes = 2;
 			insn->next_byte += 2;
@@ -245,20 +208,6 @@ err_out:
 	return -ENODATA;
 }
 
-/**
- * insn_get_opcode - collect opcode(s)
- * @insn:	&struct insn containing instruction
- *
- * Populates @insn->opcode, updates @insn->next_byte to point past the
- * opcode byte(s), and set @insn->attr (except for groups).
- * If necessary, first collects any preceding (prefix) bytes.
- * Sets @insn->opcode.value = opcode1.  No effect if @insn->opcode.got
- * is already 1.
- *
- * Returns:
- * 0:  on success
- * < 0: on error
- */
 int insn_get_opcode(struct insn *insn)
 {
 	struct insn_field *opcode = &insn->opcode;
@@ -318,18 +267,6 @@ err_out:
 	return -ENODATA;
 }
 
-/**
- * insn_get_modrm - collect ModRM byte, if any
- * @insn:	&struct insn containing instruction
- *
- * Populates @insn->modrm and updates @insn->next_byte to point past the
- * ModRM byte, if any.  If necessary, first collects the preceding bytes
- * (prefixes and opcode(s)).  No effect if @insn->modrm.got is already 1.
- *
- * Returns:
- * 0:  on success
- * < 0: on error
- */
 int insn_get_modrm(struct insn *insn)
 {
 	struct insn_field *modrm = &insn->modrm;
@@ -371,13 +308,6 @@ err_out:
 }
 
 
-/**
- * insn_rip_relative() - Does instruction use RIP-relative addressing mode?
- * @insn:	&struct insn containing instruction
- *
- * If necessary, first collects the instruction up to and including the
- * ModRM byte.  No effect if @insn->x86_64 is 0.
- */
 int insn_rip_relative(struct insn *insn)
 {
 	struct insn_field *modrm = &insn->modrm;
@@ -392,23 +322,9 @@ int insn_rip_relative(struct insn *insn)
 			return 0;
 	}
 	/*
-	 * For rip-relative instructions, the mod field (top 2 bits)
-	 * is zero and the r/m field (bottom 3 bits) is 0x5.
-	 */
 	return (modrm->nbytes && (modrm->bytes[0] & 0xc7) == 0x5);
 }
 
-/**
- * insn_get_sib() - Get the SIB byte of instruction
- * @insn:	&struct insn containing instruction
- *
- * If necessary, first collects the instruction up to and including the
- * ModRM byte.
- *
- * Returns:
- * 0: if decoding succeeded
- * < 0: otherwise.
- */
 int insn_get_sib(struct insn *insn)
 {
 	insn_byte_t modrm;
@@ -440,18 +356,6 @@ err_out:
 }
 
 
-/**
- * insn_get_displacement() - Get the displacement of instruction
- * @insn:	&struct insn containing instruction
- *
- * If necessary, first collects the instruction up to and including the
- * SIB byte.
- * Displacement value is sign-expanded.
- *
- * * Returns:
- * 0: if decoding succeeded
- * < 0: otherwise.
- */
 int insn_get_displacement(struct insn *insn)
 {
 	insn_byte_t mod, rm, base;
@@ -468,22 +372,6 @@ int insn_get_displacement(struct insn *insn)
 
 	if (insn->modrm.nbytes) {
 		/*
-		 * Interpreting the modrm byte:
-		 * mod = 00 - no displacement fields (exceptions below)
-		 * mod = 01 - 1-byte displacement field
-		 * mod = 10 - displacement field is 4 bytes, or 2 bytes if
-		 * 	address size = 2 (0x67 prefix in 32-bit mode)
-		 * mod = 11 - no memory operand
-		 *
-		 * If address size = 2...
-		 * mod = 00, r/m = 110 - displacement field is 2 bytes
-		 *
-		 * If address size != 2...
-		 * mod != 11, r/m = 100 - SIB byte exists
-		 * mod = 00, SIB base = 101 - displacement field is 4 bytes
-		 * mod = 00, r/m = 101 - rip-relative addressing, displacement
-		 * 	field is 4 bytes
-		 */
 		mod = X86_MODRM_MOD(insn->modrm.value);
 		rm = X86_MODRM_RM(insn->modrm.value);
 		base = X86_SIB_BASE(insn->sib.value);
@@ -513,7 +401,6 @@ err_out:
 	return -ENODATA;
 }
 
-/* Decode moffset16/32/64. Return 0 if failed */
 static int __get_moffset(struct insn *insn)
 {
 	switch (insn->addr_bytes) {
@@ -538,7 +425,6 @@ err_out:
 	return 0;
 }
 
-/* Decode imm v32(Iz). Return 0 if failed */
 static int __get_immv32(struct insn *insn)
 {
 	switch (insn->opnd_bytes) {
@@ -559,7 +445,6 @@ err_out:
 	return 0;
 }
 
-/* Decode imm v64(Iv/Ov), Return 0 if failed */
 static int __get_immv(struct insn *insn)
 {
 	switch (insn->opnd_bytes) {
@@ -584,7 +469,6 @@ err_out:
 	return 0;
 }
 
-/* Decode ptr16:16/32(Ap) */
 static int __get_immptr(struct insn *insn)
 {
 	switch (insn->opnd_bytes) {
@@ -608,19 +492,6 @@ err_out:
 	return 0;
 }
 
-/**
- * insn_get_immediate() - Get the immediate in an instruction
- * @insn:	&struct insn containing instruction
- *
- * If necessary, first collects the instruction up to and including the
- * displacement bytes.
- * Basically, most of immediates are sign-expanded. Unsigned-value can be
- * computed by bit masking with ((1 << (nbytes * 8)) - 1)
- *
- * Returns:
- * 0:  on success
- * < 0: on error
- */
 int insn_get_immediate(struct insn *insn)
 {
 	int ret;
@@ -685,16 +556,6 @@ err_out:
 	return -ENODATA;
 }
 
-/**
- * insn_get_length() - Get the length of instruction
- * @insn:	&struct insn containing instruction
- *
- * If necessary, first collects the instruction up to and including the
- * immediates bytes.
- *
- * Returns:
- *  - 0 on success
- *  - < 0 on error
 */
 int insn_get_length(struct insn *insn)
 {
@@ -715,29 +576,16 @@ int insn_get_length(struct insn *insn)
 	return 0;
 }
 
-/* Ensure this instruction is decoded completely */
 static inline int insn_complete(struct insn *insn)
 {
 	return insn->opcode.got && insn->modrm.got && insn->sib.got &&
 		insn->displacement.got && insn->immediate.got;
 }
 
-/**
- * insn_decode() - Decode an x86 instruction
- * @insn:	&struct insn to be initialized
- * @kaddr:	address (in kernel memory) of instruction (or copy thereof)
- * @buf_len:	length of the insn buffer at @kaddr
- * @m:		insn mode, see enum insn_mode
- *
- * Returns:
- * 0: if decoding succeeded
- * < 0: otherwise.
- */
 int insn_decode(struct insn *insn, const void *kaddr, int buf_len, enum insn_mode m)
 {
 	int ret;
 
-/* #define INSN_MODE_KERN	-1 __ignore_sync_check__ mode is only valid in the kernel */
 
 	if (m == INSN_MODE_KERN)
 		insn_init(insn, kaddr, buf_len, IS_ENABLED(CONFIG_X86_64));

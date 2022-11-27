@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __X86_KERNEL_FPU_LEGACY_H
 #define __X86_KERNEL_FPU_LEGACY_H
 
@@ -11,10 +10,6 @@ static inline void ldmxcsr(u32 mxcsr)
 	asm volatile("ldmxcsr %0" :: "m" (mxcsr));
 }
 
-/*
- * Returns 0 on success or the trap number when the operation raises an
- * exception.
- */
 #define user_insn(insn, output, input...)				\
 ({									\
 	int err;							\

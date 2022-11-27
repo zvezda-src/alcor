@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_ATOMIC64_32_H
 #define _ASM_X86_ATOMIC64_32_H
 
@@ -6,7 +5,6 @@
 #include <linux/types.h>
 //#include <asm/cmpxchg.h>
 
-/* An 64bit atomic type */
 
 typedef struct {
 	s64 __aligned(8) counter;
@@ -61,15 +59,6 @@ ATOMIC64_DECL(add_unless);
 #undef __ATOMIC64_DECL
 #undef ATOMIC64_EXPORT
 
-/**
- * arch_atomic64_cmpxchg - cmpxchg atomic64 variable
- * @v: pointer to type atomic64_t
- * @o: expected value
- * @n: new value
- *
- * Atomically sets @v to @n if it was equal to @o and returns
- * the old value.
- */
 
 static inline s64 arch_atomic64_cmpxchg(atomic64_t *v, s64 o, s64 n)
 {
@@ -77,14 +66,6 @@ static inline s64 arch_atomic64_cmpxchg(atomic64_t *v, s64 o, s64 n)
 }
 #define arch_atomic64_cmpxchg arch_atomic64_cmpxchg
 
-/**
- * arch_atomic64_xchg - xchg atomic64 variable
- * @v: pointer to type atomic64_t
- * @n: value to assign
- *
- * Atomically xchgs the value of @v to @n and returns
- * the old value.
- */
 static inline s64 arch_atomic64_xchg(atomic64_t *v, s64 n)
 {
 	s64 o;
@@ -97,13 +78,6 @@ static inline s64 arch_atomic64_xchg(atomic64_t *v, s64 n)
 }
 #define arch_atomic64_xchg arch_atomic64_xchg
 
-/**
- * arch_atomic64_set - set atomic64 variable
- * @v: pointer to type atomic64_t
- * @i: value to assign
- *
- * Atomically sets the value of @v to @n.
- */
 static inline void arch_atomic64_set(atomic64_t *v, s64 i)
 {
 	unsigned high = (unsigned)(i >> 32);
@@ -113,12 +87,6 @@ static inline void arch_atomic64_set(atomic64_t *v, s64 i)
 			     : "eax", "edx", "memory");
 }
 
-/**
- * arch_atomic64_read - read atomic64 variable
- * @v: pointer to type atomic64_t
- *
- * Atomically reads the value of @v and returns it.
- */
 static inline s64 arch_atomic64_read(const atomic64_t *v)
 {
 	s64 r;
@@ -126,13 +94,6 @@ static inline s64 arch_atomic64_read(const atomic64_t *v)
 	return r;
 }
 
-/**
- * arch_atomic64_add_return - add and return
- * @i: integer value to add
- * @v: pointer to type atomic64_t
- *
- * Atomically adds @i to @v and returns @i + *@v
- */
 static inline s64 arch_atomic64_add_return(s64 i, atomic64_t *v)
 {
 	alternative_atomic64(add_return,
@@ -142,9 +103,6 @@ static inline s64 arch_atomic64_add_return(s64 i, atomic64_t *v)
 }
 #define arch_atomic64_add_return arch_atomic64_add_return
 
-/*
- * Other variants with different arithmetic operators:
- */
 static inline s64 arch_atomic64_sub_return(s64 i, atomic64_t *v)
 {
 	alternative_atomic64(sub_return,
@@ -172,13 +130,6 @@ static inline s64 arch_atomic64_dec_return(atomic64_t *v)
 }
 #define arch_atomic64_dec_return arch_atomic64_dec_return
 
-/**
- * arch_atomic64_add - add integer to atomic64 variable
- * @i: integer value to add
- * @v: pointer to type atomic64_t
- *
- * Atomically adds @i to @v.
- */
 static inline s64 arch_atomic64_add(s64 i, atomic64_t *v)
 {
 	__alternative_atomic64(add, add_return,
@@ -187,13 +138,6 @@ static inline s64 arch_atomic64_add(s64 i, atomic64_t *v)
 	return i;
 }
 
-/**
- * arch_atomic64_sub - subtract the atomic64 variable
- * @i: integer value to subtract
- * @v: pointer to type atomic64_t
- *
- * Atomically subtracts @i from @v.
- */
 static inline s64 arch_atomic64_sub(s64 i, atomic64_t *v)
 {
 	__alternative_atomic64(sub, sub_return,
@@ -202,12 +146,6 @@ static inline s64 arch_atomic64_sub(s64 i, atomic64_t *v)
 	return i;
 }
 
-/**
- * arch_atomic64_inc - increment atomic64 variable
- * @v: pointer to type atomic64_t
- *
- * Atomically increments @v by 1.
- */
 static inline void arch_atomic64_inc(atomic64_t *v)
 {
 	__alternative_atomic64(inc, inc_return, /* no output */,
@@ -215,12 +153,6 @@ static inline void arch_atomic64_inc(atomic64_t *v)
 }
 #define arch_atomic64_inc arch_atomic64_inc
 
-/**
- * arch_atomic64_dec - decrement atomic64 variable
- * @v: pointer to type atomic64_t
- *
- * Atomically decrements @v by 1.
- */
 static inline void arch_atomic64_dec(atomic64_t *v)
 {
 	__alternative_atomic64(dec, dec_return, /* no output */,
@@ -228,15 +160,6 @@ static inline void arch_atomic64_dec(atomic64_t *v)
 }
 #define arch_atomic64_dec arch_atomic64_dec
 
-/**
- * arch_atomic64_add_unless - add unless the number is a given value
- * @v: pointer of type atomic64_t
- * @a: the amount to add to v...
- * @u: ...unless v is equal to u.
- *
- * Atomically adds @a to @v, so long as it was not @u.
- * Returns non-zero if the add was done, zero otherwise.
- */
 static inline int arch_atomic64_add_unless(atomic64_t *v, s64 a, s64 u)
 {
 	unsigned low = (unsigned)u;

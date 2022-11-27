@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
 #include <linux/interrupt.h>
 
@@ -12,7 +11,6 @@
 #include "xen-ops.h"
 #include "pmu.h"
 
-/* x86_pmu.handle_irq definition */
 #include "../events/perf_event.h"
 
 #define XENPMU_IRQ_PROCESSING    1
@@ -26,11 +24,9 @@ static DEFINE_PER_CPU(struct xenpmu, xenpmu_shared);
 #define get_xenpmu_data()    (this_cpu_ptr(&xenpmu_shared)->xenpmu_data)
 #define get_xenpmu_flags()   (this_cpu_ptr(&xenpmu_shared)->flags)
 
-/* Macro for computing address of a PMU MSR bank */
 #define field_offset(ctxt, field) ((void *)((uintptr_t)ctxt + \
 					    (uintptr_t)ctxt->field))
 
-/* AMD PMU */
 #define F15H_NUM_COUNTERS   6
 #define F10H_NUM_COUNTERS   4
 
@@ -40,26 +36,22 @@ static __read_mostly int amd_msr_step;
 static __read_mostly int k7_counters_mirrored;
 static __read_mostly int amd_num_counters;
 
-/* Intel PMU */
 #define MSR_TYPE_COUNTER            0
 #define MSR_TYPE_CTRL               1
 #define MSR_TYPE_GLOBAL             2
 #define MSR_TYPE_ARCH_COUNTER       3
 #define MSR_TYPE_ARCH_CTRL          4
 
-/* Number of general pmu registers (CPUID.EAX[0xa].EAX[8..15]) */
 #define PMU_GENERAL_NR_SHIFT        8
 #define PMU_GENERAL_NR_BITS         8
 #define PMU_GENERAL_NR_MASK         (((1 << PMU_GENERAL_NR_BITS) - 1) \
 				     << PMU_GENERAL_NR_SHIFT)
 
-/* Number of fixed pmu registers (CPUID.EDX[0xa].EDX[0..4]) */
 #define PMU_FIXED_NR_SHIFT          0
 #define PMU_FIXED_NR_BITS           5
 #define PMU_FIXED_NR_MASK           (((1 << PMU_FIXED_NR_BITS) - 1) \
 				     << PMU_FIXED_NR_SHIFT)
 
-/* Alias registers (0x4c1) for full-width writes to PMCs */
 #define MSR_PMC_ALIAS_MASK          (~(MSR_IA32_PERFCTR0 ^ MSR_IA32_PMC0))
 
 #define INTEL_PMC_TYPE_SHIFT        30
@@ -412,7 +404,6 @@ int pmu_apic_update(uint32_t val)
 	return ret;
 }
 
-/* perf callbacks */
 static unsigned int xen_guest_state(void)
 {
 	const struct xen_pmu_data *xenpmu_data = get_xenpmu_data();
@@ -455,7 +446,6 @@ static struct perf_guest_info_callbacks xen_guest_cbs = {
 	.get_ip			= xen_get_guest_ip,
 };
 
-/* Convert registers from Xen's format to Linux' */
 static void xen_convert_regs(const struct xen_pmu_regs *xen_regs,
 			     struct pt_regs *regs, uint64_t pmu_flags)
 {

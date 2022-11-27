@@ -1,32 +1,18 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- *  Fault Injection Test harness (FI)
- *  Copyright (C) Intel Crop.
- */
 
-/*  Id: pf_in.c,v 1.1.1.1 2002/11/12 05:56:32 brlock Exp
- *  Copyright by Intel Crop., 2002
- *  Louis Zhuang (louis.zhuang@intel.com)
- *
- *  Bjorn Steinbrink (B.Steinbrink@gmx.de), 2007
- */
 
 #include <linux/ptrace.h> /* struct pt_regs */
 #include "pf_in.h"
 
 #ifdef __i386__
-/* IA32 Manual 3, 2-1 */
 static unsigned char prefix_codes[] = {
 	0xF0, 0xF2, 0xF3, 0x2E, 0x36, 0x3E, 0x26, 0x64,
 	0x65, 0x66, 0x67
 };
-/* IA32 Manual 3, 3-432*/
 static unsigned int reg_rop[] = {
 	0x8A, 0x8B, 0xB60F, 0xB70F, 0xBE0F, 0xBF0F
 };
 static unsigned int reg_wop[] = { 0x88, 0x89, 0xAA, 0xAB };
 static unsigned int imm_wop[] = { 0xC6, 0xC7 };
-/* IA32 Manual 3, 3-432*/
 static unsigned int rw8[] = { 0x88, 0x8A, 0xC6, 0xAA };
 static unsigned int rw32[] = {
 	0x89, 0x8B, 0xC7, 0xB60F, 0xB70F, 0xBE0F, 0xBF0F, 0xAB
@@ -43,7 +29,6 @@ static unsigned char prefix_codes[] = {
 	0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
 	0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f
 };
-/* AMD64 Manual 3, Appendix A*/
 static unsigned int reg_rop[] = {
 	0x8A, 0x8B, 0xB60F, 0xB70F, 0xBE0F, 0xBF0F
 };
@@ -53,13 +38,9 @@ static unsigned int rw8[] = { 0xC6, 0x88, 0x8A, 0xAA };
 static unsigned int rw32[] = {
 	0xC7, 0x89, 0x8B, 0xB60F, 0xB70F, 0xBE0F, 0xBF0F, 0xAB
 };
-/* 8 bit only */
 static unsigned int mw8[] = { 0xC6, 0x88, 0x8A, 0xB60F, 0xBE0F, 0xAA };
-/* 16 bit only */
 static unsigned int mw16[] = { 0xB70F, 0xBF0F };
-/* 16 or 32 bit */
 static unsigned int mw32[] = { 0xC7 };
-/* 16, 32 or 64 bit */
 static unsigned int mw64[] = { 0x89, 0x8B, 0xAB };
 #endif /* not __i386__ */
 
@@ -199,10 +180,6 @@ unsigned int get_ins_mem_width(unsigned long ins_addr)
 	return 0;
 }
 
-/*
- * Define register ident in mod/rm byte.
- * Note: these are NOT the same as in ptrace-abi.h.
- */
 enum {
 	arg_AL = 0,
 	arg_CL = 1,
@@ -285,9 +262,6 @@ static unsigned char *get_reg_w8(int no, int rex, struct pt_regs *regs)
 
 	if (rex) {
 		/*
-		 * If REX prefix exists, access low bytes of SI etc.
-		 * instead of AH etc.
-		 */
 		switch (no) {
 		case arg_SI:
 			rv = (unsigned char *)&regs->si;

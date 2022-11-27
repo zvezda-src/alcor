@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* Common code for 32 and 64-bit NUMA */
 #include <linux/acpi.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -47,9 +45,6 @@ static __init int numa_setup(char *opt)
 }
 early_param("numa", numa_setup);
 
-/*
- * apicid, cpu, node mappings
- */
 s16 __apicid_to_node[MAX_LOCAL_APIC] = {
 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
 };
@@ -66,9 +61,6 @@ int numa_cpu_node(int cpu)
 cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
 EXPORT_SYMBOL(node_to_cpumask_map);
 
-/*
- * Map cpu index to node index
- */
 DEFINE_EARLY_PER_CPU(int, x86_cpu_to_node_map, NUMA_NO_NODE);
 EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_node_map);
 
@@ -99,13 +91,6 @@ void numa_clear_node(int cpu)
 	numa_set_node(cpu, NUMA_NO_NODE);
 }
 
-/*
- * Allocate node_to_cpumask_map based on number of available nodes
- * Requires node_possible_map to be valid.
- *
- * Note: cpumask_of_node() is not valid until after this is done.
- * (Use CONFIG_DEBUG_PER_CPU_MAPS to check this.)
- */
 void __init setup_node_to_cpumask_map(void)
 {
 	unsigned int node;
@@ -148,14 +133,6 @@ static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
 	return 0;
 }
 
-/**
- * numa_remove_memblk_from - Remove one numa_memblk from a numa_meminfo
- * @idx: Index of memblk to remove
- * @mi: numa_meminfo to remove memblk from
- *
- * Remove @idx'th numa_memblk from @mi by shifting @mi->blk[] and
- * decrementing @mi->nr_blks.
- */
 void __init numa_remove_memblk_from(int idx, struct numa_meminfo *mi)
 {
 	mi->nr_blks--;
@@ -163,12 +140,6 @@ void __init numa_remove_memblk_from(int idx, struct numa_meminfo *mi)
 		(mi->nr_blks - idx) * sizeof(mi->blk[0]));
 }
 
-/**
- * numa_move_tail_memblk - Move a numa_memblk from one numa_meminfo to another
- * @dst: numa_meminfo to append block to
- * @idx: Index of memblk to remove
- * @src: numa_meminfo to remove memblk from
- */
 static void __init numa_move_tail_memblk(struct numa_meminfo *dst, int idx,
 					 struct numa_meminfo *src)
 {
@@ -176,23 +147,11 @@ static void __init numa_move_tail_memblk(struct numa_meminfo *dst, int idx,
 	numa_remove_memblk_from(idx, src);
 }
 
-/**
- * numa_add_memblk - Add one numa_memblk to numa_meminfo
- * @nid: NUMA node ID of the new memblk
- * @start: Start address of the new memblk
- * @end: End address of the new memblk
- *
- * Add a new memblk to the default numa_meminfo.
- *
- * RETURNS:
- * 0 on success, -errno on failure.
- */
 int __init numa_add_memblk(int nid, u64 start, u64 end)
 {
 	return numa_add_memblk_to(nid, start, end, &numa_meminfo);
 }
 
-/* Allocate NODE_DATA for a node on the local memory */
 static void __init alloc_node_data(int nid)
 {
 	const size_t nd_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
@@ -201,9 +160,6 @@ static void __init alloc_node_data(int nid)
 	int tnid;
 
 	/*
-	 * Allocate node data.  Try node-local memory and then any node.
-	 * Never allocate in DMA zone.
-	 */
 	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
 	if (!nd_pa) {
 		pr_err("Cannot find %zu bytes in any node (initial node: %d)\n",
@@ -225,16 +181,6 @@ static void __init alloc_node_data(int nid)
 	node_set_online(nid);
 }
 
-/**
- * numa_cleanup_meminfo - Cleanup a numa_meminfo
- * @mi: numa_meminfo to clean up
- *
- * Sanitize @mi by merging and removing unnecessary memblks.  Also check for
- * conflicts and clear unused memblks.
- *
- * RETURNS:
- * 0 on success, -errno on failure.
- */
 int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 {
 	const u64 low = 0;
@@ -276,10 +222,6 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 			u64 start, end;
 
 			/*
-			 * See whether there are overlapping blocks.  Whine
-			 * about but allow overlaps of the same nid.  They
-			 * will be merged below.
-			 */
 			if (bi->end > bj->start && bi->start < bj->end) {
 				if (bi->nid != bj->nid) {
 					pr_err("node %d [mem %#010Lx-%#010Lx] overlaps with node %d [mem %#010Lx-%#010Lx]\n",
@@ -293,10 +235,6 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 			}
 
 			/*
-			 * Join together blocks on the same node, holes
-			 * between which don't overlap with memory on other
-			 * nodes.
-			 */
 			if (bi->nid != bj->nid)
 				continue;
 			start = min(bi->start, bj->start);
@@ -329,9 +267,6 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 	return 0;
 }
 
-/*
- * Set nodes, which have memory in @mi, in *@nodemask.
- */
 static void __init numa_nodemask_from_meminfo(nodemask_t *nodemask,
 					      const struct numa_meminfo *mi)
 {
@@ -343,12 +278,6 @@ static void __init numa_nodemask_from_meminfo(nodemask_t *nodemask,
 			node_set(mi->blk[i].nid, *nodemask);
 }
 
-/**
- * numa_reset_distance - Reset NUMA distance table
- *
- * The current table is freed.  The next numa_set_distance() call will
- * create a new one.
- */
 void __init numa_reset_distance(void)
 {
 	size_t size = numa_distance_cnt * numa_distance_cnt * sizeof(numa_distance[0]);
@@ -398,25 +327,6 @@ static int __init numa_alloc_distance(void)
 	return 0;
 }
 
-/**
- * numa_set_distance - Set NUMA distance from one NUMA to another
- * @from: the 'from' node to set distance
- * @to: the 'to'  node to set distance
- * @distance: NUMA distance
- *
- * Set the distance from node @from to @to to @distance.  If distance table
- * doesn't exist, one which is large enough to accommodate all the currently
- * known nodes will be created.
- *
- * If such table cannot be allocated, a warning is printed and further
- * calls are ignored until the distance table is reset with
- * numa_reset_distance().
- *
- * If @from or @to is higher than the highest known node or lower than zero
- * at the time of table creation or @distance doesn't make sense, the call
- * is ignored.
- * This is to allow simplification of specific NUMA config implementations.
- */
 void __init numa_set_distance(int from, int to, int distance)
 {
 	if (!numa_distance && numa_alloc_distance() < 0)
@@ -447,10 +357,6 @@ int __node_distance(int from, int to)
 }
 EXPORT_SYMBOL(__node_distance);
 
-/*
- * Sanity check to catch more bad NUMA configurations (they are amazingly
- * common).  Make sure the nodes cover all memory.
- */
 static bool __init numa_meminfo_cover_memory(const struct numa_meminfo *mi)
 {
 	u64 numaram, e820ram;
@@ -478,10 +384,6 @@ static bool __init numa_meminfo_cover_memory(const struct numa_meminfo *mi)
 	return true;
 }
 
-/*
- * Mark all currently memblock-reserved physical memory (which covers the
- * kernel's own memory ranges) as hot-unswappable.
- */
 static void __init numa_clear_kernel_node_hotplug(void)
 {
 	nodemask_t reserved_nodemask = NODE_MASK_NONE;
@@ -489,19 +391,6 @@ static void __init numa_clear_kernel_node_hotplug(void)
 	int i;
 
 	/*
-	 * We have to do some preprocessing of memblock regions, to
-	 * make them suitable for reservation.
-	 *
-	 * At this time, all memory regions reserved by memblock are
-	 * used by the kernel, but those regions are not split up
-	 * along node boundaries yet, and don't necessarily have their
-	 * node ID set yet either.
-	 *
-	 * So iterate over all memory known to the x86 architecture,
-	 * and use those ranges to set the nid in memblock.reserved.
-	 * This will split up the memblock regions along node
-	 * boundaries and will set the node IDs as well.
-	 */
 	for (i = 0; i < numa_meminfo.nr_blks; i++) {
 		struct numa_memblk *mb = numa_meminfo.blk + i;
 		int ret;
@@ -511,14 +400,6 @@ static void __init numa_clear_kernel_node_hotplug(void)
 	}
 
 	/*
-	 * Now go over all reserved memblock regions, to construct a
-	 * node mask of all kernel reserved memory areas.
-	 *
-	 * [ Note, when booting with mem=nn[kMG] or in a kdump kernel,
-	 *   numa_meminfo might not include all memblock.reserved
-	 *   memory ranges, because quirks such as trim_snb_memory()
-	 *   reserve specific pages for Sandy Bridge graphics. ]
-	 */
 	for_each_reserved_mem_region(mb_region) {
 		int nid = memblock_get_region_node(mb_region);
 
@@ -527,13 +408,6 @@ static void __init numa_clear_kernel_node_hotplug(void)
 	}
 
 	/*
-	 * Finally, clear the MEMBLOCK_HOTPLUG flag for all memory
-	 * belonging to the reserved node mask.
-	 *
-	 * Note that this will include memory regions that reside
-	 * on nodes that contain kernel memory - entire nodes
-	 * become hot-unpluggable:
-	 */
 	for (i = 0; i < numa_meminfo.nr_blks; i++) {
 		struct numa_memblk *mb = numa_meminfo.blk + i;
 
@@ -561,18 +435,9 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
 	}
 
 	/*
-	 * At very early time, the kernel have to use some memory such as
-	 * loading the kernel image. We cannot prevent this anyway. So any
-	 * node the kernel resides in should be un-hotpluggable.
-	 *
-	 * And when we come here, alloc node data won't fail.
-	 */
 	numa_clear_kernel_node_hotplug();
 
 	/*
-	 * If sections array is gonna be used for pfn -> nid mapping, check
-	 * whether its granularity is fine enough.
-	 */
 	if (IS_ENABLED(NODE_NOT_IN_PAGE_FLAGS)) {
 		unsigned long pfn_align = node_map_pfn_alignment();
 
@@ -602,9 +467,6 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
 			continue;
 
 		/*
-		 * Don't confuse VM with a node that doesn't have the
-		 * minimum amount of memory:
-		 */
 		if (end && (end - start) < NODE_MIN_SIZE)
 			continue;
 
@@ -616,13 +478,6 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
 	return 0;
 }
 
-/*
- * There are unfortunately some poorly designed mainboards around that
- * only connect memory to a single CPU. This breaks the 1:1 cpu->node
- * mapping. To avoid this fill in the mapping for all possible CPUs,
- * as the number of CPUs is not known yet. We round robin the existing
- * nodes.
- */
 static void __init numa_init_array(void)
 {
 	int rr, i;
@@ -661,13 +516,6 @@ static int __init numa_init(int (*init_func)(void))
 		return ret;
 
 	/*
-	 * We reset memblock back to the top-down direction
-	 * here because if we configured ACPI_NUMA, we have
-	 * parsed SRAT in init_func(). It is ok to have the
-	 * reset here even if we did't configure ACPI_NUMA
-	 * or acpi numa init fails and fallbacks to dummy
-	 * numa init.
-	 */
 	memblock_set_bottom_up(false);
 
 	ret = numa_cleanup_meminfo(&numa_meminfo);
@@ -693,15 +541,6 @@ static int __init numa_init(int (*init_func)(void))
 	return 0;
 }
 
-/**
- * dummy_numa_init - Fallback dummy NUMA init
- *
- * Used if there's no underlying NUMA architecture, NUMA initialization
- * fails, or NUMA is disabled on the command line.
- *
- * Must online at least one node and add memory blocks that cover all
- * allowed memory.  This function must not fail.
- */
 static int __init dummy_numa_init(void)
 {
 	printk(KERN_INFO "%s\n",
@@ -715,13 +554,6 @@ static int __init dummy_numa_init(void)
 	return 0;
 }
 
-/**
- * x86_numa_init - Initialize NUMA
- *
- * Try each configured NUMA initialization method until one succeeds.  The
- * last fallback is dummy single node config encompassing whole memory and
- * never fails.
- */
 void __init x86_numa_init(void)
 {
 	if (!numa_off) {
@@ -739,50 +571,16 @@ void __init x86_numa_init(void)
 }
 
 
-/*
- * A node may exist which has one or more Generic Initiators but no CPUs and no
- * memory.
- *
- * This function must be called after init_cpu_to_node(), to ensure that any
- * memoryless CPU nodes have already been brought online, and before the
- * node_data[nid] is needed for zone list setup in build_all_zonelists().
- *
- * When this function is called, any nodes containing either memory and/or CPUs
- * will already be online and there is no need to do anything extra, even if
- * they also contain one or more Generic Initiators.
- */
 void __init init_gi_nodes(void)
 {
 	int nid;
 
 	/*
-	 * Exclude this node from
-	 * bringup_nonboot_cpus
-	 *  cpu_up
-	 *   __try_online_node
-	 *    register_one_node
-	 * because node_subsys is not initialized yet.
-	 * TODO remove dependency on node_online
-	 */
 	for_each_node_state(nid, N_GENERIC_INITIATOR)
 		if (!node_online(nid))
 			node_set_online(nid);
 }
 
-/*
- * Setup early cpu_to_node.
- *
- * Populate cpu_to_node[] only if x86_cpu_to_apicid[],
- * and apicid_to_node[] tables have valid entries for a CPU.
- * This means we skip cpu_to_node[] initialisation for NUMA
- * emulation and faking node case (when running a kernel compiled
- * for NUMA on a non NUMA box), which is OK as cpu_to_node[]
- * is already initialized in a round robin manner at numa_init_array,
- * prior to this call, and this initialization is good enough
- * for the fake NUMA cases.
- *
- * Called before the per_cpu areas are setup.
- */
 void __init init_cpu_to_node(void)
 {
 	int cpu;
@@ -797,14 +595,6 @@ void __init init_cpu_to_node(void)
 			continue;
 
 		/*
-		 * Exclude this node from
-		 * bringup_nonboot_cpus
-		 *  cpu_up
-		 *   __try_online_node
-		 *    register_one_node
-		 * because node_subsys is not initialized yet.
-		 * TODO remove dependency on node_online
-		 */
 		if (!node_online(node))
 			node_set_online(node);
 
@@ -840,10 +630,6 @@ int __cpu_to_node(int cpu)
 }
 EXPORT_SYMBOL(__cpu_to_node);
 
-/*
- * Same function as cpu_to_node() but used if called before the
- * per_cpu areas are setup.
- */
 int early_cpu_to_node(int cpu)
 {
 	if (early_per_cpu_ptr(x86_cpu_to_node_map))
@@ -901,9 +687,6 @@ void numa_remove_cpu(int cpu)
 }
 # endif	/* !CONFIG_NUMA_EMU */
 
-/*
- * Returns a pointer to the bitmask of CPUs on Node 'node'.
- */
 const struct cpumask *cpumask_of_node(int node)
 {
 	if ((unsigned)node >= nr_node_ids) {
@@ -942,9 +725,6 @@ int phys_to_target_node(phys_addr_t start)
 	int nid = meminfo_to_nid(&numa_meminfo, start);
 
 	/*
-	 * Prefer online nodes, but if reserved memory might be
-	 * hot-added continue the search with reserved ranges.
-	 */
 	if (nid != NUMA_NO_NODE)
 		return nid;
 

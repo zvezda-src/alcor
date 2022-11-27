@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- *  linux/arch/i386/kernel/head32.c -- prepare to run common code
- *
- *  Copyright (C) 2000 Andrea Arcangeli <andrea@suse.de> SuSE
- *  Copyright (C) 2007 Eric Biederman <ebiederm@xmission.com>
- */
 
 #include <linux/init.h>
 #include <linux/start_kernel.h>
@@ -56,19 +49,6 @@ asmlinkage __visible void __init i386_start_kernel(void)
 	start_kernel();
 }
 
-/*
- * Initialize page tables.  This creates a PDE and a set of page
- * tables, which are located immediately beyond __brk_base.  The variable
- * _brk_end is set up to point to the first "safe" location.
- * Mappings are created both at virtual address 0 (identity mapping)
- * and PAGE_OFFSET for up to _end.
- *
- * In PAE mode initial_page_table is statically defined to contain
- * enough entries to cover the VMSPLIT option (that is the top 1, 2 or 3
- * entries). The identity mapping is handled by pointing two PGD entries
- * to the first kernel PMD. Note the upper half of each PMD or PTE are
- * always zero at this stage.
- */
 void __init mk_early_pgtbl_32(void)
 {
 #ifdef __pa
@@ -111,9 +91,7 @@ void __init mk_early_pgtbl_32(void)
 
 	ptr = (unsigned long *)__pa(&max_pfn_mapped);
 	/* Can't use pte_pfn() since it's a call with CONFIG_PARAVIRT */
-	*ptr = (pte.pte & PTE_PFN_MASK) >> PAGE_SHIFT;
 
 	ptr = (unsigned long *)__pa(&_brk_end);
-	*ptr = (unsigned long)ptep + PAGE_OFFSET;
 }
 

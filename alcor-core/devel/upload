@@ -1,38 +1,6 @@
-#!/bin/bash
 
-# Copyright (C) 2006, 2007, 2008, 2009, 2010, 2012, 2013 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# This is a test script to ease development and testing on test clusters.
-# It should not be used to update production environments.
 
-# Usage: upload node-{1,2,3}
-# it will upload the python libraries to
-# $prefix/lib/python2.X/dist-packages/alcor and the command line utils to
-# $prefix/sbin. It needs passwordless root login to the nodes.
 
 set -e -u
 
@@ -91,20 +59,15 @@ else
   make_args=
 fi
 
-# Make sure that directories will get correct permissions
 umask 0022
 
-# install alcor as a real tree
 make $make_args install DESTDIR="$TXD"
 
-# at this point, make has been finished, so the configuration is
-# fixed; we can read the prefix vars/etc.
 PREFIX="$(echo @PREFIX@ | $SED)"
 SYSCONFDIR="$(echo @SYSCONFDIR@ | $SED)"
 LIBDIR="$(echo @LIBDIR@ | $SED)"
 PKGLIBDIR="$(echo @PKGLIBDIR@ | $SED)"
 
-# copy additional needed files
 [ -f doc/examples/alcor.initd ] && \
 install -D --mode=0755 doc/examples/alcor.initd \
   "$TXD/$SYSCONFDIR/init.d/alcor"
@@ -140,7 +103,6 @@ echo ---
 
 echo ---
 
-# and now put it under $prefix on the target node(s)
 for host; do
   echo Uploading code to ${host}...
   rsync -v -rlKDc \

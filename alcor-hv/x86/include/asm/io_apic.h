@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_IO_APIC_H
 #define _ASM_X86_IO_APIC_H
 
@@ -7,15 +6,7 @@
 #include <asm/apicdef.h>
 #include <asm/irq_vectors.h>
 #include <asm/x86_init.h>
-/*
- * Intel IO-APIC support for SMP and UP systems.
- *
- * Copyright (C) 1997, 1998, 1999, 2000 Ingo Molnar
- */
 
-/*
- * The structure of the IO-APIC:
- */
 union IO_APIC_reg_00 {
 	u32	raw;
 	struct {
@@ -95,27 +86,19 @@ struct ioapic_domain_cfg;
 
 #ifdef CONFIG_X86_IO_APIC
 
-/*
- * # of IO-APICs and # of IRQ routing registers
- */
 extern int nr_ioapics;
 
 extern int mpc_ioapic_id(int ioapic);
 extern unsigned int mpc_ioapic_addr(int ioapic);
 
-/* # of MP IRQ source entries */
 extern int mp_irq_entries;
 
-/* MP IRQ source entries */
 extern struct mpc_intsrc mp_irqs[MAX_IRQ_SOURCES];
 
-/* 1 if "noapic" boot option passed */
 extern int skip_ioapic_setup;
 
-/* 1 if "noapic" boot option passed */
 extern int noioapicquirk;
 
-/* -1 if "noapic" boot option passed */
 extern int noioapicreroute;
 
 extern u32 gsi_top;
@@ -124,10 +107,6 @@ extern unsigned long io_apic_irqs;
 
 #define IO_APIC_IRQ(x) (((x) >= NR_IRQS_LEGACY) || ((1 << (x)) & io_apic_irqs))
 
-/*
- * If we use the IO-APIC for IRQ routing, disable automatic
- * assignment of PCI IRQ's.
- */
 #define io_apic_assign_pci_irqs \
 	(mp_irq_entries && !skip_ioapic_setup && io_apic_irqs)
 

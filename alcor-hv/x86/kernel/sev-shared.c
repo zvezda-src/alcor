@@ -1,20 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * AMD Encrypted Register State Support
- *
- * Author: Joerg Roedel <jroedel@suse.de>
- *
- * This file is not compiled stand-alone. It contains code shared
- * between the pre-decompression boot code and the running Linux kernel
- * and is included directly into both code-bases.
- */
 
 #ifndef __BOOT_COMPRESSED
 #define error(v)	pr_err(v)
 #define has_cpuflag(f)	boot_cpu_has(f)
 #endif
 
-/* I/O parameters for CPUID-related helpers */
 struct cpuid_leaf {
 	u32 fn;
 	u32 subfn;
@@ -24,10 +13,6 @@ struct cpuid_leaf {
 	u32 edx;
 };
 
-/*
- * Individual entries of the SNP CPUID table, as defined by the SNP
- * Firmware ABI, Revision 0.9, Section 7.1, Table 14.
- */
 struct snp_cpuid_fn {
 	u32 eax_in;
 	u32 ecx_in;
@@ -40,11 +25,6 @@ struct snp_cpuid_fn {
 	u64 __reserved;
 } __packed;
 
-/*
- * SNP CPUID table, as defined by the SNP Firmware ABI, Revision 0.9,
- * Section 8.14.2.6. Also noted there is the SNP firmware-enforced limit
- * of 64 entries per CPUID table.
- */
 #define SNP_CPUID_COUNT_MAX 64
 
 struct snp_cpuid_table {
@@ -54,24 +34,10 @@ struct snp_cpuid_table {
 	struct snp_cpuid_fn fn[SNP_CPUID_COUNT_MAX];
 } __packed;
 
-/*
- * Since feature negotiation related variables are set early in the boot
- * process they must reside in the .data section so as not to be zeroed
- * out when the .bss section is later cleared.
- *
- * GHCB protocol version negotiated with the hypervisor.
- */
 static u16 ghcb_version __ro_after_init;
 
-/* Copy of the SNP firmware's CPUID page. */
 static struct snp_cpuid_table cpuid_table_copy __ro_after_init;
 
-/*
- * These will be initialized based on CPUID table so that non-present
- * all-zero leaves (for sparse tables) can be differentiated from
- * invalid/out-of-range leaves. This is needed since all-zero leaves
- * still need to be post-processed.
- */
 static u32 cpuid_std_range_max __ro_after_init;
 static u32 cpuid_hyp_range_max __ro_after_init;
 static u32 cpuid_ext_range_max __ro_after_init;
@@ -101,9 +67,6 @@ static void __noreturn sev_es_terminate(unsigned int set, unsigned int reason)
 		asm volatile("hlt\n" : : : "memory");
 }
 
-/*
- * The hypervisor features are available from GHCB version 2 onward.
- */
 static u64 get_hv_features(void)
 {
 	u64 val;
@@ -248,7 +211,6 @@ static int __sev_cpuid_hv(u32 fn, int reg_idx, u32 *reg)
 	if (GHCB_RESP_CODE(val) != GHCB_MSR_CPUID_RESP)
 		return -EIO;
 
-	*reg = (val >> 32);
 
 	return 0;
 }
@@ -258,13 +220,6 @@ static int sev_cpuid_hv(struct cpuid_leaf *leaf)
 	int ret;
 
 	/*
-	 * MSR protocol does not support fetching non-zero subfunctions, but is
-	 * sufficient to handle current early-boot cases. Should that change,
-	 * make sure to report an error rather than ignoring the index and
-	 * grabbing random values. If this issue arises in the future, handling
-	 * can be added here to use GHCB-page protocol for cases that occur late
-	 * enough in boot that GHCB page is available.
-	 */
 	if (cpuid_function_is_indexed(leaf->fn) && leaf->subfn)
 		return -EINVAL;
 
@@ -276,12 +231,6 @@ static int sev_cpuid_hv(struct cpuid_leaf *leaf)
 	return ret;
 }
 
-/*
- * This may be called early while still running on the initial identity
- * mapping. Use RIP-relative addressing to obtain the correct address
- * while running with the initial identity mapping as well as the
- * switch-over to kernel virtual addresses later.
- */
 static const struct snp_cpuid_table *snp_cpuid_get_table(void)
 {
 	void *ptr;
@@ -293,26 +242,6 @@ static const struct snp_cpuid_table *snp_cpuid_get_table(void)
 	return ptr;
 }
 
-/*
- * The SNP Firmware ABI, Revision 0.9, Section 7.1, details the use of
- * XCR0_IN and XSS_IN to encode multiple versions of 0xD subfunctions 0
- * and 1 based on the corresponding features enabled by a particular
- * combination of XCR0 and XSS registers so that a guest can look up the
- * version corresponding to the features currently enabled in its XCR0/XSS
- * registers. The only values that differ between these versions/table
- * entries is the enabled XSAVE area size advertised via EBX.
- *
- * While hypervisors may choose to make use of this support, it is more
- * robust/secure for a guest to simply find the entry corresponding to the
- * base/legacy XSAVE area size (XCR0=1 or XCR0=3), and then calculate the
- * XSAVE area size using subfunctions 2 through 64, as documented in APM
- * Volume 3, Rev 3.31, Appendix E.3.8, which is what is done here.
- *
- * Since base/legacy XSAVE area size is documented as 0x240, use that value
- * directly rather than relying on the base size in the CPUID table.
- *
- * Return: XSAVE area size on success, 0 otherwise.
- */
 static u32 snp_cpuid_calc_xsave_size(u64 xfeatures_en, bool compacted)
 {
 	const struct snp_cpuid_table *cpuid_table = snp_cpuid_get_table();
@@ -339,10 +268,6 @@ static u32 snp_cpuid_calc_xsave_size(u64 xfeatures_en, bool compacted)
 	}
 
 	/*
-	 * Either the guest set unsupported XCR0/XSS bits, or the corresponding
-	 * entries in the CPUID table were not present. This is not a valid
-	 * state to be in.
-	 */
 	if (xfeatures_found != (xfeatures_en & GENMASK_ULL(63, 2)))
 		return 0;
 
@@ -365,11 +290,6 @@ snp_cpuid_get_validated_func(struct cpuid_leaf *leaf)
 			continue;
 
 		/*
-		 * For 0xD subfunctions 0 and 1, only use the entry corresponding
-		 * to the base/legacy XSAVE area size (XCR0=1 or XCR0=3, XSS=0).
-		 * See the comments above snp_cpuid_calc_xsave_size() for more
-		 * details.
-		 */
 		if (e->eax_in == 0xD && (e->ecx_in == 0 || e->ecx_in == 1))
 			if (!(e->xcr0_in == 1 || e->xcr0_in == 3) || e->xss_in)
 				continue;
@@ -442,14 +362,6 @@ static int snp_cpuid_postprocess(struct cpuid_leaf *leaf)
 			}
 
 			/*
-			 * The PPR and APM aren't clear on what size should be
-			 * encoded in 0xD:0x1:EBX when compaction is not enabled
-			 * by either XSAVEC (feature bit 1) or XSAVES (feature
-			 * bit 3) since SNP-capable hardware has these feature
-			 * bits fixed as 1. KVM sets it to 0 in this case, but
-			 * to avoid this becoming an issue it's safer to simply
-			 * treat this as unsupported for SNP guests.
-			 */
 			if (!(leaf->eax & (BIT(1) | BIT(3))))
 				return -EINVAL;
 
@@ -481,10 +393,6 @@ static int snp_cpuid_postprocess(struct cpuid_leaf *leaf)
 	return 0;
 }
 
-/*
- * Returns -EOPNOTSUPP if feature not enabled. Any other non-zero return value
- * should be treated as fatal by caller.
- */
 static int snp_cpuid(struct cpuid_leaf *leaf)
 {
 	const struct snp_cpuid_table *cpuid_table = snp_cpuid_get_table();
@@ -494,22 +402,6 @@ static int snp_cpuid(struct cpuid_leaf *leaf)
 
 	if (!snp_cpuid_get_validated_func(leaf)) {
 		/*
-		 * Some hypervisors will avoid keeping track of CPUID entries
-		 * where all values are zero, since they can be handled the
-		 * same as out-of-range values (all-zero). This is useful here
-		 * as well as it allows virtually all guest configurations to
-		 * work using a single SNP CPUID table.
-		 *
-		 * To allow for this, there is a need to distinguish between
-		 * out-of-range entries and in-range zero entries, since the
-		 * CPUID table entries are only a template that may need to be
-		 * augmented with additional values for things like
-		 * CPU-specific information during post-processing. So if it's
-		 * not in the table, set the values to zero. Then, if they are
-		 * within a valid CPUID range, proceed with post-processing
-		 * using zeros as the initial values. Otherwise, skip
-		 * post-processing and just return zeros immediately.
-		 */
 		leaf->eax = leaf->ebx = leaf->ecx = leaf->edx = 0;
 
 		/* Skip post-processing for out-of-range zero leafs. */
@@ -522,11 +414,6 @@ static int snp_cpuid(struct cpuid_leaf *leaf)
 	return snp_cpuid_postprocess(leaf);
 }
 
-/*
- * Boot VC Handler - This is the first VC handler during boot, there is no GHCB
- * page yet, so it only supports the MSR based communication with the
- * hypervisor and only the CPUID exit-code.
- */
 void __init do_vc_no_ghcb(struct pt_regs *regs, unsigned long exit_code)
 {
 	unsigned int subfn = lower_bits(regs->cx, 32);
@@ -558,19 +445,6 @@ cpuid_done:
 	regs->dx = leaf.edx;
 
 	/*
-	 * This is a VC handler and the #VC is only raised when SEV-ES is
-	 * active, which means SEV must be active too. Do sanity checks on the
-	 * CPUID results to make sure the hypervisor does not trick the kernel
-	 * into the no-sev path. This could map sensitive data unencrypted and
-	 * make it accessible to the hypervisor.
-	 *
-	 * In particular, check for:
-	 *	- Availability of CPUID leaf 0x8000001f
-	 *	- SEV CPUID bit.
-	 *
-	 * The hypervisor might still report the wrong C-bit position, but this
-	 * can't be checked here.
-	 */
 
 	if (fn == 0x80000000 && (regs->ax < 0x8000001f))
 		/* SEV leaf check */
@@ -653,7 +527,6 @@ static enum es_result vc_insn_string_write(struct es_em_ctxt *ctxt,
 static enum es_result vc_ioio_exitinfo(struct es_em_ctxt *ctxt, u64 *exitinfo)
 {
 	struct insn *insn = &ctxt->insn;
-	*exitinfo = 0;
 
 	switch (insn->opcode.bytes[0]) {
 	/* INS opcodes */
@@ -758,11 +631,6 @@ static enum es_result vc_handle_ioio(struct ghcb *ghcb, struct es_em_ctxt *ctxt)
 		u64 sw_scratch;
 
 		/*
-		 * For the string variants with rep prefix the amount of in/out
-		 * operations per #VC exception is limited so that the kernel
-		 * has a chance to take interrupts and re-schedule while the
-		 * instruction is emulated.
-		 */
 		io_bytes   = (exit_info_1 >> 4) & 0x7;
 		ghcb_count = sizeof(ghcb->shared_buffer) / io_bytes;
 
@@ -783,10 +651,6 @@ static enum es_result vc_handle_ioio(struct ghcb *ghcb, struct es_em_ctxt *ctxt)
 		}
 
 		/*
-		 * Issue an VMGEXIT to the HV to consume the bytes from the
-		 * shared buffer or to have it write them into the shared buffer
-		 * depending on the instruction: OUTS or INS.
-		 */
 		sw_scratch = __pa(ghcb) + offsetof(struct ghcb, shared_buffer);
 		ghcb_set_sw_scratch(ghcb, sw_scratch);
 		ret = sev_es_ghcb_hv_call(ghcb, ctxt, SVM_EXIT_IOIO,
@@ -933,10 +797,6 @@ struct cc_setup_data {
 	u32 cc_blob_address;
 };
 
-/*
- * Search for a Confidential Computing blob passed in as a setup_data entry
- * via the Linux Boot Protocol.
- */
 static struct cc_blob_sev_info *find_cc_blob_setup_data(struct boot_params *bp)
 {
 	struct cc_setup_data *sd = NULL;
@@ -955,15 +815,6 @@ static struct cc_blob_sev_info *find_cc_blob_setup_data(struct boot_params *bp)
 	return NULL;
 }
 
-/*
- * Initialize the kernel's copy of the SNP CPUID table, and set up the
- * pointer that will be used to access it.
- *
- * Maintaining a direct mapping of the SNP CPUID table used by firmware would
- * be possible as an alternative, but the approach is brittle since the
- * mapping needs to be updated in sync with all the changes to virtual memory
- * layout and related mapping facilities throughout the boot process.
- */
 static void __init setup_cpuid_table(const struct cc_blob_sev_info *cc_info)
 {
 	const struct snp_cpuid_table *cpuid_table_fw, *cpuid_table;

@@ -1,17 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  reg_compare.c                                                            |
  |                                                                           |
  | Compare two floating point registers                                      |
  |                                                                           |
- | Copyright (C) 1992,1993,1994,1997                                         |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
  |                  E-mail   billm@suburbia.net                              |
  |                                                                           |
  |                                                                           |
  +---------------------------------------------------------------------------*/
 
-/*---------------------------------------------------------------------------+
  | compare() is the core FPU_REG comparison function                         |
  +---------------------------------------------------------------------------*/
 
@@ -166,7 +162,6 @@ static int compare(FPU_REG const *b, int tagb)
 
 }
 
-/* This function requires that st(0) is not empty */
 int FPU_compare_st_data(FPU_REG const *loaded_data, u_char loaded_tag)
 {
 	int f, c;
@@ -400,7 +395,6 @@ static int compare_ui_st_st(int nr)
 	return 0;
 }
 
-/*---------------------------------------------------------------------------*/
 
 void fcom_st(void)
 {
@@ -450,7 +444,6 @@ void fucompp(void)
 		FPU_illegal();
 }
 
-/* P6+ compare-to-EFLAGS ops */
 
 void fcomi_(void)
 {

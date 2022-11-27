@@ -1,14 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * This code fills the used part of the kernel stack with a poison value
- * before returning to userspace. It's part of the STACKLEAK feature
- * ported from grsecurity/PaX.
- *
- * Author: Alexander Popov <alex.popov@linux.com>
- *
- * STACKLEAK reduces the information which kernel stack leak bugs can
- * reveal and blocks some uninitialized stack variable attacks.
- */
 
 #include <linux/stackleak.h>
 #include <linux/kprobes.h>
@@ -84,18 +73,6 @@ static __always_inline void __stackleak_erase(bool on_task_stack)
 #endif
 
 	/*
-	 * Write poison to the task's stack between 'erase_low' and
-	 * 'erase_high'.
-	 *
-	 * If we're running on a different stack (e.g. an entry trampoline
-	 * stack) we can erase everything below the pt_regs at the top of the
-	 * task stack.
-	 *
-	 * If we're running on the task stack itself, we must not clobber any
-	 * stack used by this function and its caller. We assume that this
-	 * function has a fixed-size stack frame, and the current stack pointer
-	 * doesn't change while we write poison.
-	 */
 	if (on_task_stack)
 		erase_high = current_stack_pointer;
 	else
@@ -110,11 +87,6 @@ static __always_inline void __stackleak_erase(bool on_task_stack)
 	current->lowest_stack = task_stack_high;
 }
 
-/*
- * Erase and poison the portion of the task stack used since the last erase.
- * Can be called from the task stack or an entry stack when the task stack is
- * no longer in use.
- */
 asmlinkage void noinstr stackleak_erase(void)
 {
 	if (skip_erasing())
@@ -123,10 +95,6 @@ asmlinkage void noinstr stackleak_erase(void)
 	__stackleak_erase(on_thread_stack());
 }
 
-/*
- * Erase and poison the portion of the task stack used since the last erase.
- * Can only be called from the task stack.
- */
 asmlinkage void noinstr stackleak_erase_on_task_stack(void)
 {
 	if (skip_erasing())
@@ -135,10 +103,6 @@ asmlinkage void noinstr stackleak_erase_on_task_stack(void)
 	__stackleak_erase(true);
 }
 
-/*
- * Erase and poison the portion of the task stack used since the last erase.
- * Can only be called from a stack other than the task stack.
- */
 asmlinkage void noinstr stackleak_erase_off_task_stack(void)
 {
 	if (skip_erasing())
@@ -152,10 +116,6 @@ void __used __no_caller_saved_registers noinstr stackleak_track_stack(void)
 	unsigned long sp = current_stack_pointer;
 
 	/*
-	 * Having CONFIG_STACKLEAK_TRACK_MIN_SIZE larger than
-	 * STACKLEAK_SEARCH_DEPTH makes the poison search in
-	 * stackleak_erase() unreliable. Let's prevent that.
-	 */
 	BUILD_BUG_ON(CONFIG_STACKLEAK_TRACK_MIN_SIZE > STACKLEAK_SEARCH_DEPTH);
 
 	/* 'lowest_stack' should be aligned on the register width boundary */

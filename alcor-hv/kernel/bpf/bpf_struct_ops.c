@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2019 Facebook */
 
 #include <linux/bpf.h>
 #include <linux/bpf_verifier.h>
@@ -61,11 +59,6 @@ struct bpf_struct_ops_map {
 #define VALUE_PREFIX "bpf_struct_ops_"
 #define VALUE_PREFIX_LEN (sizeof(VALUE_PREFIX) - 1)
 
-/* bpf_struct_ops_##_name (e.g. bpf_struct_ops_tcp_congestion_ops) is
- * the map's value exposed to the userspace and its btf-type-id is
- * stored at the map->btf_vmlinux_value_type_id.
- *
- */
 #define BPF_STRUCT_OPS_TYPE(_name)				\
 extern struct bpf_struct_ops bpf_##_name;			\
 								\
@@ -239,7 +232,6 @@ static int bpf_struct_ops_map_get_next_key(struct bpf_map *map, void *key,
 	if (key && *(u32 *)key == 0)
 		return -ENOENT;
 
-	*(u32 *)next_key = 0;
 	return 0;
 }
 
@@ -655,9 +647,6 @@ const struct bpf_map_ops bpf_struct_ops_map_ops = {
 	.map_btf_id = &bpf_struct_ops_map_btf_ids[0],
 };
 
-/* "const void *" because some subsystem is
- * passing a const (e.g. const struct tcp_congestion_ops *)
- */
 bool bpf_struct_ops_get(const void *kdata)
 {
 	struct bpf_struct_ops_value *kvalue;

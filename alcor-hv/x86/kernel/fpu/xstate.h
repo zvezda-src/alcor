@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __X86_KERNEL_FPU_XSTATE_H
 #define __X86_KERNEL_FPU_XSTATE_H
 
@@ -13,9 +12,6 @@ DECLARE_PER_CPU(u64, xfd_state);
 static inline void xstate_init_xcomp_bv(struct xregs_state *xsave, u64 mask)
 {
 	/*
-	 * XRSTORS requires these bits set in xcomp_bv, or it will
-	 * trigger #GP:
-	 */
 	if (cpu_feature_enabled(X86_FEATURE_XCOMPACTED))
 		xsave->header.xcomp_bv = mask | XCOMP_BV_COMPACTED_FORMAT;
 }
@@ -68,7 +64,6 @@ static inline u64 xfeatures_mask_independent(void)
 	return XFEATURE_MASK_INDEPENDENT;
 }
 
-/* XSAVE/XRSTOR wrapper functions */
 
 #ifdef CONFIG_X86_64
 #define REX_PREFIX	"0x48, "
@@ -76,7 +71,6 @@ static inline u64 xfeatures_mask_independent(void)
 #define REX_PREFIX
 #endif
 
-/* These macros all use (%edi)/(%rdi) as the single memory argument. */
 #define XSAVE		".byte " REX_PREFIX "0x0f,0xae,0x27"
 #define XSAVEOPT	".byte " REX_PREFIX "0x0f,0xae,0x37"
 #define XSAVEC		".byte " REX_PREFIX "0x0f,0xc7,0x27"
@@ -84,10 +78,6 @@ static inline u64 xfeatures_mask_independent(void)
 #define XRSTOR		".byte " REX_PREFIX "0x0f,0xae,0x2f"
 #define XRSTORS		".byte " REX_PREFIX "0x0f,0xc7,0x1f"
 
-/*
- * After this @err contains 0 on success or the trap number when the
- * operation raises an exception.
- */
 #define XSTATE_OP(op, st, lmask, hmask, err)				\
 	asm volatile("1:" op "\n\t"					\
 		     "xor %[err], %[err]\n"				\
@@ -97,22 +87,6 @@ static inline u64 xfeatures_mask_independent(void)
 		     : "D" (st), "m" (*st), "a" (lmask), "d" (hmask)	\
 		     : "memory")
 
-/*
- * If XSAVES is enabled, it replaces XSAVEC because it supports supervisor
- * states in addition to XSAVEC.
- *
- * Otherwise if XSAVEC is enabled, it replaces XSAVEOPT because it supports
- * compacted storage format in addition to XSAVEOPT.
- *
- * Otherwise, if XSAVEOPT is enabled, XSAVEOPT replaces XSAVE because XSAVEOPT
- * supports modified optimization which is not supported by XSAVE.
- *
- * We use XSAVE as a fallback.
- *
- * The 661 label is defined in the ALTERNATIVE* macros as the address of the
- * original instruction which gets replaced. We need to use it here as the
- * address of the instruction where we might get an exception at.
- */
 #define XSTATE_XSAVE(st, lmask, hmask, err)				\
 	asm volatile(ALTERNATIVE_3(XSAVE,				\
 				   XSAVEOPT, X86_FEATURE_XSAVEOPT,	\
@@ -126,10 +100,6 @@ static inline u64 xfeatures_mask_independent(void)
 		     : "D" (st), "m" (*st), "a" (lmask), "d" (hmask)	\
 		     : "memory")
 
-/*
- * Use XRSTORS to restore context if it is enabled. XRSTORS supports compact
- * XSAVE area format.
- */
 #define XSTATE_XRESTORE(st, lmask, hmask)				\
 	asm volatile(ALTERNATIVE(XRSTOR,				\
 				 XRSTORS, X86_FEATURE_XSAVES)		\
@@ -168,12 +138,6 @@ static inline int __xfd_enable_feature(u64 which, struct fpu_guest *guest_fpu) {
 }
 #endif
 
-/*
- * Save processor xstate to xsave area.
- *
- * Uses either XSAVE or XSAVEOPT or XSAVES depending on the CPU features
- * and command line options. The choice is permanent until the next reboot.
- */
 static inline void os_xsave(struct fpstate *fpstate)
 {
 	u64 mask = fpstate->xfeatures;
@@ -190,11 +154,6 @@ static inline void os_xsave(struct fpstate *fpstate)
 	WARN_ON_FPU(err);
 }
 
-/*
- * Restore processor xstate from xsave area.
- *
- * Uses XRSTORS when XSAVES is used, XRSTOR otherwise.
- */
 static inline void os_xrstor(struct fpstate *fpstate, u64 mask)
 {
 	u32 lmask = mask;
@@ -204,7 +163,6 @@ static inline void os_xrstor(struct fpstate *fpstate, u64 mask)
 	XSTATE_XRESTORE(&fpstate->regs.xsave, lmask, hmask);
 }
 
-/* Restore of supervisor state. Does not require XFD */
 static inline void os_xrstor_supervisor(struct fpstate *fpstate)
 {
 	u64 mask = xfeatures_mask_supervisor();
@@ -214,18 +172,6 @@ static inline void os_xrstor_supervisor(struct fpstate *fpstate)
 	XSTATE_XRESTORE(&fpstate->regs.xsave, lmask, hmask);
 }
 
-/*
- * XSAVE itself always writes all requested xfeatures.  Removing features
- * from the request bitmap reduces the features which are written.
- * Generate a mask of features which must be written to a sigframe.  The
- * unset features can be optimized away and not written.
- *
- * This optimization is user-visible.  Only use for states where
- * uninitialized sigframe contents are tolerable, like dynamic features.
- *
- * Users of buffers produced with this optimization must check XSTATE_BV
- * to determine which features have been optimized out.
- */
 static inline u64 xfeatures_need_sigframe_write(void)
 {
 	u64 xfeaures_to_write;
@@ -240,26 +186,9 @@ static inline u64 xfeatures_need_sigframe_write(void)
 	return xfeaures_to_write;
 }
 
-/*
- * Save xstate to user space xsave area.
- *
- * We don't use modified optimization because xrstor/xrstors might track
- * a different application.
- *
- * We don't use compacted format xsave area for backward compatibility for
- * old applications which don't understand the compacted format of the
- * xsave area.
- *
- * The caller has to zero buf::header before calling this because XSAVE*
- * does not touch the reserved fields in the header.
- */
 static inline int xsave_to_user_sigframe(struct xregs_state __user *buf)
 {
 	/*
-	 * Include the features which are not xsaved/rstored by the kernel
-	 * internally, e.g. PKRU. That's user space ABI and also required
-	 * to allow the signal handler to modify PKRU.
-	 */
 	struct fpstate *fpstate = current->thread.fpu.fpstate;
 	u64 mask = fpstate->user_xfeatures;
 	u32 lmask;
@@ -281,9 +210,6 @@ static inline int xsave_to_user_sigframe(struct xregs_state __user *buf)
 	return err;
 }
 
-/*
- * Restore xstate from user space xsave area.
- */
 static inline int xrstor_from_user_sigframe(struct xregs_state __user *buf, u64 mask)
 {
 	struct xregs_state *xstate = ((__force struct xregs_state *)buf);
@@ -300,10 +226,6 @@ static inline int xrstor_from_user_sigframe(struct xregs_state __user *buf, u64 
 	return err;
 }
 
-/*
- * Restore xstate from kernel space xsave area, return an error code instead of
- * an exception.
- */
 static inline int os_xrstor_safe(struct fpstate *fpstate, u64 mask)
 {
 	struct xregs_state *xstate = &fpstate->regs.xsave;

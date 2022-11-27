@@ -1,17 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * kernel/lockdep_proc.c
- *
- * Runtime locking correctness validator
- *
- * Started by Ingo Molnar:
- *
- *  Copyright (C) 2006,2007 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
- *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra
- *
- * Code for /proc/lockdep and /proc/lockdep_stats:
- *
- */
 #include <linux/export.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -24,13 +10,6 @@
 
 #include "lockdep_internals.h"
 
-/*
- * Since iteration of lock_classes is done without holding the lockdep lock,
- * it is not safe to iterate all_lock_classes list directly as the iteration
- * may branch off to free_lock_classes or the zapped list. Iteration is done
- * directly on the lock_classes array by checking the lock_classes_in_use
- * bitmap and max_lock_class_idx.
- */
 #define iterate_lock_classes(idx, class)				\
 	for (idx = 0, class = lock_classes; idx <= max_lock_class_idx;	\
 	     idx++, class++)
@@ -40,7 +19,6 @@ static void *l_next(struct seq_file *m, void *v, loff_t *pos)
 	struct lock_class *class = v;
 
 	++class;
-	*pos = class - lock_classes;
 	return (*pos > max_lock_class_idx) ? NULL : class;
 }
 
@@ -138,7 +116,6 @@ static void *lc_start(struct seq_file *m, loff_t *pos)
 
 static void *lc_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	*pos = lockdep_next_lockchain(*pos - 1) + 1;
 	return lc_start(m, pos);
 }
 
@@ -292,11 +269,6 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 			sum_forward_deps);
 
 	/*
-	 * Total number of dependencies:
-	 *
-	 * All irq-safe locks may nest inside irq-unsafe locks,
-	 * plus all the other known dependencies:
-	 */
 	seq_printf(m, " all direct dependencies:       %11lu\n",
 			nr_irq_unsafe * nr_irq_safe +
 			nr_hardirq_unsafe * nr_hardirq_safe +
@@ -377,8 +349,6 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 			debug_locks);
 
 	/*
-	 * Zapped classes and lockdep data buffers reuse statistics.
-	 */
 	seq_puts(m, "\n");
 	seq_printf(m, " zapped classes:                %11lu\n",
 			nr_zapped_classes);
@@ -403,9 +373,6 @@ struct lock_stat_seq {
 	struct lock_stat_data stats[MAX_LOCKDEP_KEYS];
 };
 
-/*
- * sort on absolute number of contentions
- */
 static int lock_stat_cmp(const void *l, const void *r)
 {
 	const struct lock_stat_data *dl = l, *dr = r;

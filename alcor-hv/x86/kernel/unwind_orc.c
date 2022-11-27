@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/objtool.h>
 #include <linux/module.h>
 #include <linux/sort.h>
@@ -41,11 +40,6 @@ static struct orc_entry *__orc_find(int *ip_table, struct orc_entry *u_table,
 		return NULL;
 
 	/*
-	 * Do a binary range search to find the rightmost duplicate of a given
-	 * starting address.  Some entries are section terminators which are
-	 * "weak" entries for ensuring there are no gaps.  They should be
-	 * ignored when they conflict with a real entry.
-	 */
 	while (first <= last) {
 		mid = first + ((last - first) / 2);
 
@@ -80,16 +74,6 @@ static struct orc_entry *orc_module_find(unsigned long ip)
 #ifdef CONFIG_DYNAMIC_FTRACE
 static struct orc_entry *orc_find(unsigned long ip);
 
-/*
- * Ftrace dynamic trampolines do not have orc entries of their own.
- * But they are copies of the ftrace entries that are static and
- * defined in ftrace_*.S, which do have orc entries.
- *
- * If the unwinder comes across a ftrace trampoline, then find the
- * ftrace function that was used to create it, and use that ftrace
- * function's orc entry, as the placement of the return code in
- * the stack will be identical.
- */
 static struct orc_entry *orc_ftrace_find(unsigned long ip)
 {
 	struct ftrace_ops *ops;
@@ -117,13 +101,6 @@ static struct orc_entry *orc_ftrace_find(unsigned long ip)
 }
 #endif
 
-/*
- * If we crash with IP==0, the last successfully executed instruction
- * was probably an indirect function call with a NULL function pointer,
- * and we don't have unwind information for NULL.
- * This hardcoded ORC entry for IP==0 allows us to unwind from a NULL function
- * pointer into its parent and then continue normally from there.
- */
 static struct orc_entry null_orc_entry = {
 	.sp_offset = sizeof(long),
 	.sp_reg = ORC_REG_SP,
@@ -131,7 +108,6 @@ static struct orc_entry null_orc_entry = {
 	.type = UNWIND_HINT_TYPE_CALL
 };
 
-/* Fake frame pointer entry -- used as a fallback for generated code */
 static struct orc_entry orc_fp_entry = {
 	.type		= UNWIND_HINT_TYPE_CALL,
 	.sp_reg		= ORC_REG_BP,
@@ -202,15 +178,11 @@ static void orc_sort_swap(void *_a, void *_b, int size)
 
 	/* Swap the .orc_unwind_ip entries: */
 	tmp = *a;
-	*a = *b + delta;
-	*b = tmp - delta;
 
 	/* Swap the corresponding .orc_unwind entries: */
 	orc_a = cur_orc_table + (a - cur_orc_ip_table);
 	orc_b = cur_orc_table + (b - cur_orc_ip_table);
 	orc_tmp = *orc_a;
-	*orc_a = *orc_b;
-	*orc_b = orc_tmp;
 }
 
 static int orc_sort_cmp(const void *_a, const void *_b)
@@ -226,11 +198,6 @@ static int orc_sort_cmp(const void *_a, const void *_b)
 		return -1;
 
 	/*
-	 * The "weak" section terminator entries need to always be on the left
-	 * to ensure the lookup code skips them in favor of real entries.
-	 * These terminator entries exist to handle any gaps created by
-	 * whitelisted .o files which didn't get objtool generation.
-	 */
 	orc_a = cur_orc_table + (a - cur_orc_ip_table);
 	return orc_a->sp_reg == ORC_REG_UNDEFINED && !orc_a->end ? -1 : 1;
 }
@@ -247,10 +214,6 @@ void unwind_module_init(struct module *mod, void *_orc_ip, size_t orc_ip_size,
 		     num_entries != orc_size / sizeof(*orc));
 
 	/*
-	 * The 'cur_orc_*' globals allow the orc_sort_swap() callback to
-	 * associate an .orc_unwind_ip table entry with its corresponding
-	 * .orc_unwind entry so they can both be swapped.
-	 */
 	mutex_lock(&sort_mutex);
 	cur_orc_ip_table = orc_ip;
 	cur_orc_table = orc;
@@ -279,10 +242,6 @@ void __init unwind_init(void)
 	}
 
 	/*
-	 * Note, the orc_unwind and orc_unwind_ip tables were already
-	 * sorted at build time via the 'sorttable' tool.
-	 * It's ready for binary search straight away, no need to sort it.
-	 */
 
 	/* Initialize the fast lookup table: */
 	lookup_num_blocks = orc_lookup_end - orc_lookup;
@@ -352,7 +311,6 @@ static bool deref_stack_reg(struct unwind_state *state, unsigned long addr,
 	if (!stack_access_ok(state, addr, sizeof(long)))
 		return false;
 
-	*val = READ_ONCE_NOCHECK(*(unsigned long *)addr);
 	return true;
 }
 
@@ -367,8 +325,6 @@ static bool deref_stack_regs(struct unwind_state *state, unsigned long addr,
 	if (!stack_access_ok(state, addr, sizeof(struct pt_regs)))
 		return false;
 
-	*ip = READ_ONCE_NOCHECK(regs->ip);
-	*sp = READ_ONCE_NOCHECK(regs->sp);
 	return true;
 }
 
@@ -380,19 +336,9 @@ static bool deref_stack_iret_regs(struct unwind_state *state, unsigned long addr
 	if (!stack_access_ok(state, addr, IRET_FRAME_SIZE))
 		return false;
 
-	*ip = READ_ONCE_NOCHECK(regs->ip);
-	*sp = READ_ONCE_NOCHECK(regs->sp);
 	return true;
 }
 
-/*
- * If state->regs is non-NULL, and points to a full pt_regs, just get the reg
- * value from state->regs.
- *
- * Otherwise, if state->regs just points to IRET regs, and the previous frame
- * had full regs, it's safe to get the value from the previous regs.  This can
- * happen when early/late IRQ entry code gets interrupted by an NMI.
- */
 static bool get_reg(struct unwind_state *state, unsigned int reg_off,
 		    unsigned long *val)
 {
@@ -432,22 +378,9 @@ bool unwind_next_frame(struct unwind_state *state)
 		goto the_end;
 
 	/*
-	 * Find the orc_entry associated with the text address.
-	 *
-	 * For a call frame (as opposed to a signal frame), state->ip points to
-	 * the instruction after the call.  That instruction's stack layout
-	 * could be different from the call instruction's layout, for example
-	 * if the call was to a noreturn function.  So get the ORC data for the
-	 * call instruction itself.
-	 */
 	orc = orc_find(state->signal ? state->ip : state->ip - 1);
 	if (!orc) {
 		/*
-		 * As a fallback, try to assume this code uses a frame pointer.
-		 * This is useful for generated code, like BPF, which ORC
-		 * doesn't know about.  This is just a guess, so the rest of
-		 * the unwind is no longer considered reliable.
-		 */
 		orc = &orc_fp_entry;
 		state->error = true;
 	}
@@ -549,15 +482,6 @@ bool unwind_next_frame(struct unwind_state *state)
 			goto err;
 		}
 		/*
-		 * There is a small chance to interrupt at the entry of
-		 * arch_rethook_trampoline() where the ORC info doesn't exist.
-		 * That point is right after the RET to arch_rethook_trampoline()
-		 * which was modified return address.
-		 * At that point, the @addr_p of the unwind_recover_rethook()
-		 * (this has to point the address of the stack entry storing
-		 * the modified return address) must be "SP - (a stack entry)"
-		 * because SP is incremented by the RET.
-		 */
 		state->ip = unwind_recover_rethook(state, state->ip,
 				(unsigned long *)(state->sp - sizeof(long)));
 		state->regs = (struct pt_regs *)sp;
@@ -644,10 +568,6 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 		goto err;
 
 	/*
-	 * Refuse to unwind the stack of a task while it's executing on another
-	 * CPU.  This check is racy, but that's ok: the unwinder has other
-	 * checks to prevent it from going off the rails.
-	 */
 	if (task_on_another_cpu(task))
 		goto err;
 
@@ -681,11 +601,6 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 	if (get_stack_info((unsigned long *)state->sp, state->task,
 			   &state->stack_info, &state->stack_mask)) {
 		/*
-		 * We weren't on a valid stack.  It's possible that
-		 * we overflowed a valid stack into a guard page.
-		 * See if the next page up is valid so that we can
-		 * generate some kind of backtrace if this happens.
-		 */
 		void *next_page = (void *)PAGE_ALIGN((unsigned long)state->sp);
 		state->error = true;
 		if (get_stack_info(next_page, state->task, &state->stack_info,
@@ -694,10 +609,6 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 	}
 
 	/*
-	 * The caller can provide the address of the first frame directly
-	 * (first_frame) or indirectly (regs->sp) to indicate which stack frame
-	 * to start unwinding at.  Skip ahead until we reach it.
-	 */
 
 	/* When starting from regs, skip the regs frame: */
 	if (regs) {

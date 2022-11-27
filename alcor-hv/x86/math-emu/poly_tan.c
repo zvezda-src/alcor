@@ -1,10 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  poly_tan.c                                                               |
  |                                                                           |
  | Compute the tan of a FPU_REG, using a polynomial approximation.           |
  |                                                                           |
- | Copyright (C) 1992,1993,1994,1997,1999                                    |
  |                       W. Metzenthen, 22 Parker St, Ormond, Vic 3163,      |
  |                       Australia.  E-mail   billm@melbpc.org.au            |
  |                                                                           |
@@ -45,7 +42,6 @@ static const unsigned long long evennegterm[HiPOWERen] = {
 
 static const unsigned long long twothirds = 0xaaaaaaaaaaaaaaabLL;
 
-/*--- poly_tan() ------------------------------------------------------------+
  |                                                                           |
  +---------------------------------------------------------------------------*/
 void poly_tan(FPU_REG *st0_ptr)

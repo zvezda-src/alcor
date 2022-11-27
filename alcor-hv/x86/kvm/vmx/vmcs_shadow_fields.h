@@ -9,35 +9,13 @@ BUILD_BUG_ON(1)
 #define SHADOW_FIELD_RW(x, y)
 #endif
 
-/*
- * We do NOT shadow fields that are modified when L0
- * traps and emulates any vmx instruction (e.g. VMPTRLD,
- * VMXON...) executed by L1.
- * For example, VM_INSTRUCTION_ERROR is read
- * by L1 if a vmx instruction fails (part of the error path).
- * Note the code assumes this logic. If for some reason
- * we start shadowing these fields then we need to
- * force a shadow sync when L0 emulates vmx instructions
- * (e.g. force a sync if VM_INSTRUCTION_ERROR is modified
- * by nested_vmx_failValid)
- *
- * When adding or removing fields here, note that shadowed
- * fields must always be synced by prepare_vmcs02, not just
- * prepare_vmcs02_rare.
- */
 
-/*
- * Keeping the fields ordered by size is an attempt at improving
- * branch prediction in vmcs12_read_any and vmcs12_write_any.
- */
 
-/* 16-bits */
 SHADOW_FIELD_RW(GUEST_INTR_STATUS, guest_intr_status)
 SHADOW_FIELD_RW(GUEST_PML_INDEX, guest_pml_index)
 SHADOW_FIELD_RW(HOST_FS_SELECTOR, host_fs_selector)
 SHADOW_FIELD_RW(HOST_GS_SELECTOR, host_gs_selector)
 
-/* 32-bits */
 SHADOW_FIELD_RO(VM_EXIT_REASON, vm_exit_reason)
 SHADOW_FIELD_RO(VM_EXIT_INTR_INFO, vm_exit_intr_info)
 SHADOW_FIELD_RO(VM_EXIT_INSTRUCTION_LEN, vm_exit_instruction_len)
@@ -56,7 +34,6 @@ SHADOW_FIELD_RW(TPR_THRESHOLD, tpr_threshold)
 SHADOW_FIELD_RW(GUEST_INTERRUPTIBILITY_INFO, guest_interruptibility_info)
 SHADOW_FIELD_RW(VMX_PREEMPTION_TIMER_VALUE, vmx_preemption_timer_value)
 
-/* Natural width */
 SHADOW_FIELD_RO(EXIT_QUALIFICATION, exit_qualification)
 SHADOW_FIELD_RO(GUEST_LINEAR_ADDRESS, guest_linear_address)
 SHADOW_FIELD_RW(GUEST_RIP, guest_rip)
@@ -71,7 +48,6 @@ SHADOW_FIELD_RW(CR4_READ_SHADOW, cr4_read_shadow)
 SHADOW_FIELD_RW(HOST_FS_BASE, host_fs_base)
 SHADOW_FIELD_RW(HOST_GS_BASE, host_gs_base)
 
-/* 64-bit */
 SHADOW_FIELD_RO(GUEST_PHYSICAL_ADDRESS, guest_physical_address)
 SHADOW_FIELD_RO(GUEST_PHYSICAL_ADDRESS_HIGH, guest_physical_address)
 

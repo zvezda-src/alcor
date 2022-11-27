@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Intel CE4100  platform specific setup code
- *
- * (C) Copyright 2010 Intel Corporation
- */
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/irq.h>
@@ -19,13 +13,6 @@
 #include <asm/io_apic.h>
 #include <asm/emergency-restart.h>
 
-/*
- * The CE4100 platform has an internal 8051 Microcontroller which is
- * responsible for signaling to the external Power Management Unit the
- * intention to reset, reboot or power off the system. This 8051 device has
- * its command register mapped at I/O port 0xcf9 and the value 0x4 is used
- * to power off the system.
- */
 static void ce4100_power_off(void)
 {
 	outb(0x4, 0xcf9);
@@ -39,15 +26,6 @@ static unsigned int mem_serial_in(struct uart_port *p, int offset)
 	return readl(p->membase + offset);
 }
 
-/*
- * The UART Tx interrupts are not set under some conditions and therefore serial
- * transmission hangs. This is a silicon issue and has not been root caused. The
- * workaround for this silicon issue checks UART_LSR_THRE bit and UART_LSR_TEMT
- * bit of LSR register in interrupt handler to see whether at least one of these
- * two bits is set, if so then process the transmit request. If this workaround
- * is not applied, then the serial transmission may hang. This workaround is for
- * errata number 9 in Errata - B step.
-*/
 
 static unsigned int ce4100_mem_serial_in(struct uart_port *p, int offset)
 {
@@ -84,10 +62,6 @@ static void ce4100_serial_fixup(int port, struct uart_port *up,
 {
 #ifdef CONFIG_EARLY_PRINTK
 	/*
-	 * Over ride the legacy port configuration that comes from
-	 * asm/serial.h. Using the ioport driver then switching to the
-	 * PCI memmaped driver hangs the IOAPIC
-	 */
 	if (up->iotype !=  UPIO_MEM32) {
 		up->uartclk  = 14745600;
 		up->mapbase = 0xdffe0200;
@@ -107,7 +81,6 @@ static void ce4100_serial_fixup(int port, struct uart_port *up,
 	up->serial_in = ce4100_mem_serial_in;
 	up->serial_out = ce4100_mem_serial_out;
 
-	*capabilities |= (1 << 12);
 }
 
 static __init void sdv_serial_fixup(void)
@@ -129,10 +102,6 @@ static void sdv_pci_init(void)
 	x86_of_pci_init();
 }
 
-/*
- * CE4100 specific x86_init function overrides and early setup
- * calls.
- */
 void __init x86_ce4100_early_setup(void)
 {
 	x86_init.oem.arch_setup = sdv_arch_setup;
@@ -144,12 +113,6 @@ void __init x86_ce4100_early_setup(void)
 	x86_init.pci.init_irq = sdv_pci_init;
 
 	/*
-	 * By default, the reboot method is ACPI which is supported by the
-	 * CE4100 bootloader CEFDK using FADT.ResetReg Address and ResetValue
-	 * the bootloader will however issue a system power off instead of
-	 * reboot. By using BOOT_KBD we ensure proper system reboot as
-	 * expected.
-	 */
 	reboot_type = BOOT_KBD;
 
 	pm_power_off = ce4100_power_off;

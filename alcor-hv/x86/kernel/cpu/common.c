@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* cpu_feature_enabled() cannot be used this early */
 #define USE_EARLY_PGTABLE_L5
 
 #include <linux/memblock.h>
@@ -66,19 +64,15 @@
 
 u32 elf_hwcap2 __read_mostly;
 
-/* all of these masks are initialized in setup_cpu_local_masks() */
 cpumask_var_t cpu_initialized_mask;
 cpumask_var_t cpu_callout_mask;
 cpumask_var_t cpu_callin_mask;
 
-/* representing cpus for which sibling maps can be computed */
 cpumask_var_t cpu_sibling_setup_mask;
 
-/* Number of siblings per CPU package */
 int smp_num_siblings = 1;
 EXPORT_SYMBOL(smp_num_siblings);
 
-/* Last level cache ID of each logical CPU */
 DEFINE_PER_CPU_READ_MOSTLY(u16, cpu_llc_id) = BAD_APICID;
 
 u16 get_llc_id(unsigned int cpu)
@@ -87,7 +81,6 @@ u16 get_llc_id(unsigned int cpu)
 }
 EXPORT_SYMBOL_GPL(get_llc_id);
 
-/* L2 cache ID of each logical CPU */
 DEFINE_PER_CPU_READ_MOSTLY(u16, cpu_l2c_id) = BAD_APICID;
 
 static struct ppin_info {
@@ -137,9 +130,6 @@ static void ppin_init(struct cpuinfo_x86 *c)
 		return;
 
 	/*
-	 * Testing the presence of the MSR is not enough. Need to check
-	 * that the PPIN_CTL allows reading of the PPIN.
-	 */
 	info = (struct ppin_info *)id->driver_data;
 
 	if (rdmsrl_safe(info->msr_ppin_ctl, &val))
@@ -167,7 +157,6 @@ clear_ppin:
 	clear_cpu_cap(c, info->feature);
 }
 
-/* correctly size the local cpu masks */
 void __init setup_cpu_local_masks(void)
 {
 	alloc_bootmem_cpumask_var(&cpu_initialized_mask);
@@ -204,13 +193,6 @@ static const struct cpu_dev *this_cpu = &default_cpu;
 DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 #ifdef CONFIG_X86_64
 	/*
-	 * We need valid kernel segments for data and code in long mode too
-	 * IRET will check the segment types  kkeil 2000/10/28
-	 * Also sysret mandates a special GDT layout
-	 *
-	 * TLS descriptors are currently at a different place compared to i386.
-	 * Hopefully nobody expects them at a fixed place (Wine?)
-	 */
 	[GDT_ENTRY_KERNEL32_CS]		= GDT_ENTRY_INIT(0xc09b, 0, 0xfffff),
 	[GDT_ENTRY_KERNEL_CS]		= GDT_ENTRY_INIT(0xa09b, 0, 0xfffff),
 	[GDT_ENTRY_KERNEL_DS]		= GDT_ENTRY_INIT(0xc093, 0, 0xfffff),
@@ -223,10 +205,6 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 	[GDT_ENTRY_DEFAULT_USER_CS]	= GDT_ENTRY_INIT(0xc0fa, 0, 0xfffff),
 	[GDT_ENTRY_DEFAULT_USER_DS]	= GDT_ENTRY_INIT(0xc0f2, 0, 0xfffff),
 	/*
-	 * Segments used for calling PnP BIOS have byte granularity.
-	 * They code segments and data segments have fixed 64k limits,
-	 * the transfer segment sizes are set at run time.
-	 */
 	/* 32-bit code */
 	[GDT_ENTRY_PNPBIOS_CS32]	= GDT_ENTRY_INIT(0x409a, 0, 0xffff),
 	/* 16-bit code */
@@ -238,9 +216,6 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 	/* 16-bit data */
 	[GDT_ENTRY_PNPBIOS_TS2]		= GDT_ENTRY_INIT(0x0092, 0, 0),
 	/*
-	 * The APM segments have byte granularity and their bases
-	 * are set at run time.  All have 64k limits.
-	 */
 	/* 32-bit code */
 	[GDT_ENTRY_APMBIOS_BASE]	= GDT_ENTRY_INIT(0x409a, 0, 0xffff),
 	/* 16-bit code */
@@ -299,18 +274,11 @@ static int __init cachesize_setup(char *str)
 }
 __setup("cachesize=", cachesize_setup);
 
-/* Standard macro to see if a specific flag is changeable */
 static inline int flag_is_changeable_p(u32 flag)
 {
 	u32 f1, f2;
 
 	/*
-	 * Cyrix and IDT cpus allow disabling of CPUID
-	 * so the code below may return different results
-	 * when it is executed before and after enabling
-	 * the CPUID. Add "volatile" to not allow gcc to
-	 * optimize the subsequent calls to this function.
-	 */
 	asm volatile ("pushfl		\n\t"
 		      "pushfl		\n\t"
 		      "popl %0		\n\t"
@@ -328,7 +296,6 @@ static inline int flag_is_changeable_p(u32 flag)
 	return ((f1^f2) & flag) != 0;
 }
 
-/* Probe for the CPUID instruction */
 int have_cpuid_p(void)
 {
 	return flag_is_changeable_p(X86_EFLAGS_ID);
@@ -405,13 +372,9 @@ static __always_inline void setup_umip(struct cpuinfo_x86 *c)
 
 out:
 	/*
-	 * Make sure UMIP is disabled in case it was enabled in a
-	 * previous boot (e.g., via kexec).
-	 */
 	cr4_clear_bits(X86_CR4_UMIP);
 }
 
-/* These bits should not change their value after CPU init is finished. */
 static const unsigned long cr4_pinned_mask =
 	X86_CR4_SMEP | X86_CR4_SMAP | X86_CR4_UMIP |
 	X86_CR4_FSGSBASE | X86_CR4_CET;
@@ -473,7 +436,6 @@ void cr4_update_irqsoff(unsigned long set, unsigned long clear)
 }
 EXPORT_SYMBOL(cr4_update_irqsoff);
 
-/* Read the CR4 shadow. */
 unsigned long cr4_read_shadow(void)
 {
 	return this_cpu_read(cpu_tlbstate.cr4);
@@ -495,11 +457,6 @@ void cr4_init(void)
 	this_cpu_write(cpu_tlbstate.cr4, cr4);
 }
 
-/*
- * Once CPU feature detection is finished (and boot params have been
- * parsed), record any of the sensitive CR bits that are set, and
- * enable CR pinning.
- */
 static void __init setup_cr_pinning(void)
 {
 	cr4_pinned_bits = this_cpu_read(cpu_tlbstate.cr4) & cr4_pinned_mask;
@@ -522,9 +479,6 @@ static __init int x86_nofsgsbase_setup(char *arg)
 }
 __setup("nofsgsbase", x86_nofsgsbase_setup);
 
-/*
- * Protection Keys are not available in 32-bit mode.
- */
 static bool pku_disabled;
 
 static __always_inline void setup_pku(struct cpuinfo_x86 *c)
@@ -533,9 +487,6 @@ static __always_inline void setup_pku(struct cpuinfo_x86 *c)
 		if (pku_disabled || !cpu_feature_enabled(X86_FEATURE_PKU))
 			return;
 		/*
-		 * Setting CR4.PKE will cause the X86_FEATURE_OSPKE cpuid
-		 * bit to be set.  Enforce it.
-		 */
 		setup_force_cpu_cap(X86_FEATURE_OSPKE);
 
 	} else if (!cpu_feature_enabled(X86_FEATURE_OSPKE)) {
@@ -551,16 +502,6 @@ static __always_inline void setup_pku(struct cpuinfo_x86 *c)
 static __init int setup_disable_pku(char *arg)
 {
 	/*
-	 * Do not clear the X86_FEATURE_PKU bit.  All of the
-	 * runtime checks are against OSPKE so clearing the
-	 * bit does nothing.
-	 *
-	 * This way, we will see "pku" in cpuinfo, but not
-	 * "ospke", which is exactly what we want.  It shows
-	 * that the CPU has PKU, but the OS has not enabled it.
-	 * This happens to be exactly how a system would look
-	 * if we disabled the config option.
-	 */
 	pr_info("x86: 'nopku' specified, disabling Memory Protection Keys\n");
 	pku_disabled = true;
 	return 1;
@@ -620,11 +561,6 @@ __noendbr void cet_disable(void)
 		wrmsrl(MSR_IA32_S_CET, 0);
 }
 
-/*
- * Some CPU features depend on higher CPUID levels, which may not always
- * be available due to CPUID level capping or broken virtualization
- * software.  Add those features to this table to auto-disable them.
- */
 struct cpuid_dependent_feature {
 	u32 feature;
 	u32 level;
@@ -647,12 +583,6 @@ static void filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 		if (!cpu_has(c, df->feature))
 			continue;
 		/*
-		 * Note: cpuid_level is set to -1 if unavailable, but
-		 * extended_extended_level is set to 0 if unavailable
-		 * and the legitimate extended levels are all negative
-		 * when signed; hence the weird messing around with
-		 * signs here...
-		 */
 		if (!((s32)df->level < 0 ?
 		     (u32)df->level > (u32)c->extended_cpuid_level :
 		     (s32)df->level > (s32)c->cpuid_level))
@@ -667,14 +597,7 @@ static void filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 	}
 }
 
-/*
- * Naming convention should be: <Name> [(<Codename>)]
- * This table only is used unless init_<vendor>() below doesn't set it;
- * in particular, if CPUID levels 0x80000002..4 are supported, this
- * isn't used
- */
 
-/* Look up CPU names by table lookup. */
 static const char *table_lookup_model(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_X86_32
@@ -697,7 +620,6 @@ static const char *table_lookup_model(struct cpuinfo_x86 *c)
 	return NULL;		/* Not found */
 }
 
-/* Aligned to unsigned long to avoid split lock in atomic bitmap ops */
 __u32 cpu_caps_cleared[NCAPINTS + NBUGINTS] __aligned(sizeof(unsigned long));
 __u32 cpu_caps_set[NCAPINTS + NBUGINTS] __aligned(sizeof(unsigned long));
 
@@ -712,11 +634,9 @@ void load_percpu_segment(int cpu)
 }
 
 #ifdef CONFIG_X86_32
-/* The 32-bit entry code needs to find cpu_entry_area. */
 DEFINE_PER_CPU(struct cpu_entry_area *, cpu_entry_area);
 #endif
 
-/* Load the original GDT from the per-cpu structure */
 void load_direct_gdt(int cpu)
 {
 	struct desc_ptr gdt_descr;
@@ -727,7 +647,6 @@ void load_direct_gdt(int cpu)
 }
 EXPORT_SYMBOL_GPL(load_direct_gdt);
 
-/* Load a fixmap remapping of the per-cpu GDT */
 void load_fixmap_gdt(int cpu)
 {
 	struct desc_ptr gdt_descr;
@@ -738,10 +657,6 @@ void load_fixmap_gdt(int cpu)
 }
 EXPORT_SYMBOL_GPL(load_fixmap_gdt);
 
-/*
- * Current gdt points %fs at the "master" per-cpu area: after this,
- * it's on the real one.
- */
 void switch_to_new_gdt(int cpu)
 {
 	/* Load the original GDT */
@@ -780,7 +695,6 @@ static void get_model_name(struct cpuinfo_x86 *c)
 		*q++ = *p++;
 	}
 
-	*(s + 1) = '\0';
 }
 
 void detect_num_cpu_cores(struct cpuinfo_x86 *c)
@@ -966,11 +880,6 @@ static void apply_forced_caps(struct cpuinfo_x86 *c)
 static void init_speculation_control(struct cpuinfo_x86 *c)
 {
 	/*
-	 * The Intel SPEC_CTRL CPUID bit implies IBRS and IBPB support,
-	 * and they also have a different bit for STIBP support. Also,
-	 * a hypervisor might have set the individual AMD bits even on
-	 * Intel CPUs, for finer-grained selection of what's available.
-	 */
 	if (cpu_has(c, X86_FEATURE_SPEC_CTRL)) {
 		set_cpu_cap(c, X86_FEATURE_IBRS);
 		set_cpu_cap(c, X86_FEATURE_IBPB);
@@ -1076,10 +985,6 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 	init_speculation_control(c);
 
 	/*
-	 * Clear/Set all flags overridden by options, after probe.
-	 * This needs to happen each time we re-probe, which may happen
-	 * several times during CPU initialization.
-	 */
 	apply_forced_caps(c);
 }
 
@@ -1106,9 +1011,6 @@ static void identify_cpu_without_cpuid(struct cpuinfo_x86 *c)
 	int i;
 
 	/*
-	 * First of all, decide if this is a 486 or higher
-	 * It's a 486 if we can modify the AC flag
-	 */
 	if (flag_is_changeable_p(X86_EFLAGS_AC))
 		c->x86 = 4;
 	else
@@ -1180,12 +1082,6 @@ static const __initconst struct x86_cpu_id cpu_vuln_whitelist[] = {
 	VULNWL_INTEL(ATOM_GOLDMONT_PLUS,	NO_MDS | NO_L1TF | NO_SWAPGS | NO_ITLB_MULTIHIT),
 
 	/*
-	 * Technically, swapgs isn't serializing on AMD (despite it previously
-	 * being documented as such in the APM).  But according to AMD, %gs is
-	 * updated non-speculatively, and the issuing of %gs-relative memory
-	 * operands will be blocked until the %gs update completes, which is
-	 * good enough for our purposes.
-	 */
 
 	VULNWL_INTEL(ATOM_TREMONT_D,		NO_ITLB_MULTIHIT),
 
@@ -1220,11 +1116,8 @@ static const __initconst struct x86_cpu_id cpu_vuln_whitelist[] = {
 	VULNBL(HYGON, family, X86_MODEL_ANY, blacklist)
 
 #define SRBDS		BIT(0)
-/* CPU is affected by X86_BUG_MMIO_STALE_DATA */
 #define MMIO		BIT(1)
-/* CPU is affected by Shared Buffers Data Sampling (SBDS), a variant of X86_BUG_MMIO_STALE_DATA */
 #define MMIO_SBDS	BIT(2)
-/* CPU is affected by RETbleed, speculating where you would not expect it */
 #define RETBLEED	BIT(3)
 
 static const struct x86_cpu_id cpu_vuln_blacklist[] __initconst = {
@@ -1322,40 +1215,18 @@ static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
 		setup_force_cpu_bug(X86_BUG_SWAPGS);
 
 	/*
-	 * When the CPU is not mitigated for TAA (TAA_NO=0) set TAA bug when:
-	 *	- TSX is supported or
-	 *	- TSX_CTRL is present
-	 *
-	 * TSX_CTRL check is needed for cases when TSX could be disabled before
-	 * the kernel boot e.g. kexec.
-	 * TSX_CTRL check alone is not sufficient for cases when the microcode
-	 * update is not present or running as guest that don't get TSX_CTRL.
-	 */
 	if (!(ia32_cap & ARCH_CAP_TAA_NO) &&
 	    (cpu_has(c, X86_FEATURE_RTM) ||
 	     (ia32_cap & ARCH_CAP_TSX_CTRL_MSR)))
 		setup_force_cpu_bug(X86_BUG_TAA);
 
 	/*
-	 * SRBDS affects CPUs which support RDRAND or RDSEED and are listed
-	 * in the vulnerability blacklist.
-	 *
-	 * Some of the implications and mitigation of Shared Buffers Data
-	 * Sampling (SBDS) are similar to SRBDS. Give SBDS same treatment as
-	 * SRBDS.
-	 */
 	if ((cpu_has(c, X86_FEATURE_RDRAND) ||
 	     cpu_has(c, X86_FEATURE_RDSEED)) &&
 	    cpu_matches(cpu_vuln_blacklist, SRBDS | MMIO_SBDS))
 		    setup_force_cpu_bug(X86_BUG_SRBDS);
 
 	/*
-	 * Processor MMIO Stale Data bug enumeration
-	 *
-	 * Affected CPU list is generally enough to enumerate the vulnerability,
-	 * but for virtualization case check for ARCH_CAP MSR bits also, VMM may
-	 * not want the guest to enumerate the bug.
-	 */
 	if (cpu_matches(cpu_vuln_blacklist, MMIO) &&
 	    !arch_cap_mmio_immune(ia32_cap))
 		setup_force_cpu_bug(X86_BUG_MMIO_STALE_DATA);
@@ -1380,15 +1251,6 @@ static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
 	setup_force_cpu_bug(X86_BUG_L1TF);
 }
 
-/*
- * The NOPL instruction is supposed to exist on all CPUs of family >= 6;
- * unfortunately, that's not true in practice because of early VIA
- * chips and (more importantly) broken virtualizers that are not easy
- * to detect. In the latter case it doesn't even *fail* reliably, so
- * probing for it doesn't even work. Disable it completely on 32-bit
- * unless we can find a reliable way to detect all the broken cases.
- * Enable it explicitly on 64-bit for non-constant inputs of cpu_has().
- */
 static void detect_nopl(void)
 {
 #ifdef CONFIG_X86_32
@@ -1398,10 +1260,6 @@ static void detect_nopl(void)
 #endif
 }
 
-/*
- * We parse cpu parameters early because fpu__init_system() is executed
- * before parse_early_param().
- */
 static void __init cpu_parse_early_param(void)
 {
 	char arg[128];
@@ -1442,9 +1300,6 @@ static void __init cpu_parse_early_param(void)
 		opt = strsep(&argptr, ",");
 
 		/*
-		 * Handle naked numbers first for feature flags which don't
-		 * have names.
-		 */
 		if (!kstrtouint(opt, 10, &bit)) {
 			if (bit < NCAPINTS * 32) {
 
@@ -1460,9 +1315,6 @@ static void __init cpu_parse_early_param(void)
 				taint++;
 			}
 			/*
-			 * The assumption is that there are no feature names with only
-			 * numbers in the name thus go to the next argument.
-			 */
 			continue;
 		}
 
@@ -1491,15 +1343,6 @@ static void __init cpu_parse_early_param(void)
 		add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
 }
 
-/*
- * Do minimum CPU detection early.
- * Fields really needed: vendor, cpuid_level, family, model, mask,
- * cache alignment.
- * The others are not touched to avoid unwanted side effects.
- *
- * WARNING: this function is only called on the boot CPU.  Don't add code
- * here that is supposed to run on all CPUs.
- */
 static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_X86_64
@@ -1552,24 +1395,10 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 
 #ifdef CONFIG_X86_32
 	/*
-	 * Regardless of whether PCID is enumerated, the SDM says
-	 * that it can't be enabled in 32-bit mode.
-	 */
 	setup_clear_cpu_cap(X86_FEATURE_PCID);
 #endif
 
 	/*
-	 * Later in the boot process pgtable_l5_enabled() relies on
-	 * cpu_feature_enabled(X86_FEATURE_LA57). If 5-level paging is not
-	 * enabled by this point we need to clear the feature bit to avoid
-	 * false-positives at the later stage.
-	 *
-	 * pgtable_l5_enabled() can be false here for several reasons:
-	 *  - 5-level paging is disabled compile-time;
-	 *  - it's 32-bit kernel;
-	 *  - machine doesn't support 5-level paging;
-	 *  - user specified 'no5lvl' in kernel command line.
-	 */
 	if (!pgtable_l5_enabled())
 		setup_clear_cpu_cap(X86_FEATURE_LA57);
 
@@ -1612,19 +1441,6 @@ void __init early_cpu_init(void)
 static bool detect_null_seg_behavior(void)
 {
 	/*
-	 * Empirically, writing zero to a segment selector on AMD does
-	 * not clear the base, whereas writing zero to a segment
-	 * selector on Intel does clear the base.  Intel's behavior
-	 * allows slightly faster context switches in the common case
-	 * where GS is unused by the prev and next threads.
-	 *
-	 * Since neither vendor documents this anywhere that I can see,
-	 * detect it directly instead of hard-coding the choice by
-	 * vendor.
-	 *
-	 * I've designated AMD's behavior as the "bug" because it's
-	 * counterintuitive and less friendly.
-	 */
 
 	unsigned long old_base, tmp;
 	rdmsrl(MSR_FS_BASE, old_base);
@@ -1647,21 +1463,12 @@ void check_null_seg_clears_base(struct cpuinfo_x86 *c)
 		return;
 
 	/*
-	 * CPUID bit above wasn't set. If this kernel is still running
-	 * as a HV guest, then the HV has decided not to advertize
-	 * that CPUID bit for whatever reason.	For example, one
-	 * member of the migration pool might be vulnerable.  Which
-	 * means, the bug is present: set the BUG flag and return.
-	 */
 	if (cpu_has(c, X86_FEATURE_HYPERVISOR)) {
 		set_cpu_bug(c, X86_BUG_NULL_SEG);
 		return;
 	}
 
 	/*
-	 * Zen2 CPUs also have this behaviour, but no CPUID bit.
-	 * 0x18 is the respective family for Hygon.
-	 */
 	if ((c->x86 == 0x17 || c->x86 == 0x18) &&
 	    detect_null_seg_behavior())
 		return;
@@ -1704,27 +1511,11 @@ static void generic_identify(struct cpuinfo_x86 *c)
 	get_model_name(c); /* Default name */
 
 	/*
-	 * ESPFIX is a strange bug.  All real CPUs have it.  Paravirt
-	 * systems that run Linux at CPL > 0 may or may not have the
-	 * issue, but, even if they have the issue, there's absolutely
-	 * nothing we can do about it because we can't use the real IRET
-	 * instruction.
-	 *
-	 * NB: For the time being, only 32-bit kernels support
-	 * X86_BUG_ESPFIX as such.  64-bit kernels directly choose
-	 * whether to apply espfix using paravirt hooks.  If any
-	 * non-paravirt system ever shows up that does *not* have the
-	 * ESPFIX issue, we can change this.
-	 */
 #ifdef CONFIG_X86_32
 	set_cpu_bug(c, X86_BUG_ESPFIX);
 #endif
 }
 
-/*
- * Validate that ACPI/mptables have the same information about the
- * effective APIC id and update the package map.
- */
 static void validate_apic_and_package_id(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
@@ -1743,9 +1534,6 @@ static void validate_apic_and_package_id(struct cpuinfo_x86 *c)
 #endif
 }
 
-/*
- * This does the hard work of actually picking apart the CPU stuff...
- */
 static void identify_cpu(struct cpuinfo_x86 *c)
 {
 	int i;
@@ -1788,15 +1576,6 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 #endif
 
 	/*
-	 * Vendor-specific initialization.  In this section we
-	 * canonicalize the feature flags, meaning if there are
-	 * features a certain CPU supports which CPUID doesn't
-	 * tell us, CPUID claiming incorrect flags, or other bugs,
-	 * we handle them here.
-	 *
-	 * At the end of this section, c->x86_capability better
-	 * indicate the features this CPU genuinely supports!
-	 */
 	if (this_cpu->c_init)
 		this_cpu->c_init(c);
 
@@ -1815,9 +1594,6 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	}
 
 	/*
-	 * The vendor-specific functions might have changed features.
-	 * Now we do "generic changes."
-	 */
 
 	/* Filter out anything that depends on CPUID levels we don't have */
 	filter_cpuid_features(c, true);
@@ -1843,17 +1619,9 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	setup_cet(c);
 
 	/*
-	 * Clear/Set all flags overridden by options, need do it
-	 * before following smp all cpus cap AND.
-	 */
 	apply_forced_caps(c);
 
 	/*
-	 * On SMP, boot_cpu_data holds the common feature set between
-	 * all CPUs; so make sure that we indicate which features are
-	 * common between the CPUs.  The first time this routine gets
-	 * executed, c == &boot_cpu_data.
-	 */
 	if (c != &boot_cpu_data) {
 		/* AND the already accumulated flags with these */
 		for (i = 0; i < NCAPINTS; i++)
@@ -1876,10 +1644,6 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 #endif
 }
 
-/*
- * Set up the CPU state needed to execute SYSENTER/SYSEXIT instructions
- * on 32-bit kernels:
- */
 #ifdef CONFIG_X86_32
 void enable_sep_cpu(void)
 {
@@ -1893,9 +1657,6 @@ void enable_sep_cpu(void)
 	tss = &per_cpu(cpu_tss_rw, cpu);
 
 	/*
-	 * We cache MSR_IA32_SYSENTER_CS's value in the TSS's ss1 field --
-	 * see the big comment in struct x86_hw_tss's definition.
-	 */
 
 	tss->x86_tss.ss1 = __KERNEL_CS;
 	wrmsr(MSR_IA32_SYSENTER_CS, tss->x86_tss.ss1, 0);
@@ -1963,10 +1724,6 @@ void print_cpu_info(struct cpuinfo_x86 *c)
 		pr_cont(")\n");
 }
 
-/*
- * clearcpuid= was already parsed in cpu_parse_early_param().  This dummy
- * function prevents it from becoming an environment variable for init.
- */
 static __init int setup_clearcpuid(char *arg)
 {
 	return 1;
@@ -1978,10 +1735,6 @@ DEFINE_PER_CPU_FIRST(struct fixed_percpu_data,
 		     fixed_percpu_data) __aligned(PAGE_SIZE) __visible;
 EXPORT_PER_CPU_SYMBOL_GPL(fixed_percpu_data);
 
-/*
- * The following percpu variables are hot.  Align current_task to
- * cacheline size such that they fall in the same cacheline.
- */
 DEFINE_PER_CPU(struct task_struct *, current_task) ____cacheline_aligned =
 	&init_task;
 EXPORT_PER_CPU_SYMBOL(current_task);
@@ -1997,15 +1750,10 @@ DEFINE_PER_CPU(unsigned long, cpu_current_top_of_stack) = TOP_OF_INIT_STACK;
 static void wrmsrl_cstar(unsigned long val)
 {
 	/*
-	 * Intel CPUs do not support 32-bit SYSCALL. Writing to MSR_CSTAR
-	 * is so far ignored by the CPU, but raises a #VE trap in a TDX
-	 * guest. Avoid the pointless write on all Intel CPUs.
-	 */
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
 		wrmsrl(MSR_CSTAR, val);
 }
 
-/* May not be marked __init: used by software suspend */
 void syscall_init(void)
 {
 	wrmsr(MSR_STAR, 0, (__USER32_CS << 16) | __KERNEL_CS);
@@ -2014,11 +1762,6 @@ void syscall_init(void)
 #ifdef CONFIG_IA32_EMULATION
 	wrmsrl_cstar((unsigned long)entry_SYSCALL_compat);
 	/*
-	 * This only works on Intel CPUs.
-	 * On AMD CPUs these MSRs are 32-bit, CPU truncates MSR_IA32_SYSENTER_EIP.
-	 * This does not cause SYSENTER to jump to the wrong location, because
-	 * AMD doesn't allow SYSENTER in long mode (either 32- or 64-bit).
-	 */
 	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
 	wrmsrl_safe(MSR_IA32_SYSENTER_ESP,
 		    (unsigned long)(cpu_entry_stack(smp_processor_id()) + 1));
@@ -2031,9 +1774,6 @@ void syscall_init(void)
 #endif
 
 	/*
-	 * Flags to clear on syscall; clear as much as possible
-	 * to minimize user space-kernel interference.
-	 */
 	wrmsrl(MSR_SYSCALL_MASK,
 	       X86_EFLAGS_CF|X86_EFLAGS_PF|X86_EFLAGS_AF|
 	       X86_EFLAGS_ZF|X86_EFLAGS_SF|X86_EFLAGS_TF|
@@ -2049,11 +1789,6 @@ EXPORT_PER_CPU_SYMBOL(current_task);
 DEFINE_PER_CPU(int, __preempt_count) = INIT_PREEMPT_COUNT;
 EXPORT_PER_CPU_SYMBOL(__preempt_count);
 
-/*
- * On x86_32, vm86 modifies tss.sp0, so sp0 isn't a reliable way to find
- * the top of the kernel stack.  Use an extra percpu variable to track the
- * top of the kernel stack directly.
- */
 DEFINE_PER_CPU(unsigned long, cpu_current_top_of_stack) =
 	(unsigned long)&init_thread_union + THREAD_SIZE;
 EXPORT_PER_CPU_SYMBOL(cpu_current_top_of_stack);
@@ -2065,9 +1800,6 @@ EXPORT_PER_CPU_SYMBOL(__stack_chk_guard);
 
 #endif	/* CONFIG_X86_64 */
 
-/*
- * Clear all 6 debug registers:
- */
 static void clear_all_debug_regs(void)
 {
 	int i;
@@ -2082,10 +1814,6 @@ static void clear_all_debug_regs(void)
 }
 
 #ifdef CONFIG_KGDB
-/*
- * Restore debug regs if using kgdbwait and you have a kernel debugger
- * connection established.
- */
 static void dbg_restore_debug_regs(void)
 {
 	if (unlikely(kgdb_connected && arch_kgdb_ops.correct_hw_break))
@@ -2099,9 +1827,6 @@ static void wait_for_master_cpu(int cpu)
 {
 #ifdef CONFIG_SMP
 	/*
-	 * wait for ACK from master CPU before continuing
-	 * with AP initialization
-	 */
 	WARN_ON(cpumask_test_and_set_cpu(cpu, cpu_initialized_mask));
 	while (!cpumask_test_cpu(cpu, cpu_callout_mask))
 		cpu_relax();
@@ -2169,17 +1894,10 @@ static inline void tss_setup_io_bitmap(struct tss_struct *tss)
 	tss->io_bitmap.prev_sequence = 0;
 	memset(tss->io_bitmap.bitmap, 0xff, sizeof(tss->io_bitmap.bitmap));
 	/*
-	 * Invalidate the extra array entry past the end of the all
-	 * permission bitmap as required by the hardware.
-	 */
 	tss->io_bitmap.mapall[IO_BITMAP_LONGS] = ~0UL;
 #endif
 }
 
-/*
- * Setup everything needed to handle exceptions from the IDT, including the IST
- * exceptions which use paranoid_entry().
- */
 void cpu_init_exception_handling(void)
 {
 	struct tss_struct *tss = this_cpu_ptr(&cpu_tss_rw);
@@ -2202,12 +1920,6 @@ void cpu_init_exception_handling(void)
 	load_current_idt();
 }
 
-/*
- * cpu_init() initializes state that is per-CPU. Some data is already
- * initialized (naturally) in the bootstrap process, such as the GDT.  We
- * reload it nevertheless, this function acts as a 'CPU state barrier',
- * nothing should get across.
- */
 void cpu_init(void)
 {
 	struct task_struct *cur = current;
@@ -2229,9 +1941,6 @@ void cpu_init(void)
 		cr4_clear_bits(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
 
 	/*
-	 * Initialize the per-CPU GDT with the boot GDT,
-	 * and set up the GDT descriptor:
-	 */
 	switch_to_new_gdt(cpu);
 
 	if (IS_ENABLED(CONFIG_X86_64)) {
@@ -2253,9 +1962,6 @@ void cpu_init(void)
 	enter_lazy_tlb(&init_mm, cur);
 
 	/*
-	 * sp0 points to the entry trampoline stack regardless of what task
-	 * is running.
-	 */
 	load_sp0((unsigned long)(cpu_entry_stack(cpu) + 1));
 
 	load_mm_ldt(&init_mm);
@@ -2277,20 +1983,12 @@ void cpu_init(void)
 void cpu_init_secondary(void)
 {
 	/*
-	 * Relies on the BP having set-up the IDT tables, which are loaded
-	 * on this CPU in cpu_init_exception_handling().
-	 */
 	cpu_init_exception_handling();
 	cpu_init();
 }
 #endif
 
 #ifdef CONFIG_MICROCODE_LATE_LOADING
-/*
- * The microcode loader calls this upon late microcode load to recheck features,
- * only when microcode has been updated. Caller holds microcode_mutex and CPU
- * hotplug lock.
- */
 void microcode_check(void)
 {
 	struct cpuinfo_x86 info;
@@ -2301,10 +1999,6 @@ void microcode_check(void)
 	info.cpuid_level = cpuid_eax(0);
 
 	/*
-	 * Copy all capability leafs to pick up the synthetic ones so that
-	 * memcmp() below doesn't fail on that. The ones coming from CPUID will
-	 * get overwritten in get_cpu_cap().
-	 */
 	memcpy(&info.x86_capability, &boot_cpu_data.x86_capability, sizeof(info.x86_capability));
 
 	get_cpu_cap(&info);
@@ -2317,9 +2011,6 @@ void microcode_check(void)
 }
 #endif
 
-/*
- * Invoked from core CPU hotplug code after hotplug operations
- */
 void arch_smt_update(void)
 {
 	/* Handle the speculative execution misfeatures */

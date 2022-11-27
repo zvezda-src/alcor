@@ -1,18 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Cryptographic API.
- *
- * Glue code for the SHA1 Secure Hash Algorithm assembler implementation using
- * Supplemental SSE3 instructions.
- *
- * This file is based on sha1_generic.c
- *
- * Copyright (c) Alan Smithee.
- * Copyright (c) Andrew McDonald <andrew@mcdonald.org.uk>
- * Copyright (c) Jean-Francois Dive <jef@linuxbe.org>
- * Copyright (c) Mathias Krause <minipli@googlemail.com>
- * Copyright (c) Chandramouli Narayanan <mouli@linux.intel.com>
- */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
@@ -36,9 +21,6 @@ static int sha1_update(struct shash_desc *desc, const u8 *data,
 		return crypto_sha1_update(desc, data, len);
 
 	/*
-	 * Make sure struct sha1_state begins directly with the SHA1
-	 * 160-bit internal state, as this is what the asm functions expect.
-	 */
 	BUILD_BUG_ON(offsetof(struct sha1_state, state) != 0);
 
 	kernel_fpu_begin();
@@ -78,7 +60,6 @@ static int sha1_ssse3_finup(struct shash_desc *desc, const u8 *data,
 	return sha1_finup(desc, data, len, out, sha1_transform_ssse3);
 }
 
-/* Add padding and return the message digest. */
 static int sha1_ssse3_final(struct shash_desc *desc, u8 *out)
 {
 	return sha1_ssse3_finup(desc, NULL, 0, out);

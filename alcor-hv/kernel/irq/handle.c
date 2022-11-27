@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (C) 1992, 1998-2006 Linus Torvalds, Ingo Molnar
- * Copyright (C) 2005-2006, Thomas Gleixner, Russell King
- *
- * This file contains the core interrupt handling code. Detailed
- * information is available in Documentation/core-api/genericirq.rst
- *
- */
 
 #include <linux/irq.h>
 #include <linux/random.h>
@@ -24,12 +15,6 @@
 void (*handle_arch_irq)(struct pt_regs *) __ro_after_init;
 #endif
 
-/**
- * handle_bad_irq - handle spurious and unhandled irqs
- * @desc:      description of the interrupt
- *
- * Handles spurious and unhandled IRQ's. It also prints a debugmessage.
- */
 void handle_bad_irq(struct irq_desc *desc)
 {
 	unsigned int irq = irq_desc_get_irq(desc);
@@ -40,9 +25,6 @@ void handle_bad_irq(struct irq_desc *desc)
 }
 EXPORT_SYMBOL_GPL(handle_bad_irq);
 
-/*
- * Special, empty irq handler:
- */
 irqreturn_t no_action(int cpl, void *dev_id)
 {
 	return IRQ_NONE;
@@ -61,76 +43,17 @@ static void warn_no_thread(unsigned int irq, struct irqaction *action)
 void __irq_wake_thread(struct irq_desc *desc, struct irqaction *action)
 {
 	/*
-	 * In case the thread crashed and was killed we just pretend that
-	 * we handled the interrupt. The hardirq handler has disabled the
-	 * device interrupt, so no irq storm is lurking.
-	 */
 	if (action->thread->flags & PF_EXITING)
 		return;
 
 	/*
-	 * Wake up the handler thread for this action. If the
-	 * RUNTHREAD bit is already set, nothing to do.
-	 */
 	if (test_and_set_bit(IRQTF_RUNTHREAD, &action->thread_flags))
 		return;
 
 	/*
-	 * It's safe to OR the mask lockless here. We have only two
-	 * places which write to threads_oneshot: This code and the
-	 * irq thread.
-	 *
-	 * This code is the hard irq context and can never run on two
-	 * cpus in parallel. If it ever does we have more serious
-	 * problems than this bitmask.
-	 *
-	 * The irq threads of this irq which clear their "running" bit
-	 * in threads_oneshot are serialized via desc->lock against
-	 * each other and they are serialized against this code by
-	 * IRQS_INPROGRESS.
-	 *
-	 * Hard irq handler:
-	 *
-	 *	spin_lock(desc->lock);
-	 *	desc->state |= IRQS_INPROGRESS;
-	 *	spin_unlock(desc->lock);
-	 *	set_bit(IRQTF_RUNTHREAD, &action->thread_flags);
-	 *	desc->threads_oneshot |= mask;
-	 *	spin_lock(desc->lock);
-	 *	desc->state &= ~IRQS_INPROGRESS;
-	 *	spin_unlock(desc->lock);
-	 *
-	 * irq thread:
-	 *
-	 * again:
-	 *	spin_lock(desc->lock);
-	 *	if (desc->state & IRQS_INPROGRESS) {
-	 *		spin_unlock(desc->lock);
-	 *		while(desc->state & IRQS_INPROGRESS)
-	 *			cpu_relax();
-	 *		goto again;
-	 *	}
-	 *	if (!test_bit(IRQTF_RUNTHREAD, &action->thread_flags))
-	 *		desc->threads_oneshot &= ~mask;
-	 *	spin_unlock(desc->lock);
-	 *
-	 * So either the thread waits for us to clear IRQS_INPROGRESS
-	 * or we are waiting in the flow handler for desc->lock to be
-	 * released before we reach this point. The thread also checks
-	 * IRQTF_RUNTHREAD under desc->lock. If set it leaves
-	 * threads_oneshot untouched and runs the thread another time.
-	 */
 	desc->threads_oneshot |= action->thread_mask;
 
 	/*
-	 * We increment the threads_active counter in case we wake up
-	 * the irq thread. The irq thread decrements the counter when
-	 * it returns from the handler or in the exit path and wakes
-	 * up waiters which are stuck in synchronize_irq() when the
-	 * active count becomes zero. synchronize_irq() is serialized
-	 * against this code (hard irq handler) via IRQS_INPROGRESS
-	 * like the finalize_oneshot() code. See comment above.
-	 */
 	atomic_inc(&desc->threads_active);
 
 	wake_up_process(action->thread);
@@ -148,8 +71,6 @@ irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc)
 		irqreturn_t res;
 
 		/*
-		 * If this IRQ would be threaded under force_irqthreads, mark it so.
-		 */
 		if (irq_settings_can_thread(desc) &&
 		    !(action->flags & (IRQF_NO_THREAD | IRQF_PERCPU | IRQF_ONESHOT)))
 			lockdep_hardirq_threaded();
@@ -165,9 +86,6 @@ irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc)
 		switch (res) {
 		case IRQ_WAKE_THREAD:
 			/*
-			 * Catch drivers which return WAKE_THREAD but
-			 * did not set up a thread function
-			 */
 			if (unlikely(!action->thread_fn)) {
 				warn_no_thread(irq, action);
 				break;
@@ -224,11 +142,6 @@ int __init set_handle_irq(void (*handle_irq)(struct pt_regs *))
 	return 0;
 }
 
-/**
- * generic_handle_arch_irq - root irq handler for architectures which do no
- *                           entry accounting themselves
- * @regs:	Register file coming from the low-level handling code
- */
 asmlinkage void noinstr generic_handle_arch_irq(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __KVM_X86_VMX_INSN_H
 #define __KVM_X86_VMX_INSN_H
 
@@ -101,10 +100,6 @@ do_exception:
 		     "ja 3f\n\t"
 
 		     /*
-		      * VMREAD failed.  Push '0' for @fault, push the failing
-		      * @field, and bounce through the trampoline to preserve
-		      * volatile registers.
-		      */
 		     "xorl %k1, %k1\n\t"
 		     "2:\n\t"
 		     "push %1\n\t"
@@ -112,9 +107,6 @@ do_exception:
 		     "call vmread_error_trampoline\n\t"
 
 		     /*
-		      * Unwind the stack.  Note, the trampoline zeros out the
-		      * memory for @fault so that the result is '0' on error.
-		      */
 		     "pop %2\n\t"
 		     "pop %1\n\t"
 		     "3:\n\t"

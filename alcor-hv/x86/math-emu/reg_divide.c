@@ -1,10 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  reg_divide.c                                                             |
  |                                                                           |
  | Divide one FPU_REG by another and put the result in a destination FPU_REG.|
  |                                                                           |
- | Copyright (C) 1996                                                        |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
  |                  E-mail   billm@jacobi.maths.monash.edu.au                |
  |                                                                           |
@@ -13,7 +10,6 @@
  |                                                                           |
  +---------------------------------------------------------------------------*/
 
-/*---------------------------------------------------------------------------+
  | The destination may be any FPU_REG, including one of the source FPU_REGs. |
  +---------------------------------------------------------------------------*/
 
@@ -22,9 +18,6 @@
 #include "fpu_emu.h"
 #include "fpu_system.h"
 
-/*
-  Divide one register by another and put the result into a third register.
-  */
 int FPU_div(int flags, int rm, int control_w)
 {
 	FPU_REG x, y;

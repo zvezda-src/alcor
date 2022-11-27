@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Module kallsyms support
- *
- * Copyright (C) 2010 Rusty Russell
- */
 
 #include <linux/module.h>
 #include <linux/kallsyms.h>
@@ -11,7 +5,6 @@
 #include <linux/bsearch.h>
 #include "internal.h"
 
-/* Lookup exported symbol in given range of kernel_symbols */
 static const struct kernel_symbol *lookup_exported_symbol(const char *name,
 							  const struct kernel_symbol *start,
 							  const struct kernel_symbol *stop)
@@ -33,7 +26,6 @@ static int is_exported(const char *name, unsigned long value,
 	return ks && kernel_symbol_value(ks) == value;
 }
 
-/* As per nm */
 static char elf_type(const Elf_Sym *sym, const struct load_info *info)
 {
 	const Elf_Shdr *sechdrs = info->sechdrs;
@@ -100,13 +92,6 @@ static bool is_core_symbol(const Elf_Sym *src, const Elf_Shdr *sechdrs,
 	return true;
 }
 
-/*
- * We only allocate and copy the strings needed by the parts of symtab
- * we keep.  This is simple, but has the effect of making multiple
- * copies of duplicates.  We could be more sophisticated, see
- * linux-kernel thread starting with
- * <73defb5e4bca04a6431392cc341112b1@localhost>.
- */
 void layout_symtab(struct module *mod, struct load_info *info)
 {
 	Elf_Shdr *symsect = info->sechdrs + info->index.sym;
@@ -158,11 +143,6 @@ void layout_symtab(struct module *mod, struct load_info *info)
 	mod->init_layout.size = strict_align(mod->init_layout.size);
 }
 
-/*
- * We use the full symtab and strtab which layout_symtab arranged to
- * be appended to the init section.  Later we switch to the cut-down
- * core-only ones.
- */
 void add_kallsyms(struct module *mod, const struct load_info *info)
 {
 	unsigned int i, ndst;
@@ -186,9 +166,6 @@ void add_kallsyms(struct module *mod, const struct load_info *info)
 	rcu_dereference(mod->kallsyms)->typetab = mod->init_layout.base + info->init_typeoffs;
 
 	/*
-	 * Now populate the cut down core kallsyms for after init
-	 * and set types up while we still have access to sections.
-	 */
 	mod->core_kallsyms.symtab = dst = mod->data_layout.base + info->symoffs;
 	mod->core_kallsyms.strtab = s = mod->data_layout.base + info->stroffs;
 	mod->core_kallsyms.typetab = mod->data_layout.base + info->core_typeoffs;
@@ -238,10 +215,6 @@ void init_build_id(struct module *mod, const struct load_info *info)
 }
 #endif
 
-/*
- * This ignores the intensely annoying "mapping symbols" found
- * in ARM ELF files: $a, $t and $d.
- */
 static inline int is_arm_mapping_symbol(const char *str)
 {
 	if (str[0] == '.' && str[1] == 'L')
@@ -255,10 +228,6 @@ static const char *kallsyms_symbol_name(struct mod_kallsyms *kallsyms, unsigned 
 	return kallsyms->strtab + kallsyms->symtab[symnum].st_name;
 }
 
-/*
- * Given a module and address, find the corresponding symbol and return its name
- * while providing its size and offset if needed.
- */
 static const char *find_kallsyms_symbol(struct module *mod,
 					unsigned long addr,
 					unsigned long *size,
@@ -277,9 +246,6 @@ static const char *find_kallsyms_symbol(struct module *mod,
 	bestval = kallsyms_symbol_value(&kallsyms->symtab[best]);
 
 	/*
-	 * Scan for closest preceding symbol, and next symbol. (ELF
-	 * starts real symbols at 1).
-	 */
 	for (i = 1; i < kallsyms->num_symtab; i++) {
 		const Elf_Sym *sym = &kallsyms->symtab[i];
 		unsigned long thisval = kallsyms_symbol_value(sym);
@@ -288,9 +254,6 @@ static const char *find_kallsyms_symbol(struct module *mod,
 			continue;
 
 		/*
-		 * We ignore unnamed symbols: they're uninformative
-		 * and inserted at a whim.
-		 */
 		if (*kallsyms_symbol_name(kallsyms, i) == '\0' ||
 		    is_arm_mapping_symbol(kallsyms_symbol_name(kallsyms, i)))
 			continue;
@@ -320,10 +283,6 @@ void * __weak dereference_module_function_descriptor(struct module *mod,
 	return ptr;
 }
 
-/*
- * For kallsyms to ask for address resolution.  NULL means not found.  Careful
- * not to lock to avoid deadlock on oopses, simply disable preemption.
- */
 const char *module_address_lookup(unsigned long addr,
 				  unsigned long *size,
 			    unsigned long *offset,
@@ -441,7 +400,6 @@ int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 	return -ERANGE;
 }
 
-/* Given a module and name of symbol, find and return the symbol's value */
 unsigned long find_kallsyms_symbol_value(struct module *mod, const char *name)
 {
 	unsigned int i;
@@ -457,7 +415,6 @@ unsigned long find_kallsyms_symbol_value(struct module *mod, const char *name)
 	return 0;
 }
 
-/* Look for this name: can be of form module:name. */
 unsigned long module_kallsyms_lookup_name(const char *name)
 {
 	struct module *mod;

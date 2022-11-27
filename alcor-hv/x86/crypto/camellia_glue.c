@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Glue Code for assembler optimized version of Camellia
- *
- * Copyright (c) 2012 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
- *
- * Camellia parts based on code by:
- *  Copyright (C) 2006 NTT (Nippon Telegraph and Telephone Corporation)
- */
 
 #include <asm/unaligned.h>
 #include <linux/crypto.h>
@@ -18,14 +9,12 @@
 #include "camellia.h"
 #include "ecb_cbc_helpers.h"
 
-/* regular block cipher functions */
 asmlinkage void __camellia_enc_blk(const void *ctx, u8 *dst, const u8 *src,
 				   bool xor);
 EXPORT_SYMBOL_GPL(__camellia_enc_blk);
 asmlinkage void camellia_dec_blk(const void *ctx, u8 *dst, const u8 *src);
 EXPORT_SYMBOL_GPL(camellia_dec_blk);
 
-/* 2-way parallel cipher functions */
 asmlinkage void __camellia_enc_blk_2way(const void *ctx, u8 *dst, const u8 *src,
 					bool xor);
 EXPORT_SYMBOL_GPL(__camellia_enc_blk_2way);
@@ -42,7 +31,6 @@ static void camellia_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 	camellia_dec_blk(crypto_tfm_ctx(tfm), dst, src);
 }
 
-/* camellia sboxes */
 __visible const u64 camellia_sp10011110[256] = {
 	0x7000007070707000ULL, 0x8200008282828200ULL, 0x2c00002c2c2c2c00ULL,
 	0xec0000ecececec00ULL, 0xb30000b3b3b3b300ULL, 0x2700002727272700ULL,
@@ -755,7 +743,6 @@ __visible const u64 camellia_sp11101110[256] = {
 	0x9e9e9e009e9e9e00ULL,
 };
 
-/* key constants */
 #define CAMELLIA_SIGMA1L (0xA09E667FL)
 #define CAMELLIA_SIGMA1R (0x3BCC908BL)
 #define CAMELLIA_SIGMA2L (0xB67AE858L)
@@ -769,7 +756,6 @@ __visible const u64 camellia_sp11101110[256] = {
 #define CAMELLIA_SIGMA6L (0xB05688C2L)
 #define CAMELLIA_SIGMA6R (0xB3E6C1FDL)
 
-/* macros */
 #define ROLDQ(l, r, bits) ({ \
 	u64 t = l;					\
 	l = (l << bits) | (r >> (64 - bits));		\
@@ -1362,11 +1348,6 @@ static bool is_blacklisted_cpu(void)
 
 	if (boot_cpu_data.x86 == 0x0f) {
 		/*
-		 * On Pentium 4, camellia-asm is slower than original assembler
-		 * implementation because excessive uses of 64bit rotate and
-		 * left-shifts (which are really slow on P4) needed to store and
-		 * handle 128bit block in two 64bit registers.
-		 */
 		return true;
 	}
 

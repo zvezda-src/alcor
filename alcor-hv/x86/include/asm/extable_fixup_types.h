@@ -1,12 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_EXTABLE_FIXUP_TYPES_H
 #define _ASM_X86_EXTABLE_FIXUP_TYPES_H
 
-/*
- * Our IMM is signed, as such it must live at the top end of the word. Also,
- * since C99 hex constants are of ambigious type, force cast the mask to 'int'
- * so that FIELD_GET() will DTRT and sign extend the value when it extracts it.
- */
 #define EX_DATA_TYPE_MASK		((int)0x000000FF)
 #define EX_DATA_REG_MASK		((int)0x00000F00)
 #define EX_DATA_FLAG_MASK		((int)0x0000F000)
@@ -20,18 +14,15 @@
 #define EX_DATA_FLAG(flag)		((flag) << EX_DATA_FLAG_SHIFT)
 #define EX_DATA_IMM(imm)		((imm) << EX_DATA_IMM_SHIFT)
 
-/* segment regs */
 #define EX_REG_DS			EX_DATA_REG(8)
 #define EX_REG_ES			EX_DATA_REG(9)
 #define EX_REG_FS			EX_DATA_REG(10)
 #define EX_REG_GS			EX_DATA_REG(11)
 
-/* flags */
 #define EX_FLAG_CLEAR_AX		EX_DATA_FLAG(1)
 #define EX_FLAG_CLEAR_DX		EX_DATA_FLAG(2)
 #define EX_FLAG_CLEAR_AX_DX		EX_DATA_FLAG(3)
 
-/* types */
 #define	EX_TYPE_NONE			 0
 #define	EX_TYPE_DEFAULT			 1
 #define	EX_TYPE_FAULT			 2

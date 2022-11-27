@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Copyright (C) 2013 Advanced Micro Devices, Inc.
- *
- * Author: Steven Kinney <Steven.Kinney@amd.com>
- * Author: Suravee Suthikulpanit <Suraveee.Suthikulpanit@amd.com>
- *
- * Perf: amd_iommu - AMD IOMMU Performance Counter PMU implementation
- */
 
 #define pr_fmt(fmt)	"perf/amd_iommu: " fmt
 
@@ -19,13 +10,11 @@
 #include "../perf_event.h"
 #include "iommu.h"
 
-/* iommu pmu conf masks */
 #define GET_CSOURCE(x)     ((x)->conf & 0xFFULL)
 #define GET_DEVID(x)       (((x)->conf >> 8)  & 0xFFFFULL)
 #define GET_DOMID(x)       (((x)->conf >> 24) & 0xFFFFULL)
 #define GET_PASID(x)       (((x)->conf >> 40) & 0xFFFFFULL)
 
-/* iommu pmu conf1 masks */
 #define GET_DEVID_MASK(x)  ((x)->conf1  & 0xFFFFULL)
 #define GET_DOMID_MASK(x)  (((x)->conf1 >> 16) & 0xFFFFULL)
 #define GET_PASID_MASK(x)  (((x)->conf1 >> 32) & 0xFFFFFULL)
@@ -45,9 +34,6 @@ struct perf_amd_iommu {
 
 static LIST_HEAD(perf_amd_iommu_list);
 
-/*---------------------------------------------
- * sysfs format attributes
- *---------------------------------------------*/
 PMU_FORMAT_ATTR(csource,    "config:0-7");
 PMU_FORMAT_ATTR(devid,      "config:8-23");
 PMU_FORMAT_ATTR(domid,      "config:24-39");
@@ -72,9 +58,6 @@ static struct attribute_group amd_iommu_format_group = {
 	.attrs = iommu_format_attrs,
 };
 
-/*---------------------------------------------
- * sysfs events attributes
- *---------------------------------------------*/
 static struct attribute_group amd_iommu_events_group = {
 	.name = "events",
 };
@@ -126,9 +109,6 @@ static struct amd_iommu_event_desc amd_iommu_v2_event_descs[] = {
 	{ /* end: all zeroes */ },
 };
 
-/*---------------------------------------------
- * sysfs cpumask attributes
- *---------------------------------------------*/
 static cpumask_t iommu_cpumask;
 
 static ssize_t _iommu_cpumask_show(struct device *dev,
@@ -148,7 +128,6 @@ static struct attribute_group amd_iommu_cpumask_group = {
 	.attrs = iommu_cpumask_attrs,
 };
 
-/*---------------------------------------------*/
 
 static int get_next_avail_iommu_bnk_cntr(struct perf_event *event)
 {
@@ -212,10 +191,6 @@ static int perf_iommu_event_init(struct perf_event *event)
 		return -ENOENT;
 
 	/*
-	 * IOMMU counters are shared across all cores.
-	 * Therefore, it does not support per-process mode.
-	 * Also, it does not support event sampling mode.
-	 */
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
 		return -EINVAL;
 
@@ -285,10 +260,6 @@ static void perf_iommu_start(struct perf_event *event, int flags)
 	hwc->state = 0;
 
 	/*
-	 * To account for power-gating, which prevents write to
-	 * the counter, we need to enable the counter
-	 * before setting up counter register.
-	 */
 	perf_iommu_enable_event(event);
 
 	if (flags & PERF_EF_RELOAD) {
@@ -296,9 +267,6 @@ static void perf_iommu_start(struct perf_event *event, int flags)
 		struct amd_iommu *iommu = perf_event_2_iommu(event);
 
 		/*
-		 * Since the IOMMU PMU only support counting mode,
-		 * the counter always start with value zero.
-		 */
 		amd_iommu_pc_set_reg(iommu, hwc->iommu_bank, hwc->iommu_cntr,
 				     IOMMU_PC_COUNTER_REG, &count);
 	}
@@ -320,9 +288,6 @@ static void perf_iommu_read(struct perf_event *event)
 	count &= GENMASK_ULL(47, 0);
 
 	/*
-	 * Since the counter always start with value zero,
-	 * simply just accumulate the count for the event.
-	 */
 	local64_add(count, &event->count);
 }
 
@@ -334,9 +299,6 @@ static void perf_iommu_stop(struct perf_event *event, int flags)
 		return;
 
 	/*
-	 * To account for power-gating, in which reading the counter would
-	 * return zero, we need to read the register before disabling.
-	 */
 	perf_iommu_read(event);
 	hwc->state |= PERF_HES_UPTODATE;
 
@@ -466,10 +428,6 @@ static __init int amd_iommu_pc_init(void)
 		return ret;
 
 	/*
-	 * An IOMMU PMU is specific to an IOMMU, and can function independently.
-	 * So we go through all IOMMUs and ignore the one that fails init
-	 * unless all IOMMU are failing.
-	 */
 	for (i = 0; i < amd_iommu_get_num_iommus(); i++) {
 		ret = init_one_iommu(i);
 		if (!ret)

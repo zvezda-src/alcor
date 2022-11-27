@@ -1,65 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
 
-/*
- * Xen leaves the responsibility for maintaining p2m mappings to the
- * guests themselves, but it must also access and update the p2m array
- * during suspend/resume when all the pages are reallocated.
- *
- * The logical flat p2m table is mapped to a linear kernel memory area.
- * For accesses by Xen a three-level tree linked via mfns only is set up to
- * allow the address space to be sparse.
- *
- *               Xen
- *                |
- *          p2m_top_mfn
- *              /   \
- * p2m_mid_mfn p2m_mid_mfn
- *         /           /
- *  p2m p2m p2m ...
- *
- * The p2m_mid_mfn pages are mapped by p2m_top_mfn_p.
- *
- * The p2m_top_mfn level is limited to 1 page, so the maximum representable
- * pseudo-physical address space is:
- *  P2M_TOP_PER_PAGE * P2M_MID_PER_PAGE * P2M_PER_PAGE pages
- *
- * P2M_PER_PAGE depends on the architecture, as a mfn is always
- * unsigned long (8 bytes on 64-bit, 4 bytes on 32), leading to
- * 512 and 1024 entries respectively.
- *
- * In short, these structures contain the Machine Frame Number (MFN) of the PFN.
- *
- * However not all entries are filled with MFNs. Specifically for all other
- * leaf entries, or for the top  root, or middle one, for which there is a void
- * entry, we assume it is  "missing". So (for example)
- *  pfn_to_mfn(0x90909090)=INVALID_P2M_ENTRY.
- * We have a dedicated page p2m_missing with all entries being
- * INVALID_P2M_ENTRY. This page may be referenced multiple times in the p2m
- * list/tree in case there are multiple areas with P2M_PER_PAGE invalid pfns.
- *
- * We also have the possibility of setting 1-1 mappings on certain regions, so
- * that:
- *  pfn_to_mfn(0xc0000)=0xc0000
- *
- * The benefit of this is, that we can assume for non-RAM regions (think
- * PCI BARs, or ACPI spaces), we can create mappings easily because we
- * get the PFN value to match the MFN.
- *
- * For this to work efficiently we have one new page p2m_identity. All entries
- * in p2m_identity are set to INVALID_P2M_ENTRY type (Xen toolstack only
- * recognizes that and MFNs, no other fancy value).
- *
- * On lookup we spot that the entry points to p2m_identity and return the
- * identity value instead of dereferencing and returning INVALID_P2M_ENTRY.
- * If the entry points to an allocated page, we just proceed as before and
- * return the PFN. If the PFN has IDENTITY_FRAME_BIT set we unmask that in
- * appropriate functions (pfn_to_mfn).
- *
- * The reason for having the IDENTITY_FRAME_BIT instead of just returning the
- * PFN is that we could find ourselves where pfn_to_mfn(pfn)==pfn for a
- * non-identity pfn. To protect ourselves against we elect to set (and get) the
- * IDENTITY_FRAME_BIT on all identity mapped PFNs.
- */
 
 #include <linux/init.h>
 #include <linux/export.h>
@@ -114,13 +53,6 @@ static unsigned long *p2m_identity;
 static pte_t *p2m_missing_pte;
 static pte_t *p2m_identity_pte;
 
-/*
- * Hint at last populated PFN.
- *
- * Used to set HYPERVISOR_shared_info->arch.max_pfn so the toolstack
- * can avoid scanning the whole P2M (which may be sized to account for
- * hotplugged memory).
- */
 static unsigned long xen_p2m_last_pfn;
 
 static inline unsigned p2m_top_index(unsigned long pfn)
@@ -204,16 +136,6 @@ static void __ref free_p2m_page(void *p)
 	free_page((unsigned long)p);
 }
 
-/*
- * Build the parallel p2m_top_mfn and p2m_mid_mfn structures
- *
- * This is called both at boot time, and after resuming from suspend:
- * - At boot time we're called rather early, and must use alloc_bootmem*()
- *   to allocate memory.
- *
- * - After resume we're called from within stop_machine, but the mfn
- *   tree should already be completely allocated.
- */
 void __ref xen_build_mfn_list_list(void)
 {
 	unsigned long pfn, mfn;
@@ -291,7 +213,6 @@ void xen_setup_mfn_list_list(void)
 		xen_pfn_to_cr3(virt_to_mfn(swapper_pg_dir));
 }
 
-/* Set up p2m_top to point to the domain-builder provided p2m pages */
 void __init xen_build_dynamic_phys_to_machine(void)
 {
 	unsigned long pfn;
@@ -355,15 +276,6 @@ static void __init xen_rebuild_p2m_list(unsigned long *p2m)
 
 	for (pfn = 0; pfn < xen_max_p2m_pfn; pfn += chunk) {
 		/*
-		 * Try to map missing/identity PMDs or p2m-pages if possible.
-		 * We have to respect the structure of the mfn_list_list
-		 * which will be built just afterwards.
-		 * Chunk size to test is one p2m page if we are in the middle
-		 * of a mfn_list_list mid page and the complete mid page area
-		 * if we are at index 0 of the mid page. Please note that a
-		 * mid page might cover more than one PMD, e.g. on 32 bit PAE
-		 * kernels.
-		 */
 		chunk = (pfn & (P2M_PER_PAGE * P2M_MID_PER_PAGE - 1)) ?
 			P2M_PER_PAGE : P2M_PER_PAGE * P2M_MID_PER_PAGE;
 
@@ -448,10 +360,6 @@ unsigned long get_phys_to_machine(unsigned long pfn)
 	BUG_ON(!ptep || level != PG_LEVEL_4K);
 
 	/*
-	 * The INVALID_P2M_ENTRY is filled in both p2m_*identity
-	 * and in p2m_*missing, so returning the INVALID_P2M_ENTRY
-	 * would be wrong.
-	 */
 	if (pte_pfn(*ptep) == PFN_DOWN(__pa(p2m_identity)))
 		return IDENTITY_FRAME(pfn);
 
@@ -459,12 +367,6 @@ unsigned long get_phys_to_machine(unsigned long pfn)
 }
 EXPORT_SYMBOL_GPL(get_phys_to_machine);
 
-/*
- * Allocate new pmd(s). It is checked whether the old pmd is still in place.
- * If not, nothing is changed. This is okay as the only reason for allocating
- * a new pmd is to replace p2m_missing_pte or p2m_identity_pte by a individual
- * pmd.
- */
 static pte_t *alloc_p2m_pmd(unsigned long addr, pte_t *pte_pg)
 {
 	pte_t *ptechk;
@@ -521,13 +423,6 @@ static pte_t *alloc_p2m_pmd(unsigned long addr, pte_t *pte_pg)
 	return lookup_address(addr, &level);
 }
 
-/*
- * Fully allocate the p2m structure for a given pfn.  We need to check
- * that both the top and mid levels are allocated, and make sure the
- * parallel mfn tree is kept in sync.  We may race with other cpus, so
- * the new pages are installed with cmpxchg; if we lose the race then
- * simply free the page we allocated and use the one that's there.
- */
 int xen_alloc_p2m_entry(unsigned long pfn)
 {
 	unsigned topidx;
@@ -657,9 +552,6 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 		return mfn == INVALID_P2M_ENTRY;
 
 	/*
-	 * The interface requires atomic updates on p2m elements.
-	 * xen_safe_write_ulong() is using an atomic store via asm().
-	 */
 	if (likely(!xen_safe_write_ulong(xen_p2m_addr + pfn, mfn)))
 		return true;
 
@@ -732,9 +624,6 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 			continue;
 
 		/*
-		 * Signal an error for this slot. This in turn requires
-		 * immediate unmapping.
-		 */
 		map_ops[i].status = GNTST_general_error;
 		unmap[0].host_addr = map_ops[i].host_addr,
 		unmap[0].handle = map_ops[i].handle;
@@ -756,9 +645,6 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 		}
 
 		/*
-		 * Pre-populate both status fields, to be recognizable in
-		 * the log message below.
-		 */
 		unmap[0].status = 1;
 		unmap[1].status = 1;
 

@@ -1,52 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * vdso2c - A vdso image preparation tool
- * Copyright (c) 2014 Andy Lutomirski and others
- *
- * vdso2c requires stripped and unstripped input.  It would be trivial
- * to fully strip the input in here, but, for reasons described below,
- * we need to write a section table.  Doing this is more or less
- * equivalent to dropping all non-allocatable sections, but it's
- * easier to let objcopy handle that instead of doing it ourselves.
- * If we ever need to do something fancier than what objcopy provides,
- * it would be straightforward to add here.
- *
- * We're keep a section table for a few reasons:
- *
- * The Go runtime had a couple of bugs: it would read the section
- * table to try to figure out how many dynamic symbols there were (it
- * shouldn't have looked at the section table at all) and, if there
- * were no SHT_SYNDYM section table entry, it would use an
- * uninitialized value for the number of symbols.  An empty DYNSYM
- * table would work, but I see no reason not to write a valid one (and
- * keep full performance for old Go programs).  This hack is only
- * needed on x86_64.
- *
- * The bug was introduced on 2012-08-31 by:
- * https://code.google.com/p/go/source/detail?r=56ea40aac72b
- * and was fixed on 2014-06-13 by:
- * https://code.google.com/p/go/source/detail?r=fc1cd5e12595
- *
- * Binutils has issues debugging the vDSO: it reads the section table to
- * find SHT_NOTE; it won't look at PT_NOTE for the in-memory vDSO, which
- * would break build-id if we removed the section table.  Binutils
- * also requires that shstrndx != 0.  See:
- * https://sourceware.org/bugzilla/show_bug.cgi?id=17064
- *
- * elfutils might not look for PT_NOTE if there is a section table at
- * all.  I don't know whether this matters for any practical purpose.
- *
- * For simplicity, rather than hacking up a partial section table, we
- * just write a mostly complete one.  We omit non-dynamic symbols,
- * though, since they're rather large.
- *
- * Once binutils gets fixed, we might be able to drop this for all but
- * the 64-bit vdso, since build-id only works in kernel RPMs, and
- * systems that update to new enough kernel RPMs will likely update
- * binutils in sync.  build-id has never worked for home-built kernel
- * RPMs without manual symlinking, and I suspect that no one ever does
- * that.
- */
 
 #include <inttypes.h>
 #include <stdint.h>
@@ -69,7 +20,6 @@
 
 const char *outfilename;
 
-/* Symbols that we need in vdso2c. */
 enum {
 	sym_vvar_start,
 	sym_vvar_page,
@@ -118,9 +68,6 @@ static void fail(const char *format, ...)
 	va_end(ap);
 }
 
-/*
- * Evil macros for little-endian reads and writes
- */
 #define GLE(x, bits, ifnot)						\
 	__builtin_choose_expr(						\
 		(sizeof(*(x)) == bits/8),				\
@@ -194,9 +141,7 @@ static void map_input(const char *name, void **addr, size_t *len, int prot)
 	tmp_len = lseek(fd, 0, SEEK_END);
 	if (tmp_len == (off_t)-1)
 		err(1, "lseek");
-	*len = (size_t)tmp_len;
 
-	*addr = mmap(NULL, tmp_len, prot, MAP_PRIVATE, fd, 0);
 	if (*addr == MAP_FAILED)
 		err(1, "mmap");
 
@@ -217,9 +162,6 @@ int main(int argc, char **argv)
 	}
 
 	/*
-	 * Figure out the struct name.  If we're writing to a .so file,
-	 * generate raw output instead.
-	 */
 	name = strdup(argv[3]);
 	namelen = strlen(name);
 	if (namelen >= 3 && !strcmp(name + namelen - 3, ".so")) {

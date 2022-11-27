@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Copyright 2006 Andi Kleen, SUSE Labs.
- *
- * Fast user context implementation of getcpu()
- */
 
 #include <linux/kernel.h>
 #include <linux/getcpu.h>

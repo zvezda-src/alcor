@@ -1,15 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * padata.c - generic interface to process data streams in parallel
- *
- * See Documentation/core-api/padata.rst for more information.
- *
- * Copyright (C) 2008, 2009 secunet Security Networks AG
- * Copyright (C) 2008, 2009 Steffen Klassert <steffen.klassert@secunet.com>
- *
- * Copyright (c) 2020 Oracle and/or its affiliates.
- * Author: Daniel Jordan <daniel.m.jordan@oracle.com>
- */
 
 #include <linux/completion.h>
 #include <linux/export.h>
@@ -61,9 +49,6 @@ static int padata_index_to_cpu(struct parallel_data *pd, int cpu_index)
 static int padata_cpu_hash(struct parallel_data *pd, unsigned int seq_nr)
 {
 	/*
-	 * Hash the sequence numbers to the cpus by taking
-	 * seq_nr mod. number of cpus in use.
-	 */
 	int cpu_index = seq_nr % cpumask_weight(pd->cpumask.pcpu);
 
 	return padata_index_to_cpu(pd, cpu_index);
@@ -148,22 +133,6 @@ static void padata_parallel_worker(struct work_struct *parallel_work)
 	local_bh_enable();
 }
 
-/**
- * padata_do_parallel - padata parallelization function
- *
- * @ps: padatashell
- * @padata: object to be parallelized
- * @cb_cpu: pointer to the CPU that the serialization callback function should
- *          run on.  If it's not in the serial cpumask of @pinst
- *          (i.e. cpumask.cbcpu), this function selects a fallback CPU and if
- *          none found, returns -EINVAL.
- *
- * The parallelization callback function will run with BHs off.
- * Note: Every object which is parallelized by padata_do_parallel
- * must be seen by padata_do_serial.
- *
- * Return: 0 on success or else negative error code.
- */
 int padata_do_parallel(struct padata_shell *ps,
 		       struct padata_priv *padata, int *cb_cpu)
 {
@@ -225,16 +194,6 @@ out:
 }
 EXPORT_SYMBOL(padata_do_parallel);
 
-/*
- * padata_find_next - Find the next object that needs serialization.
- *
- * Return:
- * * A pointer to the control struct of the next object that needs
- *   serialization, if present in one of the percpu reorder queues.
- * * NULL, if the next object that needs serialization will
- *   be parallel processed by another cpu and is not yet present in
- *   the cpu's reorder queue.
- */
 static struct padata_priv *padata_find_next(struct parallel_data *pd,
 					    bool remove_object)
 {
@@ -253,9 +212,6 @@ static struct padata_priv *padata_find_next(struct parallel_data *pd,
 	padata = list_entry(reorder->list.next, struct padata_priv, list);
 
 	/*
-	 * Checks the rare case where two or more parallel jobs have hashed to
-	 * the same CPU and one of the later ones finishes first.
-	 */
 	if (padata->seq_nr != pd->processed) {
 		spin_unlock(&reorder->lock);
 		return NULL;
@@ -280,15 +236,6 @@ static void padata_reorder(struct parallel_data *pd)
 	struct padata_list *reorder;
 
 	/*
-	 * We need to ensure that only one cpu can work on dequeueing of
-	 * the reorder queue the time. Calculating in which percpu reorder
-	 * queue the next object will arrive takes some time. A spinlock
-	 * would be highly contended. Also it is not clear in which order
-	 * the objects arrive to the reorder queues. So a cpu could wait to
-	 * get the lock just to notice that there is nothing to do at the
-	 * moment. Therefore we use a trylock and let the holder of the lock
-	 * care for all the objects enqueued during the holdtime of the lock.
-	 */
 	if (!spin_trylock_bh(&pd->lock))
 		return;
 
@@ -296,10 +243,6 @@ static void padata_reorder(struct parallel_data *pd)
 		padata = padata_find_next(pd, true);
 
 		/*
-		 * If the next object that needs serialization is parallel
-		 * processed by another cpu and is still on it's way to the
-		 * cpu's reorder queue, nothing to do for now.
-		 */
 		if (!padata)
 			break;
 
@@ -316,13 +259,6 @@ static void padata_reorder(struct parallel_data *pd)
 	spin_unlock_bh(&pd->lock);
 
 	/*
-	 * The next object that needs serialization might have arrived to
-	 * the reorder queues in the meantime.
-	 *
-	 * Ensure reorder queue is read after pd->lock is dropped so we see
-	 * new objects from another task in padata_do_serial.  Pairs with
-	 * smp_mb in padata_do_serial.
-	 */
 	smp_mb();
 
 	reorder = per_cpu_ptr(pd->reorder_list, pd->cpu);
@@ -374,14 +310,6 @@ static void padata_serial_worker(struct work_struct *serial_work)
 		padata_free_pd(pd);
 }
 
-/**
- * padata_do_serial - padata serialization function
- *
- * @padata: object to be serialized.
- *
- * padata_do_serial must be called for every parallelized object.
- * The serialization callback function will run with BHs off.
- */
 void padata_do_serial(struct padata_priv *padata)
 {
 	struct parallel_data *pd = padata->pd;
@@ -398,10 +326,6 @@ void padata_do_serial(struct padata_priv *padata)
 	spin_unlock(&reorder->lock);
 
 	/*
-	 * Ensure the addition to the reorder list is ordered correctly
-	 * with the trylock of pd->lock in padata_reorder.  Pairs with smp_mb
-	 * in padata_reorder.
-	 */
 	smp_mb();
 
 	padata_reorder(pd);
@@ -459,12 +383,6 @@ static void __init padata_mt_helper(struct work_struct *w)
 		complete(&ps->completion);
 }
 
-/**
- * padata_do_multithreaded - run a multithreaded job
- * @job: Description of the job.
- *
- * See the definition of struct padata_mt_job for more details.
- */
 void __init padata_do_multithreaded(struct padata_mt_job *job)
 {
 	/* In case threads finish at different times. */
@@ -494,11 +412,6 @@ void __init padata_do_multithreaded(struct padata_mt_job *job)
 	ps.nworks_fini = 0;
 
 	/*
-	 * Chunk size is the amount of work a helper does per call to the
-	 * thread function.  Load balance large jobs between threads by
-	 * increasing the number of chunks, guarantee at least the minimum
-	 * chunk size from the caller, and honor the caller's alignment.
-	 */
 	ps.chunk_size = job->size / (ps.nworks * load_balance_factor);
 	ps.chunk_size = max(ps.chunk_size, job->min_chunk);
 	ps.chunk_size = roundup(ps.chunk_size, job->align);
@@ -523,7 +436,6 @@ static void __padata_list_init(struct padata_list *pd_list)
 	spin_lock_init(&pd_list->lock);
 }
 
-/* Initialize all percpu queues used by serial workers */
 static void padata_init_squeues(struct parallel_data *pd)
 {
 	int cpu;
@@ -537,7 +449,6 @@ static void padata_init_squeues(struct parallel_data *pd)
 	}
 }
 
-/* Initialize per-CPU reorder lists */
 static void padata_init_reorder_list(struct parallel_data *pd)
 {
 	int cpu;
@@ -549,7 +460,6 @@ static void padata_init_reorder_list(struct parallel_data *pd)
 	}
 }
 
-/* Allocate and initialize the internal cpumask dependend resources. */
 static struct parallel_data *padata_alloc_pd(struct padata_shell *ps)
 {
 	struct padata_instance *pinst = ps->pinst;
@@ -623,7 +533,6 @@ static void __padata_stop(struct padata_instance *pinst)
 	synchronize_rcu();
 }
 
-/* Replace the internal control structure with a new one. */
 static int padata_replace_one(struct padata_shell *ps)
 {
 	struct parallel_data *pd_new;
@@ -662,7 +571,6 @@ static int padata_replace(struct padata_instance *pinst)
 	return err;
 }
 
-/* If cpumask contains no active cpu, we mark the instance as invalid. */
 static bool padata_validate_cpumask(struct padata_instance *pinst,
 				    const struct cpumask *cpumask)
 {
@@ -704,16 +612,6 @@ out_replace:
 	return err;
 }
 
-/**
- * padata_set_cpumask - Sets specified by @cpumask_type cpumask to the value
- *                      equivalent to @cpumask.
- * @pinst: padata instance
- * @cpumask_type: PADATA_CPU_SERIAL or PADATA_CPU_PARALLEL corresponding
- *                to parallel and serial cpumasks respectively.
- * @cpumask: the cpumask to use
- *
- * Return: 0 on success or negative error code
- */
 int padata_set_cpumask(struct padata_instance *pinst, int cpumask_type,
 		       cpumask_var_t cpumask)
 {
@@ -907,11 +805,6 @@ out:
 PADATA_ATTR_RW(serial_cpumask, show_cpumask, store_cpumask);
 PADATA_ATTR_RW(parallel_cpumask, show_cpumask, store_cpumask);
 
-/*
- * Padata sysfs provides the following objects:
- * serial_cpumask   [RW] - cpumask for serial workers
- * parallel_cpumask [RW] - cpumask for parallel workers
- */
 static struct attribute *padata_default_attrs[] = {
 	&serial_cpumask_attr.attr,
 	&parallel_cpumask_attr.attr,
@@ -960,12 +853,6 @@ static struct kobj_type padata_attr_type = {
 	.release = padata_sysfs_release,
 };
 
-/**
- * padata_alloc - allocate and initialize a padata instance
- * @name: used to identify the instance
- *
- * Return: new instance on success, NULL on error
- */
 struct padata_instance *padata_alloc(const char *name)
 {
 	struct padata_instance *pinst;
@@ -1032,24 +919,12 @@ err:
 }
 EXPORT_SYMBOL(padata_alloc);
 
-/**
- * padata_free - free a padata instance
- *
- * @pinst: padata instance to free
- */
 void padata_free(struct padata_instance *pinst)
 {
 	kobject_put(&pinst->kobj);
 }
 EXPORT_SYMBOL(padata_free);
 
-/**
- * padata_alloc_shell - Allocate and initialize padata shell.
- *
- * @pinst: Parent padata_instance object.
- *
- * Return: new shell on success, NULL on error
- */
 struct padata_shell *padata_alloc_shell(struct padata_instance *pinst)
 {
 	struct parallel_data *pd;
@@ -1082,11 +957,6 @@ out:
 }
 EXPORT_SYMBOL(padata_alloc_shell);
 
-/**
- * padata_free_shell - free a padata shell
- *
- * @ps: padata shell to free
- */
 void padata_free_shell(struct padata_shell *ps)
 {
 	if (!ps)

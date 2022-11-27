@@ -1,29 +1,3 @@
-/*
- * Cryptographic API.
- *
- * Glue code for the SHA512 Secure Hash Algorithm assembler
- * implementation using supplemental SSE3 / AVX / AVX2 instructions.
- *
- * This file is based on sha512_generic.c
- *
- * Copyright (C) 2013 Intel Corporation
- * Author: Tim Chen <tim.c.chen@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
- */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
@@ -51,9 +25,6 @@ static int sha512_update(struct shash_desc *desc, const u8 *data,
 		return crypto_sha512_update(desc, data, len);
 
 	/*
-	 * Make sure struct sha512_state begins directly with the SHA512
-	 * 512-bit internal state, as this is what the asm functions expect.
-	 */
 	BUILD_BUG_ON(offsetof(struct sha512_state, state) != 0);
 
 	kernel_fpu_begin();
@@ -90,7 +61,6 @@ static int sha512_ssse3_finup(struct shash_desc *desc, const u8 *data,
 	return sha512_finup(desc, data, len, out, sha512_transform_ssse3);
 }
 
-/* Add padding and return the message digest. */
 static int sha512_ssse3_final(struct shash_desc *desc, u8 *out)
 {
 	return sha512_ssse3_finup(desc, NULL, 0, out);
@@ -166,7 +136,6 @@ static int sha512_avx_finup(struct shash_desc *desc, const u8 *data,
 	return sha512_finup(desc, data, len, out, sha512_transform_avx);
 }
 
-/* Add padding and return the message digest. */
 static int sha512_avx_final(struct shash_desc *desc, u8 *out)
 {
 	return sha512_avx_finup(desc, NULL, 0, out);
@@ -232,7 +201,6 @@ static int sha512_avx2_finup(struct shash_desc *desc, const u8 *data,
 	return sha512_finup(desc, data, len, out, sha512_transform_rorx);
 }
 
-/* Add padding and return the message digest. */
 static int sha512_avx2_final(struct shash_desc *desc, u8 *out)
 {
 	return sha512_avx2_finup(desc, NULL, 0, out);

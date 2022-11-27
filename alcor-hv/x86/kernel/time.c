@@ -1,14 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- *  Copyright (c) 1991,1992,1995  Linus Torvalds
- *  Copyright (c) 1994  Alan Modra
- *  Copyright (c) 1995  Markus Kuhn
- *  Copyright (c) 1996  Ingo Molnar
- *  Copyright (c) 1998  Andrea Arcangeli
- *  Copyright (c) 2002,2006  Vojtech Pavlik
- *  Copyright (c) 2003  Andi Kleen
- *
- */
 
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
@@ -35,10 +24,6 @@ unsigned long profile_pc(struct pt_regs *regs)
 #else
 		unsigned long *sp = (unsigned long *)regs->sp;
 		/*
-		 * Return address is either directly at stack pointer
-		 * or above a saved flags. Eflags has bits 22-31 zero,
-		 * kernel addresses don't.
-		 */
 		if (sp[0] >> 22)
 			return sp[0];
 		if (sp[1] >> 22)
@@ -49,9 +34,6 @@ unsigned long profile_pc(struct pt_regs *regs)
 }
 EXPORT_SYMBOL(profile_pc);
 
-/*
- * Default timer interrupt handler for PIT/HPET
- */
 static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	global_clock_event->event_handler(global_clock_event);
@@ -63,15 +45,10 @@ static void __init setup_default_timer_irq(void)
 	unsigned long flags = IRQF_NOBALANCING | IRQF_IRQPOLL | IRQF_TIMER;
 
 	/*
-	 * Unconditionally register the legacy timer interrupt; even
-	 * without legacy PIC/PIT we need this for the HPET0 in legacy
-	 * replacement mode.
-	 */
 	if (request_irq(0, timer_interrupt, flags, "timer", NULL))
 		pr_info("Failed to register legacy timer interrupt\n");
 }
 
-/* Default timer init function */
 void __init hpet_time_init(void)
 {
 	if (!hpet_enable()) {
@@ -85,18 +62,12 @@ void __init hpet_time_init(void)
 static __init void x86_late_time_init(void)
 {
 	/*
-	 * Before PIT/HPET init, select the interrupt mode. This is required
-	 * to make the decision whether PIT should be initialized correct.
-	 */
 	x86_init.irqs.intr_mode_select();
 
 	/* Setup the legacy timers */
 	x86_init.timers.timer_init();
 
 	/*
-	 * After PIT/HPET timers init, set up the final interrupt mode for
-	 * delivering IRQs.
-	 */
 	x86_init.irqs.intr_mode_init();
 	tsc_init();
 
@@ -104,18 +75,11 @@ static __init void x86_late_time_init(void)
 		use_tpause_delay();
 }
 
-/*
- * Initialize TSC and delay the periodic timer init to
- * late x86_late_time_init() so ioremap works.
- */
 void __init time_init(void)
 {
 	late_time_init = x86_late_time_init;
 }
 
-/*
- * Sanity check the vdso related archdata content.
- */
 void clocksource_arch_init(struct clocksource *cs)
 {
 	if (cs->vdso_clock_mode == VDSO_CLOCKMODE_NONE)

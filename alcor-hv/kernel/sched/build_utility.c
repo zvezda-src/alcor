@@ -1,14 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * These are various utility functions of the scheduler,
- * built in a single compilation unit for build efficiency reasons.
- *
- * ( Incidentally, the size of the compilation unit is roughly
- *   comparable to core.c, fair.c, smp.c and policy.c, the other
- *   big compilation units. This helps balance build time, while
- *   coalescing source files to amortize header inclusion
- *   cost. )
- */
 #include <linux/sched/clock.h>
 #include <linux/sched/cputime.h>
 #include <linux/sched/debug.h>

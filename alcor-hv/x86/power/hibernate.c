@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Hibernation support for x86
- *
- * Copyright (c) 2007 Rafael J. Wysocki <rjw@sisk.pl>
- * Copyright (c) 2002 Pavel Machek <pavel@ucw.cz>
- * Copyright (c) 2001 Patrick Mochel <mochel@osdl.org>
- */
 #include <linux/gfp.h>
 #include <linux/smp.h>
 #include <linux/suspend.h>
@@ -25,24 +17,13 @@
 #include <asm/suspend.h>
 #include <asm/tlbflush.h>
 
-/*
- * Address to jump to in the last phase of restore in order to get to the image
- * kernel's text (this value is passed in the image header).
- */
 unsigned long restore_jump_address __visible;
 unsigned long jump_address_phys;
 
-/*
- * Value of the cr3 register from before the hibernation (this value is passed
- * in the image header).
- */
 unsigned long restore_cr3 __visible;
 unsigned long temp_pgt __visible;
 unsigned long relocated_restore_code __visible;
 
-/**
- *	pfn_is_nosave - check if given pfn is in the 'nosave' section
- */
 int pfn_is_nosave(unsigned long pfn)
 {
 	unsigned long nosave_begin_pfn;
@@ -62,13 +43,6 @@ struct restore_data_record {
 	unsigned long e820_checksum;
 };
 
-/**
- * compute_e820_crc32 - calculate crc32 of a given e820 table
- *
- * @table: the e820 table to be calculated
- *
- * Return: the resulting checksum
- */
 static inline u32 compute_e820_crc32(struct e820_table *table)
 {
 	int size = offsetof(struct e820_table, entries) +
@@ -83,11 +57,6 @@ static inline u32 compute_e820_crc32(struct e820_table *table)
 #define RESTORE_MAGIC	0x12345679UL
 #endif
 
-/**
- *	arch_hibernation_header_save - populate the architecture specific part
- *		of a hibernation image header
- *	@addr: address to save the data at
- */
 int arch_hibernation_header_save(void *addr, unsigned int max_size)
 {
 	struct restore_data_record *rdr = addr;
@@ -99,33 +68,12 @@ int arch_hibernation_header_save(void *addr, unsigned int max_size)
 	rdr->jump_address_phys = __pa_symbol(restore_registers);
 
 	/*
-	 * The restore code fixes up CR3 and CR4 in the following sequence:
-	 *
-	 * [in hibernation asm]
-	 * 1. CR3 <= temporary page tables
-	 * 2. CR4 <= mmu_cr4_features (from the kernel that restores us)
-	 * 3. CR3 <= rdr->cr3
-	 * 4. CR4 <= mmu_cr4_features (from us, i.e. the image kernel)
-	 * [in restore_processor_state()]
-	 * 5. CR4 <= saved CR4
-	 * 6. CR3 <= saved CR3
-	 *
-	 * Our mmu_cr4_features has CR4.PCIDE=0, and toggling
-	 * CR4.PCIDE while CR3's PCID bits are nonzero is illegal, so
-	 * rdr->cr3 needs to point to valid page tables but must not
-	 * have any of the PCID bits set.
-	 */
 	rdr->cr3 = restore_cr3 & ~CR3_PCID_MASK;
 
 	rdr->e820_checksum = compute_e820_crc32(e820_table_firmware);
 	return 0;
 }
 
-/**
- *	arch_hibernation_header_restore - read the architecture specific data
- *		from the hibernation image header
- *	@addr: address to read the data from
- */
 int arch_hibernation_header_restore(void *addr)
 {
 	struct restore_data_record *rdr = addr;
@@ -190,17 +138,6 @@ int arch_resume_nosmt(void)
 {
 	int ret = 0;
 	/*
-	 * We reached this while coming out of hibernation. This means
-	 * that SMT siblings are sleeping in hlt, as mwait is not safe
-	 * against control transition during resume (see comment in
-	 * hibernate_resume_nonboot_cpu_disable()).
-	 *
-	 * If the resumed kernel has SMT disabled, we have to take all the
-	 * SMT siblings out of hlt, and offline them again so that they
-	 * end up in mwait proper.
-	 *
-	 * Called with hotplug disabled.
-	 */
 	cpu_hotplug_enable();
 	if (cpu_smt_control == CPU_SMT_DISABLED ||
 			cpu_smt_control == CPU_SMT_FORCE_DISABLED) {

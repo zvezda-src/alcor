@@ -1,47 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Test module for in-kernel synthetic event creation and generation.
- *
- * Copyright (C) 2019 Tom Zanussi <zanussi@kernel.org>
- */
 
 #include <linux/module.h>
 #include <linux/trace_events.h>
 
-/*
- * This module is a simple test of basic functionality for in-kernel
- * synthetic event creation and generation, the first and second tests
- * using synth_event_gen_cmd_start() and synth_event_add_field(), the
- * third uses synth_event_create() to do it all at once with a static
- * field array.
- *
- * Following that are a few examples using the created events to test
- * various ways of tracing a synthetic event.
- *
- * To test, select CONFIG_SYNTH_EVENT_GEN_TEST and build the module.
- * Then:
- *
- * # insmod kernel/trace/synth_event_gen_test.ko
- * # cat /sys/kernel/debug/tracing/trace
- *
- * You should see several events in the trace buffer -
- * "create_synth_test", "empty_synth_test", and several instances of
- * "gen_synth_test".
- *
- * To remove the events, remove the module:
- *
- * # rmmod synth_event_gen_test
- *
- */
 
 static struct trace_event_file *create_synth_test;
 static struct trace_event_file *empty_synth_test;
 static struct trace_event_file *gen_synth_test;
 
-/*
- * Test to make sure we can create a synthetic event, then add more
- * fields.
- */
 static int __init test_gen_synth_cmd(void)
 {
 	struct dynevent_cmd cmd;
@@ -58,9 +23,6 @@ static int __init test_gen_synth_cmd(void)
 	synth_event_cmd_init(&cmd, buf, MAX_DYNEVENT_CMD_LEN);
 
 	/*
-	 * Create the empty gen_synth_test synthetic event with the
-	 * first 4 fields.
-	 */
 	ret = synth_event_gen_cmd_start(&cmd, "gen_synth_test", THIS_MODULE,
 					"pid_t", "next_pid_field",
 					"char[16]", "next_comm_field",
@@ -88,11 +50,6 @@ static int __init test_gen_synth_cmd(void)
 		goto free;
 
 	/*
-	 * Now get the gen_synth_test event file.  We need to prevent
-	 * the instance and event from disappearing from underneath
-	 * us, which trace_get_event_file() does (though in this case
-	 * we're using the top-level instance which never goes away).
-	 */
 	gen_synth_test = trace_get_event_file(NULL, "synthetic",
 					      "gen_synth_test");
 	if (IS_ERR(gen_synth_test)) {
@@ -131,10 +88,6 @@ static int __init test_gen_synth_cmd(void)
 	goto out;
 }
 
-/*
- * Test to make sure we can create an initially empty synthetic event,
- * then add all the fields.
- */
 static int __init test_empty_synth_event(void)
 {
 	struct dynevent_cmd cmd;
@@ -151,8 +104,6 @@ static int __init test_empty_synth_event(void)
 	synth_event_cmd_init(&cmd, buf, MAX_DYNEVENT_CMD_LEN);
 
 	/*
-	 * Create the empty_synth_test synthetic event with no fields.
-	 */
 	ret = synth_event_gen_cmd_start(&cmd, "empty_synth_test", THIS_MODULE);
 	if (ret)
 		goto free;
@@ -194,12 +145,6 @@ static int __init test_empty_synth_event(void)
 		goto free;
 
 	/*
-	 * Now get the empty_synth_test event file.  We need to
-	 * prevent the instance and event from disappearing from
-	 * underneath us, which trace_get_event_file() does (though in
-	 * this case we're using the top-level instance which never
-	 * goes away).
-	 */
 	empty_synth_test = trace_get_event_file(NULL, "synthetic",
 						"empty_synth_test");
 	if (IS_ERR(empty_synth_test)) {
@@ -250,10 +195,6 @@ static struct synth_field_desc create_synth_test_fields[] = {
 	{ .type = "int",		.name = "my_int_field" },
 };
 
-/*
- * Test synthetic event creation all at once from array of field
- * descriptors.
- */
 static int __init test_create_synth_event(void)
 {
 	u64 vals[9];
@@ -268,12 +209,6 @@ static int __init test_create_synth_event(void)
 		goto out;
 
 	/*
-	 * Now get the create_synth_test event file.  We need to
-	 * prevent the instance and event from disappearing from
-	 * underneath us, which trace_get_event_file() does (though in
-	 * this case we're using the top-level instance which never
-	 * goes away).
-	 */
 	create_synth_test = trace_get_event_file(NULL, "synthetic",
 						 "create_synth_test");
 	if (IS_ERR(create_synth_test)) {
@@ -312,10 +247,6 @@ static int __init test_create_synth_event(void)
 	goto out;
 }
 
-/*
- * Test tracing a synthetic event by reserving trace buffer space,
- * then filling in fields one after another.
- */
 static int __init test_add_next_synth_val(void)
 {
 	struct synth_event_trace_state trace_state;
@@ -367,11 +298,6 @@ static int __init test_add_next_synth_val(void)
 	return ret;
 }
 
-/*
- * Test tracing a synthetic event by reserving trace buffer space,
- * then filling in fields using field names, which can be done in any
- * order.
- */
 static int __init test_add_synth_val(void)
 {
 	struct synth_event_trace_state trace_state;
@@ -418,9 +344,6 @@ static int __init test_add_synth_val(void)
 	return ret;
 }
 
-/*
- * Test tracing a synthetic event all at once from array of values.
- */
 static int __init test_trace_synth_event(void)
 {
 	int ret;

@@ -1,12 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * platform_sst_audio.h:  sst audio platform data header file
- *
- * Copyright (C) 2012-14 Intel Corporation
- * Author: Jeeja KP <jeeja.kp@intel.com>
- * 	Omair Mohammed Abdullah <omair.m.abdullah@intel.com>
- *	Vinod Koul ,vinod.koul@intel.com>
- */
 #ifndef _PLATFORM_SST_AUDIO_H_
 #define _PLATFORM_SST_AUDIO_H_
 
@@ -20,8 +11,6 @@ enum sst_audio_task_id_mrfld {
 	SST_TASK_ID_MAX = SST_TASK_ID_MEDIA,
 };
 
-/* Device IDs for Merrifield are Pipe IDs,
- * ref: DSP spec v0.75 */
 enum sst_audio_device_id_mrfld {
 	/* Output pipeline IDs */
 	PIPE_ID_OUT_START = 0x0,
@@ -36,7 +25,6 @@ enum sst_audio_device_id_mrfld {
 	PIPE_PCM2_OUT = 0xF,
 	PIPE_MEDIA0_OUT = 0x12,
 	PIPE_MEDIA1_OUT = 0x13,
-/* Input Pipeline IDs */
 	PIPE_ID_IN_START = 0x80,
 	PIPE_CODEC_IN0 = 0x82,
 	PIPE_CODEC_IN1 = 0x83,
@@ -53,9 +41,6 @@ enum sst_audio_device_id_mrfld {
 	PIPE_RSVD = 0xFF,
 };
 
-/* The stream map for each platform consists of an array of the below
- * stream map structure.
- */
 struct sst_dev_stream_map {
 	u8 dev_num;		/* device id */
 	u8 subdev_num;		/* substream */

@@ -1,8 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- *	PCI BIOS function numbering for conventional PCI BIOS 
- *	systems
- */
 
 #define PCIBIOS_PCI_FUNCTION_ID 	0xb1XX
 #define PCIBIOS_PCI_BIOS_PRESENT 	0xb101

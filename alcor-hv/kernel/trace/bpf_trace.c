@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2011-2015 PLUMgrid, http://plumgrid.com
- * Copyright (c) 2016 Facebook
- */
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -83,20 +79,6 @@ static int bpf_btf_printf_prepare(struct btf_ptr *ptr, u32 btf_ptr_size,
 static u64 bpf_kprobe_multi_cookie(struct bpf_run_ctx *ctx);
 static u64 bpf_kprobe_multi_entry_ip(struct bpf_run_ctx *ctx);
 
-/**
- * trace_call_bpf - invoke BPF program
- * @call: tracepoint event
- * @ctx: opaque context pointer
- *
- * kprobe handlers execute BPF programs via this helper.
- * Can be used from static tracepoints in the future.
- *
- * Return: BPF programs always return an integer which is interpreted by
- * kprobe handler as:
- * 0 - return from kprobe (event is filtered out)
- * 1 - store kprobe event into ring buffer
- * Other values are reserved and currently alias to 1
- */
 unsigned int trace_call_bpf(struct trace_event_call *call, void *ctx)
 {
 	unsigned int ret;
@@ -105,30 +87,11 @@ unsigned int trace_call_bpf(struct trace_event_call *call, void *ctx)
 
 	if (unlikely(__this_cpu_inc_return(bpf_prog_active) != 1)) {
 		/*
-		 * since some bpf program is already running on this cpu,
-		 * don't call into another bpf program (same or different)
-		 * and don't send kprobe event into ring-buffer,
-		 * so return zero here
-		 */
 		ret = 0;
 		goto out;
 	}
 
 	/*
-	 * Instead of moving rcu_read_lock/rcu_dereference/rcu_read_unlock
-	 * to all call sites, we did a bpf_prog_array_valid() there to check
-	 * whether call->prog_array is empty or not, which is
-	 * a heuristic to speed up execution.
-	 *
-	 * If bpf_prog_array_valid() fetched prog_array was
-	 * non-NULL, we go into trace_call_bpf() and do the actual
-	 * proper rcu_dereference() under RCU lock.
-	 * If it turns out that prog_array is NULL then, we bail out.
-	 * For the opposite, if the bpf_prog_array_valid() fetched pointer
-	 * was NULL, you'll skip the prog_array with the risk of missing
-	 * out of events when it was updated in between this and the
-	 * rcu_dereference() which is accepted risk.
-	 */
 	rcu_read_lock();
 	ret = bpf_prog_run_array(rcu_dereference(call->prog_array),
 				 ctx, bpf_prog_run);
@@ -190,15 +153,6 @@ bpf_probe_read_user_str_common(void *dst, u32 size,
 	int ret;
 
 	/*
-	 * NB: We rely on strncpy_from_user() not copying junk past the NUL
-	 * terminator into `dst`.
-	 *
-	 * strncpy_from_user() does long-sized strides in the fast path. If the
-	 * strncpy does not mask out the bytes after the NUL in `unsafe_ptr`,
-	 * then there could be junk after the NUL in `dst`. If user takes `dst`
-	 * and keys a hash map with it, then semantically identical strings can
-	 * occupy multiple entries in the map.
-	 */
 	ret = strncpy_from_user_nofault(dst, unsafe_ptr, size);
 	if (unlikely(ret < 0))
 		memset(dst, 0, size);
@@ -252,14 +206,6 @@ bpf_probe_read_kernel_str_common(void *dst, u32 size, const void *unsafe_ptr)
 	int ret;
 
 	/*
-	 * The strncpy_from_kernel_nofault() call will likely not fill the
-	 * entire buffer, but that's okay in this circumstance as we're probing
-	 * arbitrary memory anyway similar to bpf_probe_read_*() and might
-	 * as well probe the stack. Thus, memory is explicitly cleared
-	 * only in error case, so that improper users ignoring return
-	 * code altogether don't copy garbage; otherwise length of string
-	 * is returned that can be used for bpf_perf_event_output() et al.
-	 */
 	ret = strncpy_from_kernel_nofault(dst, unsafe_ptr, size);
 	if (unlikely(ret < 0))
 		memset(dst, 0, size);
@@ -325,17 +271,6 @@ BPF_CALL_3(bpf_probe_write_user, void __user *, unsafe_ptr, const void *, src,
 	   u32, size)
 {
 	/*
-	 * Ensure we're in user context which is safe for the helper to
-	 * run. This helper has no business in a kthread.
-	 *
-	 * access_ok() should prevent writing to non-user memory, but in
-	 * some situations (nommu, temporary switch, etc) access_ok() does
-	 * not provide enough validation, hence the check on KERNEL_DS.
-	 *
-	 * nmi_uaccess_okay() ensures the probe is not run in an interim
-	 * state, when the task or mm are switched. This is specifically
-	 * required to prevent the use of temporary mm.
-	 */
 
 	if (unlikely(in_interrupt() ||
 		     current->flags & (PF_KTHREAD | PF_EXITING)))
@@ -407,13 +342,6 @@ static const struct bpf_func_proto bpf_trace_printk_proto = {
 static void __set_printk_clr_event(void)
 {
 	/*
-	 * This program might be calling bpf_trace_printk,
-	 * so enable the associated bpf_trace/bpf_trace_printk event.
-	 * Repeat this each time as it is possible a user has
-	 * disabled bpf_trace_printk events.  By loading a program
-	 * calling bpf_trace_printk() however the user has expressed
-	 * the intent to see such events.
-	 */
 	if (trace_set_clr_event("bpf_trace", "bpf_trace_printk", 1))
 		pr_warn_ratelimited("could not enable bpf_trace_printk events");
 }
@@ -574,9 +502,6 @@ BPF_CALL_2(bpf_perf_event_read, struct bpf_map *, map, u64, flags)
 
 	err = get_map_perf_counter(map, flags, &value, NULL, NULL);
 	/*
-	 * this api is ugly since we miss [-22..-2] range of valid
-	 * counter values, but that's uapi
-	 */
 	if (err)
 		return err;
 	return value;
@@ -647,10 +572,6 @@ __bpf_perf_event_output(struct pt_regs *regs, struct bpf_map *map,
 	return perf_event_output(event, sd, regs);
 }
 
-/*
- * Support executing tracepoints in normal, irq, and nmi context that each call
- * bpf_perf_event_output
- */
 struct bpf_trace_sample_data {
 	struct perf_sample_data sds[3];
 };
@@ -969,7 +890,6 @@ static int bpf_btf_printf_prepare(struct btf_ptr *ptr, u32 btf_ptr_size,
 	if (btf_ptr_size != sizeof(struct btf_ptr))
 		return -EINVAL;
 
-	*btf = bpf_get_btf_vmlinux();
 
 	if (IS_ERR_OR_NULL(*btf))
 		return IS_ERR(*btf) ? PTR_ERR(*btf) : -EINVAL;
@@ -1141,7 +1061,6 @@ BPF_CALL_3(get_func_arg, void *, ctx, u32, n, u64 *, value)
 
 	if ((u64) n >= nr_args)
 		return -EINVAL;
-	*value = ((u64 *)ctx)[n];
 	return 0;
 }
 
@@ -1158,7 +1077,6 @@ BPF_CALL_2(get_func_ret, void *, ctx, u64 *, value)
 	/* This helper call is inlined by verifier. */
 	u64 nr_args = ((u64 *)ctx)[-1];
 
-	*value = ((u64 *)ctx)[nr_args];
 	return 0;
 }
 
@@ -1336,7 +1254,6 @@ kprobe_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	}
 }
 
-/* bpf+kprobe programs can access fields of 'struct pt_regs' */
 static bool kprobe_prog_is_valid_access(int off, int size, enum bpf_access_type type,
 					const struct bpf_prog *prog,
 					struct bpf_insn_access_aux *info)
@@ -1348,9 +1265,6 @@ static bool kprobe_prog_is_valid_access(int off, int size, enum bpf_access_type 
 	if (off % size != 0)
 		return false;
 	/*
-	 * Assertion for 32 bit to make sure last 8 byte access
-	 * (BPF_DW) to the last 4 byte member is disallowed.
-	 */
 	if (off + size > sizeof(struct pt_regs))
 		return false;
 
@@ -1371,10 +1285,6 @@ BPF_CALL_5(bpf_perf_event_output_tp, void *, tp_buff, struct bpf_map *, map,
 	struct pt_regs *regs = *(struct pt_regs **)tp_buff;
 
 	/*
-	 * r1 points to perf tracepoint buffer where first 8 bytes are hidden
-	 * from bpf program and contain a pointer to 'struct pt_regs'. Fetch it
-	 * from there and call the same bpf_perf_event_output() helper inline.
-	 */
 	return ____bpf_perf_event_output(regs, map, flags, data, size);
 }
 
@@ -1395,10 +1305,6 @@ BPF_CALL_3(bpf_get_stackid_tp, void *, tp_buff, struct bpf_map *, map,
 	struct pt_regs *regs = *(struct pt_regs **)tp_buff;
 
 	/*
-	 * Same comment as in bpf_perf_event_output_tp(), only that this time
-	 * the other helper's function body cannot be inlined due to being
-	 * external, thus we need to call raw helper function.
-	 */
 	return bpf_get_stackid((unsigned long) regs, (unsigned long) map,
 			       flags, 0, 0);
 }
@@ -1553,14 +1459,6 @@ pe_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	}
 }
 
-/*
- * bpf_raw_tp_regs are separate from bpf_pt_regs used from skb/xdp
- * to avoid potential recursive reuse issue when/if tracepoints are added
- * inside bpf_*_event_output, bpf_get_stackid and/or bpf_get_stack.
- *
- * Since raw tracepoints run despite bpf_prog_active, support concurrent usage
- * in normal, irq, and nmi context.
- */
 struct bpf_raw_tp_regs {
 	struct pt_regs regs[3];
 };
@@ -1908,9 +1806,6 @@ int perf_event_attach_bpf_prog(struct perf_event *event,
 	int ret = -EEXIST;
 
 	/*
-	 * Kprobe override only works if they are on the function entry,
-	 * and only if they are on the opt-in list.
-	 */
 	if (prog->kprobe_override &&
 	    (!trace_kprobe_on_func_entry(event->tp_event) ||
 	     !trace_kprobe_error_injectable(event->tp_event)))
@@ -1994,11 +1889,6 @@ int perf_event_query_prog_array(struct perf_event *event, void __user *info)
 	if (!ids)
 		return -ENOMEM;
 	/*
-	 * The above kcalloc returns ZERO_SIZE_PTR when ids_len = 0, which
-	 * is required when user only wants to check for uquery->prog_cnt.
-	 * There is no need to check for it since the case is handled
-	 * gracefully in bpf_prog_array_copy_info.
-	 */
 
 	mutex_lock(&bpf_event_mutex);
 	progs = bpf_event_rcu_dereference(event->tp_event->prog_array);
@@ -2097,9 +1987,6 @@ static int __bpf_probe_register(struct bpf_raw_event_map *btp, struct bpf_prog *
 	struct tracepoint *tp = btp->tp;
 
 	/*
-	 * check that program doesn't access arguments beyond what's
-	 * available in this tracepoint
-	 */
 	if (prog->aux->max_ctx_offset > btp->num_args * sizeof(u64))
 		return -EINVAL;
 
@@ -2136,7 +2023,6 @@ int bpf_get_perf_event_info(const struct perf_event *event, u32 *prog_id,
 	if (prog->type == BPF_PROG_TYPE_PERF_EVENT)
 		return -EOPNOTSUPP;
 
-	*prog_id = prog->aux->id;
 	flags = event->tp_event->flags;
 	is_tracepoint = flags & TRACE_EVENT_FL_TRACEPOINT;
 	is_syscall_tp = is_syscall_trace_event(event->tp_event);
@@ -2554,11 +2440,6 @@ int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 
 	if (cookies) {
 		/*
-		 * Sorting addresses will trigger sorting cookies as well
-		 * (check bpf_kprobe_multi_cookie_swap). This way we can
-		 * find cookie based on the address in bpf_get_attach_cookie
-		 * helper.
-		 */
 		sort_r(addrs, cnt, sizeof(*addrs),
 		       bpf_kprobe_multi_cookie_cmp,
 		       bpf_kprobe_multi_cookie_swap,

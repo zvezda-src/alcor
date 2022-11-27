@@ -1,17 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  reg_add_sub.c                                                            |
  |                                                                           |
  | Functions to add or subtract two registers and put the result in a third. |
  |                                                                           |
- | Copyright (C) 1992,1993,1997                                              |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
  |                  E-mail   billm@suburbia.net                              |
  |                                                                           |
  |                                                                           |
  +---------------------------------------------------------------------------*/
 
-/*---------------------------------------------------------------------------+
  |  For each function, the destination may be any FPU_REG, including one of  |
  | the source FPU_REGs.                                                      |
  |  Each function returns 0 if the answer is o.k., otherwise a non-zero      |
@@ -30,10 +26,6 @@ int add_sub_specials(FPU_REG const *a, u_char taga, u_char signa,
 		     FPU_REG const *b, u_char tagb, u_char signb,
 		     FPU_REG * dest, int deststnr, int control_w);
 
-/*
-  Operates on st(0) and st(n), or on st(0) and temporary data.
-  The destination must be one of the source st(x).
-  */
 int FPU_add(FPU_REG const *b, u_char tagb, int deststnr, int control_w)
 {
 	FPU_REG *a = &st(0);
@@ -125,7 +117,6 @@ int FPU_add(FPU_REG const *b, u_char tagb, int deststnr, int control_w)
 				dest, deststnr, control_w);
 }
 
-/* Subtract b from a.  (a-b) -> dest */
 int FPU_sub(int flags, int rm, int control_w)
 {
 	FPU_REG const *a, *b;

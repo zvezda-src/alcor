@@ -1,30 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/compat.h>
 #include <linux/uaccess.h>
 #include <linux/ptrace.h>
 
-/*
- * The compat_siginfo_t structure and handing code is very easy
- * to break in several ways.  It must always be updated when new
- * updates are made to the main siginfo_t, and
- * copy_siginfo_to_user32() must be updated when the
- * (arch-independent) copy_siginfo_to_user() is updated.
- *
- * It is also easy to put a new member in the compat_siginfo_t
- * which has implicit alignment which can move internal structure
- * alignment around breaking the ABI.  This can happen if you,
- * for instance, put a plain 64-bit value in there.
- */
 static inline void signal_compat_build_tests(void)
 {
 	int _sifields_offset = offsetof(compat_siginfo_t, _sifields);
 
 	/*
-	 * If adding a new si_code, there is probably new data in
-	 * the siginfo.  Make sure folks bumping the si_code
-	 * limits also have to look at this code.  Make sure any
-	 * new fields are handled in copy_siginfo_to_user32()!
-	 */
 	BUILD_BUG_ON(NSIGILL  != 11);
 	BUILD_BUG_ON(NSIGFPE  != 15);
 	BUILD_BUG_ON(NSIGSEGV != 9);
@@ -42,10 +24,6 @@ static inline void signal_compat_build_tests(void)
 	BUILD_BUG_ON(__alignof__(compat_siginfo_t) != 4);
 
 	/*
-	 * The offsets of all the (unioned) si_fields are fixed
-	 * in the ABI, of course.  Make sure none of them ever
-	 * move and are always at the beginning:
-	 */
 	BUILD_BUG_ON(offsetof(compat_siginfo_t, _sifields) != 3 * sizeof(int));
 #define CHECK_CSI_OFFSET(name)	  BUILD_BUG_ON(_sifields_offset != offsetof(compat_siginfo_t, _sifields.name))
 
@@ -57,18 +35,6 @@ static inline void signal_compat_build_tests(void)
 	BUILD_BUG_ON(offsetof(compat_siginfo_t, si_errno) != 4);
 	BUILD_BUG_ON(offsetof(compat_siginfo_t, si_code)  != 8);
 	 /*
-	 * Ensure that the size of each si_field never changes.
-	 * If it does, it is a sign that the
-	 * copy_siginfo_to_user32() code below needs to updated
-	 * along with the size in the CHECK_SI_SIZE().
-	 *
-	 * We repeat this check for both the generic and compat
-	 * siginfos.
-	 *
-	 * Note: it is OK for these to grow as long as the whole
-	 * structure stays within the padding size (checked
-	 * above).
-	 */
 #define CHECK_CSI_SIZE(name, size) BUILD_BUG_ON(size != sizeof(((compat_siginfo_t *)0)->_sifields.name))
 #define CHECK_SI_SIZE(name, size) BUILD_BUG_ON(size != sizeof(((siginfo_t *)0)->_sifields.name))
 

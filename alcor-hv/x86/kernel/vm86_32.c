@@ -1,33 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- *  Copyright (C) 1994  Linus Torvalds
- *
- *  29 dec 2001 - Fixed oopses caused by unchecked access to the vm86
- *                stack - Manfred Spraul <manfred@colorfullife.com>
- *
- *  22 mar 2002 - Manfred detected the stackfaults, but didn't handle
- *                them correctly. Now the emulation will be in a
- *                consistent state after stackfaults - Kasper Dupont
- *                <kasperd@daimi.au.dk>
- *
- *  22 mar 2002 - Added missing clear_IF in set_vflags_* Kasper Dupont
- *                <kasperd@daimi.au.dk>
- *
- *  ?? ??? 2002 - Fixed premature returns from handle_vm86_fault
- *                caused by Kasper Dupont's changes - Stas Sergeev
- *
- *   4 apr 2002 - Fixed CHECK_IF_IN_TRAP broken by Stas' changes.
- *                Kasper Dupont <kasperd@daimi.au.dk>
- *
- *   9 apr 2002 - Changed syntax of macros in handle_vm86_fault.
- *                Kasper Dupont <kasperd@daimi.au.dk>
- *
- *   9 apr 2002 - Changed stack access macros to jump to a label
- *                instead of returning to userspace. This simplifies
- *                do_int, and is needed by handle_vm6_fault. Kasper
- *                Dupont <kasperd@daimi.au.dk>
- *
- */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -57,33 +27,13 @@
 #include <asm/vm86.h>
 #include <asm/switch_to.h>
 
-/*
- * Known problems:
- *
- * Interrupt handling is not guaranteed:
- * - a real x86 will disable all interrupts for one instruction
- *   after a "mov ss,xx" to make stack handling atomic even without
- *   the 'lss' instruction. We can't guarantee this in v86 mode,
- *   as the next instruction might result in a page fault or similar.
- * - a real x86 will have interrupts disabled for one instruction
- *   past the 'sti' that enables them. We don't bother with all the
- *   details yet.
- *
- * Let's hope these problems do not actually matter for anything.
- */
 
 
-/*
- * 8- and 16-bit register defines..
- */
 #define AL(regs)	(((unsigned char *)&((regs)->pt.ax))[0])
 #define AH(regs)	(((unsigned char *)&((regs)->pt.ax))[1])
 #define IP(regs)	(*(unsigned short *)&((regs)->pt.ip))
 #define SP(regs)	(*(unsigned short *)&((regs)->pt.sp))
 
-/*
- * virtual flags (16 and 32-bit versions)
- */
 #define VFLAGS	(*(unsigned short *)&(current->thread.vm86->veflags))
 #define VEFLAGS	(current->thread.vm86->veflags)
 
@@ -100,10 +50,6 @@ void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 	struct vm86 *vm86 = current->thread.vm86;
 
 	/*
-	 * This gets called from entry.S with interrupts disabled, but
-	 * from process context. Enable interrupts here, before trying
-	 * to access user space.
-	 */
 	local_irq_enable();
 
 	BUG_ON(!vm86);
@@ -134,9 +80,6 @@ void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 	unsafe_put_user(regs->gs, &user->regs.gs, Efault_end);
 
 	/*
-	 * Don't write screen_bitmap in case some user had a value there
-	 * and expected it to remain unchanged.
-	 */
 
 	user_access_end();
 
@@ -183,11 +126,6 @@ SYSCALL_DEFINE2(vm86, unsigned long, cmd, unsigned long, arg)
 		return do_vm86_irq_handling(cmd, (int)arg);
 	case VM86_PLUS_INSTALL_CHECK:
 		/*
-		 * NOTE: on old vm86 stuff this will return the error
-		 *  from access_ok(), because the subfunction is
-		 *  interpreted as (invalid) address to vm86_struct.
-		 *  So the installation check works.
-		 */
 		return 0;
 	}
 
@@ -208,23 +146,6 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 	err = security_mmap_addr(0);
 	if (err) {
 		/*
-		 * vm86 cannot virtualize the address space, so vm86 users
-		 * need to manage the low 1MB themselves using mmap.  Given
-		 * that BIOS places important data in the first page, vm86
-		 * is essentially useless if mmap_min_addr != 0.  DOSEMU,
-		 * for example, won't even bother trying to use vm86 if it
-		 * can't map a page at virtual address 0.
-		 *
-		 * To reduce the available kernel attack surface, simply
-		 * disallow vm86(old) for users who cannot mmap at va 0.
-		 *
-		 * The implementation of security_mmap_addr will allow
-		 * suitably privileged users to map va 0 even if
-		 * vm.mmap_min_addr is set above 0, and we want this
-		 * behavior for vm86 as well, as it ensures that legacy
-		 * tools like vbetool will not fail just because of
-		 * vm.mmap_min_addr.
-		 */
 		pr_info_once("Denied a call to vm86(old) from %s[%d] (uid: %d).  Set the vm.mmap_min_addr sysctl to 0 and/or adjust LSM mmap_min_addr policy to enable vm86 if you are using a vm86-based DOS emulator.\n",
 			     current->comm, task_pid_nr(current),
 			     from_kuid_munged(&init_user_ns, current_uid()));
@@ -294,11 +215,6 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 	memcpy(&vm86->regs32, regs, sizeof(struct pt_regs));
 	vm86->user_vm86 = user_vm86;
 
-/*
- * The flags register is also special: we cannot trust that the user
- * has set it up safely, so this makes sure interrupt etc flags are
- * inherited from protected mode.
- */
 	VEFLAGS = vm86regs.pt.flags;
 	vm86regs.pt.flags &= SAFE_MASK;
 	vm86regs.pt.flags |= regs->flags & ~SAFE_MASK;
@@ -321,9 +237,6 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 		break;
 	}
 
-/*
- * Save old state
- */
 	vm86->saved_sp0 = tsk->thread.sp0;
 	savesegment(gs, vm86->regs32.gs);
 
@@ -363,17 +276,6 @@ static inline void clear_AC(struct kernel_vm86_regs *regs)
 	regs->pt.flags &= ~X86_EFLAGS_AC;
 }
 
-/*
- * It is correct to call set_IF(regs) from the set_vflags_*
- * functions. However someone forgot to call clear_IF(regs)
- * in the opposite case.
- * After the command sequence CLI PUSHF STI POPF you should
- * end up with interrupts disabled, but you ended up with
- * interrupts enabled.
- *  ( I was testing my own changes, but the only bug I
- *    could find was in a function I had not changed. )
- * [KD]
- */
 
 static inline void set_vflags_long(unsigned long flags, struct kernel_vm86_regs *regs)
 {
@@ -487,11 +389,6 @@ static inline int is_revectored(int nr, struct revectored_struct *bitmap)
 		__res; \
 	})
 
-/* There are so many possible reasons for this function to return
- * VM86_INTx, so adding another doesn't bother me. We can expect
- * userspace programs to be able to handle it. (Getting a problem
- * in userspace is always better than an Oops anyway.) [KD]
- */
 static void do_int(struct kernel_vm86_regs *regs, int i,
     unsigned char __user *ssp, unsigned short sp)
 {
@@ -668,11 +565,6 @@ void handle_vm86_fault(struct kernel_vm86_regs *regs, long error_code)
 
 	/* sti */
 	/*
-	 * Damn. This is incorrect: the 'sti' instruction should actually
-	 * enable interrupts after the /next/ instruction. Not good.
-	 *
-	 * Probably needs some horsing around with the TF flag. Aiee..
-	 */
 	case 0xfb:
 		IP(regs) = ip;
 		set_IF(regs);
@@ -714,7 +606,6 @@ simulate_sigsegv:
 	save_v86_state(regs, VM86_UNKNOWN);
 }
 
-/* ---------------- vm86 special IRQ passing stuff ----------------- */
 
 #define VM86_IRQNAME		"vm86irq"
 
@@ -743,9 +634,6 @@ static irqreturn_t irq_handler(int intno, void *dev_id)
 	if (vm86_irqs[intno].sig)
 		send_sig(vm86_irqs[intno].sig, vm86_irqs[intno].tsk, 1);
 	/*
-	 * IRQ will be re-enabled when user asks for the irq (whether
-	 * polling or as a result of the signal)
-	 */
 	disable_irq_nosync(intno);
 	spin_unlock_irqrestore(&irqbits_lock, flags);
 	return IRQ_HANDLED;

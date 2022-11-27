@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * VFIO-KVM bridge pseudo device
- *
- * Copyright (C) 2013 Red Hat, Inc.  All rights reserved.
- *     Author: Alex Williamson <alex.williamson@redhat.com>
- */
 
 #include <linux/errno.h>
 #include <linux/file.h>
@@ -90,13 +83,6 @@ static void kvm_spapr_tce_release_vfio_group(struct kvm *kvm,
 }
 #endif
 
-/*
- * Groups can use the same or different IOMMU domains.  If the same then
- * adding a new group may change the coherency of groups we've previously
- * been told about.  We don't want to care about any of that so we retest
- * each group and bail as soon as we find one that's noncoherent.  This
- * means we only ever [un]register_noncoherent_dma once for the whole device.
- */
 static void kvm_vfio_update_coherency(struct kvm_device *dev)
 {
 	struct kvm_vfio *kv = dev->private;

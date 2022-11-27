@@ -1,8 +1,3 @@
-/*
- * Common functions shared between the various APIC flavours
- *
- * SPDX-License-Identifier: GPL-2.0
- */
 #include <linux/irq.h>
 #include <asm/apic.h>
 
@@ -23,7 +18,6 @@ bool default_check_apicid_used(physid_mask_t *map, int apicid)
 
 void default_ioapic_phys_id_map(physid_mask_t *phys_map, physid_mask_t *retmap)
 {
-	*retmap = *phys_map;
 }
 
 int default_cpu_present_to_apicid(int mps_cpu)

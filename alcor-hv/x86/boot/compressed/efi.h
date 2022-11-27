@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef BOOT_COMPRESSED_EFI_H
 #define BOOT_COMPRESSED_EFI_H
 
@@ -20,9 +19,6 @@ typedef guid_t efi_guid_t __aligned(__alignof__(u32));
 #define EFI32_LOADER_SIGNATURE	"EL32"
 #define EFI64_LOADER_SIGNATURE	"EL64"
 
-/*
- * Generic EFI table header
- */
 typedef	struct {
 	u64 signature;
 	u32 revision;
@@ -95,7 +91,6 @@ typedef struct {
 	u32 tables;
 } efi_system_table_32_t;
 
-/* kexec external ABI */
 struct efi_setup_data {
 	u64 fw_vendor;
 	u64 __unused;

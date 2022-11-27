@@ -1,31 +1,4 @@
-#
-#
 
-# Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 """Functions used by the node daemon
@@ -37,13 +10,8 @@
 
 """
 
-# pylint: disable=E1103,C0302
 
-# E1103: %s %r has no %r member (but some types could not be
-# inferred), because the _TryOSFromDisk returns either (True, os_obj)
-# or (False, "string") which confuses pylint
 
-# C0302: This module has become too big and should be split up
 
 
 import base64
@@ -104,24 +72,17 @@ _IES_STATUS_FILE = "status"
 _IES_PID_FILE = "pid"
 _IES_CA_FILE = "ca"
 
-#: Valid LVS output line regex
 _LVSLINE_REGEX = re.compile(r"^ *([^|]+)\|([^|]+)\|([0-9.]+)\|([^|]{6,})\|?$")
 
-# Actions for the master setup script
 _MASTER_START = "start"
 _MASTER_STOP = "stop"
 
-#: Maximum file permissions for restricted command directory and executables
 _RCMD_MAX_MODE = (stat.S_IRWXU |
                   stat.S_IRGRP | stat.S_IXGRP |
                   stat.S_IROTH | stat.S_IXOTH)
 
-#: Delay before returning an error for restricted commands
 _RCMD_INVALID_DELAY = 10
 
-#: How long to wait to acquire lock for restricted commands (shorter than
-#: L{_RCMD_INVALID_DELAY}) to reduce blockage of noded forks when many
-#: command requests arrive
 _RCMD_LOCK_TIMEOUT = _RCMD_INVALID_DELAY * 0.8
 
 
@@ -784,7 +745,6 @@ def _GetFileStorageSpaceInfo(path, params):
   return filestorage.GetFileStorageSpaceInfo(path)
 
 
-# FIXME: implement storage reporting for all missing storage types.
 _STORAGE_TYPE_INFO_FN = {
   constants.ST_BLOCK: None,
   constants.ST_DISKLESS: None,
@@ -1508,7 +1468,6 @@ def AddNodeSshKey(node_uuid, node_name,
                            run_cmd_fn=run_cmd_fn)
 
 
-# Node info named tuple specifically for the use with AddNodeSshKeyBulk
 SshAddNodeInfo = collections.namedtuple(
   "SshAddNodeInfo",
   ["uuid",
@@ -1745,7 +1704,6 @@ def RemoveNodeSshKey(node_uuid, node_name,
                               run_cmd_fn=run_cmd_fn)
 
 
-# Node info named tuple specifically for the use with RemoveNodeSshKeyBulk
 SshRemoveNodeInfo = collections.namedtuple(
   "SshRemoveNodeInfo",
   ["uuid",

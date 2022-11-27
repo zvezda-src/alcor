@@ -1,14 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * NOOP APIC driver.
- *
- * Does almost nothing and should be substituted by a real apic driver via
- * probe routine.
- *
- * Though in case if apic is disabled (for some reason) we try
- * to not uglify the caller's code and allow to call (some) apic routines
- * like self-ipi, etc...
- */
 #include <linux/cpumask.h>
 #include <linux/thread_info.h>
 
@@ -52,20 +41,12 @@ static unsigned int noop_get_apic_id(unsigned long x)
 static int noop_probe(void)
 {
 	/*
-	 * NOOP apic should not ever be
-	 * enabled via probe routine
-	 */
 	return 0;
 }
 
 static int noop_apic_id_registered(void)
 {
 	/*
-	 * if we would be really "pedantic"
-	 * we should pass read_apic_id() here
-	 * but since NOOP suppose APIC ID = 0
-	 * lets save a few cycles
-	 */
 	return physid_isset(0, phys_cpu_present_map);
 }
 

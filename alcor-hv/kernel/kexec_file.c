@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * kexec: kexec_file_load system call
- *
- * Copyright (C) 2014 Red Hat Inc.
- * Authors:
- *      Vivek Goyal <vgoyal@redhat.com>
- */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -40,11 +32,6 @@ void set_kexec_sig_enforced(void)
 
 static int kexec_calculate_store_digests(struct kimage *image);
 
-/*
- * Currently this is the only default function that is exported as some
- * architectures need it to do additional handlings.
- * In the future, other default functions may be exported too if required.
- */
 int kexec_image_probe_default(struct kimage *image, void *buf,
 			      unsigned long buf_len)
 {
@@ -81,11 +68,6 @@ int kexec_image_post_load_cleanup_default(struct kimage *image)
 	return image->fops->cleanup(image->image_loader_data);
 }
 
-/*
- * Free up memory used by kernel, initrd, and command line. This is temporary
- * memory allocation which is not needed any more after these buffers have
- * been loaded into separate segments and have been copied elsewhere.
- */
 void kimage_file_post_load_cleanup(struct kimage *image)
 {
 	struct purgatory_info *pi = &image->purgatory_info;
@@ -114,10 +96,6 @@ void kimage_file_post_load_cleanup(struct kimage *image)
 	arch_kimage_file_post_load_cleanup(image);
 
 	/*
-	 * Above call should have called into bootloader to free up
-	 * any data stored in kimage->image_loader_data. It should
-	 * be ok now to free it up.
-	 */
 	kfree(image->image_loader_data);
 	image->image_loader_data = NULL;
 }
@@ -166,10 +144,6 @@ kimage_validate_signature(struct kimage *image)
 		}
 
 		/*
-		 * If IMA is guaranteed to appraise a signature on the kexec
-		 * image, permit it even if the kernel is otherwise locked
-		 * down.
-		 */
 		if (!ima_appraise_signature(READING_KEXEC_IMAGE) &&
 		    security_locked_down(LOCKDOWN_KEXEC))
 			return -EPERM;
@@ -181,10 +155,6 @@ kimage_validate_signature(struct kimage *image)
 }
 #endif
 
-/*
- * In file mode list of segments is prepared by kernel. Copy relevant
- * data from user space, do error checking, prepare segment list
- */
 static int
 kimage_file_prepare_segments(struct kimage *image, int kernel_fd, int initrd_fd,
 			     const char __user *cmdline_ptr,
@@ -307,7 +277,6 @@ kimage_file_alloc_init(struct kimage **rimage, int kernel_fd,
 		}
 	}
 
-	*rimage = image;
 	return 0;
 out_free_control_pages:
 	kimage_free_page_list(&image->control_pages);
@@ -349,10 +318,6 @@ SYSCALL_DEFINE5(kexec_file_load, int, kernel_fd, int, initrd_fd,
 		goto exchange;
 
 	/*
-	 * In case of crash, new kernel gets loaded in reserved region. It is
-	 * same memory where old crash kernel might be loaded. Free any
-	 * current crash dump kernel before we corrupt it.
-	 */
 	if (flags & KEXEC_FILE_ON_CRASH)
 		kimage_free(xchg(&kexec_crash_image, NULL));
 
@@ -366,9 +331,6 @@ SYSCALL_DEFINE5(kexec_file_load, int, kernel_fd, int, initrd_fd,
 		goto out;
 
 	/*
-	 * Some architecture(like S390) may touch the crash memory before
-	 * machine_kexec_prepare(), we must copy vmcoreinfo data after it.
-	 */
 	ret = kimage_crash_copy_vmcoreinfo(image);
 	if (ret)
 		goto out;
@@ -397,9 +359,6 @@ SYSCALL_DEFINE5(kexec_file_load, int, kernel_fd, int, initrd_fd,
 		goto out;
 
 	/*
-	 * Free up any temporary buffers allocated which are not needed
-	 * after image has been loaded
-	 */
 	kimage_file_post_load_cleanup(image);
 exchange:
 	image = xchg(dest_image, image);
@@ -431,9 +390,6 @@ static int locate_mem_hole_top_down(unsigned long start, unsigned long end,
 		temp_end = temp_start + kbuf->memsz - 1;
 
 		/*
-		 * Make sure this does not conflict with any of existing
-		 * segments
-		 */
 		if (kimage_is_destination_range(image, temp_start, temp_end)) {
 			temp_start = temp_start - PAGE_SIZE;
 			continue;
@@ -465,9 +421,6 @@ static int locate_mem_hole_bottom_up(unsigned long start, unsigned long end,
 		if (temp_end > end || temp_end > kbuf->buf_max)
 			return 0;
 		/*
-		 * Make sure this does not conflict with any of existing
-		 * segments
-		 */
 		if (kimage_is_destination_range(image, temp_start, temp_end)) {
 			temp_start = temp_start + PAGE_SIZE;
 			continue;
@@ -503,9 +456,6 @@ static int locate_mem_hole_callback(struct resource *res, void *arg)
 		return 0;
 
 	/*
-	 * Allocate memory top down with-in ram range. Otherwise bottom up
-	 * allocation.
-	 */
 	if (kbuf->top_down)
 		return locate_mem_hole_top_down(start, end, kbuf);
 	return locate_mem_hole_bottom_up(start, end, kbuf);
@@ -524,18 +474,10 @@ static int kexec_walk_memblock(struct kexec_buf *kbuf,
 		return func(&crashk_res, kbuf);
 
 	/*
-	 * Using MEMBLOCK_NONE will properly skip MEMBLOCK_DRIVER_MANAGED. See
-	 * IORESOURCE_SYSRAM_DRIVER_MANAGED handling in
-	 * locate_mem_hole_callback().
-	 */
 	if (kbuf->top_down) {
 		for_each_free_mem_range_reverse(i, NUMA_NO_NODE, MEMBLOCK_NONE,
 						&mstart, &mend, NULL) {
 			/*
-			 * In memblock, end points to the first byte after the
-			 * range while in kexec, end points to the last byte
-			 * in the range.
-			 */
 			res.start = mstart;
 			res.end = mend - 1;
 			ret = func(&res, kbuf);
@@ -546,10 +488,6 @@ static int kexec_walk_memblock(struct kexec_buf *kbuf,
 		for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE,
 					&mstart, &mend, NULL) {
 			/*
-			 * In memblock, end points to the first byte after the
-			 * range while in kexec, end points to the last byte
-			 * in the range.
-			 */
 			res.start = mstart;
 			res.end = mend - 1;
 			ret = func(&res, kbuf);
@@ -568,15 +506,6 @@ static int kexec_walk_memblock(struct kexec_buf *kbuf,
 }
 #endif
 
-/**
- * kexec_walk_resources - call func(data) on free memory regions
- * @kbuf:	Context info for the search. Also passed to @func.
- * @func:	Function to call for each memory region.
- *
- * Return: The memory walk will stop when func returns a non-zero value
- * and that value will be returned. If all free regions are visited without
- * func returning non-zero, then zero will be returned.
- */
 static int kexec_walk_resources(struct kexec_buf *kbuf,
 				int (*func)(struct resource *, void *))
 {
@@ -589,14 +518,6 @@ static int kexec_walk_resources(struct kexec_buf *kbuf,
 		return walk_system_ram_res(0, ULONG_MAX, kbuf, func);
 }
 
-/**
- * kexec_locate_mem_hole - find free memory for the purgatory or the next kernel
- * @kbuf:	Parameters for the memory search.
- *
- * On success, kbuf->mem will have the start address of the memory region found.
- *
- * Return: 0 on success, negative errno on error.
- */
 int kexec_locate_mem_hole(struct kexec_buf *kbuf)
 {
 	int ret;
@@ -613,16 +534,6 @@ int kexec_locate_mem_hole(struct kexec_buf *kbuf)
 	return ret == 1 ? 0 : -EADDRNOTAVAIL;
 }
 
-/**
- * kexec_add_buffer - place a buffer in a kexec segment
- * @kbuf:	Buffer contents and memory parameters.
- *
- * This function assumes that kexec_mutex is held.
- * On successful return, @kbuf->mem will have the physical address of
- * the buffer in memory.
- *
- * Return: 0 on success, negative errno on error.
- */
 int kexec_add_buffer(struct kexec_buf *kbuf)
 {
 	struct kexec_segment *ksegment;
@@ -636,12 +547,6 @@ int kexec_add_buffer(struct kexec_buf *kbuf)
 		return -EINVAL;
 
 	/*
-	 * Make sure we are not trying to add buffer after allocating
-	 * control pages. All segments need to be placed first before
-	 * any control pages are allocated. As control page allocation
-	 * logic goes through list of segments to make sure there are
-	 * no destination overlaps.
-	 */
 	if (!list_empty(&kbuf->image->control_pages)) {
 		WARN_ON(1);
 		return -EINVAL;
@@ -666,7 +571,6 @@ int kexec_add_buffer(struct kexec_buf *kbuf)
 	return 0;
 }
 
-/* Calculate and store the digest of segments */
 static int kexec_calculate_store_digests(struct kimage *image)
 {
 	struct crypto_shash *tfm;
@@ -721,9 +625,6 @@ static int kexec_calculate_store_digests(struct kimage *image)
 
 		ksegment = &image->segment[i];
 		/*
-		 * Skip purgatory as it will be modified once we put digest
-		 * info in purgatory.
-		 */
 		if (ksegment->kbuf == pi->purgatory_buf)
 			continue;
 
@@ -733,9 +634,6 @@ static int kexec_calculate_store_digests(struct kimage *image)
 			break;
 
 		/*
-		 * Assume rest of the buffer is filled with zero and
-		 * update digest accordingly.
-		 */
 		nullsz = ksegment->memsz - ksegment->bufsz;
 		while (nullsz) {
 			unsigned long bytes = nullsz;
@@ -784,16 +682,6 @@ out:
 }
 
 #ifdef CONFIG_ARCH_HAS_KEXEC_PURGATORY
-/*
- * kexec_purgatory_setup_kbuf - prepare buffer to load purgatory.
- * @pi:		Purgatory to be loaded.
- * @kbuf:	Buffer to setup.
- *
- * Allocates the memory needed for the buffer. Caller is responsible to free
- * the memory after use.
- *
- * Return: 0 on success, negative errno on error.
- */
 static int kexec_purgatory_setup_kbuf(struct purgatory_info *pi,
 				      struct kexec_buf *kbuf)
 {
@@ -845,16 +733,6 @@ out:
 	return ret;
 }
 
-/*
- * kexec_purgatory_setup_sechdrs - prepares the pi->sechdrs buffer.
- * @pi:		Purgatory to be loaded.
- * @kbuf:	Buffer prepared to store purgatory.
- *
- * Allocates the memory needed for the buffer. Caller is responsible to free
- * the memory after use.
- *
- * Return: 0 on success, negative errno on error.
- */
 static int kexec_purgatory_setup_sechdrs(struct purgatory_info *pi,
 					 struct kexec_buf *kbuf)
 {
@@ -864,9 +742,6 @@ static int kexec_purgatory_setup_sechdrs(struct purgatory_info *pi,
 	int i;
 
 	/*
-	 * The section headers in kexec_purgatory are read-only. In order to
-	 * have them modifiable make a temporary copy.
-	 */
 	sechdrs = vzalloc(array_size(sizeof(Elf_Shdr), pi->ehdr->e_shnum));
 	if (!sechdrs)
 		return -ENOMEM;
@@ -934,11 +809,6 @@ static int kexec_apply_relocations(struct kimage *image)
 			continue;
 
 		/*
-		 * For section of type SHT_RELA/SHT_REL,
-		 * ->sh_link contains section header index of associated
-		 * symbol table. And ->sh_info contains section header
-		 * index of section to which relocations apply.
-		 */
 		if (relsec->sh_info >= pi->ehdr->e_shnum ||
 		    relsec->sh_link >= pi->ehdr->e_shnum)
 			return -ENOEXEC;
@@ -950,17 +820,11 @@ static int kexec_apply_relocations(struct kimage *image)
 			continue;
 
 		/*
-		 * symtab->sh_link contain section header index of associated
-		 * string table.
-		 */
 		if (symtab->sh_link >= pi->ehdr->e_shnum)
 			/* Invalid section number? */
 			continue;
 
 		/*
-		 * Respective architecture needs to provide support for applying
-		 * relocations of type SHT_RELA/SHT_REL.
-		 */
 		if (relsec->sh_type == SHT_RELA)
 			ret = arch_kexec_apply_relocations_add(pi, section,
 							       relsec, symtab);
@@ -974,17 +838,6 @@ static int kexec_apply_relocations(struct kimage *image)
 	return 0;
 }
 
-/*
- * kexec_load_purgatory - Load and relocate the purgatory object.
- * @image:	Image to add the purgatory to.
- * @kbuf:	Memory parameters to use.
- *
- * Allocates the memory needed for image->purgatory_info.sechdrs and
- * image->purgatory_info.purgatory_buf/kbuf->buffer. Caller is responsible
- * to free the memory after use.
- *
- * Return: 0 on success, negative errno on error.
- */
 int kexec_load_purgatory(struct kimage *image, struct kexec_buf *kbuf)
 {
 	struct purgatory_info *pi = &image->purgatory_info;
@@ -1017,13 +870,6 @@ out_free_kbuf:
 	return ret;
 }
 
-/*
- * kexec_purgatory_find_symbol - find a symbol in the purgatory
- * @pi:		Purgatory to search in.
- * @name:	Name of the symbol.
- *
- * Return: pointer to symbol in read-only symtab on success, NULL on error.
- */
 static const Elf_Sym *kexec_purgatory_find_symbol(struct purgatory_info *pi,
 						  const char *name)
 {
@@ -1085,16 +931,9 @@ void *kexec_purgatory_get_symbol_addr(struct kimage *image, const char *name)
 	sechdr = &pi->sechdrs[sym->st_shndx];
 
 	/*
-	 * Returns the address where symbol will finally be loaded after
-	 * kexec_load_segment()
-	 */
 	return (void *)(sechdr->sh_addr + sym->st_value);
 }
 
-/*
- * Get or set value of a symbol. If "get_value" is true, symbol value is
- * returned in buf otherwise symbol value is set based on value in buf.
- */
 int kexec_purgatory_get_set_symbol(struct kimage *image, const char *name,
 				   void *buf, unsigned int size, bool get_value)
 {
@@ -1168,10 +1007,6 @@ int crash_exclude_mem_range(struct crash_mem *mem,
 				}
 
 				/*
-				 * Continue to check if there are another overlapping ranges
-				 * from the current position because of shifting the above
-				 * mem ranges.
-				 */
 				i--;
 				mem->nr_ranges--;
 				continue;
@@ -1230,12 +1065,6 @@ int crash_prepare_elf64_headers(struct crash_mem *mem, int need_kernel_map,
 	nr_phdr += mem->nr_ranges;
 
 	/*
-	 * kexec-tools creates an extra PT_LOAD phdr for kernel text mapping
-	 * area (for example, ffffffff80000000 - ffffffffa0000000 on x86_64).
-	 * I think this is required by tools like gdb. So same physical
-	 * memory will be mapped in two ELF headers. One will contain kernel
-	 * text virtual addresses and other will have __va(physical) addresses.
-	 */
 
 	nr_phdr++;
 	elf_sz = sizeof(Elf64_Ehdr) + nr_phdr * sizeof(Elf64_Phdr);
@@ -1308,7 +1137,5 @@ int crash_prepare_elf64_headers(struct crash_mem *mem, int need_kernel_map,
 		phdr++;
 	}
 
-	*addr = buf;
-	*sz = elf_sz;
 	return 0;
 }

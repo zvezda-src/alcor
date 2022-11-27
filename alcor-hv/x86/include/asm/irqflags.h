@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _X86_IRQFLAGS_H_
 #define _X86_IRQFLAGS_H_
 
@@ -8,24 +7,15 @@
 
 #include <asm/nospec-branch.h>
 
-/* Provide __cpuidle; we can't safely include <linux/cpu.h> */
 #define __cpuidle __section(".cpuidle.text")
 
-/*
- * Interrupt control:
- */
 
-/* Declaration required for gcc < 4.9 to prevent -Werror=missing-prototypes */
 extern inline unsigned long native_save_fl(void);
 extern __always_inline unsigned long native_save_fl(void)
 {
 	unsigned long flags;
 
 	/*
-	 * "=rm" is safe here, because "pop" adjusts the stack before
-	 * it evaluates its effective address -- this is part of the
-	 * documented behavior of the "pop" instruction.
-	 */
 	asm volatile("# __raw_save_flags\n\t"
 		     "pushf ; pop %0"
 		     : "=rm" (flags)
@@ -80,27 +70,16 @@ static __always_inline void arch_local_irq_enable(void)
 	native_irq_enable();
 }
 
-/*
- * Used in the idle loop; sti takes one instruction cycle
- * to complete:
- */
 static inline __cpuidle void arch_safe_halt(void)
 {
 	native_safe_halt();
 }
 
-/*
- * Used when interrupts are already enabled or to
- * shutdown the processor:
- */
 static inline __cpuidle void halt(void)
 {
 	native_halt();
 }
 
-/*
- * For spinlocks, etc:
- */
 static __always_inline unsigned long arch_local_irq_save(void)
 {
 	unsigned long flags = arch_local_save_flags();

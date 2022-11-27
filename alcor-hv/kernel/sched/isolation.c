@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- *  Housekeeping management. Manage the targets for routine code that can run on
- *  any CPU: unbound workqueues, timers, kthreads and any offloadable work.
- *
- * Copyright (C) 2017 Red Hat, Inc., Frederic Weisbecker
- * Copyright (C) 2017-2018 SUSE, Frederic Weisbecker
- *
- */
 
 enum hk_flags {
 	HK_FLAG_TIMER		= BIT(HK_TYPE_TIMER),
@@ -215,9 +206,6 @@ static int __init housekeeping_isolcpus_setup(char *str)
 		}
 
 		/*
-		 * Skip unknown sub-parameter and validate that it is not
-		 * containing an invalid character.
-		 */
 		for (par = str, len = 0; *str && *str != ','; str++, len++) {
 			if (!isalpha(*str) && *str != '_')
 				illegal = true;

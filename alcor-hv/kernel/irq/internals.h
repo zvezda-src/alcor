@@ -1,11 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- * IRQ subsystem internal functions and variables:
- *
- * Do not ever include this file from anything else than
- * kernel/irq/. Do not even think about using any information outside
- * of this file for your non core code.
- */
 #include <linux/irqdesc.h>
 #include <linux/kernel_stat.h>
 #include <linux/pm_runtime.h>
@@ -23,14 +15,6 @@ extern bool noirqdebug;
 
 extern struct irqaction chained_action;
 
-/*
- * Bits used by threaded handlers:
- * IRQTF_RUNTHREAD - signals that the interrupt handler thread should run
- * IRQTF_WARNED    - warning "IRQ_WAKE_THREAD w/o thread_fn" has been printed
- * IRQTF_AFFINITY  - irq thread is requested to adjust affinity
- * IRQTF_FORCED_THREAD  - irq action is force threaded
- * IRQTF_READY     - signals that irq thread is ready
- */
 enum {
 	IRQTF_RUNTHREAD,
 	IRQTF_WARNED,
@@ -39,20 +23,6 @@ enum {
 	IRQTF_READY,
 };
 
-/*
- * Bit masks for desc->core_internal_state__do_not_mess_with_it
- *
- * IRQS_AUTODETECT		- autodetection in progress
- * IRQS_SPURIOUS_DISABLED	- was disabled due to spurious interrupt
- *				  detection
- * IRQS_POLL_INPROGRESS		- polling in progress
- * IRQS_ONESHOT			- irq is not unmasked in primary handler
- * IRQS_REPLAY			- irq is replayed
- * IRQS_WAITING			- irq is waiting
- * IRQS_PENDING			- irq is pending and replayed later
- * IRQS_SUSPENDED		- irq is suspended
- * IRQS_NMI			- irq line is used to deliver NMIs
- */
 enum {
 	IRQS_AUTODETECT		= 0x00000001,
 	IRQS_SPURIOUS_DISABLED	= 0x00000002,
@@ -109,7 +79,6 @@ irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc);
 irqreturn_t handle_irq_event_percpu(struct irq_desc *desc);
 irqreturn_t handle_irq_event(struct irq_desc *desc);
 
-/* Resending of interrupts :*/
 int check_irq_resend(struct irq_desc *desc, bool inject);
 bool irq_wait_for_poll(struct irq_desc *desc);
 void __irq_wake_thread(struct irq_desc *desc, struct irqaction *action);
@@ -141,7 +110,6 @@ extern int irq_setup_affinity(struct irq_desc *desc);
 static inline int irq_setup_affinity(struct irq_desc *desc) { return 0; }
 #endif
 
-/* Inline functions for support of irq chips on slow busses */
 static inline void chip_bus_lock(struct irq_desc *desc)
 {
 	if (unlikely(desc->irq_data.chip->irq_bus_lock))
@@ -199,9 +167,6 @@ static inline unsigned int irqd_get(struct irq_data *d)
 	return __irqd_to_state(d);
 }
 
-/*
- * Manipulation functions for irq_data.state
- */
 static inline void irqd_set_move_pending(struct irq_data *d)
 {
 	__irqd_to_state(d) |= IRQD_SETAFFINITY_PENDING;
@@ -289,11 +254,6 @@ irq_pm_remove_action(struct irq_desc *desc, struct irqaction *action) { }
 #define IRQ_TIMINGS_SIZE	(1 << IRQ_TIMINGS_SHIFT)
 #define IRQ_TIMINGS_MASK	(IRQ_TIMINGS_SIZE - 1)
 
-/**
- * struct irq_timings - irq timings storing structure
- * @values: a circular buffer of u64 encoded <timestamp,irq> values
- * @count: the number of elements in the array
- */
 struct irq_timings {
 	u64	values[IRQ_TIMINGS_SIZE];
 	int	count;
@@ -317,16 +277,10 @@ static inline void irq_setup_timings(struct irq_desc *desc, struct irqaction *ac
 	int ret;
 
 	/*
-	 * We don't need the measurement because the idle code already
-	 * knows the next expiry event.
-	 */
 	if (act->flags & __IRQF_TIMER)
 		return;
 
 	/*
-	 * In case the timing allocation fails, we just want to warn,
-	 * not fail, so letting the system boot anyway.
-	 */
 	ret = irq_timings_alloc(irq);
 	if (ret) {
 		pr_warn("Failed to allocate irq timing stats for irq%d (%d)",
@@ -342,12 +296,6 @@ extern void irq_timings_disable(void);
 
 DECLARE_STATIC_KEY_FALSE(irq_timing_enabled);
 
-/*
- * The interrupt number and the timestamp are encoded into a single
- * u64 variable to optimize the size.
- * 48 bit time stamp and 16 bit IRQ number is way sufficient.
- *  Who cares an IRQ after 78 hours of idle time?
- */
 static inline u64 irq_timing_encode(u64 timestamp, int irq)
 {
 	return (timestamp << 16) | irq;
@@ -355,7 +303,6 @@ static inline u64 irq_timing_encode(u64 timestamp, int irq)
 
 static inline int irq_timing_decode(u64 value, u64 *timestamp)
 {
-	*timestamp = value >> 16;
 	return value & U16_MAX;
 }
 
@@ -369,14 +316,6 @@ static __always_inline void irq_timings_push(u64 ts, int irq)
 	timings->count++;
 }
 
-/*
- * The function record_irq_time is only called in one place in the
- * interrupts handler. We want this function always inline so the code
- * inside is embedded in the function and the static key branching
- * code can act at the higher level. Without the explicit
- * __always_inline we can end up with a function call and a small
- * overhead in the hotpath for nothing.
- */
 static __always_inline void record_irq_time(struct irq_desc *desc)
 {
 	if (!static_branch_likely(&irq_timing_enabled))

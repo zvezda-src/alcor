@@ -1,11 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * This file is part of the Linux kernel.
- *
- * Copyright (c) 2011-2014, Intel Corporation
- * Authors: Fenghua Yu <fenghua.yu@intel.com>,
- *          H. Peter Anvin <hpa@linux.intel.com>
- */
 
 #ifndef ASM_X86_ARCHRANDOM_H
 #define ASM_X86_ARCHRANDOM_H
@@ -15,7 +7,6 @@
 
 #define RDRAND_RETRY_LOOPS	10
 
-/* Unconditional execution of RDRAND and RDSEED */
 
 static inline bool __must_check rdrand_long(unsigned long *v)
 {
@@ -40,10 +31,6 @@ static inline bool __must_check rdseed_long(unsigned long *v)
 	return ok;
 }
 
-/*
- * These are the generic interfaces; they must not be declared if the
- * stubs in <linux/random.h> are to be invoked.
- */
 
 static inline size_t __must_check arch_get_random_longs(unsigned long *v, size_t max_longs)
 {

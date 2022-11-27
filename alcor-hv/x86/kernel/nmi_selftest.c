@@ -1,14 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * arch/x86/kernel/nmi-selftest.c
- *
- * Testsuite for NMI: IPIs
- *
- * Started by Don Zickus:
- * (using lib/locking-selftest.c as a guide)
- *
- *   Copyright (C) 2011 Red Hat, Inc., Don Zickus <dzickus@redhat.com>
- */
 
 #include <linux/smp.h>
 #include <linux/cpumask.h>
@@ -25,7 +14,6 @@
 
 static int __initdata nmi_fail;
 
-/* check to see if NMI IPIs work on this machine */
 static DECLARE_BITMAP(nmi_ipi_mask, NR_CPUS) __initdata;
 
 static int __initdata testcase_total;
@@ -114,8 +102,6 @@ static void __init dotest(void (*testcase_fn)(void), int expected)
 {
 	testcase_fn();
 	/*
-	 * Filter out expected failures:
-	 */
 	if (nmi_fail != expected) {
 		unexpected_testcase_failures++;
 
@@ -145,8 +131,6 @@ void __init nmi_selftest(void)
 	init_nmi_testsuite();
 
         /*
-	 * Run the testsuite:
-	 */
 	printk("----------------\n");
 	printk("| NMI testsuite:\n");
 	printk("--------------------\n");

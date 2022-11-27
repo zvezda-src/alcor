@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/dma-map-ops.h>
 #include <linux/dma-direct.h>
 #include <linux/iommu.h>
@@ -34,7 +33,6 @@ int force_iommu __read_mostly = 0;
 int iommu_merge __read_mostly = 0;
 
 int no_iommu __read_mostly;
-/* Set this to 1 if there is a HW IOMMU in the system */
 int iommu_detected __read_mostly = 0;
 
 #ifdef CONFIG_SWIOTLB
@@ -48,17 +46,10 @@ static void __init pci_swiotlb_detect(void)
 		x86_swiotlb_enable = true;
 
 	/*
-	 * Set swiotlb to 1 so that bounce buffers are allocated and used for
-	 * devices that can't support DMA to encrypted memory.
-	 */
 	if (cc_platform_has(CC_ATTR_HOST_MEM_ENCRYPT))
 		x86_swiotlb_enable = true;
 
 	/*
-	 * Guest with guest memory encryption currently perform all DMA through
-	 * bounce buffers as the hypervisor can't access arbitrary VM memory
-	 * that is not explicitly shared with it.
-	 */
 	if (cc_platform_has(CC_ATTR_GUEST_MEM_ENCRYPT)) {
 		x86_swiotlb_enable = true;
 		x86_swiotlb_flags |= SWIOTLB_FORCE;
@@ -123,10 +114,6 @@ void __init pci_iommu_alloc(void)
 	swiotlb_init(x86_swiotlb_enable, x86_swiotlb_flags);
 }
 
-/*
- * See <Documentation/x86/x86_64/boot-options.rst> for the iommu kernel
- * parameter documentation.
- */
 static __init int iommu_setup(char *p)
 {
 	iommu_merge = 1;
@@ -204,11 +191,9 @@ static int __init pci_iommu_init(void)
 
 	return 0;
 }
-/* Must execute after PCI subsystem */
 rootfs_initcall(pci_iommu_init);
 
 #ifdef CONFIG_PCI
-/* Many VIA bridges seem to corrupt data for DAC. Disable it here */
 
 static int via_no_dac_cb(struct pci_dev *pdev, void *data)
 {

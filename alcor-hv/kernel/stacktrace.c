@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * kernel/stacktrace.c
- *
- * Stack trace management functions
- *
- *  Copyright (C) 2006 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
- */
 #include <linux/sched/task_stack.h>
 #include <linux/sched/debug.h>
 #include <linux/sched.h>
@@ -15,12 +7,6 @@
 #include <linux/stacktrace.h>
 #include <linux/interrupt.h>
 
-/**
- * stack_trace_print - Print the entries in the stack trace
- * @entries:	Pointer to storage array
- * @nr_entries:	Number of entries in the storage array
- * @spaces:	Number of leading spaces to print
- */
 void stack_trace_print(const unsigned long *entries, unsigned int nr_entries,
 		       int spaces)
 {
@@ -34,16 +20,6 @@ void stack_trace_print(const unsigned long *entries, unsigned int nr_entries,
 }
 EXPORT_SYMBOL_GPL(stack_trace_print);
 
-/**
- * stack_trace_snprint - Print the entries in the stack trace into a buffer
- * @buf:	Pointer to the print buffer
- * @size:	Size of the print buffer
- * @entries:	Pointer to storage array
- * @nr_entries:	Number of entries in the storage array
- * @spaces:	Number of leading spaces to print
- *
- * Return: Number of bytes printed.
- */
 int stack_trace_snprint(char *buf, size_t size, const unsigned long *entries,
 			unsigned int nr_entries, int spaces)
 {
@@ -101,14 +77,6 @@ static bool stack_trace_consume_entry_nosched(void *cookie, unsigned long addr)
 	return stack_trace_consume_entry(cookie, addr);
 }
 
-/**
- * stack_trace_save - Save a stack trace into a storage array
- * @store:	Pointer to storage array
- * @size:	Size of the storage array
- * @skipnr:	Number of entries to skip at the start of the stack trace
- *
- * Return: Number of trace entries stored.
- */
 unsigned int stack_trace_save(unsigned long *store, unsigned int size,
 			      unsigned int skipnr)
 {
@@ -124,15 +92,6 @@ unsigned int stack_trace_save(unsigned long *store, unsigned int size,
 }
 EXPORT_SYMBOL_GPL(stack_trace_save);
 
-/**
- * stack_trace_save_tsk - Save a task stack trace into a storage array
- * @task:	The task to examine
- * @store:	Pointer to storage array
- * @size:	Size of the storage array
- * @skipnr:	Number of entries to skip at the start of the stack trace
- *
- * Return: Number of trace entries stored.
- */
 unsigned int stack_trace_save_tsk(struct task_struct *tsk, unsigned long *store,
 				  unsigned int size, unsigned int skipnr)
 {
@@ -152,15 +111,6 @@ unsigned int stack_trace_save_tsk(struct task_struct *tsk, unsigned long *store,
 	return c.len;
 }
 
-/**
- * stack_trace_save_regs - Save a stack trace based on pt_regs into a storage array
- * @regs:	Pointer to pt_regs to examine
- * @store:	Pointer to storage array
- * @size:	Size of the storage array
- * @skipnr:	Number of entries to skip at the start of the stack trace
- *
- * Return: Number of trace entries stored.
- */
 unsigned int stack_trace_save_regs(struct pt_regs *regs, unsigned long *store,
 				   unsigned int size, unsigned int skipnr)
 {
@@ -176,18 +126,6 @@ unsigned int stack_trace_save_regs(struct pt_regs *regs, unsigned long *store,
 }
 
 #ifdef CONFIG_HAVE_RELIABLE_STACKTRACE
-/**
- * stack_trace_save_tsk_reliable - Save task stack with verification
- * @tsk:	Pointer to the task to examine
- * @store:	Pointer to storage array
- * @size:	Size of the storage array
- *
- * Return:	An error if it detects any unreliable features of the
- *		stack. Otherwise it guarantees that the stack trace is
- *		reliable and returns the number of entries stored.
- *
- * If the task is not 'current', the caller *must* ensure the task is inactive.
- */
 int stack_trace_save_tsk_reliable(struct task_struct *tsk, unsigned long *store,
 				  unsigned int size)
 {
@@ -199,9 +137,6 @@ int stack_trace_save_tsk_reliable(struct task_struct *tsk, unsigned long *store,
 	int ret;
 
 	/*
-	 * If the task doesn't have a stack (e.g., a zombie), the stack is
-	 * "reliably" empty.
-	 */
 	if (!try_get_task_stack(tsk))
 		return 0;
 
@@ -212,13 +147,6 @@ int stack_trace_save_tsk_reliable(struct task_struct *tsk, unsigned long *store,
 #endif
 
 #ifdef CONFIG_USER_STACKTRACE_SUPPORT
-/**
- * stack_trace_save_user - Save a user space stack trace into a storage array
- * @store:	Pointer to storage array
- * @size:	Size of the storage array
- *
- * Return: Number of trace entries stored.
- */
 unsigned int stack_trace_save_user(unsigned long *store, unsigned int size)
 {
 	stack_trace_consume_fn consume_entry = stack_trace_consume_entry;
@@ -239,11 +167,6 @@ unsigned int stack_trace_save_user(unsigned long *store, unsigned int size)
 
 #else /* CONFIG_ARCH_STACKWALK */
 
-/*
- * Architectures that do not implement save_stack_trace_*()
- * get these weak aliases and once-per-bootup warnings
- * (whenever this facility is utilized - for example by procfs):
- */
 __weak void
 save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
@@ -256,14 +179,6 @@ save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
 	WARN_ONCE(1, KERN_INFO "save_stack_trace_regs() not implemented yet.\n");
 }
 
-/**
- * stack_trace_save - Save a stack trace into a storage array
- * @store:	Pointer to storage array
- * @size:	Size of the storage array
- * @skipnr:	Number of entries to skip at the start of the stack trace
- *
- * Return: Number of trace entries stored
- */
 unsigned int stack_trace_save(unsigned long *store, unsigned int size,
 			      unsigned int skipnr)
 {
@@ -278,15 +193,6 @@ unsigned int stack_trace_save(unsigned long *store, unsigned int size,
 }
 EXPORT_SYMBOL_GPL(stack_trace_save);
 
-/**
- * stack_trace_save_tsk - Save a task stack trace into a storage array
- * @task:	The task to examine
- * @store:	Pointer to storage array
- * @size:	Size of the storage array
- * @skipnr:	Number of entries to skip at the start of the stack trace
- *
- * Return: Number of trace entries stored
- */
 unsigned int stack_trace_save_tsk(struct task_struct *task,
 				  unsigned long *store, unsigned int size,
 				  unsigned int skipnr)
@@ -302,15 +208,6 @@ unsigned int stack_trace_save_tsk(struct task_struct *task,
 	return trace.nr_entries;
 }
 
-/**
- * stack_trace_save_regs - Save a stack trace based on pt_regs into a storage array
- * @regs:	Pointer to pt_regs to examine
- * @store:	Pointer to storage array
- * @size:	Size of the storage array
- * @skipnr:	Number of entries to skip at the start of the stack trace
- *
- * Return: Number of trace entries stored
- */
 unsigned int stack_trace_save_regs(struct pt_regs *regs, unsigned long *store,
 				   unsigned int size, unsigned int skipnr)
 {
@@ -325,18 +222,6 @@ unsigned int stack_trace_save_regs(struct pt_regs *regs, unsigned long *store,
 }
 
 #ifdef CONFIG_HAVE_RELIABLE_STACKTRACE
-/**
- * stack_trace_save_tsk_reliable - Save task stack with verification
- * @tsk:	Pointer to the task to examine
- * @store:	Pointer to storage array
- * @size:	Size of the storage array
- *
- * Return:	An error if it detects any unreliable features of the
- *		stack. Otherwise it guarantees that the stack trace is
- *		reliable and returns the number of entries stored.
- *
- * If the task is not 'current', the caller *must* ensure the task is inactive.
- */
 int stack_trace_save_tsk_reliable(struct task_struct *tsk, unsigned long *store,
 				  unsigned int size)
 {
@@ -351,13 +236,6 @@ int stack_trace_save_tsk_reliable(struct task_struct *tsk, unsigned long *store,
 #endif
 
 #ifdef CONFIG_USER_STACKTRACE_SUPPORT
-/**
- * stack_trace_save_user - Save a user space stack trace into a storage array
- * @store:	Pointer to storage array
- * @size:	Size of the storage array
- *
- * Return: Number of trace entries stored
- */
 unsigned int stack_trace_save_user(unsigned long *store, unsigned int size)
 {
 	struct stack_trace trace = {
@@ -380,13 +258,6 @@ static inline bool in_irqentry_text(unsigned long ptr)
 		 ptr < (unsigned long)&__softirqentry_text_end);
 }
 
-/**
- * filter_irq_stacks - Find first IRQ stack entry in trace
- * @entries:	Pointer to stack trace array
- * @nr_entries:	Number of entries in the storage array
- *
- * Return: Number of trace entries until IRQ stack starts.
- */
 unsigned int filter_irq_stacks(unsigned long *entries, unsigned int nr_entries)
 {
 	unsigned int i;

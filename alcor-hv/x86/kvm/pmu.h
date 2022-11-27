@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __KVM_X86_PMU_H
 #define __KVM_X86_PMU_H
 
@@ -11,7 +10,6 @@
 #define MSR_IA32_MISC_ENABLE_PMU_RO_MASK (MSR_IA32_MISC_ENABLE_PEBS_UNAVAIL |	\
 					  MSR_IA32_MISC_ENABLE_BTS_UNAVAIL)
 
-/* retrieve the 4 bits for EN and PMI out of IA32_FIXED_CTR_CTRL */
 #define fixed_ctrl_field(ctrl_reg, idx) (((ctrl_reg) >> ((idx)*4)) & 0xf)
 
 #define VMWARE_BACKDOOR_PMC_HOST_TSC		0x10000
@@ -97,10 +95,6 @@ static inline bool kvm_valid_perf_global_ctrl(struct kvm_pmu *pmu,
 	return !(pmu->global_ctrl_mask & data);
 }
 
-/* returns general purpose PMC with the specified MSR. Note that it can be
- * used for both PERFCTRn and EVNTSELn; that is why it accepts base as a
- * parameter to tell them apart.
- */
 static inline struct kvm_pmc *get_gp_pmc(struct kvm_pmu *pmu, u32 msr,
 					 u32 base)
 {
@@ -114,7 +108,6 @@ static inline struct kvm_pmc *get_gp_pmc(struct kvm_pmu *pmu, u32 msr,
 	return NULL;
 }
 
-/* returns fixed PMC with the specified MSR */
 static inline struct kvm_pmc *get_fixed_pmc(struct kvm_pmu *pmu, u32 msr)
 {
 	int base = MSR_CORE_PERF_FIXED_CTR0;
@@ -167,9 +160,6 @@ static inline void kvm_init_pmu_capability(void)
 	perf_get_x86_pmu_capability(&kvm_pmu_cap);
 
 	 /*
-	  * For Intel, only support guest architectural pmu
-	  * on a host with architectural pmu.
-	  */
 	if ((is_intel && !kvm_pmu_cap.version) || !kvm_pmu_cap.num_counters_gp)
 		enable_pmu = false;
 

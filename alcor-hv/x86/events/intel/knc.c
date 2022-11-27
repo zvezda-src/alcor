@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/* Driver for Intel Xeon Phi "Knights Corner" PMU */
 
 #include <linux/perf_event.h>
 #include <linux/types.h>
@@ -257,8 +255,6 @@ again:
 	}
 
 	/*
-	 * Repeat if there is more work to be done:
-	 */
 	status = knc_pmu_get_status();
 	if (status)
 		goto again;

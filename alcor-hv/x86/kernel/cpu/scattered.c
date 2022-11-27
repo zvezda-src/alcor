@@ -1,7 +1,3 @@
-/*
- *	Routines to identify additional cpu features that are scattered in
- *	cpuid space.
- */
 #include <linux/cpu.h>
 
 #include <asm/memtype.h>
@@ -18,11 +14,6 @@ struct cpuid_bit {
 	u32 sub_leaf;
 };
 
-/*
- * Please keep the leaf sorted by cpuid_bit.level for faster search.
- * X86_FEATURE_MBA is supported by both Intel and AMD. But the CPUID
- * levels are different and there is a separate entry for each.
- */
 static const struct cpuid_bit cpuid_bits[] = {
 	{ X86_FEATURE_APERFMPERF,       CPUID_ECX,  0, 0x00000006, 0 },
 	{ X86_FEATURE_EPB,		CPUID_ECX,  3, 0x00000006, 0 },

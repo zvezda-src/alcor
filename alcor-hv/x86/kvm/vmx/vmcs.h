@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __KVM_X86_VMX_VMCS_H
 #define __KVM_X86_VMX_VMCS_H
 
@@ -26,11 +25,6 @@ struct vmcs {
 
 DECLARE_PER_CPU(struct vmcs *, current_vmcs);
 
-/*
- * vmcs_host_state tracks registers that are loaded from the VMCS on VMEXIT
- * and whose values change infrequently, but are not constant.  I.e. this is
- * used as a write-through cache of the corresponding VMCS fields.
- */
 struct vmcs_host_state {
 	unsigned long cr3;	/* May not match real cr3 */
 	unsigned long cr4;	/* May not match real cr4 */
@@ -53,11 +47,6 @@ struct vmcs_controls_shadow {
 	u64 tertiary_exec;
 };
 
-/*
- * Track a VMCS that may be loaded on a certain CPU. If it is (cpu!=-1), also
- * remember whether it was VMLAUNCHed, and maintain a linked list of all VMCSs
- * loaded on this CPU (so we can clear them if the CPU goes down).
- */
 struct loaded_vmcs {
 	struct vmcs *vmcs;
 	struct vmcs *shadow_vmcs;
@@ -140,7 +129,6 @@ static inline bool is_nm_fault(u32 intr_info)
 	return is_exception_n(intr_info, NM_VECTOR);
 }
 
-/* Undocumented: icebp/int1 */
 static inline bool is_icebp(u32 intr_info)
 {
 	return is_intr_type(intr_info, INTR_TYPE_PRIV_SW_EXCEPTION);

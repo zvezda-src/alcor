@@ -1,42 +1,11 @@
-#!/usr/bin/python3
-#
 
-# Copyright (C) 2011, 2012 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 """Converter tools between ovf and alcor config file
 
 """
 
-# pylint: disable=F0401, E1101, C0413
 
-# F0401 because ElementTree is not default for python 2.4
-# E1101 makes no sense - pylint assumes that ElementTree object is a tuple
-# C0413 Wrong import position
 
 
 import configparser
@@ -66,7 +35,6 @@ from alcor import utils
 from alcor import pathutils
 
 
-# Schemas used in OVF format
 GANETI_SCHEMA = "http://alcor"
 OVF_SCHEMA = "http://schemas.dmtf.org/ovf/envelope/1"
 RASD_SCHEMA = ("http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/"
@@ -75,7 +43,6 @@ VSSD_SCHEMA = ("http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/"
                "CIM_VirtualSystemSettingData")
 XML_SCHEMA = "http://www.w3.org/2001/XMLSchema-instance"
 
-# File extensions in OVF package
 OVA_EXT = ".ova"
 OVF_EXT = ".ovf"
 MF_EXT = ".mf"
@@ -98,7 +65,6 @@ RAW = "raw"
 COW = "cow"
 ALLOWED_FORMATS = [RAW, COW, VMDK]
 
-# ResourceType values
 RASD_TYPE = {
   "vcpus": "3",
   "memory": "4",
@@ -113,7 +79,6 @@ VS_TYPE = {
   "external": "vmx-04",
 }
 
-# AllocationUnits values and conversion
 ALLOCATION_UNITS = {
   "b": ["bytes", "b"],
   "kb": ["kilobytes", "kb", "byte * 2^10", "kibibytes", "kib"],
@@ -127,7 +92,6 @@ CONVERT_UNITS_TO_MB = {
   "gb": lambda x: x * 1024,
 }
 
-# Names of the config fields
 NAME = "name"
 OS = "os"
 HYPERV = "hypervisor"
@@ -138,7 +102,6 @@ DISK_TEMPLATE = "disk_template"
 TAGS = "tags"
 VERSION = "version"
 
-# Instance IDs of System and SCSI controller
 INSTANCE_ID = {
   "system": 0,
   "vcpus": 1,
@@ -146,7 +109,6 @@ INSTANCE_ID = {
   "scsi": 3,
 }
 
-# Disk format descriptions
 DISK_FORMAT = {
   RAW: "http://en.wikipedia.org/wiki/Byte",
   VMDK: "http://www.vmware.com/interfaces/specifications/vmdk.html"
@@ -604,7 +566,6 @@ class OVFReader(object):
 
 
 def SubElementText(parent, tag, text, attrib={}, **extra):
-# pylint: disable=W0102
   """This is just a wrapper on ET.SubElement that always has text content.
 
   """

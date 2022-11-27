@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- *  Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com>
- *
- *  National Semiconductor SCx200 support.
- */
 
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -15,7 +9,6 @@
 #include <linux/scx200.h>
 #include <linux/scx200_gpio.h>
 
-/* Verify that the configuration block really is there */
 #define scx200_cb_probe(base) (inw((base) + SCx200_CBA) == (base))
 
 MODULE_AUTHOR("Christer Weinigel <wingel@nano-system.com>");

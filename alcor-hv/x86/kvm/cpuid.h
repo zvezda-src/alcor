@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ARCH_X86_KVM_CPUID_H
 #define ARCH_X86_KVM_CPUID_H
 
@@ -69,7 +68,6 @@ static __always_inline void cpuid_entry_override(struct kvm_cpuid_entry2 *entry,
 	u32 *reg = cpuid_entry_get_reg(entry, leaf * 32);
 
 	BUILD_BUG_ON(leaf >= ARRAY_SIZE(kvm_cpu_caps));
-	*reg = kvm_cpu_caps[leaf];
 }
 
 static __always_inline u32 *guest_cpuid_get_register(struct kvm_vcpu *vcpu,

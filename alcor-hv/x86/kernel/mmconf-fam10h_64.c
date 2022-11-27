@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * AMD Family 10h mmconfig enablement
- */
 
 #include <linux/types.h>
 #include <linux/mm.h>
@@ -47,7 +43,6 @@ static int cmp_range(const void *x1, const void *x2)
 #define MMCONF_UNIT (1ULL << FAM10H_MMIO_CONF_BASE_SHIFT)
 #define MMCONF_MASK (~(MMCONF_UNIT - 1))
 #define MMCONF_SIZE (MMCONF_UNIT << 8)
-/* need to avoid (0xfd<<32), (0xfe<<32), and (0xff<<32), ht used space */
 #define FAM10H_PCI_MMCONF_BASE (0xfcULL<<32)
 #define BASE_VALID(b) ((b) + MMCONF_SIZE <= (0xfdULL<<32) || (b) >= (1ULL<<40))
 static void get_fam10h_pci_mmconf_base(void)
@@ -112,9 +107,6 @@ static void get_fam10h_pci_mmconf_base(void)
 		base = (tom2 + 2 * MMCONF_UNIT - 1) & MMCONF_MASK;
 
 	/*
-	 * need to check if the range is in the high mmio range that is
-	 * above 4G
-	 */
 	hi_mmio_num = 0;
 	for (i = 0; i < 8; i++) {
 		u32 reg;
@@ -197,9 +189,6 @@ void fam10h_check_enable_mmcfg(void)
 	}
 
 	/*
-	 * if it is not enabled, try to enable it and assume only one segment
-	 * with 256 buses
-	 */
 	get_fam10h_pci_mmconf_base();
 	if (!fam10h_pci_mmconf_base) {
 		pci_probe &= ~PCI_CHECK_ENABLE_AMD_MMCONF;
@@ -231,7 +220,6 @@ static const struct dmi_system_id __initconst mmconf_dmi_table[] = {
 	{}
 };
 
-/* Called from a non __init function, but only on the BSP. */
 void __ref check_enable_amd_mmconf_dmi(void)
 {
 	dmi_check_system(mmconf_dmi_table);

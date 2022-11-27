@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Local APIC related interfaces to support IOAPIC, MSI, etc.
- *
- * Copyright (C) 1997, 1998, 1999, 2000, 2009 Ingo Molnar, Hajnalka Szabo
- *	Moved from arch/x86/kernel/apic/io_apic.c.
- * Jiang Liu <jiang.liu@linux.intel.com>
- *	Enable support of hierarchical irqdomains
- */
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/seq_file.h>
@@ -141,22 +132,10 @@ static void apic_update_vector(struct irq_data *irqd, unsigned int newvec,
 			    apicd->cpu);
 
 	/*
-	 * If there is no vector associated or if the associated vector is
-	 * the shutdown vector, which is associated to make PCI/MSI
-	 * shutdown mode work, then there is nothing to release. Clear out
-	 * prev_vector for this and the offlined target case.
-	 */
 	apicd->prev_vector = 0;
 	if (!apicd->vector || apicd->vector == MANAGED_IRQ_SHUTDOWN_VECTOR)
 		goto setnew;
 	/*
-	 * If the target CPU of the previous vector is online, then mark
-	 * the vector as move in progress and store it for cleanup when the
-	 * first interrupt on the new vector arrives. If the target CPU is
-	 * offline then the regular release mechanism via the cleanup
-	 * vector is not possible and the vector can be immediately freed
-	 * in the underlying matrix allocator.
-	 */
 	if (cpu_online(apicd->cpu)) {
 		apicd->move_in_progress = true;
 		apicd->prev_vector = apicd->vector;
@@ -229,19 +208,10 @@ assign_vector_locked(struct irq_data *irqd, const struct cpumask *dest)
 	lockdep_assert_held(&vector_lock);
 
 	/*
-	 * If the current target CPU is online and in the new requested
-	 * affinity mask, there is no point in moving the interrupt from
-	 * one CPU to another.
-	 */
 	if (vector && cpu_online(cpu) && cpumask_test_cpu(cpu, dest))
 		return 0;
 
 	/*
-	 * Careful here. @apicd might either have move_in_progress set or
-	 * be enqueued for cleanup. Assigning a new vector would either
-	 * leave a stale vector on some CPU around or in case of a pending
-	 * cleanup corrupt the hlist.
-	 */
 	if (apicd->move_in_progress || !hlist_unhashed(&apicd->clist))
 		return -EBUSY;
 
@@ -303,9 +273,6 @@ assign_irq_vector_policy(struct irq_data *irqd, struct irq_alloc_info *info)
 	if (info->mask)
 		return assign_irq_vector(irqd, info->mask);
 	/*
-	 * Make only a global reservation with no guarantee. A real vector
-	 * is associated at activation time.
-	 */
 	return reserve_irq_vector(irqd);
 }
 
@@ -394,20 +361,11 @@ static int activate_reserved(struct irq_data *irqd)
 	if (!ret) {
 		apicd->has_reserved = false;
 		/*
-		 * Core might have disabled reservation mode after
-		 * allocating the irq descriptor. Ideally this should
-		 * happen before allocation time, but that would require
-		 * completely convoluted ways of transporting that
-		 * information.
-		 */
 		if (!irqd_can_reserve(irqd))
 			apicd->can_reserve = false;
 	}
 
 	/*
-	 * Check to ensure that the effective affinity mask is a subset
-	 * the user supplied affinity mask, and warn the user if it is not
-	 */
 	if (!cpumask_subset(irq_data_get_effective_affinity_mask(irqd),
 			    irq_data_get_affinity_mask(irqd))) {
 		pr_warn("irq %u: Affinity broken due to vector space exhaustion.\n",
@@ -431,9 +389,6 @@ static int activate_managed(struct irq_data *irqd)
 
 	ret = assign_managed_vector(irqd, vector_searchmask);
 	/*
-	 * This should not happen. The vector reservation got buggered.  Handle
-	 * it gracefully.
-	 */
 	if (WARN_ON_ONCE(ret < 0)) {
 		pr_err("Managed startup irq %u, no vector available\n",
 		       irqd->irq);
@@ -511,9 +466,6 @@ static bool vector_configure_legacy(unsigned int virq, struct irq_data *irqd,
 
 	raw_spin_lock_irqsave(&vector_lock, flags);
 	/*
-	 * If the interrupt is activated, then it must stay at this vector
-	 * position. That's usually the timer interrupt (0).
-	 */
 	if (irqd_is_activated(irqd)) {
 		trace_vector_setup(virq, true, 0);
 		apic_update_irq_cfg(irqd, apicd->vector, apicd->cpu);
@@ -544,9 +496,6 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 		return -ENOSYS;
 
 	/*
-	 * Catch any attempt to touch the cascade interrupt on a PIC
-	 * equipped system.
-	 */
 	if (WARN_ON_ONCE(info->flags & X86_IRQ_ALLOC_LEGACY &&
 			 virq == PIC_CASCADE_IR))
 		return -EINVAL;
@@ -568,22 +517,12 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 		irqd->hwirq = virq + i;
 		irqd_set_single_target(irqd);
 		/*
-		 * Prevent that any of these interrupts is invoked in
-		 * non interrupt context via e.g. generic_handle_irq()
-		 * as that can corrupt the affinity move state.
-		 */
 		irqd_set_handle_enforce_irqctx(irqd);
 
 		/* Don't invoke affinity setter on deactivated interrupts */
 		irqd_set_affinity_on_activate(irqd);
 
 		/*
-		 * Legacy vectors are already assigned when the IOAPIC
-		 * takes them over. They stay on the same vector. This is
-		 * required for check_timer() to work correctly as it might
-		 * switch back to legacy mode. Only update the hardware
-		 * config.
-		 */
 		if (info->flags & X86_IRQ_ALLOC_LEGACY) {
 			if (!vector_configure_legacy(virq + i, irqd, apicd))
 				continue;
@@ -680,10 +619,6 @@ static int x86_vector_select(struct irq_domain *d, struct irq_fwspec *fwspec,
 			     enum irq_domain_bus_token bus_token)
 {
 	/*
-	 * HPET and I/OAPIC cannot be parented in the vector domain
-	 * if IRQ remapping is enabled. APIC IDs above 15 bits are
-	 * only permitted if IRQ remapping is enabled, so check that.
-	 */
 	if (apic->apic_id_valid(32768))
 		return 0;
 
@@ -711,8 +646,6 @@ int __init arch_probe_nr_irqs(void)
 	nr = (gsi_top + nr_legacy_irqs()) + 8 * nr_cpu_ids;
 #if defined(CONFIG_PCI_MSI)
 	/*
-	 * for MSI and HT dyn irq
-	 */
 	if (gsi_top <= NR_IRQS_LEGACY)
 		nr +=  8 * nr_cpu_ids;
 	else
@@ -722,19 +655,12 @@ int __init arch_probe_nr_irqs(void)
 		nr_irqs = nr;
 
 	/*
-	 * We don't know if PIC is present at this point so we need to do
-	 * probe() to get the right number of legacy IRQs.
-	 */
 	return legacy_pic->probe();
 }
 
 void lapic_assign_legacy_vector(unsigned int irq, bool replace)
 {
 	/*
-	 * Use assign system here so it wont get accounted as allocated
-	 * and moveable in the cpu hotplug check and it prevents managed
-	 * irq reservation from touching it.
-	 */
 	irq_matrix_assign_system(vector_matrix, ISA_IRQ_VECTOR(irq), replace);
 }
 
@@ -746,12 +672,6 @@ void __init lapic_update_legacy_vectors(void)
 		return;
 
 	/*
-	 * If the IO/APIC is disabled via config, kernel command line or
-	 * lack of enumeration then all legacy interrupts are routed
-	 * through the PIC. Make sure that they are marked as legacy
-	 * vectors. PIC_CASCADE_IRQ has already been marked in
-	 * lapic_assign_system_vectors().
-	 */
 	for (i = 0; i < nr_legacy_irqs(); i++) {
 		if (i != PIC_CASCADE_IR)
 			lapic_assign_legacy_vector(i, true);
@@ -774,10 +694,6 @@ void __init lapic_assign_system_vectors(void)
 	/* Mark the preallocated legacy interrupts */
 	for (i = 0; i < nr_legacy_irqs(); i++) {
 		/*
-		 * Don't touch the cascade interrupt. It's unusable
-		 * on PIC equipped machines. See the large comment
-		 * in the IO/APIC code.
-		 */
 		if (i != PIC_CASCADE_IR)
 			irq_matrix_assign(vector_matrix, ISA_IRQ_VECTOR(i));
 	}
@@ -797,9 +713,6 @@ int __init arch_early_irq_init(void)
 	BUG_ON(!alloc_cpumask_var(&vector_searchmask, GFP_KERNEL));
 
 	/*
-	 * Allocate the vector matrix allocator data structure and limit the
-	 * search area.
-	 */
 	vector_matrix = irq_alloc_matrix(NR_VECTORS, FIRST_EXTERNAL_VECTOR,
 					 FIRST_SYSTEM_VECTOR);
 	BUG_ON(!vector_matrix);
@@ -822,7 +735,6 @@ static struct irq_desc *__setup_vector_irq(int vector)
 	return irq_to_desc(isairq);
 }
 
-/* Online the local APIC infrastructure and initialize the vectors */
 void lapic_online(void)
 {
 	unsigned int vector;
@@ -833,14 +745,6 @@ void lapic_online(void)
 	irq_matrix_online(vector_matrix);
 
 	/*
-	 * The interrupt affinity logic never targets interrupts to offline
-	 * CPUs. The exception are the legacy PIC interrupts. In general
-	 * they are only targeted to CPU0, but depending on the platform
-	 * they can be distributed to any online CPU in hardware. The
-	 * kernel has no influence on that. So all active legacy vectors
-	 * must be installed on all CPUs. All non legacy interrupts can be
-	 * cleared.
-	 */
 	for (vector = 0; vector < NR_VECTORS; vector++)
 		this_cpu_write(vector_irq[vector], __setup_vector_irq(vector));
 }
@@ -921,15 +825,6 @@ static void free_moved_vector(struct apic_chip_data *apicd)
 	bool managed = apicd->is_managed;
 
 	/*
-	 * Managed interrupts are usually not migrated away
-	 * from an online CPU, but CPU isolation 'managed_irq'
-	 * can make that happen.
-	 * 1) Activation does not take the isolation into account
-	 *    to keep the code simple
-	 * 2) Migration away from an isolated CPU can happen when
-	 *    a non-isolated CPU which is in the calculated
-	 *    affinity mask comes online.
-	 */
 	trace_vector_free_moved(apicd->irq, cpu, vector, managed);
 	irq_matrix_free(vector_matrix, cpu, vector, managed);
 	per_cpu(vector_irq, cpu)[vector] = VECTOR_UNUSED;
@@ -952,14 +847,6 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_irq_move_cleanup)
 		unsigned int irr, vector = apicd->prev_vector;
 
 		/*
-		 * Paranoia: Check if the vector that needs to be cleaned
-		 * up is registered at the APICs IRR. If so, then this is
-		 * not the best time to clean it up. Clean it up in the
-		 * next attempt by sending another IRQ_MOVE_CLEANUP_VECTOR
-		 * to this CPU. IRQ_MOVE_CLEANUP_VECTOR is the lowest
-		 * priority external vector, so on return from this
-		 * interrupt the device interrupt will happen first.
-		 */
 		irr = apic_read(APIC_IRR + (vector / 32 * 0x10));
 		if (irr & (1U << (vector % 32))) {
 			apic->send_IPI_self(IRQ_MOVE_CLEANUP_VECTOR);
@@ -1005,18 +892,10 @@ void irq_complete_move(struct irq_cfg *cfg)
 		return;
 
 	/*
-	 * If the interrupt arrived on the new target CPU, cleanup the
-	 * vector on the old target CPU. A vector check is not required
-	 * because an interrupt can never move from one vector to another
-	 * on the same CPU.
-	 */
 	if (apicd->cpu == smp_processor_id())
 		__send_cleanup_vector(apicd);
 }
 
-/*
- * Called from fixup_irqs() with @desc->lock held and interrupts disabled.
- */
 void irq_force_complete_move(struct irq_desc *desc)
 {
 	struct apic_chip_data *apicd;
@@ -1024,14 +903,6 @@ void irq_force_complete_move(struct irq_desc *desc)
 	unsigned int vector;
 
 	/*
-	 * The function is called for all descriptors regardless of which
-	 * irqdomain they belong to. For example if an IRQ is provided by
-	 * an irq_chip as part of a GPIO driver, the chip data for that
-	 * descriptor is specific to the irq_chip in question.
-	 *
-	 * Check first that the chip_data is what we expect
-	 * (apic_chip_data) before touching it any further.
-	 */
 	irqd = irq_domain_get_irq_data(x86_vector_domain,
 				       irq_desc_get_irq(desc));
 	if (!irqd)
@@ -1043,60 +914,13 @@ void irq_force_complete_move(struct irq_desc *desc)
 		goto unlock;
 
 	/*
-	 * If prev_vector is empty, no action required.
-	 */
 	vector = apicd->prev_vector;
 	if (!vector)
 		goto unlock;
 
 	/*
-	 * This is tricky. If the cleanup of the old vector has not been
-	 * done yet, then the following setaffinity call will fail with
-	 * -EBUSY. This can leave the interrupt in a stale state.
-	 *
-	 * All CPUs are stuck in stop machine with interrupts disabled so
-	 * calling __irq_complete_move() would be completely pointless.
-	 *
-	 * 1) The interrupt is in move_in_progress state. That means that we
-	 *    have not seen an interrupt since the io_apic was reprogrammed to
-	 *    the new vector.
-	 *
-	 * 2) The interrupt has fired on the new vector, but the cleanup IPIs
-	 *    have not been processed yet.
-	 */
 	if (apicd->move_in_progress) {
 		/*
-		 * In theory there is a race:
-		 *
-		 * set_ioapic(new_vector) <-- Interrupt is raised before update
-		 *			      is effective, i.e. it's raised on
-		 *			      the old vector.
-		 *
-		 * So if the target cpu cannot handle that interrupt before
-		 * the old vector is cleaned up, we get a spurious interrupt
-		 * and in the worst case the ioapic irq line becomes stale.
-		 *
-		 * But in case of cpu hotplug this should be a non issue
-		 * because if the affinity update happens right before all
-		 * cpus rendezvous in stop machine, there is no way that the
-		 * interrupt can be blocked on the target cpu because all cpus
-		 * loops first with interrupts enabled in stop machine, so the
-		 * old vector is not yet cleaned up when the interrupt fires.
-		 *
-		 * So the only way to run into this issue is if the delivery
-		 * of the interrupt on the apic/system bus would be delayed
-		 * beyond the point where the target cpu disables interrupts
-		 * in stop machine. I doubt that it can happen, but at least
-		 * there is a theoretical chance. Virtualization might be
-		 * able to expose this, but AFAICT the IOAPIC emulation is not
-		 * as stupid as the real hardware.
-		 *
-		 * Anyway, there is nothing we can do about that at this point
-		 * w/o refactoring the whole fixup_irq() business completely.
-		 * We print at least the irq number and the old vector number,
-		 * so we have the necessary information when a problem in that
-		 * area arises.
-		 */
 		pr_warn("IRQ fixup: irq %d move in progress, old vector %d\n",
 			irqd->irq, vector);
 	}
@@ -1106,10 +930,6 @@ unlock:
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-/*
- * Note, this is not accurate accounting, but at least good enough to
- * prevent that the actual interrupt move will run out of vectors.
- */
 int lapic_can_unplug_cpu(void)
 {
 	unsigned int rsvd, avl, tomove, cpu = smp_processor_id();
@@ -1177,9 +997,6 @@ static void __init print_local_APIC(void *dummy)
 	}
 
 	/*
-	 * Remote read supported only in the 82489DX and local APIC for
-	 * Pentium processors.
-	 */
 	if (!APIC_INTEGRATED(ver) || maxlvt == 3) {
 		v = apic_read(APIC_RRR);
 		pr_debug("... APIC RRR: %08x\n", v);

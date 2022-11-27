@@ -1,15 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Architecture specific (i386/x86_64) functions for kexec based crash dumps.
- *
- * Created by: Hariprasad Nellitheertha (hari@in.ibm.com)
- *
- * Copyright (C) IBM Corporation, 2004. All rights reserved.
- * Copyright (C) Red Hat Inc., 2014. All rights reserved.
- * Authors:
- *      Vivek Goyal <vgoyal@redhat.com>
- *
- */
 
 #define pr_fmt(fmt)	"kexec: " fmt
 
@@ -42,20 +30,12 @@
 #include <asm/crash.h>
 #include <asm/cmdline.h>
 
-/* Used while preparing memory map entries for second kernel */
 struct crash_memmap_data {
 	struct boot_params *params;
 	/* Type of memory */
 	unsigned int type;
 };
 
-/*
- * This is used to VMCLEAR all VMCSs loaded on the
- * processor. And when loading kvm_intel module, the
- * callback function pointer will be assigned.
- *
- * protected by rcu.
- */
 crash_vmclear_fn __rcu *crash_vmclear_loaded_vmcss = NULL;
 EXPORT_SYMBOL_GPL(crash_vmclear_loaded_vmcss);
 
@@ -77,8 +57,6 @@ static void kdump_nmi_callback(int cpu, struct pt_regs *regs)
 	crash_save_cpu(regs, cpu);
 
 	/*
-	 * VMCLEAR VMCSs loaded on all cpus if needed.
-	 */
 	cpu_crash_vmclear_loaded_vmcss();
 
 	/* Disable VMX or SVM if needed.
@@ -91,8 +69,6 @@ static void kdump_nmi_callback(int cpu, struct pt_regs *regs)
 	cpu_emergency_svm_disable();
 
 	/*
-	 * Disable Intel PT to stop its logging
-	 */
 	cpu_emergency_stop_pt();
 
 	disable_local_APIC();
@@ -105,7 +81,6 @@ void kdump_nmi_shootdown_cpus(void)
 	disable_local_APIC();
 }
 
-/* Override the weak function in kernel/panic.c */
 void crash_smp_send_stop(void)
 {
 	static int cpus_stopped;
@@ -144,8 +119,6 @@ void native_machine_crash_shutdown(struct pt_regs *regs)
 	crash_smp_send_stop();
 
 	/*
-	 * VMCLEAR VMCSs loaded on this cpu if needed.
-	 */
 	cpu_crash_vmclear_loaded_vmcss();
 
 	/* Booting kdump kernel with VMX or SVM enabled won't work,
@@ -156,8 +129,6 @@ void native_machine_crash_shutdown(struct pt_regs *regs)
 	cpu_emergency_svm_disable();
 
 	/*
-	 * Disable Intel PT to stop its logging
-	 */
 	cpu_emergency_stop_pt();
 
 #ifdef CONFIG_X86_IO_APIC
@@ -183,7 +154,6 @@ static int get_nr_ram_ranges_callback(struct resource *res, void *arg)
 	return 0;
 }
 
-/* Gather all the required information to prepare elf headers for ram regions */
 static struct crash_mem *fill_up_crash_elf_data(void)
 {
 	unsigned int nr_ranges = 0;
@@ -194,9 +164,6 @@ static struct crash_mem *fill_up_crash_elf_data(void)
 		return NULL;
 
 	/*
-	 * Exclusion of crash region and/or crashk_low_res may cause
-	 * another range split. So add extra two slots here.
-	 */
 	nr_ranges += 2;
 	cmem = vzalloc(struct_size(cmem, ranges, nr_ranges));
 	if (!cmem)
@@ -208,10 +175,6 @@ static struct crash_mem *fill_up_crash_elf_data(void)
 	return cmem;
 }
 
-/*
- * Look for any unwanted ranges between mstart, mend and remove them. This
- * might lead to split and split ranges are put in cmem->ranges[] array
- */
 static int elf_header_exclude_ranges(struct crash_mem *cmem)
 {
 	int ret = 0;
@@ -244,7 +207,6 @@ static int prepare_elf64_ram_headers_callback(struct resource *res, void *arg)
 	return 0;
 }
 
-/* Prepare elf headers. Return addr and size */
 static int prepare_elf_headers(struct kimage *image, void **addr,
 					unsigned long *sz)
 {
@@ -315,7 +277,6 @@ static int memmap_exclude_ranges(struct kimage *image, struct crash_mem *cmem,
 	return crash_exclude_mem_range(cmem, start, end);
 }
 
-/* Prepare memory map for crash dump kernel */
 int crash_setup_memmap_entries(struct kimage *image, struct boot_params *params)
 {
 	int i, ret = 0;

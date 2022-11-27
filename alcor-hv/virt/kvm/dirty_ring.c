@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * KVM dirty ring implementation
- *
- * Copyright 2019 Red Hat, Inc.
- */
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
 #include <linux/vmalloc.h>
@@ -114,9 +108,6 @@ int kvm_dirty_ring_reset(struct kvm *kvm, struct kvm_dirty_ring *ring)
 		ring->reset_index++;
 		count++;
 		/*
-		 * Try to coalesce the reset operations when the guest is
-		 * scanning pages in the same slot.
-		 */
 		if (!first_round && next_slot == cur_slot) {
 			s64 delta = next_offset - cur_offset;
 
@@ -159,9 +150,6 @@ void kvm_dirty_ring_push(struct kvm_dirty_ring *ring, u32 slot, u64 offset)
 	entry->slot = slot;
 	entry->offset = offset;
 	/*
-	 * Make sure the data is filled in before we publish this to
-	 * the userspace program.  There's no paired kernel-side reader.
-	 */
 	smp_wmb();
 	kvm_dirty_gfn_set_dirtied(entry);
 	ring->dirty_index++;

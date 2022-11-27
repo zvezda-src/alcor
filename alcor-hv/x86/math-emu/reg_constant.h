@@ -1,5 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*---------------------------------------------------------------------------+
  |  reg_constant.h                                                           |
  |                                                                           |
  | Copyright (C) 1992    W. Metzenthen, 22 Parker St, Ormond, Vic 3163,      |

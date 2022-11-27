@@ -1,23 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0+
-/*
- * Module signature checker
- *
- * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
- * Written by David Howells (dhowells@redhat.com)
- */
 
 #include <linux/errno.h>
 #include <linux/printk.h>
 #include <linux/module_signature.h>
 #include <asm/byteorder.h>
 
-/**
- * mod_check_sig - check that the given signature is sane
- *
- * @ms:		Signature to check.
- * @file_len:	Size of the file to which @ms is appended.
- * @name:	What is being checked. Used for error messages.
- */
 int mod_check_sig(const struct module_signature *ms, size_t file_len,
 		  const char *name)
 {

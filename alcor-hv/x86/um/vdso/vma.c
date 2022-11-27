@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Copyright (C) 2011 Richard Weinberger <richrd@nod.at>
- */
 
 #include <linux/slab.h>
 #include <linux/sched.h>
@@ -38,7 +34,6 @@ static int __init init_vdso(void)
 	}
 
 	copy_page(page_address(um_vdso), vdso_start);
-	*vdsop = um_vdso;
 
 	return 0;
 

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef __KVM_FPU_H_
 #define __KVM_FPU_H_

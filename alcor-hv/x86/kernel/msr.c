@@ -1,21 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/* ----------------------------------------------------------------------- *
- *
- *   Copyright 2000-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
- *
- * ----------------------------------------------------------------------- */
 
-/*
- * x86 MSR access device
- *
- * This device is accessed by lseek() to the appropriate register number
- * and then read/write in chunks of 8 bytes.  A larger size means multiple
- * reads or writes of the same register.
- *
- * This driver uses /dev/cpu/%d/msr where %d is the minor number, and on
- * an SMP box will direct the access to CPU %d.
- */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -81,13 +64,6 @@ static ssize_t msr_read(struct file *file, char __user *buf,
 static int filter_write(u32 reg)
 {
 	/*
-	 * MSRs writes usually happen all at once, and can easily saturate kmsg.
-	 * Only allow one message every 30 seconds.
-	 *
-	 * It's possible to be smarter here and do it (for example) per-MSR, but
-	 * it would certainly be more complex, and this is enough at least to
-	 * avoid saturating the ring buffer.
-	 */
 	static DEFINE_RATELIMIT_STATE(fw_rs, 30 * HZ, 1);
 
 	switch (allow_writes) {
@@ -222,9 +198,6 @@ static int msr_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-/*
- * File operations we support
- */
 static const struct file_operations msr_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_seek_end_llseek,

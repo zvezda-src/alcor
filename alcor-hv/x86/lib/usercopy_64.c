@@ -1,18 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* 
- * User address space access functions.
- *
- * Copyright 1997 Andi Kleen <ak@muc.de>
- * Copyright 1997 Linus Torvalds
- * Copyright 2002 Andi Kleen <ak@suse.de>
- */
 #include <linux/export.h>
 #include <linux/uaccess.h>
 #include <linux/highmem.h>
 
-/*
- * Zero Userspace
- */
 
 unsigned long __clear_user(void __user *addr, unsigned long size)
 {
@@ -55,15 +44,6 @@ unsigned long clear_user(void __user *to, unsigned long n)
 EXPORT_SYMBOL(clear_user);
 
 #ifdef CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE
-/**
- * clean_cache_range - write back a cache range with CLWB
- * @vaddr:	virtual start address
- * @size:	number of bytes to write back
- *
- * Write back a cache range using the CLWB (cache line write back)
- * instruction. Note that @size is internally rounded up to be cache
- * line size aligned.
- */
 static void clean_cache_range(void *addr, size_t size)
 {
 	u16 x86_clflush_size = boot_cpu_data.x86_clflush_size;
@@ -88,13 +68,6 @@ long __copy_user_flushcache(void *dst, const void __user *src, unsigned size)
 	long rc = __copy_user_nocache(dst, src, size, 0);
 
 	/*
-	 * __copy_user_nocache() uses non-temporal stores for the bulk
-	 * of the transfer, but we need to manually flush if the
-	 * transfer is unaligned. A cached memory copy is used when
-	 * destination or size is not naturally aligned. That is:
-	 *   - Require 8-byte alignment when size is 8 bytes or larger.
-	 *   - Require 4-byte alignment when size is 4 bytes.
-	 */
 	if (size < 8) {
 		if (!IS_ALIGNED(dest, 4) || size != 4)
 			clean_cache_range(dst, size);

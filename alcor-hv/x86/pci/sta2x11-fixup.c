@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * DMA translation between STA2x11 AMBA memory mapping and the x86 memory mapping
- *
- * ST Microelectronics ConneXt (STA2X11/STA2X10)
- *
- * Copyright (c) 2010-2011 Wind River Systems, Inc.
- */
 
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
@@ -17,10 +9,6 @@
 
 #define STA2X11_SWIOTLB_SIZE (4*1024*1024)
 
-/*
- * We build a list of bus numbers that are under the ConneXt. The
- * main bridge hosts 4 busses, which are the 4 endpoints, in order.
- */
 #define STA2X11_NR_EP		4	/* 0..3 included */
 #define STA2X11_NR_FUNCS	8	/* 0..7 included */
 #define STA2X11_AMBA_SIZE	(512 << 20)
@@ -42,7 +30,6 @@ struct sta2x11_instance {
 
 static LIST_HEAD(sta2x11_instance_list);
 
-/* At probe time, record new instances of this bridge (likely one only) */
 static void sta2x11_new_instance(struct pci_dev *pdev)
 {
 	struct sta2x11_instance *instance;
@@ -64,9 +51,6 @@ static void sta2x11_new_instance(struct pci_dev *pdev)
 }
 DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_STMICRO, 0xcc17, sta2x11_new_instance);
 
-/*
- * Utility functions used in this file from below
- */
 static struct sta2x11_instance *sta2x11_pdev_to_instance(struct pci_dev *pdev)
 {
 	struct sta2x11_instance *instance;
@@ -91,14 +75,12 @@ static int sta2x11_pdev_to_ep(struct pci_dev *pdev)
 	return pdev->bus->number - instance->bus0;
 }
 
-/* This is exported, as some devices need to access the MFD registers */
 struct sta2x11_instance *sta2x11_get_instance(struct pci_dev *pdev)
 {
 	return sta2x11_pdev_to_instance(pdev);
 }
 EXPORT_SYMBOL(sta2x11_get_instance);
 
-/* At setup time, we use our own ops if the device is a ConneXt one */
 static void sta2x11_setup_pdev(struct pci_dev *pdev)
 {
 	struct sta2x11_instance *instance = sta2x11_pdev_to_instance(pdev);
@@ -111,10 +93,6 @@ static void sta2x11_setup_pdev(struct pci_dev *pdev)
 }
 DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_STMICRO, PCI_ANY_ID, sta2x11_setup_pdev);
 
-/*
- * At boot we must set up the mappings for the pcie-to-amba bridge.
- * It involves device access, and the same happens at suspend/resume time
- */
 
 #define AHB_MAPB		0xCA4
 #define AHB_CRW(i)		(AHB_MAPB + 0  + (i) * 0x10)
@@ -127,7 +105,6 @@ DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_STMICRO, PCI_ANY_ID, sta2x11_setup_pdev);
 #define AHB_PEXLBASE(i)		(AHB_MAPB + 8  + (i) * 0x10)
 #define AHB_PEXHBASE(i)		(AHB_MAPB + 12 + (i) * 0x10)
 
-/* At probe time, enable mapping for each endpoint, using the pdev */
 static void sta2x11_map_ep(struct pci_dev *pdev)
 {
 	struct sta2x11_instance *instance = sta2x11_pdev_to_instance(pdev);

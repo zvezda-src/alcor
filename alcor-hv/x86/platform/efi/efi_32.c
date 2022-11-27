@@ -1,24 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Extensible Firmware Interface
- *
- * Based on Extensible Firmware Interface Specification version 1.0
- *
- * Copyright (C) 1999 VA Linux Systems
- * Copyright (C) 1999 Walt Drummond <drummond@valinux.com>
- * Copyright (C) 1999-2002 Hewlett-Packard Co.
- *	David Mosberger-Tang <davidm@hpl.hp.com>
- *	Stephane Eranian <eranian@hpl.hp.com>
- *
- * All EFI Runtime Services are not implemented yet as EFI only
- * supports physical mode addressing on SoftSDV. This is to be fixed
- * in a future version.  --drummond 1999-07-20
- *
- * Implemented EFI runtime services and virtual mode calls.  --davidm
- *
- * Goutham Rao: <goutham.rao@intel.com>
- *	Skip non-WB memory and ignore empty memory ranges.
- */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -58,12 +37,6 @@ void __init efi_map_region(efi_memory_desc_t *md)
 		pr_err("ioremap of 0x%llX failed!\n", md->phys_addr);
 }
 
-/*
- * To make EFI call EFI runtime service in physical addressing mode we need
- * prolog/epilog before/after the invocation to claim the EFI runtime service
- * handler exclusively and to duplicate a memory mapping in low memory space,
- * say 0 - 3G.
- */
 
 int __init efi_alloc_page_tables(void)
 {

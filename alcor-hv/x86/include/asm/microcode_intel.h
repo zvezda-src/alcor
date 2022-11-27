@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_MICROCODE_INTEL_H
 #define _ASM_X86_MICROCODE_INTEL_H
 
@@ -22,7 +21,6 @@ struct microcode_intel {
 	unsigned int            bits[];
 };
 
-/* microcode format is extended from prescott processors */
 struct extended_signature {
 	unsigned int            sig;
 	unsigned int            pf;

@@ -1,38 +1,7 @@
-#
-#
 
-# Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2014 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """Instance related commands"""
 
-# pylint: disable=W0401,W0614,C0103
-# W0401: Wildcard import alcor.cli
-# W0614: Unused import %s from wildcard import (since we need cli)
-# C0103: Invalid name gnt-instance
 
 import copy
 import itertools
@@ -68,7 +37,6 @@ _EXPAND_NODES_TAGS_MODES = compat.UniqueFrozenset([
   _EXPAND_NODES_SEC_BY_TAGS,
   ])
 
-#: default list of options for L{ListInstances}
 _LIST_DEF_FIELDS = [
   "name", "hypervisor", "os", "pnode", "status", "oper_ram",
   ]
@@ -1512,7 +1480,6 @@ def ChangeGroup(opts, args):
   return rcode
 
 
-# multi-instance selection options
 m_force_multi = cli_option("--force-multiple", dest="force_multi",
                            help="Do not ask for confirmation when more than"
                            " one instance is affected",
@@ -1558,7 +1525,6 @@ m_inst_tags_opt = cli_option("--tags", dest="multi_mode",
                              const=_EXPAND_INSTANCES_BY_TAGS,
                              action="store_const")
 
-# this is defined separately due to readability only
 add_opts = [
   FORTHCOMING_OPT,
   COMMIT_OPT,
@@ -1734,7 +1700,6 @@ commands = {
     "<instance-name> <tag>...", "Remove tags from given instance"),
   }
 
-#: dictionary with aliases for commands
 aliases = {
   "start": "startup",
   "stop": "shutdown",

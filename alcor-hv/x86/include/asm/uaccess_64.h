@@ -1,10 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_UACCESS_64_H
 #define _ASM_X86_UACCESS_64_H
 
-/*
- * User space memory access functions
- */
 #include <linux/compiler.h>
 #include <linux/lockdep.h>
 #include <linux/kasan-checks.h>
@@ -12,11 +8,7 @@
 #include <asm/cpufeatures.h>
 #include <asm/page.h>
 
-/*
- * Copy To/From Userspace
- */
 
-/* Handles exceptions in both to and from, but doesn't do access_ok */
 __must_check unsigned long
 copy_user_enhanced_fast_string(void *to, const void *from, unsigned len);
 __must_check unsigned long
@@ -30,10 +22,6 @@ copy_user_generic(void *to, const void *from, unsigned len)
 	unsigned ret;
 
 	/*
-	 * If CPU has ERMS feature, use copy_user_enhanced_fast_string.
-	 * Otherwise, if CPU has rep_good feature, use copy_user_generic_string.
-	 * Otherwise, use copy_user_generic_unrolled.
-	 */
 	alternative_call_2(copy_user_generic_unrolled,
 			 copy_user_generic_string,
 			 X86_FEATURE_REP_GOOD,

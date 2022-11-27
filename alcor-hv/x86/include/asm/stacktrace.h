@@ -1,8 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- *  Copyright (C) 1991, 1992  Linus Torvalds
- *  Copyright (C) 2000, 2001, 2002 Andi Kleen, SuSE Labs
- */
 
 #ifndef _ASM_X86_STACKTRACE_H
 #define _ASM_X86_STACKTRACE_H
@@ -98,7 +93,6 @@ get_stack_pointer(struct task_struct *task, struct pt_regs *regs)
 	return (unsigned long *)task->thread.sp;
 }
 
-/* The form of the top of the frame on the stack */
 struct stack_frame {
 	struct stack_frame *next_frame;
 	unsigned long return_address;

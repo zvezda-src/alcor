@@ -1,19 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (2004) Linus Torvalds
- *
- * Author: Zwane Mwaikambo <zwane@fsmlabs.com>
- *
- * Copyright (2004, 2005) Ingo Molnar
- *
- * This file contains the spinlock/rwlock implementations for the
- * SMP and the DEBUG_SPINLOCK cases. (UP-nondebug inlines them)
- *
- * Note that some architectures have special knowledge about the
- * stack frames of these functions in their profile_pc. If you
- * change anything significant here that could change the stack
- * frame contact the architecture maintainers.
- */
 
 #include <linux/linkage.h>
 #include <linux/preempt.h>
@@ -29,22 +13,9 @@ EXPORT_PER_CPU_SYMBOL(__mmiowb_state);
 #endif
 #endif
 
-/*
- * If lockdep is enabled then we use the non-preemption spin-ops
- * even on CONFIG_PREEMPT, because lockdep assumes that interrupts are
- * not re-enabled during lock-acquire (which the preempt-spin-ops do):
- */
 #if !defined(CONFIG_GENERIC_LOCKBREAK) || defined(CONFIG_DEBUG_LOCK_ALLOC)
-/*
- * The __lock_function inlines are taken from
- * spinlock : include/linux/spinlock_api_smp.h
- * rwlock   : include/linux/rwlock_api_smp.h
- */
 #else
 
-/*
- * Some architectures can relax in favour of the CPU owning the lock.
- */
 #ifndef arch_read_relax
 # define arch_read_relax(l)	cpu_relax()
 #endif
@@ -55,15 +26,6 @@ EXPORT_PER_CPU_SYMBOL(__mmiowb_state);
 # define arch_spin_relax(l)	cpu_relax()
 #endif
 
-/*
- * We build the __lock_function inlines here. They are too large for
- * inlining all over the place, but here is only one user per function
- * which embeds them into the calling _lock_function below.
- *
- * This could be a long-held lock. We both prepare to spin for a long
- * time (making _this_ CPU preemptible if possible), and we also signal
- * towards that other CPU that it should break the lock ASAP.
- */
 #define BUILD_LOCK_OPS(op, locktype)					\
 void __lockfunc __raw_##op##_lock(locktype##_t *lock)			\
 {									\
@@ -114,15 +76,6 @@ void __lockfunc __raw_##op##_lock_bh(locktype##_t *lock)		\
 	local_irq_restore(flags);					\
 }									\
 
-/*
- * Build preemption-friendly versions of the following
- * lock-spinning functions:
- *
- *         __[spin|read|write]_lock()
- *         __[spin|read|write]_lock_irq()
- *         __[spin|read|write]_lock_irqsave()
- *         __[spin|read|write]_lock_bh()
- */
 BUILD_LOCK_OPS(spin, raw_spinlock);
 
 #ifndef CONFIG_PREEMPT_RT

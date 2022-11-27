@@ -1,16 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Glue Code for SSE2 assembler versions of Serpent Cipher
- *
- * Copyright (c) 2011 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
- *
- * Glue code based on aesni-intel_glue.c by:
- *  Copyright (C) 2008, Intel Corp.
- *    Author: Huang Ying <ying.huang@intel.com>
- *
- * CBC & ECB parts based on code (crypto/cbc.c,ecb.c) by:
- *   Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
- */
 
 #include <linux/module.h>
 #include <linux/types.h>

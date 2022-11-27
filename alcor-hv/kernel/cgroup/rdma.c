@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * RDMA resource limiting controller for cgroups.
- *
- * Used to allow a cgroup hierarchy to stop processes from consuming
- * additional RDMA resources after a certain limit is reached.
- *
- * Copyright (C) 2016 Parav Pandit <pandit.parav@gmail.com>
- */
 
 #include <linux/bitops.h>
 #include <linux/slab.h>
@@ -17,10 +8,6 @@
 
 #define RDMACG_MAX_STR "max"
 
-/*
- * Protects list of resource pools maintained on per cgroup basis
- * and rdma device list.
- */
 static DEFINE_MUTEX(rdmacg_mutex);
 static LIST_HEAD(rdmacg_devices);
 
@@ -29,28 +16,16 @@ enum rdmacg_file_type {
 	RDMACG_RESOURCE_TYPE_STAT,
 };
 
-/*
- * resource table definition as to be seen by the user.
- * Need to add entries to it when more resources are
- * added/defined at IB verb/core layer.
- */
 static char const *rdmacg_resource_names[] = {
 	[RDMACG_RESOURCE_HCA_HANDLE]	= "hca_handle",
 	[RDMACG_RESOURCE_HCA_OBJECT]	= "hca_object",
 };
 
-/* resource tracker for each resource of rdma cgroup */
 struct rdmacg_resource {
 	int max;
 	int usage;
 };
 
-/*
- * resource pool object which represents per cgroup, per device
- * resources. There are multiple instances of this object per cgroup,
- * therefore it cannot be embedded within rdma_cgroup structure. It
- * is maintained as list.
- */
 struct rdmacg_resource_pool {
 	struct rdmacg_device	*device;
 	struct rdmacg_resource	resources[RDMACG_RESOURCE_MAX];
@@ -148,16 +123,6 @@ get_cg_rpool_locked(struct rdma_cgroup *cg, struct rdmacg_device *device)
 	return rpool;
 }
 
-/**
- * uncharge_cg_locked - uncharge resource for rdma cgroup
- * @cg: pointer to cg to uncharge and all parents in hierarchy
- * @device: pointer to rdmacg device
- * @index: index of the resource to uncharge in cg (resource pool)
- *
- * It also frees the resource pool which was created as part of
- * charging operation when there are no resources attached to
- * resource pool.
- */
 static void
 uncharge_cg_locked(struct rdma_cgroup *cg,
 		   struct rdmacg_device *device,
@@ -168,10 +133,6 @@ uncharge_cg_locked(struct rdma_cgroup *cg,
 	rpool = find_cg_rpool_locked(cg, device);
 
 	/*
-	 * rpool cannot be null at this stage. Let kernel operate in case
-	 * if there a bug in IB stack or rdma controller, instead of crashing
-	 * the system.
-	 */
 	if (unlikely(!rpool)) {
 		pr_warn("Invalid device %p or rdma cgroup %p\n", cg, device);
 		return;
@@ -180,28 +141,15 @@ uncharge_cg_locked(struct rdma_cgroup *cg,
 	rpool->resources[index].usage--;
 
 	/*
-	 * A negative count (or overflow) is invalid,
-	 * it indicates a bug in the rdma controller.
-	 */
 	WARN_ON_ONCE(rpool->resources[index].usage < 0);
 	rpool->usage_sum--;
 	if (rpool->usage_sum == 0 &&
 	    rpool->num_max_cnt == RDMACG_RESOURCE_MAX) {
 		/*
-		 * No user of the rpool and all entries are set to max, so
-		 * safe to delete this rpool.
-		 */
 		free_cg_rpool_locked(rpool);
 	}
 }
 
-/**
- * rdmacg_uncharge_hierarchy - hierarchically uncharge rdma resource count
- * @device: pointer to rdmacg device
- * @stop_cg: while traversing hirerchy, when meet with stop_cg cgroup
- *           stop uncharging
- * @index: index of the resource to uncharge in cg in given resource pool
- */
 static void rdmacg_uncharge_hierarchy(struct rdma_cgroup *cg,
 				     struct rdmacg_device *device,
 				     struct rdma_cgroup *stop_cg,
@@ -219,11 +167,6 @@ static void rdmacg_uncharge_hierarchy(struct rdma_cgroup *cg,
 	css_put(&cg->css);
 }
 
-/**
- * rdmacg_uncharge - hierarchically uncharge rdma resource count
- * @device: pointer to rdmacg device
- * @index: index of the resource to uncharge in cgroup in given resource pool
- */
 void rdmacg_uncharge(struct rdma_cgroup *cg,
 		     struct rdmacg_device *device,
 		     enum rdmacg_resource_type index)
@@ -235,27 +178,6 @@ void rdmacg_uncharge(struct rdma_cgroup *cg,
 }
 EXPORT_SYMBOL(rdmacg_uncharge);
 
-/**
- * rdmacg_try_charge - hierarchically try to charge the rdma resource
- * @rdmacg: pointer to rdma cgroup which will own this resource
- * @device: pointer to rdmacg device
- * @index: index of the resource to charge in cgroup (resource pool)
- *
- * This function follows charging resource in hierarchical way.
- * It will fail if the charge would cause the new value to exceed the
- * hierarchical limit.
- * Returns 0 if the charge succeeded, otherwise -EAGAIN, -ENOMEM or -EINVAL.
- * Returns pointer to rdmacg for this resource when charging is successful.
- *
- * Charger needs to account resources on two criteria.
- * (a) per cgroup & (b) per device resource usage.
- * Per cgroup resource usage ensures that tasks of cgroup doesn't cross
- * the configured limits. Per device provides granular configuration
- * in multi device usage. It allocates resource pool in the hierarchy
- * for each parent it come across for first resource. Later on resource
- * pool will be available. Therefore it will be much faster thereon
- * to charge/uncharge.
- */
 int rdmacg_try_charge(struct rdma_cgroup **rdmacg,
 		      struct rdmacg_device *device,
 		      enum rdmacg_resource_type index)
@@ -269,9 +191,6 @@ int rdmacg_try_charge(struct rdma_cgroup **rdmacg,
 		return -EINVAL;
 
 	/*
-	 * hold on to css, as cgroup can be removed but resource
-	 * accounting happens on css.
-	 */
 	cg = get_current_rdmacg();
 
 	mutex_lock(&rdmacg_mutex);
@@ -293,7 +212,6 @@ int rdmacg_try_charge(struct rdma_cgroup **rdmacg,
 	}
 	mutex_unlock(&rdmacg_mutex);
 
-	*rdmacg = cg;
 	return 0;
 
 err:
@@ -303,14 +221,6 @@ err:
 }
 EXPORT_SYMBOL(rdmacg_try_charge);
 
-/**
- * rdmacg_register_device - register rdmacg device to rdma controller.
- * @device: pointer to rdmacg device whose resources need to be accounted.
- *
- * If IB stack wish a device to participate in rdma cgroup resource
- * tracking, it must invoke this API to register with rdma cgroup before
- * any user space application can start using the RDMA resources.
- */
 void rdmacg_register_device(struct rdmacg_device *device)
 {
 	INIT_LIST_HEAD(&device->dev_node);
@@ -322,30 +232,15 @@ void rdmacg_register_device(struct rdmacg_device *device)
 }
 EXPORT_SYMBOL(rdmacg_register_device);
 
-/**
- * rdmacg_unregister_device - unregister rdmacg device from rdma controller.
- * @device: pointer to rdmacg device which was previously registered with rdma
- *          controller using rdmacg_register_device().
- *
- * IB stack must invoke this after all the resources of the IB device
- * are destroyed and after ensuring that no more resources will be created
- * when this API is invoked.
- */
 void rdmacg_unregister_device(struct rdmacg_device *device)
 {
 	struct rdmacg_resource_pool *rpool, *tmp;
 
 	/*
-	 * Synchronize with any active resource settings,
-	 * usage query happening via configfs.
-	 */
 	mutex_lock(&rdmacg_mutex);
 	list_del_init(&device->dev_node);
 
 	/*
-	 * Now that this device is off the cgroup list, its safe to free
-	 * all the rpool resources.
-	 */
 	list_for_each_entry_safe(rpool, tmp, &device->rpools, dev_node)
 		free_cg_rpool_locked(rpool);
 
@@ -473,9 +368,6 @@ static ssize_t rdmacg_resource_set_max(struct kernfs_open_file *of,
 	if (rpool->usage_sum == 0 &&
 	    rpool->num_max_cnt == RDMACG_RESOURCE_MAX) {
 		/*
-		 * No user of the rpool and all entries are set to max, so
-		 * safe to delete this rpool.
-		 */
 		free_cg_rpool_locked(rpool);
 	}
 
@@ -579,15 +471,6 @@ static void rdmacg_css_free(struct cgroup_subsys_state *css)
 	kfree(cg);
 }
 
-/**
- * rdmacg_css_offline - cgroup css_offline callback
- * @css: css of interest
- *
- * This function is called when @css is about to go away and responsible
- * for shooting down all rdmacg associated with @css. As part of that it
- * marks all the resource pool entries to max value, so that when resources are
- * uncharged, associated resource pool can be freed as well.
- */
 static void rdmacg_css_offline(struct cgroup_subsys_state *css)
 {
 	struct rdma_cgroup *cg = css_rdmacg(css);

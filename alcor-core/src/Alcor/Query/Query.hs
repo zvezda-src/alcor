@@ -5,54 +5,9 @@
  -}
 
 {-
-
-Copyright (C) 2012, 2013 Google Inc.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-1. Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in the
-documentation and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 -}
 
 {-
-
-TODO: problems with the current model:
-
-1. There's nothing preventing a result such as ResultEntry RSNormal
-Nothing, or ResultEntry RSNoData (Just ...); ideally, we would
-separate the the RSNormal and other types; we would need a new data
-type for this, though, with JSON encoding/decoding
-
-2. We don't have a way to 'bind' a FieldDefinition's field type
-(e.q. QFTBool) with the actual value that is returned from a
-FieldGetter. This means that the various getter functions can return
-divergent types for the same field when evaluated against multiple
-items. This is bad; it only works today because we 'hide' everything
-behind JSValue, but is not nice at all. We should probably remove the
-separation between FieldDefinition and the FieldGetter, and introduce
-a new abstract data type, similar to QFT*, that contains the values
-too.
-
 -}
 
 module Alcor.Query.Query

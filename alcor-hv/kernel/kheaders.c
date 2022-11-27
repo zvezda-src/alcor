@@ -1,20 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Provide kernel headers useful to build tracing programs
- * such as for running eBPF tracing tools.
- *
- * (Borrowed code from kernel/configs.c)
- */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/kobject.h>
 #include <linux/init.h>
 
-/*
- * Define kernel_headers_data and kernel_headers_data_end, within which the
- * compressed kernel headers are stored. The file is first compressed with xz.
- */
 
 asm (
 "	.pushsection .rodata, \"a\"		\n"

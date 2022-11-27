@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*  KVM paravirtual clock driver. A clocksource implementation
-    Copyright (C) 2008 Glauber de Oliveira Costa, Red Hat Inc.
 */
 
 #include <linux/clocksource.h>
@@ -42,7 +39,6 @@ static int __init parse_no_kvmclock_vsyscall(char *arg)
 }
 early_param("no-kvmclock-vsyscall", parse_no_kvmclock_vsyscall);
 
-/* Aligned to page sizes to match whats mapped via vsyscalls to userspace */
 #define HVC_BOOT_ARRAY_SIZE \
 	(PAGE_SIZE / sizeof(struct pvclock_vsyscall_time_info))
 
@@ -53,11 +49,6 @@ static struct pvclock_vsyscall_time_info *hvclock_mem;
 DEFINE_PER_CPU(struct pvclock_vsyscall_time_info *, hv_clock_per_cpu);
 EXPORT_PER_CPU_SYMBOL_GPL(hv_clock_per_cpu);
 
-/*
- * The wallclock is the time of day when we booted. Since then, some time may
- * have elapsed since the hypervisor wrote the data. So we try to account for
- * that with system time
- */
 static void kvm_get_wallclock(struct timespec64 *now)
 {
 	wrmsrl(msr_kvm_wall_clock, slow_virt_to_phys(&wall_clock));
@@ -105,15 +96,6 @@ static inline void kvm_sched_clock_init(bool stable)
 		sizeof(((struct pvclock_vcpu_time_info *)NULL)->system_time));
 }
 
-/*
- * If we don't do that, there is the possibility that the guest
- * will calibrate under heavy load - thus, getting a lower lpj -
- * and execute the delays themselves without load. This is wrong,
- * because no delay loop can finish beforehand.
- * Any heuristics is subject to fail, because ultimately, a large
- * poll of guests can be running and trouble each other. So we preset
- * lpj here
- */
 static unsigned long kvm_get_tsc_khz(void)
 {
 	setup_force_cpu_cap(X86_FEATURE_TSC_KNOWN_FREQ);
@@ -220,9 +202,6 @@ static void __init kvmclock_init_mem(void)
 	hvclock_mem = page_address(p);
 
 	/*
-	 * hvclock is shared between the guest and the hypervisor, must
-	 * be mapped decrypted.
-	 */
 	if (cc_platform_has(CC_ATTR_GUEST_MEM_ENCRYPT)) {
 		r = set_memory_decrypted((unsigned long) hvclock_mem,
 					 1UL << order);
@@ -265,10 +244,6 @@ static int kvmclock_setup_percpu(unsigned int cpu)
 	struct pvclock_vsyscall_time_info *p = per_cpu(hv_clock_per_cpu, cpu);
 
 	/*
-	 * The per cpu area setup replicates CPU0 data to all cpu
-	 * pointers. So carefully check. CPU0 has been set up in init
-	 * already.
-	 */
 	if (!cpu || (p && p != per_cpu(hv_clock_per_cpu, 0)))
 		return 0;
 
@@ -328,13 +303,6 @@ void __init kvmclock_init(void)
 	kvm_get_preset_lpj();
 
 	/*
-	 * X86_FEATURE_NONSTOP_TSC is TSC runs at constant rate
-	 * with P/T states and does not stop in deep C-states.
-	 *
-	 * Invariant TSC exposed by host means kvmclock is not necessary:
-	 * can use TSC as clocksource.
-	 *
-	 */
 	if (boot_cpu_has(X86_FEATURE_CONSTANT_TSC) &&
 	    boot_cpu_has(X86_FEATURE_NONSTOP_TSC) &&
 	    !check_tsc_unstable())

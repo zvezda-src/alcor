@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * unlikely profiler
- *
- * Copyright (C) 2008 Steven Rostedt <srostedt@redhat.com>
- */
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
@@ -44,11 +38,6 @@ probe_likely_condition(struct ftrace_likely_data *f, int val, int expect)
 		return;
 
 	/*
-	 * I would love to save just the ftrace_likely_data pointer, but
-	 * this code can also be used by modules. Ugly things can happen
-	 * if the module is unloaded, and then we go and read the
-	 * pointer.  This is slower, but much safer.
-	 */
 
 	if (unlikely(!tr))
 		return;
@@ -104,9 +93,6 @@ int enable_branch_tracing(struct trace_array *tr)
 	mutex_lock(&branch_tracing_mutex);
 	branch_tracer = tr;
 	/*
-	 * Must be seen before enabling. The reader is a condition
-	 * where we do not need a matching rmb()
-	 */
 	smp_wmb();
 	branch_tracing_enabled++;
 	mutex_unlock(&branch_tracing_mutex);
@@ -213,11 +199,6 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 		val = expect;
 	}
 	/*
-	 * I would love to have a trace point here instead, but the
-	 * trace point code is so inundated with unlikely and likely
-	 * conditions that the recursive nightmare that exists is too
-	 * much to try to get working. At least for now.
-	 */
 	trace_likely_condition(f, val, expect);
 
 	/* FIXME: Make this atomic! */
@@ -274,8 +255,6 @@ static void branch_stat_show(struct seq_file *m,
 	long percent;
 
 	/*
-	 * The miss is overlayed on correct, and hit on incorrect.
-	 */
 	percent = get_incorrect_percent(p);
 
 	if (percent < 0)
@@ -353,10 +332,6 @@ static int annotated_branch_stat_cmp(const void *p1, const void *p2)
 		return 1;
 
 	/*
-	 * Since the above shows worse (incorrect) cases
-	 * first, we continue that by showing best (correct)
-	 * cases last.
-	 */
 	if (a->correct > b->correct)
 		return -1;
 	if (a->correct < b->correct)

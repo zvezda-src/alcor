@@ -1,10 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  fpu_trig.c                                                               |
  |                                                                           |
  | Implementation of the FPU "transcendental" functions.                     |
  |                                                                           |
- | Copyright (C) 1992,1993,1994,1997,1999                                    |
  |                       W. Metzenthen, 22 Parker St, Ormond, Vic 3163,      |
  |                       Australia.  E-mail   billm@melbpc.org.au            |
  |                                                                           |
@@ -25,10 +22,7 @@ static void rem_kernel(unsigned long long st0, unsigned long long *y,
 
 #define FCOS  4
 
-/* Used only by fptan, fsin, fcos, and fsincos. */
-/* This routine produces very accurate results, similar to
    using a value of pi with more than 128 bits precision. */
-/* Limited measurements show no results worse than 64 bit precision
    except for the results for arguments close to 2^63, where the
    precision of the result sometimes degrades to about 63.9 bits */
 static int trig_arg(FPU_REG *st0_ptr, int even)
@@ -148,7 +142,6 @@ static int trig_arg(FPU_REG *st0_ptr, int even)
 	return (q & 3) | even;
 }
 
-/* Convert a long to register */
 static void convert_l2reg(long const *arg, int deststnr)
 {
 	int tag;
@@ -228,7 +221,6 @@ static void single_arg_2_error(FPU_REG *st0_ptr, u_char st0_tag)
 	}
 }
 
-/*---------------------------------------------------------------------------*/
 
 static void f2xm1(FPU_REG *st0_ptr, u_char tag)
 {
@@ -739,15 +731,11 @@ static void fsincos(FPU_REG *st0_ptr, u_char st0_tag)
 	}
 }
 
-/*---------------------------------------------------------------------------*/
-/* The following all require two arguments: st(0) and st(1) */
 
-/* A lean, mean kernel for the fprem instructions. This relies upon
    the division and rounding to an integer in do_fprem giving an
    exact result. Because of this, rem_kernel() needs to deal only with
    the least significant 64 bits, the more significant bits of the
    result must be zero.
- */
 static void rem_kernel(unsigned long long st0, unsigned long long *y,
 		       unsigned long long st1, unsigned long long q, int n)
 {
@@ -775,11 +763,8 @@ static void rem_kernel(unsigned long long st0, unsigned long long *y,
 		      :"1"(((unsigned *)&st1)[0]), "m"(((unsigned *)&q)[1])
 		      :"%dx");
 
-	*y = x;
 }
 
-/* Remainder of st(0) / st(1) */
-/* This routine produces exact results, i.e. there is never any
    rounding or truncation, etc of the result. */
 static void do_fprem(FPU_REG *st0_ptr, u_char st0_tag, int round)
 {
@@ -1022,7 +1007,6 @@ static void do_fprem(FPU_REG *st0_ptr, u_char st0_tag, int round)
 
 }
 
-/* ST(1) <- ST(1) * log ST;  pop ST */
 static void fyl2x(FPU_REG *st0_ptr, u_char st0_tag)
 {
 	FPU_REG *st1_ptr = &st(1), exponent;
@@ -1627,7 +1611,6 @@ static void fscale(FPU_REG *st0_ptr, u_char st0_tag)
 
 }
 
-/*---------------------------------------------------------------------------*/
 
 static FUNC_ST0 const trig_table_a[] = {
 	f2xm1, fyl2x, fptan, fpatan,

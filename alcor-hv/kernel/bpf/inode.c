@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Minimal file system backend for holding eBPF maps and programs,
- * used by bpf(2) object pinning.
- *
- * Authors:
- *
- *	Daniel Borkmann <daniel@iogearbox.net>
- */
 
 #include <linux/init.h>
 #include <linux/magic.h>
@@ -129,7 +120,6 @@ static struct inode *bpf_get_inode(struct super_block *sb,
 
 static int bpf_inode_type(const struct inode *inode, enum bpf_type *type)
 {
-	*type = BPF_TYPE_UNSPEC;
 	if (inode->i_op == &bpf_prog_iops)
 		*type = BPF_TYPE_PROG;
 	else if (inode->i_op == &bpf_map_iops)
@@ -303,16 +293,6 @@ static int bpffs_map_release(struct inode *inode, struct file *file)
 	return seq_release(inode, file);
 }
 
-/* bpffs_map_fops should only implement the basic
- * read operation for a BPF map.  The purpose is to
- * provide a simple user intuitive way to do
- * "cat bpffs/pathto/a-pinned-map".
- *
- * Other operations (e.g. write, lookup...) should be realized by
- * the userspace tools (e.g. bpftool) through the
- * BPF_OBJ_GET_INFO_BY_FD and the map's lookup/update
- * interface.
- */
 static const struct file_operations bpffs_map_fops = {
 	.open		= bpffs_map_open,
 	.read		= seq_read,
@@ -414,7 +394,6 @@ static const struct inode_operations bpf_dir_iops = {
 	.unlink		= simple_unlink,
 };
 
-/* pin iterator link into bpffs */
 static int bpf_iter_link_pin_kernel(struct dentry *parent,
 				    const char *name, struct bpf_link *link)
 {
@@ -598,9 +577,6 @@ struct bpf_prog *bpf_prog_get_type_path(const char *name, enum bpf_prog_type typ
 }
 EXPORT_SYMBOL(bpf_prog_get_type_path);
 
-/*
- * Display the mount options in /proc/mounts.
- */
 static int bpf_show_options(struct seq_file *m, struct dentry *root)
 {
 	umode_t mode = d_inode(root)->i_mode & S_IALLUGO & ~S_ISVTX;
@@ -777,9 +753,6 @@ static const struct fs_context_operations bpf_context_ops = {
 	.get_tree	= bpf_get_tree,
 };
 
-/*
- * Set up the filesystem mount context.
- */
 static int bpf_init_fs_context(struct fs_context *fc)
 {
 	struct bpf_mount_opts *opts;

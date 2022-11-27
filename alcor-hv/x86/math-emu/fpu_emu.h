@@ -1,5 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*---------------------------------------------------------------------------+
  |  fpu_emu.h                                                                |
  |                                                                           |
  | Copyright (C) 1992,1993,1994,1997                                         |
@@ -11,13 +9,6 @@
 #ifndef _FPU_EMU_H_
 #define _FPU_EMU_H_
 
-/*
- * Define PECULIAR_486 to get a closer approximation to 80486 behaviour,
- * rather than behaviour which appears to be cleaner.
- * This is a matter of opinion: for all I know, the 80486 may simply
- * be complying with the IEEE spec. Maybe one day I'll get to see the
- * spec...
- */
 #define PECULIAR_486
 
 #ifdef __ASSEMBLY__
@@ -44,8 +35,6 @@
 #define SIGN_Positive	Const(0)
 #define SIGN_Negative	Const(0x8000)
 
-/* Keep the order TAG_Valid, TAG_Zero, TW_Denormal */
-/* The following fold to 2 (Special) in the Tag Word */
 #define TW_Denormal     Const(4)	/* De-normal */
 #define TW_Infinity	Const(5)	/* + or - infinity */
 #define	TW_NaN		Const(6)	/* Not a Number */
@@ -61,7 +50,6 @@
 #define LOADED_DATA	Const(10101)	/* Special st() number to identify
 					   loaded data (not on stack). */
 
-/* A few flags (must be >= 0x10). */
 #define REV             0x10
 #define DEST_RM         0x20
 #define LOADED          0x40
@@ -76,9 +64,6 @@
 #include <asm/math_emu.h>
 #include <linux/linkage.h>
 
-/*
-#define RE_ENTRANT_CHECKING
- */
 
 #ifdef RE_ENTRANT_CHECKING
 extern u_char emulating;
@@ -127,12 +112,10 @@ typedef void (*FUNC_ST0) (FPU_REG *st0_ptr, u_char st0_tag);
 typedef struct {
 	u_char address_size, operand_size, segment;
 } overrides;
-/* This structure is 32 bits: */
 typedef struct {
 	overrides override;
 	u_char default_mode;
 } fpu_addr_modes;
-/* PROTECTED has a restricted meaning in the emulator; it is used
    to signal that the emulator needs to do special things to ensure
    that protection is respected in a segmented model. */
 #define PROTECTED 4
@@ -153,7 +136,6 @@ extern u_char const data_sizes_16[32];
 
 #define poppop() { FPU_pop(); FPU_pop(); }
 
-/* push() does not affect the tags */
 #define push()	{ top--; }
 
 #define signbyte(a) (((u_char *)(a))[9])
@@ -169,8 +151,6 @@ extern u_char const data_sizes_16[32];
 
 static inline void reg_copy(FPU_REG const *x, FPU_REG *y)
 {
-	*(short *)&(y->exp) = *(const short *)&(x->exp);
-	*(long long *)&(y->sigl) = *(const long long *)&(x->sigl);
 }
 
 #define exponent(x)  (((*(short *)&((x)->exp)) & 0x7fff) - EXTENDED_Ebias)
@@ -185,8 +165,6 @@ static inline void reg_copy(FPU_REG const *x, FPU_REG *y)
 
 #define significand(x) ( ((unsigned long long *)&((x)->sigl))[0] )
 
-/*----- Prototypes for functions written in assembler -----*/
-/* extern void reg_move(FPU_REG *a, FPU_REG *b); */
 
 asmlinkage int FPU_normalize(FPU_REG *x);
 asmlinkage int FPU_normalize_nuo(FPU_REG *x);

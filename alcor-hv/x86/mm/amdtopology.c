@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * AMD NUMA support.
- * Discover the memory map and associated nodes.
- *
- * This version reads it directly from the AMD northbridge.
- *
- * Copyright 2002,2003 Andi Kleen, SuSE Labs.
- */
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/string.h>
@@ -158,16 +149,11 @@ int __init amd_numa_init(void)
 		return -ENOENT;
 
 	/*
-	 * We seem to have valid NUMA configuration.  Map apicids to nodes
-	 * using the coreid bits from early_identify_cpu.
-	 */
 	bits = boot_cpu_data.x86_coreid_bits;
 	cores = 1 << bits;
 	apicid_base = 0;
 
 	/*
-	 * get boot-time SMP configuration:
-	 */
 	early_get_smp_config();
 
 	if (boot_cpu_physical_apicid > 0) {

@@ -1,31 +1,4 @@
-#
-#
 
-# Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 """Remote API resource implementations.
@@ -60,9 +33,7 @@ PUT should be prefered over POST.
 
 """
 
-# pylint: disable=C0103
 
-# C0103: Invalid name, since the R_* names are not conforming
 
 import errno
 import OpenSSL
@@ -163,19 +134,14 @@ _NR_MAP = {
 
 assert frozenset(_NR_MAP) == constants.NR_ALL
 
-# Request data version field
 _REQ_DATA_VERSION = "__version__"
 
-# Feature string for instance creation request data version 1
 _INST_CREATE_REQV1 = "instance-create-reqv1"
 
-# Feature string for instance reinstall request version 1
 _INST_REINSTALL_REQV1 = "instance-reinstall-reqv1"
 
-# Feature string for node migration version 1
 _NODE_MIGRATE_REQV1 = "node-migrate-reqv1"
 
-# Feature string for node evacuation with LU-generated jobs
 _NODE_EVAC_RES1 = "node-evac-res1"
 
 ALL_FEATURES = compat.UniqueFrozenset([
@@ -185,12 +151,9 @@ ALL_FEATURES = compat.UniqueFrozenset([
   _NODE_EVAC_RES1,
   ])
 
-# Timeout for /2/jobs/[job_id]/wait. Gives job up to 10 seconds to change.
 _WFJC_TIMEOUT = 10
 
 
-# FIXME: For compatibility we update the beparams/memory field. Needs to be
-#        removed in Alcor 2.8
 def _UpdateBeparams(inst):
   """Updates the beparams dict of inst to support the memory field.
 

@@ -1,7 +1,3 @@
-/*
- *  Copyright (C) 1991, 1992  Linus Torvalds
- *  Copyright (C) 2000, 2001, 2002 Andi Kleen, SuSE Labs
- */
 #include <linux/kallsyms.h>
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
@@ -46,7 +42,6 @@ bool noinstr in_task_stack(unsigned long *stack, struct task_struct *task,
 	return true;
 }
 
-/* Called from get_stack_info_noinstr - so must be noinstr too */
 bool noinstr in_entry_stack(unsigned long *stack, struct stack_info *info)
 {
 	struct entry_stack *ss = cpu_entry_stack(smp_processor_id());
@@ -83,33 +78,9 @@ static int copy_code(struct pt_regs *regs, u8 *buf, unsigned long src,
 		return -EPERM;
 
 	/*
-	 * Even if named copy_from_user_nmi() this can be invoked from
-	 * other contexts and will not try to resolve a pagefault, which is
-	 * the correct thing to do here as this code can be called from any
-	 * context.
-	 */
 	return copy_from_user_nmi(buf, (void __user *)src, nbytes);
 }
 
-/*
- * There are a couple of reasons for the 2/3rd prologue, courtesy of Linus:
- *
- * In case where we don't have the exact kernel image (which, if we did, we can
- * simply disassemble and navigate to the RIP), the purpose of the bigger
- * prologue is to have more context and to be able to correlate the code from
- * the different toolchains better.
- *
- * In addition, it helps in recreating the register allocation of the failing
- * kernel and thus make sense of the register dump.
- *
- * What is more, the additional complication of a variable length insn arch like
- * x86 warrants having longer byte sequence before rIP so that the disassembler
- * can "sync" up properly and find instruction boundaries when decoding the
- * opcode bytes.
- *
- * Thus, the 2/3rds prologue and 64 byte OPCODE_BUFSIZE is just a random
- * guesstimate in attempt to achieve all of the above.
- */
 void show_opcodes(struct pt_regs *regs, const char *loglvl)
 {
 #define PROLOGUE_SIZE 42
@@ -155,24 +126,12 @@ static void show_regs_if_on_stack(struct stack_info *info, struct pt_regs *regs,
 				  bool partial, const char *log_lvl)
 {
 	/*
-	 * These on_stack() checks aren't strictly necessary: the unwind code
-	 * has already validated the 'regs' pointer.  The checks are done for
-	 * ordering reasons: if the registers are on the next stack, we don't
-	 * want to print them out yet.  Otherwise they'll be shown as part of
-	 * the wrong stack.  Later, when show_trace_log_lvl() switches to the
-	 * next stack, this function will be called again with the same regs so
-	 * they can be printed in the right context.
-	 */
 	if (!partial && on_stack(info, regs, sizeof(*regs))) {
 		__show_regs(regs, SHOW_REGS_SHORT, log_lvl);
 
 	} else if (partial && on_stack(info, (void *)regs + IRET_FRAME_OFFSET,
 				       IRET_FRAME_SIZE)) {
 		/*
-		 * When an interrupt or exception occurs in entry code, the
-		 * full pt_regs might not have been saved yet.  In that case
-		 * just print the iret frame.
-		 */
 		show_iret_regs(regs, log_lvl);
 	}
 }
@@ -193,31 +152,11 @@ static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	regs = unwind_get_entry_regs(&state, &partial);
 
 	/*
-	 * Iterate through the stacks, starting with the current stack pointer.
-	 * Each stack has a pointer to the next one.
-	 *
-	 * x86-64 can have several stacks:
-	 * - task stack
-	 * - interrupt stack
-	 * - HW exception stacks (double fault, nmi, debug, mce)
-	 * - entry stack
-	 *
-	 * x86-32 can have up to four stacks:
-	 * - task stack
-	 * - softirq stack
-	 * - hardirq stack
-	 * - entry stack
-	 */
 	for ( ; stack; stack = PTR_ALIGN(stack_info.next_sp, sizeof(long))) {
 		const char *stack_name;
 
 		if (get_stack_info(stack, task, &stack_info, &visit_mask)) {
 			/*
-			 * We weren't on a valid stack.  It's possible that
-			 * we overflowed a valid stack into a guard page.
-			 * See if the next page up is valid so that we can
-			 * generate some kind of backtrace if this happens.
-			 */
 			stack = (unsigned long *)PAGE_ALIGN((unsigned long)stack);
 			if (get_stack_info(stack, task, &stack_info, &visit_mask))
 				break;
@@ -231,15 +170,6 @@ static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			show_regs_if_on_stack(&stack_info, regs, partial, log_lvl);
 
 		/*
-		 * Scan the stack, printing any text addresses we find.  At the
-		 * same time, follow proper stack frames with the unwinder.
-		 *
-		 * Addresses found during the scan which are not reported by
-		 * the unwinder are considered to be additional clues which are
-		 * sometimes useful for debugging and are prefixed with '?'.
-		 * This also serves as a failsafe option in case the unwinder
-		 * goes off in the weeds.
-		 */
 		for (; stack < stack_info.end; stack++) {
 			unsigned long real_addr;
 			int reliable = 0;
@@ -251,9 +181,6 @@ static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 				continue;
 
 			/*
-			 * Don't print regs->ip again if it was already printed
-			 * by show_regs_if_on_stack().
-			 */
 			if (regs && stack == &regs->ip)
 				goto next;
 
@@ -261,14 +188,6 @@ static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 				reliable = 1;
 
 			/*
-			 * When function graph tracing is enabled for a
-			 * function, its return address on the stack is
-			 * replaced with the address of an ftrace handler
-			 * (return_to_handler).  In that case, before printing
-			 * the "real" address, we want to print the handler
-			 * address as an "unreliable" hint that function graph
-			 * tracing was involved.
-			 */
 			real_addr = ftrace_graph_ret_addr(task, &graph_idx,
 							  addr, stack);
 			if (real_addr != addr)
@@ -280,10 +199,6 @@ static void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 
 next:
 			/*
-			 * Get the next frame from the unwinder.  No need to
-			 * check for an error: if anything goes wrong, the rest
-			 * of the addresses will just be printed as unreliable.
-			 */
 			unwind_next_frame(&state);
 
 			/* if the frame has entry regs, print them */
@@ -303,9 +218,6 @@ void show_stack(struct task_struct *task, unsigned long *sp,
 	task = task ? : current;
 
 	/*
-	 * Stack frames below this one aren't interesting.  Don't show them
-	 * if we're printing for %current.
-	 */
 	if (!sp && task == current)
 		sp = get_stack_pointer(current, NULL);
 
@@ -373,12 +285,6 @@ void oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 		panic("Fatal exception");
 
 	/*
-	 * We're not going to return, but we might be on an IST stack or
-	 * have very little stack space left.  Rewind the stack and kill
-	 * the task.
-	 * Before we rewind the stack, we have to tell KASAN that we're going to
-	 * reuse the task stack and that existing poisons are invalid.
-	 */
 	kasan_unpoison_task_stack(current);
 	rewind_stack_and_make_dead(signr);
 }
@@ -426,10 +332,6 @@ int __die(const char *str, struct pt_regs *regs, long err)
 }
 NOKPROBE_SYMBOL(__die);
 
-/*
- * This is gone through when something in the kernel has done something bad
- * and is about to be terminated:
- */
 void die(const char *str, struct pt_regs *regs, long err)
 {
 	unsigned long flags = oops_begin();
@@ -463,8 +365,6 @@ void show_regs(struct pt_regs *regs)
 	__show_regs(regs, print_kernel_regs, KERN_DEFAULT);
 
 	/*
-	 * When in-kernel, we also print out the stack at the time of the fault..
-	 */
 	if (!user_mode(regs))
 		show_trace_log_lvl(current, regs, NULL, KERN_DEFAULT);
 }

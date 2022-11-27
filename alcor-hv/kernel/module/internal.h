@@ -1,9 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
-/* Module internals
- *
- * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
- * Written by David Howells (dhowells@redhat.com)
- */
 
 #include <linux/elf.h>
 #include <linux/compiler.h>
@@ -17,20 +11,13 @@
 #define ARCH_SHF_SMALL 0
 #endif
 
-/* If this is set, the section belongs in the init part of the module */
 #define INIT_OFFSET_MASK (1UL << (BITS_PER_LONG - 1))
-/* Maximum number of characters written by module_flags() */
 #define MODULE_FLAGS_BUF_SIZE (TAINT_FLAGS_COUNT + 4)
 
 #ifndef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
 #define	data_layout core_layout
 #endif
 
-/*
- * Modules' sections will be aligned on page boundaries
- * to ensure complete separation of code and data, but
- * only when CONFIG_STRICT_MODULE_RWX=y
- */
 static inline unsigned int strict_align(unsigned int size)
 {
 	if (IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
@@ -45,7 +32,6 @@ extern struct list_head modules;
 extern struct module_attribute *modinfo_attrs[];
 extern size_t modinfo_attrs_count;
 
-/* Provided by the linker */
 extern const struct kernel_symbol __start___ksymtab[];
 extern const struct kernel_symbol __stop___ksymtab[];
 extern const struct kernel_symbol __start___ksymtab_gpl[];

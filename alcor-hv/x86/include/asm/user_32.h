@@ -1,9 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_USER_32_H
 #define _ASM_X86_USER_32_H
 
 #include <asm/page.h>
-/* Core file format: The core file is written in such a way that gdb
    can understand it and provide useful information to the user (under
    linux we use the 'trad-core' bfd).  There are quite a number of
    obstacles to being able to view the contents of the floating point
@@ -28,19 +26,7 @@
    current->start_stack, so we round each of these off in order to be able
    to write an integer number of pages.
    The minimum core file size is 3 pages, or 12288 bytes.
-*/
 
-/*
- * Pentium III FXSR, SSE support
- *	Gareth Hughes <gareth@valinux.com>, May 2000
- *
- * Provide support for the GDB 5.0+ PTRACE_{GET|SET}FPXREGS requests for
- * interacting with the FXSR-format floating point environment.  Floating
- * point data can be accessed in the regular format in the usual manner,
- * and both the standard and SIMD floating point data can be accessed via
- * the new ptrace requests.  In either case, changes to the FPU environment
- * will be reflected in the task's state as expected.
- */
 
 struct user_i387_struct {
 	long	cwd;
@@ -69,12 +55,6 @@ struct user_fxsr_struct {
 	long	padding[56];
 };
 
-/*
- * This is the old layout of "struct pt_regs", and
- * is still the layout used by user mode (the new
- * pt_regs doesn't have all registers as the kernel
- * doesn't use the extra segment registers)
- */
 struct user_regs_struct {
 	unsigned long	bx;
 	unsigned long	cx;
@@ -95,18 +75,14 @@ struct user_regs_struct {
 	unsigned long	ss;
 };
 
-/* When the kernel dumps core, it starts by dumping the user struct -
    this will be used by gdb to figure out where the data and stack segments
    are within the file, and what virtual addresses to use. */
 struct user{
-/* We start with the registers, to mimic the way that "memory" is returned
    from the ptrace(3,...) function.  */
   struct user_regs_struct regs;	/* Where the registers are actually stored */
-/* ptrace does not yet supply these.  Someday.... */
   int u_fpvalid;		/* True if math co-processor being used. */
 				/* for this mess. Not yet used. */
   struct user_i387_struct i387;	/* Math Co-processor registers. */
-/* The rest of this junk is to help gdb figure out what goes where */
   unsigned long int u_tsize;	/* Text segment size (pages). */
   unsigned long int u_dsize;	/* Data segment size (pages). */
   unsigned long int u_ssize;	/* Stack segment size (pages). */

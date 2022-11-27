@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/spinlock_types.h>
@@ -11,10 +10,8 @@
 #include <asm/special_insns.h>
 #include <asm/olpc_ofw.h>
 
-/* address of OFW callback interface; will be NULL if OFW isn't found */
 static int (*olpc_ofw_cif)(int *);
 
-/* page dir entry containing OFW's pgdir table; filled in by head_32.S */
 u32 olpc_ofw_pgd __initdata;
 
 static DEFINE_SPINLOCK(ofw_lock);
@@ -84,10 +81,8 @@ bool olpc_ofw_present(void)
 }
 EXPORT_SYMBOL_GPL(olpc_ofw_present);
 
-/* OFW cif _should_ be above this address */
 #define OFW_MIN 0xff000000
 
-/* OFW starts on a 1MB boundary */
 #define OFW_BOUND (1<<20)
 
 void __init olpc_ofw_detect(void)

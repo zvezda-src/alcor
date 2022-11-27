@@ -1,13 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/bpf.h>
 #include <linux/bpf-netns.h>
 #include <linux/filter.h>
 #include <net/net_namespace.h>
 
-/*
- * Functions to manage BPF programs attached to netns
- */
 
 struct bpf_netns_link {
 	struct bpf_link	link;
@@ -23,7 +19,6 @@ struct bpf_netns_link {
 	struct list_head node; /* node in list of links attached to net */
 };
 
-/* Protects updates to netns_bpf */
 DEFINE_MUTEX(netns_bpf_mutex);
 
 static void netns_bpf_attach_type_unneed(enum netns_bpf_attach_type type)
@@ -52,7 +47,6 @@ static void netns_bpf_attach_type_need(enum netns_bpf_attach_type type)
 	}
 }
 
-/* Must be called with netns_bpf_mutex held. */
 static void netns_bpf_run_array_detach(struct net *net,
 				       enum netns_bpf_attach_type type)
 {
@@ -242,7 +236,6 @@ static const struct bpf_link_ops bpf_netns_link_ops = {
 	.show_fdinfo = bpf_netns_link_show_fdinfo,
 };
 
-/* Must be called with netns_bpf_mutex held. */
 static int __netns_bpf_prog_query(const union bpf_attr *attr,
 				  union bpf_attr __user *uattr,
 				  struct net *net,
@@ -360,7 +353,6 @@ out_unlock:
 	return ret;
 }
 
-/* Must be called with netns_bpf_mutex held. */
 static int __netns_bpf_prog_detach(struct net *net,
 				   enum netns_bpf_attach_type type,
 				   struct bpf_prog *old)

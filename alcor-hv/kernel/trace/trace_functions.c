@@ -1,15 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * ring buffer based function tracer
- *
- * Copyright (C) 2007-2008 Steven Rostedt <srostedt@redhat.com>
- * Copyright (C) 2008 Ingo Molnar <mingo@redhat.com>
- *
- * Based on code from the latency_tracer, that is:
- *
- *  Copyright (C) 2004-2006 Ingo Molnar
- *  Copyright (C) 2004 Nadia Yvette Chambers
- */
 #include <linux/ring_buffer.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
@@ -36,7 +24,6 @@ function_stack_no_repeats_trace_call(unsigned long ip, unsigned long parent_ip,
 				     struct ftrace_regs *fregs);
 static struct tracer_flags func_flags;
 
-/* Our option */
 enum {
 
 	TRACE_FUNC_NO_OPTS		= 0x0, /* No flags set. */
@@ -81,9 +68,6 @@ int ftrace_create_function_files(struct trace_array *tr,
 				 struct dentry *parent)
 {
 	/*
-	 * The top level array uses the "global_ops", and the files are
-	 * created on boot up.
-	 */
 	if (tr->flags & TRACE_ARRAY_FL_GLOBAL)
 		return 0;
 
@@ -133,10 +117,6 @@ static int function_trace_init(struct trace_array *tr)
 {
 	ftrace_func_t func;
 	/*
-	 * Instance trace_arrays get their ops allocated
-	 * at instance creation. Unless it failed
-	 * the allocation.
-	 */
 	if (!tr->ops)
 		return -ENOMEM;
 
@@ -196,20 +176,8 @@ function_trace_call(unsigned long ip, unsigned long parent_ip,
 }
 
 #ifdef CONFIG_UNWINDER_ORC
-/*
- * Skip 2:
- *
- *   function_stack_trace_call()
- *   ftrace_call()
- */
 #define STACK_SKIP 2
 #else
-/*
- * Skip 3:
- *   __trace_stack()
- *   function_stack_trace_call()
- *   ftrace_call()
- */
 #define STACK_SKIP 3
 #endif
 
@@ -228,9 +196,6 @@ function_stack_trace_call(unsigned long ip, unsigned long parent_ip,
 		return;
 
 	/*
-	 * Need to use raw, since this must be called before the
-	 * recursive protection is performed.
-	 */
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	data = per_cpu_ptr(tr->array_buffer.data, cpu);
@@ -302,12 +267,6 @@ function_no_repeats_trace_call(unsigned long ip, unsigned long parent_ip,
 		goto out;
 
 	/*
-	 * An interrupt may happen at any place here. But as far as I can see,
-	 * the only damage that this can cause is to mess up the repetition
-	 * counter without valuable data being lost.
-	 * TODO: think about a solution that is better than just hoping to be
-	 * lucky.
-	 */
 	last_info = per_cpu_ptr(tr->last_func_repeats, cpu);
 	if (is_repeat_check(tr, last_info, ip, parent_ip))
 		goto out;
@@ -339,9 +298,6 @@ function_stack_no_repeats_trace_call(unsigned long ip, unsigned long parent_ip,
 		return;
 
 	/*
-	 * Need to use raw, since this must be called before the
-	 * recursive protection is performed.
-	 */
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
 	data = per_cpu_ptr(tr->array_buffer.data, cpu);
@@ -450,34 +406,6 @@ static void update_traceon_count(struct ftrace_probe_ops *ops,
 	long old_count;
 
 	/*
-	 * Tracing gets disabled (or enabled) once per count.
-	 * This function can be called at the same time on multiple CPUs.
-	 * It is fine if both disable (or enable) tracing, as disabling
-	 * (or enabling) the second time doesn't do anything as the
-	 * state of the tracer is already disabled (or enabled).
-	 * What needs to be synchronized in this case is that the count
-	 * only gets decremented once, even if the tracer is disabled
-	 * (or enabled) twice, as the second one is really a nop.
-	 *
-	 * The memory barriers guarantee that we only decrement the
-	 * counter once. First the count is read to a local variable
-	 * and a read barrier is used to make sure that it is loaded
-	 * before checking if the tracer is in the state we want.
-	 * If the tracer is not in the state we want, then the count
-	 * is guaranteed to be the old count.
-	 *
-	 * Next the tracer is set to the state we want (disabled or enabled)
-	 * then a write memory barrier is used to make sure that
-	 * the new state is visible before changing the counter by
-	 * one minus the old counter. This guarantees that another CPU
-	 * executing this code will see the new state before seeing
-	 * the new counter value, and would not do anything if the new
-	 * counter is seen.
-	 *
-	 * Note, there is no synchronization between this and a user
-	 * setting the tracing_on file. But we currently don't care
-	 * about that.
-	 */
 	count = (long *)ftrace_func_mapper_find_ip(mapper, ip);
 	old_count = *count;
 
@@ -498,7 +426,6 @@ static void update_traceon_count(struct ftrace_probe_ops *ops,
 	/* Make sure tracing state is visible before updating count */
 	smp_wmb();
 
-	*count = old_count - 1;
 }
 
 static void
@@ -540,24 +467,8 @@ ftrace_traceoff(unsigned long ip, unsigned long parent_ip,
 }
 
 #ifdef CONFIG_UNWINDER_ORC
-/*
- * Skip 3:
- *
- *   function_trace_probe_call()
- *   ftrace_ops_assist_func()
- *   ftrace_call()
- */
 #define FTRACE_STACK_SKIP 3
 #else
-/*
- * Skip 5:
- *
- *   __trace_stack()
- *   ftrace_stacktrace()
- *   function_trace_probe_call()
- *   ftrace_ops_assist_func()
- *   ftrace_call()
- */
 #define FTRACE_STACK_SKIP 5
 #endif
 
@@ -600,9 +511,6 @@ ftrace_stacktrace_count(unsigned long ip, unsigned long parent_ip,
 	count = (long *)ftrace_func_mapper_find_ip(mapper, ip);
 
 	/*
-	 * Stack traces should only execute the number of times the
-	 * user specified in the counter.
-	 */
 	do {
 		old_count = *count;
 
@@ -647,7 +555,6 @@ ftrace_dump_probe(unsigned long ip, unsigned long parent_ip,
 		ftrace_dump(DUMP_ALL);
 }
 
-/* Only dump the current CPU buffer. */
 static void
 ftrace_cpudump_probe(unsigned long ip, unsigned long parent_ip,
 		     struct trace_array *tr, struct ftrace_probe_ops *ops,
@@ -819,9 +726,6 @@ ftrace_trace_probe_callback(struct trace_array *tr,
 		goto out_reg;
 
 	/*
-	 * We use the callback data field (which is a pointer)
-	 * as our counter.
-	 */
 	ret = kstrtoul(number, 0, (unsigned long *)&count);
 	if (ret)
 		return ret;

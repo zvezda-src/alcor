@@ -1,9 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
-/* ----------------------------------------------------------------------- *
- *
- *   Copyright 1999-2007 H. Peter Anvin - All Rights Reserved
- *
- * ----------------------------------------------------------------------- */
 
 #ifndef BOOT_VESA_H
 #define BOOT_VESA_H
@@ -12,7 +6,6 @@ typedef struct {
 	u16 off, seg;
 } far_ptr;
 
-/* VESA General Information table */
 struct vesa_general_info {
 	u32 signature;		/* 0 Magic number = "VESA" */
 	u16 version;		/* 4 */

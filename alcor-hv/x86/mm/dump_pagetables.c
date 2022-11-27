@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Debug helper to dump the current kernel pagetables of the system
- * so that we can see what the various memory ranges are set to.
- *
- * (C) Copyright 2008 Intel Corporation
- *
- * Author: Arjan van de Ven <arjan@linux.intel.com>
- */
 
 #include <linux/debugfs.h>
 #include <linux/kasan.h>
@@ -20,11 +11,6 @@
 
 #include <asm/e820/types.h>
 
-/*
- * The dumper groups pagetable entries of the same type into one, and for
- * that it needs to keep some state when walking, and flush this state
- * when a "break" in the continuity is found.
- */
 struct pg_state {
 	struct ptdump_state ptdump;
 	int level;
@@ -46,7 +32,6 @@ struct addr_marker {
 	unsigned long max_lines;
 };
 
-/* Address space markers hints */
 
 #ifdef CONFIG_X86_64
 
@@ -85,9 +70,6 @@ static struct addr_marker address_markers[] = {
 	[VMEMMAP_START_NR]	= { 0UL,		"Vmemmap" },
 #ifdef CONFIG_KASAN
 	/*
-	 * These fields get initialized with the (dynamic)
-	 * KASAN_SHADOW_{START,END} values in pt_dump_init().
-	 */
 	[KASAN_SHADOW_START_NR]	= { 0UL,		"KASAN shadow" },
 	[KASAN_SHADOW_END_NR]	= { 0UL,		"KASAN shadow end" },
 #endif
@@ -148,7 +130,6 @@ static struct addr_marker address_markers[] = {
 
 #endif /* !CONFIG_X86_64 */
 
-/* Multipliers for offsets within the PTEs */
 #define PTE_LEVEL_MULT (PAGE_SIZE)
 #define PMD_LEVEL_MULT (PTRS_PER_PTE * PTE_LEVEL_MULT)
 #define PUD_LEVEL_MULT (PTRS_PER_PMD * PMD_LEVEL_MULT)
@@ -173,9 +154,6 @@ static struct addr_marker address_markers[] = {
 			seq_printf(m, fmt, ##args);		\
 })
 
-/*
- * Print a readable form of a pgprot_t to the seq_file
- */
 static void printk_prot(struct seq_file *m, pgprotval_t pr, int level, bool dmsg)
 {
 	static const char * const level_name[] =
@@ -232,9 +210,6 @@ static void note_wx(struct pg_state *st, unsigned long addr)
 
 #ifdef CONFIG_PCI_BIOS
 	/*
-	 * If PCI BIOS is enabled, the PCI BIOS area is forced to WX.
-	 * Inform about it, but avoid the warning.
-	 */
 	if (pcibios_enabled && st->start_address >= PAGE_OFFSET + BIOS_BEGIN &&
 	    addr <= PAGE_OFFSET + BIOS_END) {
 		pr_warn_once("x86/mm: PCI BIOS W+X mapping %lu pages\n", npages);
@@ -266,11 +241,6 @@ static void effective_prot(struct ptdump_state *pt_st, int level, u64 val)
 	st->prot_levels[level] = effective;
 }
 
-/*
- * This function gets called on a break in a continuous series
- * of PTE entries; the next one is different so we need to
- * print what we collected so far.
- */
 static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 		      u64 val)
 {
@@ -287,10 +257,6 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 		new_eff = st->prot_levels[level];
 
 	/*
-	 * If we have a "break" in the series, we need to flush the state that
-	 * we have now. "break" is either changing perms, levels or
-	 * address space marker.
-	 */
 	cur = st->current_prot;
 	eff = st->effective_prot;
 
@@ -313,8 +279,6 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 			note_wx(st, addr);
 
 		/*
-		 * Now print the actual finished series
-		 */
 		if (!st->marker->max_lines ||
 		    st->lines < st->marker->max_lines) {
 			pt_dump_seq_printf(m, st->to_dmesg,
@@ -335,10 +299,6 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 		st->lines++;
 
 		/*
-		 * We print markers for special areas of address space,
-		 * such as the start of vmalloc space etc.
-		 * This helps in the interpretation.
-		 */
 		if (addr >= st->marker[1].start_address) {
 			if (st->marker->max_lines &&
 			    st->lines > st->marker->max_lines) {
@@ -439,9 +399,6 @@ void ptdump_walk_pgd_level_checkwx(void)
 static int __init pt_dump_init(void)
 {
 	/*
-	 * Various markers are not compile-time constants, so assign them
-	 * here.
-	 */
 #ifdef CONFIG_X86_64
 	address_markers[LOW_KERNEL_NR].start_address = PAGE_OFFSET;
 	address_markers[VMALLOC_START_NR].start_address = VMALLOC_START;

@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Copyright (C) 2005 Intel Corporation
- * 	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
- * 	- Added _PDC for SMP C-states on Intel CPUs
- */
 
 #include <linux/kernel.h>
 #include <linux/export.h>
@@ -16,16 +10,6 @@
 #include <asm/mwait.h>
 #include <asm/special_insns.h>
 
-/*
- * Initialize bm_flags based on the CPU cache properties
- * On SMP it depends on cache configuration
- * - When cache is not shared among all CPUs, we flush cache
- *   before entering C3.
- * - When cache is shared among all CPUs, we use bm_check
- *   mechanism as in UP case
- *
- * This routine is called only after all the CPUs are online
- */
 void acpi_processor_power_init_bm_check(struct acpi_processor_flags *flags,
 					unsigned int cpu)
 {
@@ -36,29 +20,14 @@ void acpi_processor_power_init_bm_check(struct acpi_processor_flags *flags,
 		flags->bm_check = 1;
 	else if (c->x86_vendor == X86_VENDOR_INTEL) {
 		/*
-		 * Today all MP CPUs that support C3 share cache.
-		 * And caches should not be flushed by software while
-		 * entering C3 type state.
-		 */
 		flags->bm_check = 1;
 	}
 
 	/*
-	 * On all recent Intel platforms, ARB_DISABLE is a nop.
-	 * So, set bm_control to zero to indicate that ARB_DISABLE
-	 * is not required while entering C3 type state on
-	 * P4, Core and beyond CPUs
-	 */
 	if (c->x86_vendor == X86_VENDOR_INTEL &&
 	    (c->x86 > 0xf || (c->x86 == 6 && c->x86_model >= 0x0f)))
 			flags->bm_control = 0;
 	/*
-	 * For all recent Centaur CPUs, the ucode will make sure that each
-	 * core can keep cache coherence with each other while entering C3
-	 * type state. So, set bm_check to 1 to indicate that the kernel
-	 * doesn't need to execute a cache flush operation (WBINVD) when
-	 * entering C3 type state.
-	 */
 	if (c->x86_vendor == X86_VENDOR_CENTAUR) {
 		if (c->x86 > 6 || (c->x86 == 6 && c->x86_model == 0x0f &&
 		    c->x86_stepping >= 0x0e))
@@ -67,37 +36,19 @@ void acpi_processor_power_init_bm_check(struct acpi_processor_flags *flags,
 
 	if (c->x86_vendor == X86_VENDOR_ZHAOXIN) {
 		/*
-		 * All Zhaoxin CPUs that support C3 share cache.
-		 * And caches should not be flushed by software while
-		 * entering C3 type state.
-		 */
 		flags->bm_check = 1;
 		/*
-		 * On all recent Zhaoxin platforms, ARB_DISABLE is a nop.
-		 * So, set bm_control to zero to indicate that ARB_DISABLE
-		 * is not required while entering C3 type state.
-		 */
 		flags->bm_control = 0;
 	}
 	if (c->x86_vendor == X86_VENDOR_AMD && c->x86 >= 0x17) {
 		/*
-		 * For all AMD Zen or newer CPUs that support C3, caches
-		 * should not be flushed by software while entering C3
-		 * type state. Set bm->check to 1 so that kernel doesn't
-		 * need to execute cache flush operation.
-		 */
 		flags->bm_check = 1;
 		/*
-		 * In current AMD C state implementation ARB_DIS is no longer
-		 * used. So set bm_control to zero to indicate ARB_DIS is not
-		 * required while entering C3 type state.
-		 */
 		flags->bm_control = 0;
 	}
 }
 EXPORT_SYMBOL(acpi_processor_power_init_bm_check);
 
-/* The code below handles cstate entry with monitor-mwait pair on Intel*/
 
 struct cstate_entry {
 	struct {
@@ -185,10 +136,6 @@ int acpi_processor_ffh_cstate_probe(unsigned int cpu,
 	}
 
 	/*
-	 * For _CST FFH on Intel, if GAS.access_size bit 1 is cleared,
-	 * then we should skip checking BM_STS for this C-state.
-	 * ref: "Intel Processor Vendor-Specific ACPI Interface Specification"
-	 */
 	if ((c->x86_vendor == X86_VENDOR_INTEL) && !(reg->access_size & 0x2))
 		cx->bm_sts_skip = 1;
 

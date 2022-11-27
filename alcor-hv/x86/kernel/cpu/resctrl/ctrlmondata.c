@@ -1,17 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Resource Director Technology(RDT)
- * - Cache Allocation code.
- *
- * Copyright (C) 2016 Intel Corporation
- *
- * Authors:
- *    Fenghua Yu <fenghua.yu@intel.com>
- *    Tony Luck <tony.luck@intel.com>
- *
- * More information about RDT be found in the Intel (R) x86 Architecture
- * Software Developer Manual June 2016, volume 3, section 17.17.
- */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
@@ -21,20 +7,12 @@
 #include <linux/slab.h>
 #include "internal.h"
 
-/*
- * Check whether MBA bandwidth percentage value is correct. The value is
- * checked against the minimum and max bandwidth values specified by the
- * hardware. The allocated bandwidth percentage is rounded to the next
- * control step available on the hardware.
- */
 static bool bw_validate(char *buf, unsigned long *data, struct rdt_resource *r)
 {
 	unsigned long bw;
 	int ret;
 
 	/*
-	 * Only linear delay values is supported for current Intel SKUs.
-	 */
 	if (!r->membw.delay_linear && r->membw.arch_needs_linear) {
 		rdt_last_cmd_puts("No support for non-linear MB domains\n");
 		return false;
@@ -53,7 +31,6 @@ static bool bw_validate(char *buf, unsigned long *data, struct rdt_resource *r)
 		return false;
 	}
 
-	*data = roundup(bw, (unsigned long)r->membw.bw_gran);
 	return true;
 }
 
@@ -78,14 +55,6 @@ int parse_bw(struct rdt_parse_data *data, struct resctrl_schema *s,
 	return 0;
 }
 
-/*
- * Check whether a cache bit mask is valid.
- * For Intel the SDM says:
- *	Please note that all (and only) contiguous '1' combinations
- *	are allowed (e.g. FFFFH, 0FF0H, 003CH, etc.).
- * Additionally Haswell requires at least two bits set.
- * AMD allows non-contiguous bitmasks.
- */
 static bool cbm_validate(char *buf, u32 *data, struct rdt_resource *r)
 {
 	unsigned long first_bit, zero_bit, val;
@@ -120,14 +89,9 @@ static bool cbm_validate(char *buf, u32 *data, struct rdt_resource *r)
 		return false;
 	}
 
-	*data = val;
 	return true;
 }
 
-/*
- * Read one cache bit mask (hex). Check that it is valid for the current
- * resource type.
- */
 int parse_cbm(struct rdt_parse_data *data, struct resctrl_schema *s,
 	      struct rdt_domain *d)
 {
@@ -143,9 +107,6 @@ int parse_cbm(struct rdt_parse_data *data, struct resctrl_schema *s,
 	}
 
 	/*
-	 * Cannot set up more than one pseudo-locked region in a cache
-	 * hierarchy.
-	 */
 	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP &&
 	    rdtgroup_pseudo_locked_in_hierarchy(d)) {
 		rdt_last_cmd_puts("Pseudo-locked region in hierarchy\n");
@@ -163,9 +124,6 @@ int parse_cbm(struct rdt_parse_data *data, struct resctrl_schema *s,
 	}
 
 	/*
-	 * The CBM may not overlap with the CBM of another closid if
-	 * either is exclusive.
-	 */
 	if (rdtgroup_cbm_overlaps(s, d, cbm_val, rdtgrp->closid, true)) {
 		rdt_last_cmd_puts("Overlaps with exclusive group\n");
 		return -EINVAL;
@@ -185,12 +143,6 @@ int parse_cbm(struct rdt_parse_data *data, struct resctrl_schema *s,
 	return 0;
 }
 
-/*
- * For each domain in this resource we expect to find a series of:
- *	id=mask
- * separated by ";". The "id" is in decimal, and must match one of
- * the "id"s for this resource.
- */
 static int parse_line(char *line, struct resctrl_schema *s,
 		      struct rdtgroup *rdtgrp)
 {
@@ -227,13 +179,6 @@ next:
 			if (rdtgrp->mode ==  RDT_MODE_PSEUDO_LOCKSETUP) {
 				cfg = &d->staged_config[t];
 				/*
-				 * In pseudo-locking setup mode and just
-				 * parsed a valid CBM that should be
-				 * pseudo-locked. Only one locked region per
-				 * resource group and domain so just do
-				 * the required initialization for single
-				 * region and return.
-				 */
 				rdtgrp->plr->s = s;
 				rdtgrp->plr->d = d;
 				rdtgrp->plr->cbm = cfg->new_ctrl;
@@ -316,9 +261,6 @@ int resctrl_arch_update_domains(struct rdt_resource *r, u32 closid)
 	}
 
 	/*
-	 * Avoid writing the control msr with control values when
-	 * MBA software controller is enabled
-	 */
 	if (cpumask_empty(cpu_mask) || mba_sc)
 		goto done;
 	cpu = get_cpu();
@@ -373,9 +315,6 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 	rdt_last_cmd_clear();
 
 	/*
-	 * No changes to pseudo-locked region allowed. It has to be removed
-	 * and re-created instead.
-	 */
 	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKED) {
 		ret = -EINVAL;
 		rdt_last_cmd_puts("Resource group is pseudo-locked\n");
@@ -413,11 +352,6 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 
 	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP) {
 		/*
-		 * If pseudo-locking fails we keep the resource group in
-		 * mode RDT_MODE_PSEUDO_LOCKSETUP with its class of service
-		 * active and updated for just the domain the pseudo-locked
-		 * region was requested for.
-		 */
 		ret = rdtgroup_pseudo_lock_create(rdtgrp);
 	}
 
@@ -503,8 +437,6 @@ void mon_event_read(struct rmid_read *rr, struct rdt_resource *r,
 		    int evtid, int first)
 {
 	/*
-	 * setup the parameters to send to the IPI to read the data.
-	 */
 	rr->rgrp = rdtgrp;
 	rr->evtid = evtid;
 	rr->r = r;

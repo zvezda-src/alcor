@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Kernel-based Virtual Machine driver for Linux
- *
- * Copyright 2016 Red Hat, Inc. and/or its affiliates.
- */
 #include <linux/kvm_host.h>
 #include <linux/debugfs.h>
 #include "lapic.h"
@@ -13,7 +7,6 @@
 static int vcpu_get_timer_advance_ns(void *data, u64 *val)
 {
 	struct kvm_vcpu *vcpu = (struct kvm_vcpu *) data;
-	*val = vcpu->arch.apic->lapic_timer.timer_advance_ns;
 	return 0;
 }
 
@@ -22,7 +15,6 @@ DEFINE_SIMPLE_ATTRIBUTE(vcpu_timer_advance_ns_fops, vcpu_get_timer_advance_ns, N
 static int vcpu_get_guest_mode(void *data, u64 *val)
 {
 	struct kvm_vcpu *vcpu = (struct kvm_vcpu *) data;
-	*val = vcpu->stat.guest_mode;
 	return 0;
 }
 
@@ -31,7 +23,6 @@ DEFINE_SIMPLE_ATTRIBUTE(vcpu_guest_mode_fops, vcpu_get_guest_mode, NULL, "%lld\n
 static int vcpu_get_tsc_offset(void *data, u64 *val)
 {
 	struct kvm_vcpu *vcpu = (struct kvm_vcpu *) data;
-	*val = vcpu->arch.tsc_offset;
 	return 0;
 }
 
@@ -40,7 +31,6 @@ DEFINE_SIMPLE_ATTRIBUTE(vcpu_tsc_offset_fops, vcpu_get_tsc_offset, NULL, "%lld\n
 static int vcpu_get_tsc_scaling_ratio(void *data, u64 *val)
 {
 	struct kvm_vcpu *vcpu = (struct kvm_vcpu *) data;
-	*val = vcpu->arch.tsc_scaling_ratio;
 	return 0;
 }
 
@@ -48,7 +38,6 @@ DEFINE_SIMPLE_ATTRIBUTE(vcpu_tsc_scaling_fops, vcpu_get_tsc_scaling_ratio, NULL,
 
 static int vcpu_get_tsc_scaling_frac_bits(void *data, u64 *val)
 {
-	*val = kvm_caps.tsc_scaling_ratio_frac_bits;
 	return 0;
 }
 
@@ -76,10 +65,6 @@ void kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu, struct dentry *debugfs_
 	}
 }
 
-/*
- * This covers statistics <1024 (11=log(1024)+1), which should be enough to
- * cover RMAP_RECYCLE_THRESHOLD.
- */
 #define  RMAP_LOG_SIZE  11
 
 static const char *kvm_lpage_str[KVM_NR_PAGE_SIZES] = { "4K", "2M", "1G" };

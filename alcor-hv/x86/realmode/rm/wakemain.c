@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include "wakeup.h"
 #include "boot.h"
 
@@ -36,7 +35,6 @@ static void beep(unsigned int hz)
 #define DASH_HZ		587
 #define US_PER_DOT	125000
 
-/* Okay, this is totally silly, but it's kind of fun. */
 static void send_morse(const char *pattern)
 {
 	char s;

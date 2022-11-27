@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ARCH_X86_KVM_X86_H
 #define ARCH_X86_KVM_X86_H
 
@@ -141,10 +140,6 @@ static inline bool is_64_bit_mode(struct kvm_vcpu *vcpu)
 static inline bool is_64_bit_hypercall(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * If running with protected guest state, the CS register is not
-	 * accessible. The hypercall register values will have had to been
-	 * provided in 64-bit mode, so assume the guest is in 64-bit.
-	 */
 	return vcpu->arch.guest_state_protected || is_64_bit_mode(vcpu);
 }
 
@@ -201,9 +196,6 @@ static inline void vcpu_cache_mmio_info(struct kvm_vcpu *vcpu,
 		return;
 
 	/*
-	 * If this is a shadow nested page table, the "GVA" is
-	 * actually a nGPA.
-	 */
 	vcpu->arch.mmio_gva = mmu_is_nested(vcpu) ? 0 : gva & PAGE_MASK;
 	vcpu->arch.mmio_access = access;
 	vcpu->arch.mmio_gfn = gfn;
@@ -215,10 +207,6 @@ static inline bool vcpu_match_mmio_gen(struct kvm_vcpu *vcpu)
 	return vcpu->arch.mmio_gen == kvm_memslots(vcpu->kvm)->generation;
 }
 
-/*
- * Clear the mmio cache info for the given gva. If gva is MMIO_GVA_ANY, we
- * clear all mmio cache info.
- */
 #define MMIO_GVA_ANY (~(gva_t)0)
 
 static inline void vcpu_clear_mmio_info(struct kvm_vcpu *vcpu, gva_t gva)
@@ -332,11 +320,6 @@ static inline u64 nsec_to_cycles(struct kvm_vcpu *vcpu, u64 nsec)
 				   vcpu->arch.virtual_tsc_shift);
 }
 
-/* Same "calling convention" as do_div:
- * - divide (n << 32) by base
- * - put result in n
- * - return remainder
- */
 #define do_shl32_div32(n, base)					\
 	({							\
 	    u32 __quot, __rem;					\
@@ -412,13 +395,6 @@ static inline bool kvm_dr6_valid(u64 data)
 	return !(data >> 32);
 }
 
-/*
- * Trigger machine check on the host. We assume all the MSRs are already set up
- * by the CPU and that we still run on the same CPU as the MCE occurred on.
- * We pass a fake environment to the machine check handler because we want
- * the guest to be always treated like user space, no matter what context
- * it used internally.
- */
 static inline void kvm_machine_check(void)
 {
 #if defined(CONFIG_X86_MCE)
@@ -440,11 +416,6 @@ int kvm_handle_memory_failure(struct kvm_vcpu *vcpu, int r,
 int kvm_handle_invpcid(struct kvm_vcpu *vcpu, unsigned long type, gva_t gva);
 bool kvm_msr_allowed(struct kvm_vcpu *vcpu, u32 index, u32 type);
 
-/*
- * Internal error codes that are used to indicate that MSR emulation encountered
- * an error that should result in #GP in the guest, unless userspace
- * handles it.
- */
 #define  KVM_MSR_RET_INVALID	2	/* in-kernel MSR emulation #GP condition */
 #define  KVM_MSR_RET_FILTERED	3	/* #GP due to userspace MSR filter */
 

@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Copyright (C) 2020 HiSilicon Limited.
- */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
@@ -50,11 +46,6 @@ static int map_benchmark_thread(void *data)
 		ktime_t map_delta, unmap_delta;
 
 		/*
-		 * for a non-coherent device, if we don't stain them in the
-		 * cache, this will give an underestimate of the real-world
-		 * overhead of BIDIRECTIONAL or TO_DEVICE mappings;
-		 * 66 means evertything goes well! 66 is lucky.
-		 */
 		if (map->dir != DMA_FROM_DEVICE)
 			memset(buf, 0x66, size);
 
@@ -246,11 +237,6 @@ static long map_benchmark_ioctl(struct file *file, unsigned int cmd,
 		ret = do_map_benchmark(map);
 
 		/*
-		 * restore the original dma_mask as many devices' dma_mask are
-		 * set by architectures, acpi, busses. When we bind them back
-		 * to their original drivers, those drivers shouldn't see
-		 * dma_mask changed by benchmark
-		 */
 		dma_set_mask(map->dev, old_dma_mask);
 		break;
 	default:
@@ -293,9 +279,6 @@ static int __map_benchmark_probe(struct device *dev)
 	}
 
 	/*
-	 * we only permit a device bound with this driver, 2nd probe
-	 * will fail
-	 */
 	entry = debugfs_create_file("dma_map_benchmark", 0600, NULL, map,
 			&map_benchmark_fops);
 	if (IS_ERR(entry))

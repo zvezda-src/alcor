@@ -1,20 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Glue code for POLYVAL using PCMULQDQ-NI
- *
- * Copyright (c) 2007 Nokia Siemens Networks - Mikko Herranen <mh1@iki.fi>
- * Copyright (c) 2009 Intel Corp.
- *   Author: Huang Ying <ying.huang@intel.com>
- * Copyright 2021 Google LLC
- */
 
-/*
- * Glue code based on ghash-clmulni-intel_glue.c.
- *
- * This implementation of POLYVAL uses montgomery multiplication
- * accelerated by PCLMULQDQ-NI to implement the finite field
- * operations.
- */
 
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
@@ -31,8 +15,6 @@
 
 struct polyval_tfm_ctx {
 	/*
-	 * These powers must be in the order h^8, ..., h^1.
-	 */
 	u8 key_powers[NUM_KEY_POWERS][POLYVAL_BLOCK_SIZE];
 };
 

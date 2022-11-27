@@ -1,27 +1,3 @@
-##### http://autoconf-archive.cryp.to/ac_python_module.html
-#
-# SYNOPSIS
-#
-#   AC_PYTHON_MODULE(modname[, fatal])
-#
-# DESCRIPTION
-#
-#   Checks for Python module.
-#
-#   If fatal is non-empty then absence of a module will trigger an
-#   error.
-#
-# LAST MODIFICATION
-#
-#   2007-01-09
-#
-# COPYLEFT
-#
-#   Copyright (c) 2007 Andrew Collier <colliera@ukzn.ac.za>
-#
-#   Copying and distribution of this file, with or without
-#   modification, are permitted in any medium without royalty provided
-#   the copyright notice and this notice are preserved.
 
 AC_DEFUN([AC_PYTHON_MODULE],[
     if test -z $PYTHON;

@@ -1,42 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * trace_hwlat.c - A simple Hardware Latency detector.
- *
- * Use this tracer to detect large system latencies induced by the behavior of
- * certain underlying system hardware or firmware, independent of Linux itself.
- * The code was developed originally to detect the presence of SMIs on Intel
- * and AMD systems, although there is no dependency upon x86 herein.
- *
- * The classical example usage of this tracer is in detecting the presence of
- * SMIs or System Management Interrupts on Intel and AMD systems. An SMI is a
- * somewhat special form of hardware interrupt spawned from earlier CPU debug
- * modes in which the (BIOS/EFI/etc.) firmware arranges for the South Bridge
- * LPC (or other device) to generate a special interrupt under certain
- * circumstances, for example, upon expiration of a special SMI timer device,
- * due to certain external thermal readings, on certain I/O address accesses,
- * and other situations. An SMI hits a special CPU pin, triggers a special
- * SMI mode (complete with special memory map), and the OS is unaware.
- *
- * Although certain hardware-inducing latencies are necessary (for example,
- * a modern system often requires an SMI handler for correct thermal control
- * and remote management) they can wreak havoc upon any OS-level performance
- * guarantees toward low-latency, especially when the OS is not even made
- * aware of the presence of these interrupts. For this reason, we need a
- * somewhat brute force mechanism to detect these interrupts. In this case,
- * we do it by hogging all of the CPU(s) for configurable timer intervals,
- * sampling the built-in CPU timer, looking for discontiguous readings.
- *
- * WARNING: This implementation necessarily introduces latencies. Therefore,
- *          you should NEVER use this tracer while running in a production
- *          environment requiring any kind of low-latency performance
- *          guarantee(s).
- *
- * Copyright (C) 2008-2009 Jon Masters, Red Hat, Inc. <jcm@redhat.com>
- * Copyright (C) 2013-2016 Steven Rostedt, Red Hat, Inc. <srostedt@redhat.com>
- *
- * Includes useful feedback from Clark Williams <williams@redhat.com>
- *
- */
 #include <linux/kthread.h>
 #include <linux/tracefs.h>
 #include <linux/uaccess.h>
@@ -66,10 +27,8 @@ enum {
 };
 static char *thread_mode_str[] = { "none", "round-robin", "per-cpu" };
 
-/* Save the previous tracing_thresh value */
 static unsigned long save_tracing_thresh;
 
-/* runtime kthread data */
 struct hwlat_kthread_data {
 	struct task_struct	*kthread;
 	/* NMI timestamp counters */
@@ -82,13 +41,10 @@ struct hwlat_kthread_data {
 static struct hwlat_kthread_data hwlat_single_cpu_data;
 static DEFINE_PER_CPU(struct hwlat_kthread_data, hwlat_per_cpu_data);
 
-/* Tells NMIs to call back to the hwlat tracer to record timestamps */
 bool trace_hwlat_callback_enabled;
 
-/* If the user changed threshold, remember it */
 static u64 last_tracing_thresh = DEFAULT_LAT_THRESHOLD * NSEC_PER_USEC;
 
-/* Individual latency samples are stored here when detected. */
 struct hwlat_sample {
 	u64			seqnum;		/* unique sequence */
 	u64			duration;	/* delta */
@@ -99,7 +55,6 @@ struct hwlat_sample {
 	int			count;		/* # of iterations over thresh */
 };
 
-/* keep the global state somewhere. */
 static struct hwlat_data {
 
 	struct mutex lock;		/* protect changes */
@@ -152,7 +107,6 @@ static void trace_hwlat_sample(struct hwlat_sample *sample)
 		trace_buffer_unlock_commit_nostack(buffer, event);
 }
 
-/* Macros to encapsulate the time capturing infrastructure */
 #define time_type	u64
 #define time_get()	trace_clock_local()
 #define time_to_us(x)	div_u64(x, 1000)
@@ -168,9 +122,6 @@ void trace_hwlat_callback(bool enter)
 		return;
 
 	/*
-	 * Currently trace_clock_local() calls sched_clock() and the
-	 * generic version is not NMI safe.
-	 */
 	if (!IS_ENABLED(CONFIG_GENERIC_SCHED_CLOCK)) {
 		if (enter)
 			kdata->nmi_ts_start = time_get();
@@ -182,22 +133,12 @@ void trace_hwlat_callback(bool enter)
 		kdata->nmi_count++;
 }
 
-/*
- * hwlat_err - report a hwlat error.
- */
 #define hwlat_err(msg) ({							\
 	struct trace_array *tr = hwlat_trace;					\
 										\
 	trace_array_printk_buf(tr->array_buffer.buffer, _THIS_IP_, msg);	\
 })
 
-/**
- * get_sample - sample the CPU TSC and look for likely hardware latencies
- *
- * Used to repeatedly capture the CPU TSC (or similar), looking for potential
- * hardware-induced latency. Called with interrupts disabled and with
- * hwlat_data.lock held.
- */
 static int get_sample(void)
 {
 	struct hwlat_kthread_data *kdata = get_cpu_data();
@@ -318,10 +259,6 @@ static void move_to_next_cpu(void)
 	int next_cpu;
 
 	/*
-	 * If for some reason the user modifies the CPU affinity
-	 * of this thread, then stop migrating for the duration
-	 * of the current test.
-	 */
 	if (!cpumask_equal(current_mask, current->cpus_ptr))
 		goto change_mode;
 
@@ -347,16 +284,6 @@ static void move_to_next_cpu(void)
 	pr_info(BANNER "cpumask changed while in round-robin mode, switching to mode none\n");
 }
 
-/*
- * kthread_fn - The CPU time sampling/hardware latency detection kernel thread
- *
- * Used to periodically sample the CPU TSC via a call to get_sample. We
- * disable interrupts, which does (intentionally) introduce latency since we
- * need to ensure nothing else might be running (and thus preempting).
- * Obviously this should never be used in production environments.
- *
- * Executes one loop interaction on each CPU in tracing_cpumask sysfs file.
- */
 static int kthread_fn(void *data)
 {
 	u64 interval;
@@ -387,12 +314,6 @@ static int kthread_fn(void *data)
 	return 0;
 }
 
-/*
- * stop_stop_kthread - Inform the hardware latency sampling/detector kthread to stop
- *
- * This kicks the running hardware latency sampling/detector kernel thread and
- * tells it to stop sampling now. Use this on unload and at system shutdown.
- */
 static void stop_single_kthread(void)
 {
 	struct hwlat_kthread_data *kdata = get_cpu_data();
@@ -412,12 +333,6 @@ out_put_cpus:
 }
 
 
-/*
- * start_single_kthread - Kick off the hardware latency sampling/detector kthread
- *
- * This starts the kernel thread that will sit and sample the CPU timestamp
- * counter (TSC or similar) and look for potential hardware latencies.
- */
 static int start_single_kthread(struct trace_array *tr)
 {
 	struct hwlat_kthread_data *kdata = get_cpu_data();
@@ -456,9 +371,6 @@ out_put_cpus:
 	return 0;
 }
 
-/*
- * stop_cpu_kthread - Stop a hwlat cpu kthread
- */
 static void stop_cpu_kthread(unsigned int cpu)
 {
 	struct task_struct *kthread;
@@ -469,12 +381,6 @@ static void stop_cpu_kthread(unsigned int cpu)
 	per_cpu(hwlat_per_cpu_data, cpu).kthread = NULL;
 }
 
-/*
- * stop_per_cpu_kthreads - Inform the hardware latency sampling/detector kthread to stop
- *
- * This kicks the running hardware latency sampling/detector kernel threads and
- * tells it to stop sampling now. Use this on unload and at system shutdown.
- */
 static void stop_per_cpu_kthreads(void)
 {
 	unsigned int cpu;
@@ -485,9 +391,6 @@ static void stop_per_cpu_kthreads(void)
 	cpus_read_unlock();
 }
 
-/*
- * start_cpu_kthread - Start a hwlat cpu kthread
- */
 static int start_cpu_kthread(unsigned int cpu)
 {
 	struct task_struct *kthread;
@@ -529,18 +432,12 @@ out_unlock:
 
 static DECLARE_WORK(hwlat_hotplug_work, hwlat_hotplug_workfn);
 
-/*
- * hwlat_cpu_init - CPU hotplug online callback function
- */
 static int hwlat_cpu_init(unsigned int cpu)
 {
 	schedule_work_on(cpu, &hwlat_hotplug_work);
 	return 0;
 }
 
-/*
- * hwlat_cpu_die - CPU hotplug offline callback function
- */
 static int hwlat_cpu_die(unsigned int cpu)
 {
 	stop_cpu_kthread(cpu);
@@ -565,13 +462,6 @@ static void hwlat_init_hotplug_support(void)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-/*
- * start_per_cpu_kthreads - Kick off the hardware latency sampling/detector kthreads
- *
- * This starts the kernel threads that will sit on potentially all cpus and
- * sample the CPU timestamp counter (TSC or similar) and look for potential
- * hardware latencies.
- */
 static int start_per_cpu_kthreads(struct trace_array *tr)
 {
 	struct cpumask *current_mask = &save_cpumask;
@@ -580,8 +470,6 @@ static int start_per_cpu_kthreads(struct trace_array *tr)
 
 	cpus_read_lock();
 	/*
-	 * Run only on CPUs in which hwlat is allowed to run.
-	 */
 	cpumask_and(current_mask, cpu_online_mask, tr->tracing_cpumask);
 
 	for_each_online_cpu(cpu)
@@ -661,21 +549,6 @@ static int hwlat_mode_open(struct inode *inode, struct file *file)
 static void hwlat_tracer_start(struct trace_array *tr);
 static void hwlat_tracer_stop(struct trace_array *tr);
 
-/**
- * hwlat_mode_write - Write function for "mode" entry
- * @filp: The active open file structure
- * @ubuf: The user buffer that contains the value to write
- * @cnt: The maximum number of bytes to write to "file"
- * @ppos: The current position in @file
- *
- * This function provides a write implementation for the "mode" interface
- * to the hardware latency detector. hwlatd has different operation modes.
- * The "none" sets the allowed cpumask for a single hwlatd thread at the
- * startup and lets the scheduler handle the migration. The default mode is
- * the "round-robin" one, in which a single hwlatd thread runs, migrating
- * among the allowed CPUs in a round-robin fashion. The "per-cpu" mode
- * creates one hwlatd thread per allowed CPU.
- */
 static ssize_t hwlat_mode_write(struct file *filp, const char __user *ubuf,
 				 size_t cnt, loff_t *ppos)
 {
@@ -697,9 +570,6 @@ static ssize_t hwlat_mode_write(struct file *filp, const char __user *ubuf,
 	ret = -EINVAL;
 
 	/*
-	 * trace_types_lock is taken to avoid concurrency on start/stop
-	 * and hwlat_busy.
-	 */
 	mutex_lock(&trace_types_lock);
 	if (hwlat_busy)
 		hwlat_tracer_stop(tr);
@@ -719,18 +589,12 @@ static ssize_t hwlat_mode_write(struct file *filp, const char __user *ubuf,
 		hwlat_tracer_start(tr);
 	mutex_unlock(&trace_types_lock);
 
-	*ppos += cnt;
 
 
 
 	return ret;
 }
 
-/*
- * The width parameter is read/write using the generic trace_min_max_param
- * method. The *val is protected by the hwlat_data lock and is upper
- * bounded by the window parameter.
- */
 static struct trace_min_max_param hwlat_width = {
 	.lock		= &hwlat_data.lock,
 	.val		= &hwlat_data.sample_width,
@@ -738,11 +602,6 @@ static struct trace_min_max_param hwlat_width = {
 	.min		= NULL,
 };
 
-/*
- * The window parameter is read/write using the generic trace_min_max_param
- * method. The *val is protected by the hwlat_data lock and is lower
- * bounded by the width parameter.
- */
 static struct trace_min_max_param hwlat_window = {
 	.lock		= &hwlat_data.lock,
 	.val		= &hwlat_data.sample_window,
@@ -757,14 +616,6 @@ static const struct file_operations thread_mode_fops = {
 	.release	= seq_release,
 	.write		= hwlat_mode_write
 };
-/**
- * init_tracefs - A function to initialize the tracefs interface files
- *
- * This function creates entries in tracefs for "hwlat_detector".
- * It creates the hwlat_detector directory in the tracing directory,
- * and within that directory is the count, width and window files to
- * change and view those values.
- */
 static int init_tracefs(void)
 {
 	int ret;

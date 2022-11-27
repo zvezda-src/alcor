@@ -94,5 +94,4 @@ TRACE_EVENT(hyperv_send_ipi_one,
 #define TRACE_INCLUDE_FILE hyperv
 #endif /* _TRACE_HYPERV_H */
 
-/* This part must be outside protection */
 #include <trace/define_trace.h>

@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- *	Memory preserving reboot related code.
- *
- *	Created by: Hariprasad Nellitheertha (hari@in.ibm.com)
- *	Copyright (C) IBM Corporation, 2004. All rights reserved
- */
 
 #include <linux/errno.h>
 #include <linux/crash_dump.h>
@@ -41,11 +34,6 @@ ssize_t copy_oldmem_page(struct iov_iter *iter, unsigned long pfn, size_t csize,
 	return __copy_oldmem_page(iter, pfn, csize, offset, false);
 }
 
-/*
- * copy_oldmem_page_encrypted - same as copy_oldmem_page() above but ioremap the
- * memory with the encryption mask set to accommodate kdump on SME-enabled
- * machines.
- */
 ssize_t copy_oldmem_page_encrypted(struct iov_iter *iter, unsigned long pfn,
 				   size_t csize, unsigned long offset)
 {

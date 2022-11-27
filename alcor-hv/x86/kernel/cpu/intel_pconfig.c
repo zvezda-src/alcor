@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Intel PCONFIG instruction support.
- *
- * Copyright (C) 2017 Intel Corporation
- *
- * Author:
- *	Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
- */
 
 #include <asm/cpufeature.h>
 #include <asm/intel_pconfig.h>
@@ -15,21 +6,16 @@
 
 #define PCONFIG_CPUID_SUBLEAF_MASK	((1 << 12) - 1)
 
-/* Subleaf type (EAX) for PCONFIG CPUID leaf (0x1B) */
 enum {
 	PCONFIG_CPUID_SUBLEAF_INVALID	= 0,
 	PCONFIG_CPUID_SUBLEAF_TARGETID	= 1,
 };
 
-/* Bitmask of supported targets */
 static u64 targets_supported __read_mostly;
 
 int pconfig_target_supported(enum pconfig_target target)
 {
 	/*
-	 * We would need to re-think the implementation once we get > 64
-	 * PCONFIG targets. Spec allows up to 2^32 targets.
-	 */
 	BUILD_BUG_ON(PCONFIG_TARGET_NR >= 64);
 
 	if (WARN_ON_ONCE(target >= 64))
@@ -45,13 +31,6 @@ static int __init intel_pconfig_init(void)
 		return 0;
 
 	/*
-	 * Scan subleafs of PCONFIG CPUID leaf.
-	 *
-	 * Subleafs of the same type need not to be consecutive.
-	 *
-	 * Stop on the first invalid subleaf type. All subleafs after the first
-	 * invalid are invalid too.
-	 */
 	for (subleaf = 0; subleaf < INT_MAX; subleaf++) {
 		struct cpuid_regs regs;
 

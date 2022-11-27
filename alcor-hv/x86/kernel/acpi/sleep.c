@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * sleep.c - x86-specific ACPI sleep support.
- *
- *  Copyright (C) 2001-2003 Patrick Mochel
- *  Copyright (C) 2001-2003 Pavel Machek <pavel@ucw.cz>
- */
 
 #include <linux/acpi.h>
 #include <linux/memblock.h>
@@ -27,34 +20,16 @@ unsigned long acpi_realmode_flags;
 static char temp_stack[4096];
 #endif
 
-/**
- * acpi_get_wakeup_address - provide physical address for S3 wakeup
- *
- * Returns the physical address where the kernel should be resumed after the
- * system awakes from S3, e.g. for programming into the firmware waking vector.
- */
 unsigned long acpi_get_wakeup_address(void)
 {
 	return ((unsigned long)(real_mode_header->wakeup_start));
 }
 
-/**
- * x86_acpi_enter_sleep_state - enter sleep state
- * @state: Sleep state to enter.
- *
- * Wrapper around acpi_enter_sleep_state() to be called by assembly.
- */
 asmlinkage acpi_status __visible x86_acpi_enter_sleep_state(u8 state)
 {
 	return acpi_enter_sleep_state(state);
 }
 
-/**
- * x86_acpi_suspend_lowlevel - save kernel state
- *
- * Create an identity mapped page table and copy the wakeup routine to
- * low memory.
- */
 int x86_acpi_suspend_lowlevel(void)
 {
 	struct wakeup_header *header =
@@ -73,13 +48,6 @@ int x86_acpi_suspend_lowlevel(void)
 	native_store_gdt((struct desc_ptr *)&header->pmode_gdt);
 
 	/*
-	 * We have to check that we can write back the value, and not
-	 * just read it.  At least on 90 nm Pentium M (Family 6, Model
-	 * 13), reading an invalid MSR is not guaranteed to trap, see
-	 * Erratum X4 in "Intel Pentium M Processor on 90 nm Process
-	 * with 2-MB L2 Cache and Intel® Processor A100 and A110 on 90
-	 * nm process with 512-KB L2 Cache Specification Update".
-	 */
 	if (!rdmsr_safe(MSR_EFER,
 			&header->pmode_efer_low,
 			&header->pmode_efer_high) &&
@@ -121,9 +89,6 @@ int x86_acpi_suspend_lowlevel(void)
 #endif /* CONFIG_64BIT */
 
 	/*
-	 * Pause/unpause graph tracing around do_suspend_lowlevel as it has
-	 * inconsistent call/return info after it jumps to the wakeup vector.
-	 */
 	pause_graph_tracing();
 	do_suspend_lowlevel();
 	unpause_graph_tracing();
@@ -166,16 +131,11 @@ __setup("acpi_sleep=", acpi_sleep_setup);
 static int __init init_s4_sigcheck(void)
 {
 	/*
-	 * If running on a hypervisor, honour the ACPI specification
-	 * by default and trigger a clean reboot when the hardware
-	 * signature in FACS is changed after hibernation.
-	 */
 	if (acpi_check_s4_hw_signature == -1 &&
 	    !hypervisor_is_type(X86_HYPER_NATIVE))
 		acpi_check_s4_hw_signature = 1;
 
 	return 0;
 }
-/* This must happen before acpi_init() which is a subsys initcall */
 arch_initcall(init_s4_sigcheck);
 #endif

@@ -1,10 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  reg_constant.c                                                           |
  |                                                                           |
  | All of the constant FPU_REGs                                              |
  |                                                                           |
- | Copyright (C) 1992,1993,1994,1997                                         |
  |                     W. Metzenthen, 22 Parker St, Ormond, Vic 3163,        |
  |                     Australia.  E-mail   billm@suburbia.net               |
  |                                                                           |
@@ -33,21 +30,14 @@ FPU_REG const CONST_PI4 = MAKE_REG(POS, -1, 0x2168c235, 0xc90fdaa2);
 static FPU_REG const CONST_LG2 = MAKE_REG(POS, -2, 0xfbcff799, 0x9a209a84);
 static FPU_REG const CONST_LN2 = MAKE_REG(POS, -1, 0xd1cf79ac, 0xb17217f7);
 
-/* Extra bits to take pi/2 to more than 128 bits precision. */
 FPU_REG const CONST_PI2extra = MAKE_REG(NEG, -66,
 					0xfc8f8cbb, 0xece675d1);
 
-/* Only the sign (and tag) is used in internal zeroes */
 FPU_REG const CONST_Z = MAKE_REG(POS, EXP_UNDER, 0x0, 0x0);
 
-/* Only the sign and significand (and tag) are used in internal NaNs */
-/* The 80486 never generates one of these
 FPU_REG const CONST_SNAN = MAKE_REG(POS, EXP_OVER, 0x00000001, 0x80000000);
- */
-/* This is the real indefinite QNaN */
 FPU_REG const CONST_QNaN = MAKE_REG(NEG, EXP_OVER, 0x00000000, 0xC0000000);
 
-/* Only the sign (and tag) is used in internal infinities */
 FPU_REG const CONST_INF = MAKE_REG(POS, EXP_OVER, 0x00000000, 0x80000000);
 
 static void fld_const(FPU_REG const * c, int adj, u_char tag)
@@ -66,7 +56,6 @@ static void fld_const(FPU_REG const * c, int adj, u_char tag)
 	clear_C1();
 }
 
-/* A fast way to find out whether x is one of RC_DOWN or RC_CHOP
    (and not one of RC_RND or RC_UP).
    */
 #define DOWN_OR_CHOP(x)  (x & RC_DOWN)

@@ -1,31 +1,4 @@
-#
-#
 
-# Copyright (C) 2010 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 """Classes and functions for import/export daemon.
@@ -48,14 +21,10 @@ from alcor import netutils
 from alcor import compat
 
 
-#: Used to recognize point at which socat(1) starts to listen on its socket.
-#: The local address is required for the remote peer to connect (in particular
-#: the port number).
 LISTENING_RE = re.compile(r"^listening on\s+"
                           r"AF=(?P<family>\d+)\s+"
                           r"(?P<address>.+):(?P<port>\d+)$", re.I)
 
-#: Used to recognize point at which socat(1) is sending data over the wire
 TRANSFER_LOOP_RE = re.compile(r"^starting data transfer loop with FDs\s+.*$",
                               re.I)
 
@@ -72,21 +41,15 @@ SOCAT_LOG_IGNORE = compat.UniqueFrozenset([
   SOCAT_LOG_NOTICE,
   ])
 
-#: Used to parse GNU dd(1) statistics
 DD_INFO_RE = re.compile(r"^(?P<bytes>\d+)\s*byte(?:|s)\s.*\scopied,\s*"
                         r"(?P<seconds>[\d.]+)\s*s(?:|econds),.*$", re.I)
 
-#: Used to ignore "N+N records in/out" on dd(1)'s stderr
 DD_STDERR_IGNORE = re.compile(r"^\d+\+\d+\s*records\s+(?:in|out)$", re.I)
 
-#: Signal upon which dd(1) will print statistics (on some platforms, SIGINFO is
-#: unavailable and SIGUSR1 is used instead)
 DD_INFO_SIGNAL = getattr(signal, "SIGINFO", signal.SIGUSR1)
 
-#: Buffer size: at most this many bytes are transferred at once
 BUFSIZE = 1024 * 1024
 
-# Common options for socat
 SOCAT_TCP_OPTS = ["keepalive", "keepidle=60", "keepintvl=10", "keepcnt=5"]
 SOCAT_OPENSSL_OPTS = ["verify=1", "cipher=%s" % constants.OPENSSL_CIPHERS]
 

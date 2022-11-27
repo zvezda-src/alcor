@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PGTABLE_64_DEFS_H
 #define _ASM_X86_PGTABLE_64_DEFS_H
 
@@ -8,9 +7,6 @@
 #include <linux/types.h>
 #include <asm/kaslr.h>
 
-/*
- * These are used to make use of C type-checking..
- */
 typedef unsigned long	pteval_t;
 typedef unsigned long	pmdval_t;
 typedef unsigned long	pudval_t;
@@ -24,10 +20,6 @@ typedef struct { pteval_t pte; } pte_t;
 extern unsigned int __pgtable_l5_enabled;
 
 #ifdef USE_EARLY_PGTABLE_L5
-/*
- * cpu_feature_enabled() is not available in early boot code.
- * Use variable instead.
- */
 static inline bool pgtable_l5_enabled(void)
 {
 	return __pgtable_l5_enabled;
@@ -49,15 +41,9 @@ extern unsigned int ptrs_per_p4d;
 
 #ifdef CONFIG_X86_5LEVEL
 
-/*
- * PGDIR_SHIFT determines what a top-level page table entry can map
- */
 #define PGDIR_SHIFT	pgdir_shift
 #define PTRS_PER_PGD	512
 
-/*
- * 4th level page in 5-level paging case
- */
 #define P4D_SHIFT		39
 #define MAX_PTRS_PER_P4D	512
 #define PTRS_PER_P4D		ptrs_per_p4d
@@ -68,31 +54,18 @@ extern unsigned int ptrs_per_p4d;
 
 #else /* CONFIG_X86_5LEVEL */
 
-/*
- * PGDIR_SHIFT determines what a top-level page table entry can map
- */
 #define PGDIR_SHIFT		39
 #define PTRS_PER_PGD		512
 #define MAX_PTRS_PER_P4D	1
 
 #endif /* CONFIG_X86_5LEVEL */
 
-/*
- * 3rd level page
- */
 #define PUD_SHIFT	30
 #define PTRS_PER_PUD	512
 
-/*
- * PMD_SHIFT determines the size of the area a middle-level
- * page table can map
- */
 #define PMD_SHIFT	21
 #define PTRS_PER_PMD	512
 
-/*
- * entries per page directory level
- */
 #define PTRS_PER_PTE	512
 
 #define PMD_SIZE	(_AC(1, UL) << PMD_SHIFT)
@@ -102,13 +75,6 @@ extern unsigned int ptrs_per_p4d;
 #define PGDIR_SIZE	(_AC(1, UL) << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE - 1))
 
-/*
- * See Documentation/x86/x86_64/mm.rst for a description of the memory map.
- *
- * Be very careful vs. KASLR when changing anything here. The KASLR address
- * range must not overlap with anything except the KASAN shadow area, which
- * is correct as KASAN disables KASLR.
- */
 #define MAXMEM			(1UL << MAX_PHYSMEM_BITS)
 
 #define GUARD_HOLE_PGD_ENTRY	-256UL
@@ -142,7 +108,6 @@ extern unsigned int ptrs_per_p4d;
 #define VMALLOC_END		(VMALLOC_START + (VMALLOC_SIZE_TB << 40) - 1)
 
 #define MODULES_VADDR		(__START_KERNEL_map + KERNEL_IMAGE_SIZE)
-/* The module sections ends with the start of the fixmap */
 #ifndef CONFIG_DEBUG_KMAP_LOCAL_FORCE_MAP
 # define MODULES_END		_AC(0xffffffffff000000, UL)
 #else
@@ -163,9 +128,6 @@ extern unsigned int ptrs_per_p4d;
 
 #define PGD_KERNEL_START	((PAGE_SIZE / 2) / sizeof(pgd_t))
 
-/*
- * We borrow bit 3 to remember PG_anon_exclusive.
- */
 #define _PAGE_SWP_EXCLUSIVE	_PAGE_PWT
 
 #endif /* _ASM_X86_PGTABLE_64_DEFS_H */

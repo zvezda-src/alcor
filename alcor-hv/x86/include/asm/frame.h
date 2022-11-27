@@ -1,13 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_FRAME_H
 #define _ASM_X86_FRAME_H
 
 #include <asm/asm.h>
 
-/*
- * These are stack frame creation macros.  They should be used by every
- * callable non-leaf asm function to make kernel stack traces more reliable.
- */
 
 #ifdef CONFIG_FRAME_POINTER
 
@@ -23,28 +18,10 @@
 .endm
 
 #ifdef CONFIG_X86_64
-/*
- * This is a sneaky trick to help the unwinder find pt_regs on the stack.  The
- * frame pointer is replaced with an encoded pointer to pt_regs.  The encoding
- * is just setting the LSB, which makes it an invalid stack address and is also
- * a signal to the unwinder that it's a pt_regs pointer in disguise.
- *
- * NOTE: This macro must be used *after* PUSH_AND_CLEAR_REGS because it corrupts
- * the original rbp.
- */
 .macro ENCODE_FRAME_POINTER ptregs_offset=0
 	leaq 1+\ptregs_offset(%rsp), %rbp
 .endm
 #else /* !CONFIG_X86_64 */
-/*
- * This is a sneaky trick to help the unwinder find pt_regs on the stack.  The
- * frame pointer is replaced with an encoded pointer to pt_regs.  The encoding
- * is just clearing the MSB, which makes it an invalid stack address and is also
- * a signal to the unwinder that it's a pt_regs pointer in disguise.
- *
- * NOTE: This macro must be used *after* SAVE_ALL because it corrupts the
- * original ebp.
- */
 .macro ENCODE_FRAME_POINTER
 	mov %esp, %ebp
 	andl $0x7fffffff, %ebp

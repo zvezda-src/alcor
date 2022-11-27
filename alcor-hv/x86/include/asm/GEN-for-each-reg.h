@@ -1,7 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- * These are in machine order; things rely on that.
- */
 #ifdef CONFIG_64BIT
 GEN(rax)
 GEN(rcx)

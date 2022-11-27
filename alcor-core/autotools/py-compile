@@ -1,1 +1,135 @@
-/usr/share/automake-1.16/py-compile
+
+scriptversion=2018-03-07.03; # UTC
+
+
+
+
+
+
+
+if [ -z "$PYTHON" ]; then
+  PYTHON=python
+fi
+
+me=py-compile
+
+usage_error ()
+{
+  echo "$me: $*" >&2
+  echo "Try '$me --help' for more information." >&2
+  exit 1
+}
+
+basedir=
+destdir=
+while test $# -ne 0; do
+  case "$1" in
+    --basedir)
+      if test $# -lt 2; then
+        usage_error "option '--basedir' requires an argument"
+      else
+        basedir=$2
+      fi
+      shift
+      ;;
+    --destdir)
+      if test $# -lt 2; then
+        usage_error "option '--destdir' requires an argument"
+      else
+        destdir=$2
+      fi
+      shift
+      ;;
+    -h|--help)
+      cat <<\EOF
+Usage: py-compile [--help] [--version] [--basedir DIR] [--destdir DIR] FILES..."
+
+Byte compile some python scripts FILES.  Use --destdir to specify any
+leading directory path to the FILES that you don't want to include in the
+byte compiled file.  Specify --basedir for any additional path information you
+do want to be shown in the byte compiled file.
+
+Example:
+  py-compile --destdir /tmp/pkg-root --basedir /usr/share/test test.py test2.py
+
+Report bugs to <bug-automake@gnu.org>.
+EOF
+      exit $?
+      ;;
+    -v|--version)
+      echo "$me $scriptversion"
+      exit $?
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      usage_error "unrecognized option '$1'"
+      ;;
+    *)
+      break
+      ;;
+  esac
+  shift
+done
+
+files=$*
+if test -z "$files"; then
+    usage_error "no files given"
+fi
+
+if [ -z "$basedir" ]; then
+    pathtrans="path = file"
+else
+    pathtrans="path = os.path.join('$basedir', file)"
+fi
+
+if [ -z "$destdir" ]; then
+    filetrans="filepath = path"
+else
+    filetrans="filepath = os.path.normpath('$destdir' + os.sep + path)"
+fi
+
+$PYTHON -c "
+import sys, os, py_compile, imp
+
+files = '''$files'''
+
+sys.stdout.write('Byte-compiling python modules...\n')
+for file in files.split():
+    $pathtrans
+    $filetrans
+    if not os.path.exists(filepath) or not (len(filepath) >= 3
+                                            and filepath[-3:] == '.py'):
+	    continue
+    sys.stdout.write(file)
+    sys.stdout.flush()
+    if hasattr(imp, 'get_tag'):
+        py_compile.compile(filepath, imp.cache_from_source(filepath), path)
+    else:
+        py_compile.compile(filepath, filepath + 'c', path)
+sys.stdout.write('\n')" || exit $?
+
+$PYTHON -O -c "
+import sys, os, py_compile, imp
+
+if hasattr(sys, 'pypy_translation_info'):
+    sys.exit(0)
+
+files = '''$files'''
+sys.stdout.write('Byte-compiling python modules (optimized versions) ...\n')
+for file in files.split():
+    $pathtrans
+    $filetrans
+    if not os.path.exists(filepath) or not (len(filepath) >= 3
+                                            and filepath[-3:] == '.py'):
+	    continue
+    sys.stdout.write(file)
+    sys.stdout.flush()
+    if hasattr(imp, 'get_tag'):
+        py_compile.compile(filepath, imp.cache_from_source(filepath, False), path)
+    else:
+        py_compile.compile(filepath, filepath + 'o', path)
+sys.stdout.write('\n')" 2>/dev/null || :
+

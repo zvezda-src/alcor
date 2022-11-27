@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/export.h>
@@ -33,30 +32,14 @@
 #include <asm/x86_init.h>
 #include <asm/efi.h>
 
-/*
- * Power off function, if any
- */
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
-/*
- * This is set if we need to go through the 'emergency' path.
- * When machine_emergency_restart() is called, we may be on
- * an inconsistent state and won't be able to do a clean cleanup
- */
 static int reboot_emergency;
 
-/* This is set by the PCI code if either type 1 or type 2 PCI is detected */
 bool port_cf9_safe = false;
 
-/*
- * Reboot options and system auto-detection code provided by
- * Dell Inc. so their systems "just work". :-)
- */
 
-/*
- * Some machines require the "reboot=a" commandline options
- */
 static int __init set_acpi_reboot(const struct dmi_system_id *d)
 {
 	if (reboot_type != BOOT_ACPI) {
@@ -67,10 +50,6 @@ static int __init set_acpi_reboot(const struct dmi_system_id *d)
 	return 0;
 }
 
-/*
- * Some machines require the "reboot=b" or "reboot=k"  commandline options,
- * this quirk makes that automatic.
- */
 static int __init set_bios_reboot(const struct dmi_system_id *d)
 {
 	if (reboot_type != BOOT_BIOS) {
@@ -81,10 +60,6 @@ static int __init set_bios_reboot(const struct dmi_system_id *d)
 	return 0;
 }
 
-/*
- * Some machines don't handle the default ACPI reboot method and
- * require the EFI reboot method:
- */
 static int __init set_efi_reboot(const struct dmi_system_id *d)
 {
 	if (reboot_type != BOOT_EFI && !efi_runtime_disabled()) {
@@ -99,22 +74,11 @@ void __noreturn machine_real_restart(unsigned int type)
 	local_irq_disable();
 
 	/*
-	 * Write zero to CMOS register number 0x0f, which the BIOS POST
-	 * routine will recognize as telling it to do a proper reboot.  (Well
-	 * that's what this book in front of me says -- it may only apply to
-	 * the Phoenix BIOS though, it's not clear).  At the same time,
-	 * disable NMIs by setting the top bit in the CMOS address register,
-	 * as we're about to do peculiar things to the CPU.  I'm not sure if
-	 * `outb_p' is needed instead of just `outb'.  Use it to be on the
-	 * safe side.  (Yes, CMOS_WRITE does outb_p's. -  Paul G.)
-	 */
 	spin_lock(&rtc_lock);
 	CMOS_WRITE(0x00, 0x8f);
 	spin_unlock(&rtc_lock);
 
 	/*
-	 * Switch to the trampoline page table.
-	 */
 	load_trampoline_pgtable();
 
 	/* Jump to the identity-mapped low memory code */
@@ -134,9 +98,6 @@ EXPORT_SYMBOL(machine_real_restart);
 #endif
 STACK_FRAME_NON_STANDARD(machine_real_restart);
 
-/*
- * Some Apple MacBook and MacBookPro's needs reboot=p to be able to reboot
- */
 static int __init set_pci_reboot(const struct dmi_system_id *d)
 {
 	if (reboot_type != BOOT_CF9_FORCE) {
@@ -157,9 +118,6 @@ static int __init set_kbd_reboot(const struct dmi_system_id *d)
 	return 0;
 }
 
-/*
- * This is a single dmi_table handling all reboot quirks.
- */
 static const struct dmi_system_id reboot_dmi_table[] __initconst = {
 
 	/* Acer */
@@ -497,17 +455,10 @@ static int __init reboot_init(void)
 	int rv;
 
 	/*
-	 * Only do the DMI check if reboot_type hasn't been overridden
-	 * on the command line
-	 */
 	if (!reboot_default)
 		return 0;
 
 	/*
-	 * The DMI quirks table takes precedence. If no quirks entry
-	 * matches and the ACPI Hardware Reduced bit is set and EFI
-	 * runtime services are enabled, force EFI reboot.
-	 */
 	rv = dmi_check_system(reboot_dmi_table);
 
 	if (!rv && efi_reboot_required() && !efi_runtime_disabled())
@@ -533,22 +484,12 @@ static void vmxoff_nmi(int cpu, struct pt_regs *regs)
 	cpu_emergency_vmxoff();
 }
 
-/* Use NMIs as IPIs to tell all CPUs to disable virtualization */
 static void emergency_vmx_disable_all(void)
 {
 	/* Just make sure we won't change CPUs while doing this */
 	local_irq_disable();
 
 	/*
-	 * Disable VMX on all CPUs before rebooting, otherwise we risk hanging
-	 * the machine, because the CPU blocks INIT when it's in VMX root.
-	 *
-	 * We can't take any locks and we may be on an inconsistent state, so
-	 * use NMIs as IPIs to tell the other CPUs to exit VMX root and halt.
-	 *
-	 * Do the NMI shootdown even if VMX if off on _this_ CPU, as that
-	 * doesn't prevent a different CPU from being in VMX root operation.
-	 */
 	if (cpu_has_vmx()) {
 		/* Safely force _this_ CPU out of VMX root operation. */
 		__cpu_emergency_vmxoff();
@@ -563,25 +504,6 @@ void __attribute__((weak)) mach_reboot_fixups(void)
 {
 }
 
-/*
- * To the best of our knowledge Windows compatible x86 hardware expects
- * the following on reboot:
- *
- * 1) If the FADT has the ACPI reboot register flag set, try it
- * 2) If still alive, write to the keyboard controller
- * 3) If still alive, write to the ACPI reboot register again
- * 4) If still alive, write to the keyboard controller again
- * 5) If still alive, call the EFI runtime service to reboot
- * 6) If no EFI runtime service, call the BIOS to do a reboot
- *
- * We default to following the same pattern. We also have
- * two other reboot methods: 'triple fault' and 'PCI', which
- * can be triggered via the reboot= kernel boot option or
- * via quirks.
- *
- * This means that this function can never return, it can misbehave
- * by not rebooting properly and hanging.
- */
 static void native_machine_emergency_restart(void)
 {
 	int i;
@@ -596,12 +518,8 @@ static void native_machine_emergency_restart(void)
 
 	/* Tell the BIOS if we want cold or warm reboot */
 	mode = reboot_mode == REBOOT_WARM ? 0x1234 : 0;
-	*((unsigned short *)__va(0x472)) = mode;
 
 	/*
-	 * If an EFI capsule has been registered with the firmware then
-	 * override the reboot= parameter.
-	 */
 	if (efi_capsule_pending(NULL)) {
 		pr_info("EFI capsule is pending, forcing EFI reboot.\n");
 		reboot_type = BOOT_EFI;
@@ -677,25 +595,11 @@ void native_machine_shutdown(void)
 	/* Stop the cpus and apics */
 #ifdef CONFIG_X86_IO_APIC
 	/*
-	 * Disabling IO APIC before local APIC is a workaround for
-	 * erratum AVR31 in "Intel Atom Processor C2000 Product Family
-	 * Specification Update". In this situation, interrupts that target
-	 * a Logical Processor whose Local APIC is either in the process of
-	 * being hardware disabled or software disabled are neither delivered
-	 * nor discarded. When this erratum occurs, the processor may hang.
-	 *
-	 * Even without the erratum, it still makes sense to quiet IO APIC
-	 * before disabling Local APIC.
-	 */
 	clear_IO_APIC();
 #endif
 
 #ifdef CONFIG_SMP
 	/*
-	 * Stop all of the others. Also disable the local irq to
-	 * not receive the per-cpu timer interrupt which may trigger
-	 * scheduler's load balance.
-	 */
 	local_irq_disable();
 	stop_other_cpus();
 #endif
@@ -792,7 +696,6 @@ void machine_crash_shutdown(struct pt_regs *regs)
 #endif
 
 
-/* This is the CPU performing the emergency shutdown work. */
 int crashing_cpu = -1;
 
 #if defined(CONFIG_SMP)
@@ -809,10 +712,6 @@ static int crash_nmi_callback(unsigned int val, struct pt_regs *regs)
 	cpu = raw_smp_processor_id();
 
 	/*
-	 * Don't do anything if this handler is invoked on crashing cpu.
-	 * Otherwise, system will completely hang. Crashing cpu can get
-	 * an NMI if system was initially booted with nmi_watchdog parameter.
-	 */
 	if (cpu == crashing_cpu)
 		return NMI_HANDLED;
 	local_irq_disable();
@@ -828,13 +727,6 @@ static int crash_nmi_callback(unsigned int val, struct pt_regs *regs)
 	return NMI_HANDLED;
 }
 
-/*
- * Halt all other CPUs, calling the specified function on each of them
- *
- * This function can be used to halt all other CPUs on crash
- * or emergency reboot time. The function passed as parameter
- * will be called inside a NMI handler on all CPUs.
- */
 void nmi_shootdown_cpus(nmi_shootdown_cb callback)
 {
 	unsigned long msecs;
@@ -851,9 +743,6 @@ void nmi_shootdown_cpus(nmi_shootdown_cb callback)
 				 NMI_FLAG_FIRST, "crash"))
 		return;		/* Return what? */
 	/*
-	 * Ensure the new callback function is set before sending
-	 * out the NMI
-	 */
 	wmb();
 
 	apic_send_IPI_allbutself(NMI_VECTOR);
@@ -870,18 +759,12 @@ void nmi_shootdown_cpus(nmi_shootdown_cb callback)
 	/* Leave the nmi callback set */
 }
 
-/*
- * Check if the crash dumping IPI got issued and if so, call its callback
- * directly. This function is used when we have already been in NMI handler.
- * It doesn't return.
- */
 void run_crash_ipi_callback(struct pt_regs *regs)
 {
 	if (crash_ipi_issued)
 		crash_nmi_callback(0, regs);
 }
 
-/* Override the weak function in kernel/panic.c */
 void nmi_panic_self_stop(struct pt_regs *regs)
 {
 	while (1) {

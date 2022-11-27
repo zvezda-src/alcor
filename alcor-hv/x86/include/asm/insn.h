@@ -1,14 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _ASM_X86_INSN_H
 #define _ASM_X86_INSN_H
-/*
- * x86 instruction analysis
- *
- * Copyright (C) IBM Corporation, 2009
- */
 
 #include <asm/byteorder.h>
-/* insn_attr_t is defined in inat.h */
 #include <asm/inat.h> /* __ignore_sync_check__ */
 
 #if defined(__BYTE_ORDER) ? __BYTE_ORDER == __LITTLE_ENDIAN : defined(__LITTLE_ENDIAN)
@@ -67,16 +60,9 @@ static inline void insn_set_byte(struct insn_field *p, unsigned char n,
 
 struct insn {
 	struct insn_field prefixes;	/*
-					 * Prefixes
-					 * prefixes.bytes[3]: last prefix
-					 */
 	struct insn_field rex_prefix;	/* REX prefix */
 	struct insn_field vex_prefix;	/* VEX prefix */
 	struct insn_field opcode;	/*
-					 * opcode.bytes[0]: opcode1
-					 * opcode.bytes[1]: opcode2
-					 * opcode.bytes[2]: opcode3
-					 */
 	struct insn_field modrm;
 	struct insn_field sib;
 	struct insn_field displacement;
@@ -117,13 +103,11 @@ struct insn {
 #define X86_REX_X(rex) ((rex) & 2)
 #define X86_REX_B(rex) ((rex) & 1)
 
-/* VEX bit flags  */
 #define X86_VEX_W(vex)	((vex) & 0x80)	/* VEX3 Byte2 */
 #define X86_VEX_R(vex)	((vex) & 0x80)	/* VEX2/3 Byte1 */
 #define X86_VEX_X(vex)	((vex) & 0x40)	/* VEX3 Byte1 */
 #define X86_VEX_B(vex)	((vex) & 0x20)	/* VEX3 Byte1 */
 #define X86_VEX_L(vex)	((vex) & 0x04)	/* VEX3 Byte2, VEX2 Byte1 */
-/* VEX bit fields */
 #define X86_EVEX_M(vex)	((vex) & 0x07)		/* EVEX Byte1 */
 #define X86_VEX3_M(vex)	((vex) & 0x1f)		/* VEX3 Byte1 */
 #define X86_VEX2_M	1			/* VEX2.M always 1 */
@@ -152,13 +136,11 @@ extern int insn_decode(struct insn *insn, const void *kaddr, int buf_len, enum i
 
 #define insn_decode_kernel(_insn, _ptr) insn_decode((_insn), (_ptr), MAX_INSN_SIZE, INSN_MODE_KERN)
 
-/* Attribute will be determined after getting ModRM (for opcode groups) */
 static inline void insn_get_attribute(struct insn *insn)
 {
 	insn_get_modrm(insn);
 }
 
-/* Instruction uses RIP-relative addressing */
 extern int insn_rip_relative(struct insn *insn);
 
 static inline int insn_is_avx(struct insn *insn)
@@ -198,7 +180,6 @@ static inline insn_byte_t insn_vex_p_bits(struct insn *insn)
 		return X86_VEX_P(insn->vex_prefix.bytes[2]);
 }
 
-/* Get the last prefix id from last prefix or VEX prefix */
 static inline int insn_last_prefix_id(struct insn *insn)
 {
 	if (insn_is_avx(insn))
@@ -210,7 +191,6 @@ static inline int insn_last_prefix_id(struct insn *insn)
 	return 0;
 }
 
-/* Offset of each field from kaddr */
 static inline int insn_offset_rex_prefix(struct insn *insn)
 {
 	return insn->prefixes.nbytes;
@@ -240,32 +220,12 @@ static inline int insn_offset_immediate(struct insn *insn)
 	return insn_offset_displacement(insn) + insn->displacement.nbytes;
 }
 
-/**
- * for_each_insn_prefix() -- Iterate prefixes in the instruction
- * @insn: Pointer to struct insn.
- * @idx:  Index storage.
- * @prefix: Prefix byte.
- *
- * Iterate prefix bytes of given @insn. Each prefix byte is stored in @prefix
- * and the index is stored in @idx (note that this @idx is just for a cursor,
- * do not change it.)
- * Since prefixes.nbytes can be bigger than 4 if some prefixes
- * are repeated, it cannot be used for looping over the prefixes.
- */
 #define for_each_insn_prefix(insn, idx, prefix)	\
 	for (idx = 0; idx < ARRAY_SIZE(insn->prefixes.bytes) && (prefix = insn->prefixes.bytes[idx]) != 0; idx++)
 
 #define POP_SS_OPCODE 0x1f
 #define MOV_SREG_OPCODE 0x8e
 
-/*
- * Intel SDM Vol.3A 6.8.3 states;
- * "Any single-step trap that would be delivered following the MOV to SS
- * instruction or POP to SS instruction (because EFLAGS.TF is 1) is
- * suppressed."
- * This function returns true if @insn is MOV SS or POP SS. On these
- * instructions, single stepping is suppressed.
- */
 static inline int insn_masking_exception(struct insn *insn)
 {
 	return insn->opcode.bytes[0] == POP_SS_OPCODE ||

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __KVM_IO_APIC_H
 #define __KVM_IO_APIC_H
 
@@ -18,16 +17,13 @@ struct kvm_vcpu;
 #define IOAPIC_DEFAULT_BASE_ADDRESS  0xfec00000
 #define IOAPIC_MEM_LENGTH            0x100
 
-/* Direct registers. */
 #define IOAPIC_REG_SELECT  0x00
 #define IOAPIC_REG_WINDOW  0x10
 
-/* Indirect registers. */
 #define IOAPIC_REG_APIC_ID 0x00	/* x86 IOAPIC only */
 #define IOAPIC_REG_VERSION 0x01
 #define IOAPIC_REG_ARB_ID  0x02	/* x86 IOAPIC only */
 
-/*ioapic delivery mode*/
 #define	IOAPIC_FIXED			0x0
 #define	IOAPIC_LOWEST_PRIORITY		0x1
 #define	IOAPIC_PMI			0x2
@@ -42,9 +38,6 @@ struct dest_map {
 	DECLARE_BITMAP(map, KVM_MAX_VCPU_IDS);
 
 	/*
-	 * Vector sent to a given vcpu, only valid when
-	 * the vcpu's bit in map is set
-	 */
 	u8 vectors[KVM_MAX_VCPU_IDS];
 };
 

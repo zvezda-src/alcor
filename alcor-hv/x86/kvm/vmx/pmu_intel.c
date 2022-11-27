@@ -1,13 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * KVM PMU support for Intel CPUs
- *
- * Copyright 2011 Red Hat, Inc. and/or its affiliates.
- *
- * Authors:
- *   Avi Kivity   <avi@redhat.com>
- *   Gleb Natapov <gleb@redhat.com>
- */
 #include <linux/types.h>
 #include <linux/kvm_host.h>
 #include <linux/perf_event.h>
@@ -32,7 +22,6 @@ static struct kvm_event_hw_type_mapping intel_arch_events[] = {
 	[7] = { 0x00, 0x03, PERF_COUNT_HW_REF_CPU_CYCLES },
 };
 
-/* mapping between fixed pmc index and intel_arch_events array */
 static int fixed_pmc_events[] = {1, 0, 7};
 
 static void reprogram_fixed_counters(struct kvm_pmu *pmu, u64 data)
@@ -68,7 +57,6 @@ static struct kvm_pmc *intel_pmc_idx_to_pmc(struct kvm_pmu *pmu, int pmc_idx)
 	}
 }
 
-/* function is called when global control register has been updated. */
 static void global_ctrl_changed(struct kvm_pmu *pmu, u64 data)
 {
 	int bit;
@@ -106,7 +94,6 @@ static bool intel_hw_event_available(struct kvm_pmc *pmc)
 	return true;
 }
 
-/* check if a PMC is enabled by comparing it with globl_ctrl bits. */
 static bool intel_pmc_is_enabled(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
@@ -146,7 +133,6 @@ static struct kvm_pmc *intel_rdpmc_ecx_to_pmc(struct kvm_vcpu *vcpu,
 	}
 	if (idx >= num_counters)
 		return NULL;
-	*mask &= pmu->counter_bitmask[fixed ? KVM_PMC_FIXED : KVM_PMC_GP];
 	return &counters[array_index_nospec(idx, num_counters)];
 }
 
@@ -254,22 +240,6 @@ int intel_pmu_create_guest_lbr_event(struct kvm_vcpu *vcpu)
 	struct perf_event *event;
 
 	/*
-	 * The perf_event_attr is constructed in the minimum efficient way:
-	 * - set 'pinned = true' to make it task pinned so that if another
-	 *   cpu pinned event reclaims LBR, the event->oncpu will be set to -1;
-	 * - set '.exclude_host = true' to record guest branches behavior;
-	 *
-	 * - set '.config = INTEL_FIXED_VLBR_EVENT' to indicates host perf
-	 *   schedule the event without a real HW counter but a fake one;
-	 *   check is_guest_lbr_event() and __intel_get_event_constraints();
-	 *
-	 * - set 'sample_type = PERF_SAMPLE_BRANCH_STACK' and
-	 *   'branch_sample_type = PERF_SAMPLE_BRANCH_CALL_STACK |
-	 *   PERF_SAMPLE_BRANCH_USER' to configure it as a LBR callstack
-	 *   event, which helps KVM to save/restore guest LBR records
-	 *   during host context switches and reduces quite a lot overhead,
-	 *   check branch_user_callstack() and intel_pmu_lbr_sched_task();
-	 */
 	struct perf_event_attr attr = {
 		.type = PERF_TYPE_RAW,
 		.size = sizeof(attr),
@@ -299,11 +269,6 @@ int intel_pmu_create_guest_lbr_event(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-/*
- * It's safe to access LBR msrs from guest when they have not
- * been passthrough since the host would help restore or reset
- * the LBR msrs records when the guest LBR event is scheduled in.
- */
 static bool intel_pmu_handle_lbr_msrs_access(struct kvm_vcpu *vcpu,
 				     struct msr_data *msr_info, bool read)
 {
@@ -317,11 +282,6 @@ static bool intel_pmu_handle_lbr_msrs_access(struct kvm_vcpu *vcpu,
 		goto dummy;
 
 	/*
-	 * Disable irq to ensure the LBR feature doesn't get reclaimed by the
-	 * host at the time the value is read from the msr, and this avoids the
-	 * host LBR value to be leaked to the guest. If LBR has been reclaimed,
-	 * return 0 on guest reads.
-	 */
 	local_irq_disable();
 	if (lbr_desc->event->state == PERF_EVENT_STATE_ACTIVE) {
 		if (read)
@@ -662,14 +622,6 @@ static void intel_pmu_reset(struct kvm_vcpu *vcpu)
 	intel_pmu_release_guest_lbr_event(vcpu);
 }
 
-/*
- * Emulate LBR_On_PMI behavior for 1 < pmu.version < 4.
- *
- * If Freeze_LBR_On_PMI = 1, the LBR is frozen on PMI and
- * the KVM emulates to clear the LBR bit (bit 0) in IA32_DEBUGCTL.
- *
- * Guest needs to re-enable LBR to resume branches recording.
- */
 static void intel_pmu_legacy_freezing_lbrs_on_pmi(struct kvm_vcpu *vcpu)
 {
 	u64 data = vmcs_read64(GUEST_IA32_DEBUGCTL);
@@ -729,16 +681,6 @@ static inline void vmx_enable_lbr_msrs_passthrough(struct kvm_vcpu *vcpu)
 	lbr_desc->msr_passthrough = true;
 }
 
-/*
- * Higher priority host perf events (e.g. cpu pinned) could reclaim the
- * pmu resources (e.g. LBR) that were assigned to the guest. This is
- * usually done via ipi calls (more details in perf_install_in_context).
- *
- * Before entering the non-root mode (with irq disabled here), double
- * confirm that the pmu features enabled to the guest are not reclaimed
- * by higher priority host events. Otherwise, disallow vcpu's access to
- * the reclaimed features.
- */
 void vmx_passthrough_lbr_msrs(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);

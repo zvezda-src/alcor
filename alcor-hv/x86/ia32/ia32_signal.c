@@ -1,13 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- *  linux/arch/x86_64/ia32/ia32_signal.c
- *
- *  Copyright (C) 1991, 1992  Linus Torvalds
- *
- *  1997-11-28  Modified for POSIX.1b signals by Richard Henderson
- *  2000-06-20  Pentium III FXSR, SSE support by Gareth Hughes
- *  2000-12-*   x86-64 compatibility mode signal handling by Andi Kleen
- */
 
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
@@ -53,9 +43,6 @@ static inline void reload_segments(struct sigcontext_32 *sc)
 		loadsegment(es, sc->es | 0x03);
 }
 
-/*
- * Do a signal return; undo the signal stack.
- */
 static bool ia32_restore_sigcontext(struct pt_regs *regs,
 				    struct sigcontext_32 __user *usc)
 {
@@ -87,11 +74,6 @@ static bool ia32_restore_sigcontext(struct pt_regs *regs,
 	regs->orig_ax = -1;
 
 	/*
-	 * Reload fs and gs if they have changed in the signal
-	 * handler.  This does not handle long fs/gs base changes in
-	 * the handler, but does not clobber them at least in the
-	 * normal case.
-	 */
 	reload_segments(&sc);
 	return fpu__restore_sig(compat_ptr(sc.fpstate), 1);
 }
@@ -147,9 +129,6 @@ badframe:
 	return 0;
 }
 
-/*
- * Set up a signal frame.
- */
 
 #define get_user_seg(seg)	({ unsigned int v; savesegment(seg, v); v; })
 
@@ -196,9 +175,6 @@ do {									\
 		goto label;						\
 } while(0)
 
-/*
- * Determine which stack to use..
- */
 static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 				 size_t frame_size,
 				 void __user **fpstate)
@@ -218,7 +194,6 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 		sp = (unsigned long) ksig->ka.sa.sa_restorer;
 
 	sp = fpu__alloc_mathframe(sp, 1, &fx_aligned, &math_size);
-	*fpstate = (struct _fpstate_32 __user *) sp;
 	if (!copy_fpstate_to_sigframe(*fpstate, (void __user *)fx_aligned,
 				      math_size))
 		return (void __user *) -1L;
@@ -269,9 +244,6 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
 	unsafe_put_user(set->sig[1], &frame->extramask[0], Efault);
 	unsafe_put_user(ptr_to_compat(restorer), &frame->pretcode, Efault);
 	/*
-	 * These are actually not used anymore, but left because some
-	 * gdb versions depend on them as a marker.
-	 */
 	unsafe_put_user(*((u64 *)&code), (u64 __user *)frame->retcode, Efault);
 	user_access_end();
 
@@ -341,9 +313,6 @@ int ia32_setup_rt_frame(int sig, struct ksignal *ksig,
 	unsafe_put_user(ptr_to_compat(restorer), &frame->pretcode, Efault);
 
 	/*
-	 * Not actually used anymore, but left because some gdb
-	 * versions need it.
-	 */
 	unsafe_put_user(*((u64 *)&code), (u64 __user *)frame->retcode, Efault);
 	unsafe_put_sigcontext32(&frame->uc.uc_mcontext, fp, regs, set, Efault);
 	unsafe_put_user(*(__u64 *)set, (__u64 __user *)&frame->uc.uc_sigmask, Efault);

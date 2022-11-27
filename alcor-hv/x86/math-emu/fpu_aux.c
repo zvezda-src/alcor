@@ -1,10 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  fpu_aux.c                                                                |
  |                                                                           |
  | Code to implement some of the FPU auxiliary instructions.                 |
  |                                                                           |
- | Copyright (C) 1992,1993,1994,1997                                         |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
  |                  E-mail   billm@suburbia.net                              |
  |                                                                           |
@@ -30,7 +27,6 @@ static void fclex(void)
 	no_ip_update = 1;
 }
 
-/* Needs to be externally visible */
 void fpstate_init_soft(struct swregs_state *soft)
 {
 	struct address *oaddr, *iaddr;
@@ -56,9 +52,6 @@ void finit(void)
 	fpstate_init_soft(&current->thread.fpu.fpstate->regs.soft);
 }
 
-/*
- * These are nops on the i387..
- */
 #define feni fnop
 #define fdisi fnop
 #define fsetpm fnop
@@ -75,7 +68,6 @@ void finit_(void)
 
 static void fstsw_ax(void)
 {
-	*(short *)&FPU_EAX = status_word();
 	no_ip_update = 1;
 }
 

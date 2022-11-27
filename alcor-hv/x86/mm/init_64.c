@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- *  linux/arch/x86_64/mm/init.c
- *
- *  Copyright (C) 1995  Linus Torvalds
- *  Copyright (C) 2000  Pavel Machek <pavel@ucw.cz>
- *  Copyright (C) 2002,2003 Andi Kleen <ak@suse.de>
- */
 
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -91,29 +83,14 @@ DEFINE_ENTRY(pmd, pmd, init)
 DEFINE_ENTRY(pte, pte, init)
 
 
-/*
- * NOTE: pagetable_init alloc all the fixmap pagetables contiguous on the
- * physical space so we can cache the place of the first one and move
- * around without checking the pgd every time.
- */
 
-/* Bits supported by the hardware: */
 pteval_t __supported_pte_mask __read_mostly = ~0;
-/* Bits allowed in normal kernel mappings: */
 pteval_t __default_kernel_pte_mask __read_mostly = ~0;
 EXPORT_SYMBOL_GPL(__supported_pte_mask);
-/* Used in PAGE_KERNEL_* macros which are reasonably used out-of-tree: */
 EXPORT_SYMBOL(__default_kernel_pte_mask);
 
 int force_personality32;
 
-/*
- * noexec32=on|off
- * Control non executable heap for 32bit processes.
- *
- * on	PROT_READ does not imply PROT_EXEC for 32-bit processes (default)
- * off	PROT_READ implies PROT_EXEC
- */
 static int __init nonx32_setup(char *str)
 {
 	if (!strcmp(str, "on"))
@@ -171,9 +148,6 @@ static void sync_global_pgds_l4(unsigned long start, unsigned long end)
 		struct page *page;
 
 		/*
-		 * With folded p4d, pgd_none() is always false, we need to
-		 * handle synchronization on p4d level.
-		 */
 		MAYBE_BUILD_BUG_ON(pgd_none(*pgd_ref));
 		p4d_ref = p4d_offset(pgd_ref, addr);
 
@@ -205,10 +179,6 @@ static void sync_global_pgds_l4(unsigned long start, unsigned long end)
 	}
 }
 
-/*
- * When memory was added make sure all the processes MM have
- * suitable PGD entries in the local PGD level page.
- */
 static void sync_global_pgds(unsigned long start, unsigned long end)
 {
 	if (pgtable_l5_enabled())
@@ -217,10 +187,6 @@ static void sync_global_pgds(unsigned long start, unsigned long end)
 		sync_global_pgds_l4(start, end);
 }
 
-/*
- * NOTE: This function is marked __ref because it calls __init function
- * (alloc_bootmem_pages). It's safe to do it ONLY when after_bootmem == 0.
- */
 static __ref void *spp_getpage(void)
 {
 	void *ptr;
@@ -295,9 +261,6 @@ static void __set_pte_vaddr(pud_t *pud, unsigned long vaddr, pte_t new_pte)
 	set_pte(pte, new_pte);
 
 	/*
-	 * It's enough to flush this one mapping.
-	 * (PGE mappings get flushed as well)
-	 */
 	flush_tlb_one_kernel(vaddr);
 }
 
@@ -354,9 +317,6 @@ pte_t * __init populate_extra_pte(unsigned long vaddr)
 	return fill_pte(pmd, vaddr);
 }
 
-/*
- * Create large page table mappings for a range of physical addresses.
- */
 static void __init __init_extra_mapping(unsigned long phys, unsigned long size,
 					enum page_cache_mode cache)
 {
@@ -404,19 +364,6 @@ void __init init_extra_mapping_uc(unsigned long phys, unsigned long size)
 	__init_extra_mapping(phys, size, _PAGE_CACHE_MODE_UC);
 }
 
-/*
- * The head.S code sets up the kernel high mapping:
- *
- *   from __START_KERNEL_map to __START_KERNEL_map + size (== _end-_text)
- *
- * phys_base holds the negative offset to the kernel, which is added
- * to the compile time generated pmds. This results in invalid pmds up
- * to the point where we hit the physaddr 0 mapping.
- *
- * We limit the mappings to the region from _text to _brk_end.  _brk_end
- * is rounded up to the 2MB boundary. This catches the invalid pmds as
- * well, as they are located before _text:
- */
 void __init cleanup_highmap(void)
 {
 	unsigned long vaddr = __START_KERNEL_map;
@@ -425,10 +372,6 @@ void __init cleanup_highmap(void)
 	pmd_t *pmd = level2_kernel_pgt;
 
 	/*
-	 * Native path, max_pfn_mapped is not set yet.
-	 * Xen has valid max_pfn_mapped set in
-	 *	arch/x86/xen/mmu.c:xen_setup_kernel_pagetable().
-	 */
 	if (max_pfn_mapped)
 		vaddr_end = __START_KERNEL_map + (max_pfn_mapped << PAGE_SHIFT);
 
@@ -440,10 +383,6 @@ void __init cleanup_highmap(void)
 	}
 }
 
-/*
- * Create PTE level page table mapping for physical addresses.
- * It returns the last physical address mapped.
- */
 static unsigned long __meminit
 phys_pte_init(pte_t *pte_page, unsigned long paddr, unsigned long paddr_end,
 	      pgprot_t prot, bool init)
@@ -469,11 +408,6 @@ phys_pte_init(pte_t *pte_page, unsigned long paddr, unsigned long paddr_end,
 		}
 
 		/*
-		 * We will re-use the existing mapping.
-		 * Xen for example has some special requirements, like mapping
-		 * pagetable pages as RO. So assume someone who pre-setup
-		 * these mappings are more intelligent.
-		 */
 		if (!pte_none(*pte)) {
 			if (!after_bootmem)
 				pages++;
@@ -493,11 +427,6 @@ phys_pte_init(pte_t *pte_page, unsigned long paddr, unsigned long paddr_end,
 	return paddr_last;
 }
 
-/*
- * Create PMD level page table mapping for physical addresses. The virtual
- * and physical address have to be aligned at this level.
- * It returns the last physical address mapped.
- */
 static unsigned long __meminit
 phys_pmd_init(pmd_t *pmd_page, unsigned long paddr, unsigned long paddr_end,
 	      unsigned long page_size_mask, pgprot_t prot, bool init)
@@ -534,17 +463,6 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long paddr, unsigned long paddr_end,
 				continue;
 			}
 			/*
-			 * If we are ok with PG_LEVEL_2M mapping, then we will
-			 * use the existing mapping,
-			 *
-			 * Otherwise, we will split the large page mapping but
-			 * use the same existing protection bits except for
-			 * large page, so that we don't violate Intel's TLB
-			 * Application note (317080) which says, while changing
-			 * the page sizes, new and old translations should
-			 * not differ with respect to page frame and
-			 * attributes.
-			 */
 			if (page_size_mask & (1 << PG_LEVEL_2M)) {
 				if (!after_bootmem)
 					pages++;
@@ -577,12 +495,6 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long paddr, unsigned long paddr_end,
 	return paddr_last;
 }
 
-/*
- * Create PUD level page table mapping for physical addresses. The virtual
- * and physical address do not have to be aligned at this level. KASLR can
- * randomize virtual addresses up to this level.
- * It returns the last physical address mapped.
- */
 static unsigned long __meminit
 phys_pud_init(pud_t *pud_page, unsigned long paddr, unsigned long paddr_end,
 	      unsigned long page_size_mask, pgprot_t _prot, bool init)
@@ -621,17 +533,6 @@ phys_pud_init(pud_t *pud_page, unsigned long paddr, unsigned long paddr_end,
 				continue;
 			}
 			/*
-			 * If we are ok with PG_LEVEL_1G mapping, then we will
-			 * use the existing mapping.
-			 *
-			 * Otherwise, we will split the gbpage mapping but use
-			 * the same existing protection  bits except for large
-			 * page, so that we don't violate Intel's TLB
-			 * Application note (317080) which says, while changing
-			 * the page sizes, new and old translations should
-			 * not differ with respect to page frame and
-			 * attributes.
-			 */
 			if (page_size_mask & (1 << PG_LEVEL_1G)) {
 				if (!after_bootmem)
 					pages++;
@@ -772,12 +673,6 @@ __kernel_physical_mapping_init(unsigned long paddr_start,
 }
 
 
-/*
- * Create page table mapping for the physical memory for specific physical
- * addresses. Note that it can only be used to populate non-present entries.
- * The virtual and physical addresses have to be aligned on PMD level
- * down. It returns the last physical address mapped.
- */
 unsigned long __meminit
 kernel_physical_mapping_init(unsigned long paddr_start,
 			     unsigned long paddr_end,
@@ -787,12 +682,6 @@ kernel_physical_mapping_init(unsigned long paddr_start,
 					      page_size_mask, prot, true);
 }
 
-/*
- * This function is similar to kernel_physical_mapping_init() above with the
- * exception that it uses set_{pud,pmd}() instead of the set_{pud,pte}_safe()
- * when updating the mapping. The caller is responsible to flush the TLBs after
- * the function returns.
- */
 unsigned long __meminit
 kernel_physical_mapping_change(unsigned long paddr_start,
 			       unsigned long paddr_end,
@@ -815,11 +704,6 @@ void __init paging_init(void)
 	sparse_init();
 
 	/*
-	 * clear the default setting with node 0
-	 * note: don't use nodes_clear here, that is really clearing when
-	 *	 numa support is not compiled in, and later node_set_state
-	 *	 will not set it back.
-	 */
 	node_clear_state(0, N_MEMORY);
 	node_clear_state(0, N_NORMAL_MEMORY);
 
@@ -829,10 +713,6 @@ void __init paging_init(void)
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 #define PAGE_UNUSED 0xFD
 
-/*
- * The unused vmemmap range, which was not yet memset(PAGE_UNUSED), ranges
- * from unused_pmd_start to next PMD_SIZE boundary.
- */
 static unsigned long unused_pmd_start __meminitdata;
 
 static void __meminit vmemmap_flush_unused_pmd(void)
@@ -840,23 +720,17 @@ static void __meminit vmemmap_flush_unused_pmd(void)
 	if (!unused_pmd_start)
 		return;
 	/*
-	 * Clears (unused_pmd_start, PMD_END]
-	 */
 	memset((void *)unused_pmd_start, PAGE_UNUSED,
 	       ALIGN(unused_pmd_start, PMD_SIZE) - unused_pmd_start);
 	unused_pmd_start = 0;
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-/* Returns true if the PMD is completely unused and thus it can be freed */
 static bool __meminit vmemmap_pmd_is_unused(unsigned long addr, unsigned long end)
 {
 	unsigned long start = ALIGN_DOWN(addr, PMD_SIZE);
 
 	/*
-	 * Flush the unused range cache to ensure that memchr_inv() will work
-	 * for the whole range.
-	 */
 	vmemmap_flush_unused_pmd();
 	memset((void *)addr, PAGE_UNUSED, end - addr);
 
@@ -867,21 +741,12 @@ static bool __meminit vmemmap_pmd_is_unused(unsigned long addr, unsigned long en
 static void __meminit __vmemmap_use_sub_pmd(unsigned long start)
 {
 	/*
-	 * As we expect to add in the same granularity as we remove, it's
-	 * sufficient to mark only some piece used to block the memmap page from
-	 * getting removed when removing some other adjacent memmap (just in
-	 * case the first memmap never gets initialized e.g., because the memory
-	 * block never gets onlined).
-	 */
 	memset((void *)start, 0, sizeof(struct page));
 }
 
 static void __meminit vmemmap_use_sub_pmd(unsigned long start, unsigned long end)
 {
 	/*
-	 * We only optimize if the new used range directly follows the
-	 * previously unused range (esp., when populating consecutive sections).
-	 */
 	if (unused_pmd_start == start) {
 		if (likely(IS_ALIGNED(end, PMD_SIZE)))
 			unused_pmd_start = 0;
@@ -891,9 +756,6 @@ static void __meminit vmemmap_use_sub_pmd(unsigned long start, unsigned long end
 	}
 
 	/*
-	 * If the range does not contiguously follows previous one, make sure
-	 * to mark the unused range of the previous one so it can be removed.
-	 */
 	vmemmap_flush_unused_pmd();
 	__vmemmap_use_sub_pmd(start);
 }
@@ -906,35 +768,19 @@ static void __meminit vmemmap_use_new_sub_pmd(unsigned long start, unsigned long
 	vmemmap_flush_unused_pmd();
 
 	/*
-	 * Could be our memmap page is filled with PAGE_UNUSED already from a
-	 * previous remove. Make sure to reset it.
-	 */
 	__vmemmap_use_sub_pmd(start);
 
 	/*
-	 * Mark with PAGE_UNUSED the unused parts of the new memmap range
-	 */
 	if (!IS_ALIGNED(start, PMD_SIZE))
 		memset((void *)page, PAGE_UNUSED, start - page);
 
 	/*
-	 * We want to avoid memset(PAGE_UNUSED) when populating the vmemmap of
-	 * consecutive sections. Remember for the last added PMD where the
-	 * unused range begins.
-	 */
 	if (!IS_ALIGNED(end, PMD_SIZE))
 		unused_pmd_start = end;
 }
 #endif
 
-/*
- * Memory hotplug specific functions
- */
 #ifdef CONFIG_MEMORY_HOTPLUG
-/*
- * After memory hotplug the variables max_pfn, max_low_pfn and high_memory need
- * updating.
- */
 static void update_end_of_memory_vars(u64 start, u64 size)
 {
 	unsigned long end_pfn = PFN_UP(start + size);
@@ -1073,10 +919,6 @@ remove_pte_table(pte_t *pte_start, unsigned long addr, unsigned long end,
 			continue;
 
 		/*
-		 * We mapped [0,1G) memory as identity mapping when
-		 * initializing, in arch/x86/kernel/head_64.S. These
-		 * pagetables cannot be removed.
-		 */
 		phys_addr = pte_val(*pte) + (addr & PAGE_MASK);
 		if (phys_addr < (phys_addr_t)0x40000000)
 			return;
@@ -1201,10 +1043,6 @@ remove_p4d_table(p4d_t *p4d_start, unsigned long addr, unsigned long end,
 		pud_base = pud_offset(p4d, 0);
 		remove_pud_table(pud_base, addr, next, altmap, direct);
 		/*
-		 * For 4-level page tables we do not want to free PUDs, but in the
-		 * 5-level case we should free them. This code will have to change
-		 * to adapt for boot-time switching between 4 and 5 level page tables.
-		 */
 		if (pgtable_l5_enabled())
 			free_pud_table(pud_base, p4d);
 	}
@@ -1213,7 +1051,6 @@ remove_p4d_table(p4d_t *p4d_start, unsigned long addr, unsigned long end,
 		update_page_count(PG_LEVEL_512G, -pages);
 }
 
-/* start and end are both virtual address. */
 static void __meminit
 remove_pagetable(unsigned long start, unsigned long end, bool direct,
 		struct vmem_altmap *altmap)
@@ -1277,11 +1114,6 @@ static void __init register_page_bootmem_info(void)
 #endif
 }
 
-/*
- * Pre-allocates page-table pages for the vmalloc area in the kernel page-table.
- * Only the level which needs to be synchronized between all page-tables is
- * allocated because the synchronization can be expensive.
- */
 static void __init preallocate_vmalloc_pages(void)
 {
 	unsigned long addr;
@@ -1301,15 +1133,6 @@ static void __init preallocate_vmalloc_pages(void)
 			continue;
 
 		/*
-		 * The goal here is to allocate all possibly required
-		 * hardware page tables pointed to by the top hardware
-		 * level.
-		 *
-		 * On 4-level systems, the P4D layer is folded away and
-		 * the above code does no preallocation.  Below, go down
-		 * to the pud _software_ level to ensure the second
-		 * hardware level is allocated on 4-level systems too.
-		 */
 		lvl = "pud";
 		pud = pud_alloc(&init_mm, p4d, addr);
 		if (!pud)
@@ -1321,9 +1144,6 @@ static void __init preallocate_vmalloc_pages(void)
 failed:
 
 	/*
-	 * The pages have to be there now or they will be missing in
-	 * process page-tables later.
-	 */
 	panic("Failed to pre-allocate %s pages for vmalloc area\n", lvl);
 }
 
@@ -1339,11 +1159,6 @@ void __init mem_init(void)
 	x86_init.hyper.init_after_bootmem();
 
 	/*
-	 * Must be done after boot memory is put on freelist, because here we
-	 * might set fields in deferred struct pages that have not yet been
-	 * initialized, and memblock_free_all() initializes all the reserved
-	 * deferred pages for us.
-	 */
 	register_page_bootmem_info();
 
 	/* Register memory areas for /proc/kcore */
@@ -1357,10 +1172,6 @@ void __init mem_init(void)
 int __init deferred_page_init_max_threads(const struct cpumask *node_cpumask)
 {
 	/*
-	 * More CPUs always led to greater speedups on tested systems, up to
-	 * all the nodes' CPUs.  Use all since the system is otherwise idle
-	 * now.
-	 */
 	return max_t(int, cpumask_weight(node_cpumask), 1);
 }
 #endif
@@ -1383,17 +1194,6 @@ void mark_rodata_ro(void)
 	kernel_set_to_readonly = 1;
 
 	/*
-	 * The rodata/data/bss/brk section (but not the kernel text!)
-	 * should also be not-executable.
-	 *
-	 * We align all_end to PMD_SIZE because the existing mapping
-	 * is a full PMD. If we would align _brk_end to PAGE_SIZE we
-	 * split the PMD and the reminder between _brk_end and the end
-	 * of the PMD will remain mapped executable.
-	 *
-	 * Any PMD which was setup after the one which covers _brk_end
-	 * has been zapped already via cleanup_highmem().
-	 */
 	all_end = roundup((unsigned long)_brk_end, PMD_SIZE);
 	set_memory_nx(text_end, (all_end - text_end) >> PAGE_SHIFT);
 
@@ -1456,17 +1256,10 @@ int kern_addr_valid(unsigned long addr)
 	return pfn_valid(pte_pfn(*pte));
 }
 
-/*
- * Block size is the minimum amount of memory which can be hotplugged or
- * hotremoved. It must be power of two and must be equal or larger than
- * MIN_MEMORY_BLOCK_SIZE.
- */
 #define MAX_BLOCK_SIZE (2UL << 30)
 
-/* Amount of ram needed to start using large blocks */
 #define MEM_SIZE_FOR_LARGE_BLOCK (64UL << 30)
 
-/* Adjustable memory block size */
 static unsigned long set_memory_block_size;
 int __init set_memory_block_size_order(unsigned int order)
 {
@@ -1496,9 +1289,6 @@ static unsigned long probe_memory_block_size(void)
 	}
 
 	/*
-	 * Use max block size to minimize overhead on bare metal, where
-	 * alignment for memory hotplug isn't a concern.
-	 */
 	if (!boot_cpu_has(X86_FEATURE_HYPERVISOR)) {
 		bz = MAX_BLOCK_SIZE;
 		goto done;
@@ -1525,9 +1315,6 @@ unsigned long memory_block_size_bytes(void)
 }
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-/*
- * Initialise the sparsemem vmemmap using huge-pages at the PMD level.
- */
 static long __meminitdata addr_start, addr_end;
 static void __meminitdata *p_start, *p_end;
 static int __meminitdata node_start;

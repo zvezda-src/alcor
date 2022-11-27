@@ -1,36 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_STATIC_CALL_H
 #define _ASM_STATIC_CALL_H
 
 #include <asm/text-patching.h>
 
-/*
- * For CONFIG_HAVE_STATIC_CALL_INLINE, this is a temporary trampoline which
- * uses the current value of the key->func pointer to do an indirect jump to
- * the function.  This trampoline is only used during boot, before the call
- * sites get patched by static_call_update().  The name of this trampoline has
- * a magical aspect: objtool uses it to find static call sites so it can create
- * the .static_call_sites section.
- *
- * For CONFIG_HAVE_STATIC_CALL, this is a permanent trampoline which
- * does a direct jump to the function.  The direct jump gets patched by
- * static_call_update().
- *
- * Having the trampoline in a special section forces GCC to emit a JMP.d32 when
- * it does tail-call optimization on the call; since you cannot compute the
- * relative displacement across sections.
- */
 
-/*
- * The trampoline is 8 bytes and of the general form:
- *
- *   jmp.d32 \func
- *   ud1 %esp, %ecx
- *
- * That trailing #UD provides both a speculation stop and serves as a unique
- * 3 byte signature identifying static call trampolines. Also see tramp_ud[]
- * and __static_call_fixup().
- */
 #define __ARCH_DEFINE_STATIC_CALL_TRAMP(name, insns)			\
 	asm(".pushsection .static_call.text, \"ax\"		\n"	\
 	    ".align 4						\n"	\

@@ -1,27 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_VM86_H
 #define _ASM_X86_VM86_H
 
 #include <asm/ptrace.h>
 #include <uapi/asm/vm86.h>
 
-/*
- * This is the (kernel) stack-layout when we have done a "SAVE_ALL" from vm86
- * mode - the main change is that the old segment descriptors aren't
- * useful any more and are forced to be zero by the kernel (and the
- * hardware when a trap occurs), and the real segment descriptors are
- * at the end of the structure. Look at ptrace.h to see the "normal"
- * setup. For user space layout see 'struct vm86_regs' above.
- */
 
 struct kernel_vm86_regs {
-/*
- * normal regs, with special meaning for the segment descriptors..
- */
 	struct pt_regs pt;
-/*
- * these are specific to v86 mode:
- */
 	unsigned short es, __esh;
 	unsigned short ds, __dsh;
 	unsigned short fs, __fsh;
@@ -58,10 +43,6 @@ struct task_struct;
 	}						\
 } while (0)
 
-/*
- * Support for VM86 programs to request interrupts for
- * real mode hardware drivers:
- */
 #define FIRST_VM86_IRQ		 3
 #define LAST_VM86_IRQ		15
 

@@ -1,34 +1,3 @@
-/*
- * 8253/8254 interval timer emulation
- *
- * Copyright (c) 2003-2004 Fabrice Bellard
- * Copyright (c) 2006 Intel Corporation
- * Copyright (c) 2007 Keir Fraser, XenSource Inc
- * Copyright (c) 2008 Intel Corporation
- * Copyright 2009 Red Hat, Inc. and/or its affiliates.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- *
- * Authors:
- *   Sheng Yang <sheng.yang@intel.com>
- *   Based on QEMU and Xen.
- */
 
 #define pr_fmt(fmt) "pit: " fmt
 
@@ -89,14 +58,6 @@ static s64 __kpit_elapsed(struct kvm_pit *pit)
 		return 0;
 
 	/*
-	 * The Counter does not stop when it reaches zero. In
-	 * Modes 0, 1, 4, and 5 the Counter ``wraps around'' to
-	 * the highest count, either FFFF hex for binary counting
-	 * or 9999 for BCD counting, and continues counting.
-	 * Modes 2 and 3 are periodic; the Counter reloads
-	 * itself with the initial count and continues counting
-	 * from there.
-	 */
 	remaining = hrtimer_get_remaining(&ps->timer);
 	elapsed = ps->period - ktime_to_ns(remaining);
 
@@ -252,14 +213,6 @@ static void pit_do_work(struct kthread_work *work)
 	kvm_set_irq(kvm, pit->irq_source_id, 0, 0, false);
 
 	/*
-	 * Provides NMI watchdog support via Virtual Wire mode.
-	 * The route is: PIT -> LVT0 in NMI mode.
-	 *
-	 * Note: Our Virtual Wire implementation does not follow
-	 * the MP specification.  We propagate a PIT interrupt to all
-	 * VCPUs and only when LVT0 is in NMI mode.  The interrupt can
-	 * also be simultaneously delivered through PIC and IOAPIC.
-	 */
 	if (atomic_read(&kvm->arch.vapics_in_nmi_mode) > 0)
 		kvm_for_each_vcpu(i, vcpu, kvm)
 			kvm_apic_nmi_wd_deliver(vcpu);
@@ -297,13 +250,6 @@ void kvm_pit_set_reinject(struct kvm_pit *pit, bool reinject)
 		return;
 
 	/*
-	 * AMD SVM AVIC accelerates EOI write and does not trap.
-	 * This cause in-kernel PIT re-inject mode to fail
-	 * since it checks ps->irq_ack before kvm_set_irq()
-	 * and relies on the ack notifier to timely queue
-	 * the pt->worker work iterm and reinject the missed tick.
-	 * So, deactivate APICv when PIT is in reinject mode.
-	 */
 	if (reinject) {
 		kvm_set_apicv_inhibit(kvm, APICV_INHIBIT_REASON_PIT_REINJ);
 		/* The initial state is preserved while ps->reinject == 0. */
@@ -342,10 +288,6 @@ static void create_pit_timer(struct kvm_pit *pit, u32 val, int is_period)
 	kvm_pit_reset_reinject(pit);
 
 	/*
-	 * Do not allow the guest to program periodic timers with small
-	 * interval, since the hrtimers are not throttled by the host
-	 * scheduler.
-	 */
 	if (ps->is_periodic) {
 		s64 min_period = min_timer_period_us * 1000LL;
 
@@ -369,9 +311,6 @@ static void pit_load_count(struct kvm_pit *pit, int channel, u32 val)
 	pr_debug("load_count val is %u, channel is %d\n", val, channel);
 
 	/*
-	 * The largest possible initial count is 0; this is equivalent
-	 * to 216 for binary counting and 104 for BCD counting.
-	 */
 	if (val == 0)
 		val = 0x10000;
 

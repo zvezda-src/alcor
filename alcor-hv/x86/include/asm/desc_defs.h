@@ -1,18 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Written 2000 by Andi Kleen */
 #ifndef _ASM_X86_DESC_DEFS_H
 #define _ASM_X86_DESC_DEFS_H
 
-/*
- * Segment descriptor structure definitions, usable from both x86_64 and i386
- * archs.
- */
 
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
 
-/* 8 byte segment descriptor */
 struct desc_struct {
 	u16	limit0;
 	u16	base0;
@@ -50,7 +43,6 @@ enum {
 	DESCTYPE_S = 0x10,	/* !system */
 };
 
-/* LDT or TSS descriptor in the GDT. */
 struct ldttss_desc {
 	u16	limit0;
 	u16	base0;
@@ -116,10 +108,8 @@ struct desc_ptr {
 
 #endif /* !__ASSEMBLY__ */
 
-/* Boot IDT definitions */
 #define	BOOT_IDT_ENTRIES	32
 
-/* Access rights as returned by LAR */
 #define AR_TYPE_RODATA		(0 * (1 << 9))
 #define AR_TYPE_RWDATA		(1 * (1 << 9))
 #define AR_TYPE_RODATA_EXPDOWN	(2 * (1 << 9))

@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Intel SOC Punit device state debug driver
- * Punit controls power management for North Complex devices (Graphics
- * blocks, Image Signal Processing, video processing, display, DSP etc.)
- *
- * Copyright (c) 2015, Intel Corporation.
- */
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -17,27 +9,17 @@
 #include <asm/intel-family.h>
 #include <asm/iosf_mbi.h>
 
-/* Subsystem config/status Video processor */
 #define VED_SS_PM0		0x32
-/* Subsystem config/status ISP (Image Signal Processor) */
 #define ISP_SS_PM0		0x39
-/* Subsystem config/status Input/output controller */
 #define MIO_SS_PM		0x3B
-/* Shift bits for getting status for video, isp and i/o */
 #define SSS_SHIFT		24
 
-/* Power gate status reg */
 #define PWRGT_STATUS		0x61
-/* Shift bits for getting status for graphics rendering */
 #define RENDER_POS		0
-/* Shift bits for getting status for media control */
 #define MEDIA_POS		2
-/* Shift bits for getting status for Valley View/Baytrail display */
 #define VLV_DISPLAY_POS		6
 
-/* Subsystem config/status display for Cherry Trail SOC */
 #define CHT_DSP_SSS		0x36
-/* Shift bits for getting status for display */
 #define CHT_DSP_SSS_POS		16
 
 struct punit_device {

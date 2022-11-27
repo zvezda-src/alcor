@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Intel specific MCE features.
- * Copyright 2004 Zwane Mwaikambo <zwane@linuxpower.ca>
- * Copyright (C) 2008, 2009 Intel Corporation
- * Author: Andi Kleen
- */
 
 #include <linux/gfp.h>
 #include <linux/interrupt.h>
@@ -20,40 +13,11 @@
 
 #include "internal.h"
 
-/*
- * Support for Intel Correct Machine Check Interrupts. This allows
- * the CPU to raise an interrupt when a corrected machine check happened.
- * Normally we pick those up using a regular polling timer.
- * Also supports reliable discovery of shared banks.
- */
 
-/*
- * CMCI can be delivered to multiple cpus that share a machine check bank
- * so we need to designate a single cpu to process errors logged in each bank
- * in the interrupt handler (otherwise we would have many races and potential
- * double reporting of the same error).
- * Note that this can change when a cpu is offlined or brought online since
- * some MCA banks are shared across cpus. When a cpu is offlined, cmci_clear()
- * disables CMCI on all banks owned by the cpu and clears this bitfield. At
- * this point, cmci_rediscover() kicks in and a different cpu may end up
- * taking ownership of some of the shared MCA banks that were previously
- * owned by the offlined cpu.
- */
 static DEFINE_PER_CPU(mce_banks_t, mce_banks_owned);
 
-/*
- * CMCI storm detection backoff counter
- *
- * During storm, we reset this counter to INITIAL_CHECK_INTERVAL in case we've
- * encountered an error. If not, we decrement it by one. We signal the end of
- * the CMCI storm when it reaches 0.
- */
 static DEFINE_PER_CPU(int, cmci_backoff_cnt);
 
-/*
- * cmci_discover_lock protects against parallel discovery attempts
- * which could race against each other.
- */
 static DEFINE_RAW_SPINLOCK(cmci_discover_lock);
 
 #define CMCI_THRESHOLD		1
@@ -81,10 +45,6 @@ static int cmci_supported(int *banks)
 		return 0;
 
 	/*
-	 * Vendor check is not strictly needed, but the initial
-	 * initialization is vendor keyed and this
-	 * makes sure none of the backdoors are entered otherwise.
-	 */
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL &&
 	    boot_cpu_data.x86_vendor != X86_VENDOR_ZHAOXIN)
 		return 0;
@@ -92,7 +52,6 @@ static int cmci_supported(int *banks)
 	if (!boot_cpu_has(X86_FEATURE_APIC) || lapic_get_maxlvt() < 6)
 		return 0;
 	rdmsrl(MSR_IA32_MCG_CAP, cap);
-	*banks = min_t(unsigned, MAX_NR_BANKS, cap & 0xff);
 	return !!(cap & MCG_CMCI_P);
 }
 
@@ -106,20 +65,11 @@ static bool lmce_supported(void)
 	rdmsrl(MSR_IA32_MCG_CAP, tmp);
 
 	/*
-	 * LMCE depends on recovery support in the processor. Hence both
-	 * MCG_SER_P and MCG_LMCE_P should be present in MCG_CAP.
-	 */
 	if ((tmp & (MCG_SER_P | MCG_LMCE_P)) !=
 		   (MCG_SER_P | MCG_LMCE_P))
 		return false;
 
 	/*
-	 * BIOS should indicate support for LMCE by setting bit 20 in
-	 * IA32_FEAT_CTL without which touching MCG_EXT_CTL will generate a #GP
-	 * fault.  The MSR must also be locked for LMCE_ENABLED to take effect.
-	 * WARN if the MSR isn't locked as init_ia32_feat_ctl() unconditionally
-	 * locks the MSR in the event that it wasn't already locked by BIOS.
-	 */
 	rdmsrl(MSR_IA32_FEAT_CTL, tmp);
 	if (WARN_ON_ONCE(!(tmp & FEAT_CTL_LOCKED)))
 		return false;
@@ -133,9 +83,6 @@ bool mce_intel_cmci_poll(void)
 		return false;
 
 	/*
-	 * Reset the counter if we've logged an error in the last poll
-	 * during the storm.
-	 */
 	if (machine_check_poll(0, this_cpu_ptr(&mce_banks_owned)))
 		this_cpu_write(cmci_backoff_cnt, INITIAL_CHECK_INTERVAL);
 	else
@@ -185,10 +132,6 @@ unsigned long cmci_intel_adjust_timer(unsigned long interval)
 	case CMCI_STORM_ACTIVE:
 
 		/*
-		 * We switch back to interrupt mode once the poll timer has
-		 * silenced itself. That means no events recorded and the timer
-		 * interval is back to our poll interval.
-		 */
 		__this_cpu_write(cmci_storm_state, CMCI_STORM_SUBSIDED);
 		if (!atomic_sub_return(1, &cmci_storm_on_cpus))
 			pr_notice("CMCI storm subsided: switching to interrupt mode\n");
@@ -197,9 +140,6 @@ unsigned long cmci_intel_adjust_timer(unsigned long interval)
 
 	case CMCI_STORM_SUBSIDED:
 		/*
-		 * We wait for all CPUs to go back to SUBSIDED state. When that
-		 * happens we switch back to interrupt mode.
-		 */
 		if (!atomic_read(&cmci_storm_on_cpus)) {
 			__this_cpu_write(cmci_storm_state, CMCI_STORM_NONE);
 			cmci_toggle_interrupt_mode(true);
@@ -245,12 +185,6 @@ static bool cmci_storm_detect(void)
 	return true;
 }
 
-/*
- * The interrupt handler. This is called on every event.
- * Just call the poller directly to log any events.
- * This could in theory increase the threshold under high load,
- * but doesn't for now.
- */
 static void intel_threshold_interrupt(void)
 {
 	if (cmci_storm_detect())
@@ -259,11 +193,6 @@ static void intel_threshold_interrupt(void)
 	machine_check_poll(MCP_TIMESTAMP, this_cpu_ptr(&mce_banks_owned));
 }
 
-/*
- * Enable CMCI (Corrected Machine Check Interrupt) for available MCE banks
- * on this CPU. Use the algorithm recommended in the SDM to discover shared
- * banks.
- */
 static void cmci_discover(int banks)
 {
 	unsigned long *owned = (void *)this_cpu_ptr(&mce_banks_owned);
@@ -297,10 +226,6 @@ static void cmci_discover(int banks)
 			val |= CMCI_THRESHOLD;
 		} else if (!(val & MCI_CTL2_CMCI_THRESHOLD_MASK)) {
 			/*
-			 * If bios_cmci_threshold boot option was specified
-			 * but the threshold is zero, we'll try to initialize
-			 * it to 1.
-			 */
 			bios_zero_thresh = 1;
 			val |= CMCI_THRESHOLD;
 		}
@@ -314,11 +239,6 @@ static void cmci_discover(int banks)
 			set_bit(i, owned);
 			__clear_bit(i, this_cpu_ptr(mce_poll_banks));
 			/*
-			 * We are able to set thresholds for some banks that
-			 * had a threshold of 0. This means the BIOS has not
-			 * set the thresholds properly or does not work with
-			 * this boot option. Note down now and report later.
-			 */
 			if (mca_cfg.bios_cmci_threshold && bios_zero_thresh &&
 					(val & MCI_CTL2_CMCI_THRESHOLD_MASK))
 				bios_wrong_thresh = 1;
@@ -335,10 +255,6 @@ static void cmci_discover(int banks)
 	}
 }
 
-/*
- * Just in case we missed an event during initialization check
- * all the CMCI owned banks.
- */
 void cmci_recheck(void)
 {
 	unsigned long flags;
@@ -352,7 +268,6 @@ void cmci_recheck(void)
 	local_irq_restore(flags);
 }
 
-/* Caller must hold the lock on cmci_discover_lock */
 static void __cmci_disable_bank(int bank)
 {
 	u64 val;
@@ -365,10 +280,6 @@ static void __cmci_disable_bank(int bank)
 	__clear_bit(bank, this_cpu_ptr(mce_banks_owned));
 }
 
-/*
- * Disable CMCI on this CPU for all banks it owns when it goes down.
- * This allows other CPUs to claim the banks on rediscovery.
- */
 void cmci_clear(void)
 {
 	unsigned long flags;
@@ -392,7 +303,6 @@ static void cmci_rediscover_work_func(void *arg)
 		cmci_discover(banks);
 }
 
-/* After a CPU went down cycle through all the others and rediscover */
 void cmci_rediscover(void)
 {
 	int banks;
@@ -403,9 +313,6 @@ void cmci_rediscover(void)
 	on_each_cpu(cmci_rediscover_work_func, NULL, 1);
 }
 
-/*
- * Reenable CMCI on this CPU in case a CPU down failed.
- */
 void cmci_reenable(void)
 {
 	int banks;
@@ -436,11 +343,6 @@ void intel_init_cmci(void)
 	mce_threshold_vector = intel_threshold_interrupt;
 	cmci_discover(banks);
 	/*
-	 * For CPU #0 this runs with still disabled APIC, but that's
-	 * ok because only the vector is set up. We still do another
-	 * check for the banks later for CPU #0 just to make sure
-	 * to not miss any events.
-	 */
 	apic_write(APIC_LVTCMCI, THRESHOLD_APIC_VECTOR|APIC_DM_FIXED);
 	cmci_recheck();
 }
@@ -470,10 +372,6 @@ void intel_clear_lmce(void)
 	wrmsrl(MSR_IA32_MCG_EXT_CTL, val);
 }
 
-/*
- * Enable additional error logs from the integrated
- * memory controller on processors that support this.
- */
 static void intel_imc_init(struct cpuinfo_x86 *c)
 {
 	u64 error_control;

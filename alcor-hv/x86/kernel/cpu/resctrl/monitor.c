@@ -1,19 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Resource Director Technology(RDT)
- * - Monitoring code
- *
- * Copyright (C) 2017 Intel Corporation
- *
- * Author:
- *    Vikas Shivappa <vikas.shivappa@intel.com>
- *
- * This replaces the cqm.c based on perf but we reuse a lot of
- * code and datastructures originally from Peter Zijlstra and Matt Fleming.
- *
- * More information about RDT be found in the Intel (R) x86 Architecture
- * Software Developer Manual June 2016, volume 3, section 17.17.
- */
 
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -26,61 +10,20 @@ struct rmid_entry {
 	struct list_head		list;
 };
 
-/**
- * @rmid_free_lru    A least recently used list of free RMIDs
- *     These RMIDs are guaranteed to have an occupancy less than the
- *     threshold occupancy
- */
 static LIST_HEAD(rmid_free_lru);
 
-/**
- * @rmid_limbo_count     count of currently unused but (potentially)
- *     dirty RMIDs.
- *     This counts RMIDs that no one is currently using but that
- *     may have a occupancy value > intel_cqm_threshold. User can change
- *     the threshold occupancy value.
- */
 static unsigned int rmid_limbo_count;
 
-/**
- * @rmid_entry - The entry in the limbo and free lists.
- */
 static struct rmid_entry	*rmid_ptrs;
 
-/*
- * Global boolean for rdt_monitor which is true if any
- * resource monitoring is enabled.
- */
 bool rdt_mon_capable;
 
-/*
- * Global to indicate which monitoring events are enabled.
- */
 unsigned int rdt_mon_features;
 
-/*
- * This is the threshold cache occupancy at which we will consider an
- * RMID available for re-allocation.
- */
 unsigned int resctrl_cqm_threshold;
 
 #define CF(cf)	((unsigned long)(1048576 * (cf) + 0.5))
 
-/*
- * The correction factor table is documented in Documentation/x86/resctrl.rst.
- * If rmid > rmid threshold, MBM total and local values should be multiplied
- * by the correction factor.
- *
- * The original table is modified for better code:
- *
- * 1. The threshold 0 is changed to rmid count - 1 so don't do correction
- *    for the case.
- * 2. MBM total and local correction table indexed by core counter which is
- *    equal to (x86_cache_max_rmid + 1) / 8 - 1 and is from 0 up to 27.
- * 3. The correction factor is normalized to 2^20 (1048576) so it's faster
- *    to calculate corrected value by shifting:
- *    corrected_value = (original_value * correction_factor) >> 20
- */
 static const struct mbm_correction_factor_table {
 	u32 rmidthreshold;
 	u64 cf;
@@ -142,13 +85,6 @@ static u64 __rmid_read(u32 rmid, u32 eventid)
 	u64 val;
 
 	/*
-	 * As per the SDM, when IA32_QM_EVTSEL.EvtID (bits 7:0) is configured
-	 * with a valid event code for supported resource type and the bits
-	 * IA32_QM_EVTSEL.RMID (bits 41:32) are configured with valid RMID,
-	 * IA32_QM_CTR.data (bits 61:0) reports the monitored data.
-	 * IA32_QM_CTR.Error (bit 63) and IA32_QM_CTR.Unavailable (bit 62)
-	 * are error bits.
-	 */
 	wrmsr(MSR_IA32_QM_EVTSEL, eventid, rmid);
 	rdmsrl(MSR_IA32_QM_CTR, val);
 
@@ -162,12 +98,6 @@ static bool rmid_dirty(struct rmid_entry *entry)
 	return val >= resctrl_cqm_threshold;
 }
 
-/*
- * Check the RMIDs that are marked as busy for this domain. If the
- * reported LLC occupancy is below the threshold clear the busy bit and
- * decrement the count. If the busy count gets to zero on an RMID, we
- * free the RMID
- */
 void __check_limbo(struct rdt_domain *d, bool force_free)
 {
 	struct rmid_entry *entry;
@@ -177,11 +107,6 @@ void __check_limbo(struct rdt_domain *d, bool force_free)
 	r = &rdt_resources_all[RDT_RESOURCE_L3].r_resctrl;
 
 	/*
-	 * Skip RMID 0 and start from RMID 1 and check all the RMIDs that
-	 * are marked as busy for occupancy < threshold. If the occupancy
-	 * is less than the threshold decrement the busy counter of the
-	 * RMID and move it to the free list when the counter reaches 0.
-	 */
 	for (;;) {
 		nrmid = find_next_bit(d->rmid_busy_llc, r->num_rmid, crmid);
 		if (nrmid >= r->num_rmid)
@@ -204,11 +129,6 @@ bool has_busy_rmid(struct rdt_resource *r, struct rdt_domain *d)
 	return find_first_bit(d->rmid_busy_llc, r->num_rmid) != r->num_rmid;
 }
 
-/*
- * As of now the RMIDs allocation is global.
- * However we keep track of which packages the RMIDs
- * are used to optimize the limbo list management.
- */
 int alloc_rmid(void)
 {
 	struct rmid_entry *entry;
@@ -244,9 +164,6 @@ static void add_rmid_to_limbo(struct rmid_entry *entry)
 		}
 
 		/*
-		 * For the first limbo RMID in the domain,
-		 * setup up the limbo worker.
-		 */
 		if (!has_busy_rmid(r, d))
 			cqm_setup_limbo_handler(d, CQM_LIMBOCHECK_INTERVAL);
 		set_bit(entry->rmid, d->rmid_busy_llc);
@@ -307,9 +224,6 @@ static u64 __mon_event_count(u32 rmid, struct rmid_read *rr)
 		break;
 	default:
 		/*
-		 * Code would never reach here because an invalid
-		 * event id would fail the __rmid_read.
-		 */
 		return RMID_VAL_ERROR;
 	}
 
@@ -328,10 +242,6 @@ static u64 __mon_event_count(u32 rmid, struct rmid_read *rr)
 	return 0;
 }
 
-/*
- * Supporting function to calculate the memory bandwidth
- * and delta bandwidth in MBps.
- */
 static void mbm_bw_count(u32 rmid, struct rmid_read *rr)
 {
 	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(rr->r);
@@ -352,10 +262,6 @@ static void mbm_bw_count(u32 rmid, struct rmid_read *rr)
 	m->prev_bw_msr = tval;
 }
 
-/*
- * This is called via IPI to read the CQM/MBM counters
- * on a domain.
- */
 void mon_event_count(void *info)
 {
 	struct rdtgroup *rdtgrp, *entry;
@@ -368,10 +274,6 @@ void mon_event_count(void *info)
 	ret_val = __mon_event_count(rdtgrp->mon.rmid, rr);
 
 	/*
-	 * For Ctrl groups read data from child monitor groups and
-	 * add them together. Count events which are read successfully.
-	 * Discard the rmid_read's reporting errors.
-	 */
 	head = &rdtgrp->mon.crdtgrp_list;
 
 	if (rdtgrp->type == RDTCTRL_GROUP) {
@@ -386,38 +288,6 @@ void mon_event_count(void *info)
 		rr->val = ret_val;
 }
 
-/*
- * Feedback loop for MBA software controller (mba_sc)
- *
- * mba_sc is a feedback loop where we periodically read MBM counters and
- * adjust the bandwidth percentage values via the IA32_MBA_THRTL_MSRs so
- * that:
- *
- *   current bandwidth(cur_bw) < user specified bandwidth(user_bw)
- *
- * This uses the MBM counters to measure the bandwidth and MBA throttle
- * MSRs to control the bandwidth for a particular rdtgrp. It builds on the
- * fact that resctrl rdtgroups have both monitoring and control.
- *
- * The frequency of the checks is 1s and we just tag along the MBM overflow
- * timer. Having 1s interval makes the calculation of bandwidth simpler.
- *
- * Although MBA's goal is to restrict the bandwidth to a maximum, there may
- * be a need to increase the bandwidth to avoid unnecessarily restricting
- * the L2 <-> L3 traffic.
- *
- * Since MBA controls the L2 external bandwidth where as MBM measures the
- * L3 external bandwidth the following sequence could lead to such a
- * situation.
- *
- * Consider an rdtgroup which had high L3 <-> memory traffic in initial
- * phases -> mba_sc kicks in and reduced bandwidth percentage values -> but
- * after some time rdtgroup has mostly L2 <-> L3 traffic.
- *
- * In this case we may restrict the rdtgroup's L2 <-> L3 traffic as its
- * throttle MSRs already have low percentage values.  To avoid
- * unnecessarily restricting such rdtgroups, we also increase the bandwidth.
- */
 static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 {
 	u32 closid, rmid, cur_msr, cur_msr_val, new_msr_val;
@@ -450,14 +320,9 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 	user_bw = resctrl_arch_get_config(r_mba, dom_mba, closid, CDP_NONE);
 	delta_bw = pmbm_data->delta_bw;
 	/*
-	 * resctrl_arch_get_config() chooses the mbps/ctrl value to return
-	 * based on is_mba_sc(). For now, reach into the hw_dom.
-	 */
 	cur_msr_val = hw_dom_mba->ctrl_val[closid];
 
 	/*
-	 * For Ctrl groups read data from child monitor groups.
-	 */
 	head = &rgrp->mon.crdtgrp_list;
 	list_for_each_entry(entry, head, mon.crdtgrp_list) {
 		cmbm_data = &dom_mbm->mbm_local[entry->mon.rmid];
@@ -466,19 +331,6 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 	}
 
 	/*
-	 * Scale up/down the bandwidth linearly for the ctrl group.  The
-	 * bandwidth step is the bandwidth granularity specified by the
-	 * hardware.
-	 *
-	 * The delta_bw is used when increasing the bandwidth so that we
-	 * dont alternately increase and decrease the control values
-	 * continuously.
-	 *
-	 * For ex: consider cur_bw = 90MBps, user_bw = 100MBps and if
-	 * bandwidth step is 20MBps(> user_bw - cur_bw), we would keep
-	 * switching between 90 and 110 continuously if we only check
-	 * cur_bw < user_bw.
-	 */
 	if (cur_msr_val > r_mba->membw.min_bw && user_bw < cur_bw) {
 		new_msr_val = cur_msr_val - r_mba->membw.bw_gran;
 	} else if (cur_msr_val < MAX_MBA_BW &&
@@ -493,15 +345,6 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_domain *dom_mbm)
 	hw_dom_mba->ctrl_val[closid] = new_msr_val;
 
 	/*
-	 * Delta values are updated dynamically package wise for each
-	 * rdtgrp every time the throttle MSR changes value.
-	 *
-	 * This is because (1)the increase in bandwidth is not perfectly
-	 * linear and only "approximately" linear even when the hardware
-	 * says it is linear.(2)Also since MBA is a core specific
-	 * mechanism, the delta values vary based on number of cores used
-	 * by the rdtgrp.
-	 */
 	pmbm_data->delta_comp = true;
 	list_for_each_entry(entry, head, mon.crdtgrp_list) {
 		cmbm_data = &dom_mbm->mbm_local[entry->mon.rmid];
@@ -518,9 +361,6 @@ static void mbm_update(struct rdt_resource *r, struct rdt_domain *d, int rmid)
 	rr.d = d;
 
 	/*
-	 * This is protected from concurrent reads from user
-	 * as both the user and we hold the global mutex.
-	 */
 	if (is_mbm_total_enabled()) {
 		rr.evtid = QOS_L3_MBM_TOTAL_EVENT_ID;
 		__mon_event_count(rmid, &rr);
@@ -530,19 +370,11 @@ static void mbm_update(struct rdt_resource *r, struct rdt_domain *d, int rmid)
 		__mon_event_count(rmid, &rr);
 
 		/*
-		 * Call the MBA software controller only for the
-		 * control groups and when user has enabled
-		 * the software controller explicitly.
-		 */
 		if (is_mba_sc(NULL))
 			mbm_bw_count(rmid, &rr);
 	}
 }
 
-/*
- * Handler to scan the limbo list and move the RMIDs
- * to free list whose occupancy < threshold_occupancy.
- */
 void cqm_handle_limbo(struct work_struct *work)
 {
 	unsigned long delay = msecs_to_jiffies(CQM_LIMBOCHECK_INTERVAL);
@@ -639,9 +471,6 @@ static int dom_data_init(struct rdt_resource *r)
 	}
 
 	/*
-	 * RMID 0 is special and is always allocated. It's used for all
-	 * tasks that are not monitored.
-	 */
 	entry = __rmid_entry(0);
 	list_del(&entry->list);
 
@@ -663,13 +492,6 @@ static struct mon_evt mbm_local_event = {
 	.evtid		= QOS_L3_MBM_LOCAL_EVENT_ID,
 };
 
-/*
- * Initialize the event list for the resource.
- *
- * Note that MBM events are also part of RDT_RESOURCE_L3 resource
- * because as per the SDM the total and local memory bandwidth
- * are enumerated as part of L3 monitoring.
- */
 static void l3_mon_evt_init(struct rdt_resource *r)
 {
 	INIT_LIST_HEAD(&r->evt_list);
@@ -699,12 +521,6 @@ int rdt_get_mon_l3_config(struct rdt_resource *r)
 		pr_warn("Ignoring impossible MBM counter offset\n");
 
 	/*
-	 * A reasonable upper limit on the max threshold is the number
-	 * of lines tagged per RMID if all RMIDs have the same number of
-	 * lines tagged in the LLC.
-	 *
-	 * For a 35MB LLC and 56 RMIDs, this is ~1.8% of the LLC.
-	 */
 	resctrl_cqm_threshold = cl_size * 1024 / r->num_rmid;
 
 	/* h/w works in units of "boot_cpu_data.x86_cache_occ_scale" */

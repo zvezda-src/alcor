@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/thread_info.h>
 #include <asm/smp.h>
 
@@ -14,23 +13,12 @@ static void __init xen_hvm_smp_prepare_boot_cpu(void)
 	native_smp_prepare_boot_cpu();
 
 	/*
-	 * Setup vcpu_info for boot CPU. Secondary CPUs get their vcpu_info
-	 * in xen_cpu_up_prepare_hvm().
-	 */
 	xen_vcpu_setup(0);
 
 	/*
-	 * Called again in case the kernel boots on vcpu >= MAX_VIRT_CPUS.
-	 * Refer to comments in xen_hvm_init_time_ops().
-	 */
 	xen_hvm_init_time_ops();
 
 	/*
-	 * The alternative logic (which patches the unlock/lock) runs before
-	 * the smp bootup up code is activated. Hence we need to set this up
-	 * the core kernel is being patched. Otherwise we will have only
-	 * modules patched but not core code.
-	 */
 	xen_init_spinlocks();
 }
 

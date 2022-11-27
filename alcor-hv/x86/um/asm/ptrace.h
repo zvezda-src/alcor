@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __UM_X86_PTRACE_H
 #define __UM_X86_PTRACE_H
 
@@ -40,10 +39,6 @@ static inline long regs_return_value(struct pt_regs *regs)
 	return PT_REGS_AX(regs);
 }
 
-/*
- * Forward declaration to avoid including sysdep/tls.h, which causes a
- * circular include, and compilation failures.
- */
 struct user_desc;
 
 #ifdef CONFIG_X86_32

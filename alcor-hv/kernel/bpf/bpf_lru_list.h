@@ -1,6 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2016 Facebook
- */
 #ifndef __BPF_LRU_LIST_H_
 #define __BPF_LRU_LIST_H_
 

@@ -1,7 +1,3 @@
-/*
- * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
- */
 
 #include <signal.h>
 #include <kern_util.h>
@@ -9,7 +5,6 @@
 #include <sysdep/ptrace.h>
 #include <generated/asm-offsets.h>
 
-/* Set during early boot */
 static int host_has_cmov = 1;
 static jmp_buf cmov_test_return;
 
@@ -46,9 +41,6 @@ void arch_examine_signal(int sig, struct uml_pt_regs *regs)
 	unsigned char tmp[2];
 
 	/*
-	 * This is testing for a cmov (0x0f 0x4x) instruction causing a
-	 * SIGILL in init.
-	 */
 	if ((sig != SIGILL) || (get_current_pid() != 1))
 		return;
 

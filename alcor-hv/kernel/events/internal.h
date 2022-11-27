@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _KERNEL_EVENTS_INTERNAL_H
 #define _KERNEL_EVENTS_INTERNAL_H
 
@@ -6,7 +5,6 @@
 #include <linux/uaccess.h>
 #include <linux/refcount.h>
 
-/* Buffer handling */
 
 #define RING_BUFFER_WRITABLE		0x01
 
@@ -97,11 +95,6 @@ extern struct page *
 perf_mmap_to_page(struct perf_buffer *rb, unsigned long pgoff);
 
 #ifdef CONFIG_PERF_USE_VMALLOC
-/*
- * Back perf_mmap() with vmalloc memory.
- *
- * Required for architectures that have d-cache aliasing issues.
- */
 
 static inline int page_order(struct perf_buffer *rb)
 {

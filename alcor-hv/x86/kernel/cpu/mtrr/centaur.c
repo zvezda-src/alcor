@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/init.h>
 #include <linux/mm.h>
 
@@ -15,14 +14,6 @@ static struct {
 static u8 centaur_mcr_reserved;
 static u8 centaur_mcr_type;	/* 0 for winchip, 1 for winchip2 */
 
-/**
- * centaur_get_free_region - Get a free MTRR.
- *
- * @base: The starting (base) address of the region.
- * @size: The size (in bytes) of the region.
- *
- * Returns: the index of the region on success, else -1 on error.
- */
 static int
 centaur_get_free_region(unsigned long base, unsigned long size, int replace_reg)
 {
@@ -45,9 +36,6 @@ centaur_get_free_region(unsigned long base, unsigned long size, int replace_reg)
 	return -ENOSPC;
 }
 
-/*
- * Report boot time MCR setups
- */
 void mtrr_centaur_report_mcr(int mcr, u32 lo, u32 hi)
 {
 	centaur_mcr[mcr].low = lo;
@@ -58,9 +46,6 @@ static void
 centaur_get_mcr(unsigned int reg, unsigned long *base,
 		unsigned long *size, mtrr_type * type)
 {
-	*base = centaur_mcr[reg].high >> PAGE_SHIFT;
-	*size = -(centaur_mcr[reg].low & 0xfffff000) >> PAGE_SHIFT;
-	*type = MTRR_TYPE_WRCOMB;		/* write-combining  */
 
 	if (centaur_mcr_type == 1 && ((centaur_mcr[reg].low & 31) & 2))
 		*type = MTRR_TYPE_UNCACHABLE;
@@ -100,8 +85,6 @@ static int
 centaur_validate_add_page(unsigned long base, unsigned long size, unsigned int type)
 {
 	/*
-	 * FIXME: Winchip2 supports uncached
-	 */
 	if (type != MTRR_TYPE_WRCOMB &&
 	    (centaur_mcr_type == 0 || type != MTRR_TYPE_UNCACHABLE)) {
 		pr_warn("mtrr: only write-combining%s supported\n",

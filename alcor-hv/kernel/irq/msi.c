@@ -1,13 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (C) 2014 Intel Corp.
- * Author: Jiang Liu <jiang.liu@linux.intel.com>
- *
- * This file is licensed under GPLv2.
- *
- * This file contains common code to support Message Signaled Interrupts for
- * PCI compatible and non PCI compatible devices.
- */
 #include <linux/types.h>
 #include <linux/device.h>
 #include <linux/irq.h>
@@ -21,17 +11,6 @@
 
 static inline int msi_sysfs_create_group(struct device *dev);
 
-/**
- * msi_alloc_desc - Allocate an initialized msi_desc
- * @dev:	Pointer to the device for which this is allocated
- * @nvec:	The number of vectors used in this entry
- * @affinity:	Optional pointer to an affinity mask array size of @nvec
- *
- * If @affinity is not %NULL then an affinity array[@nvec] is allocated
- * and the affinity masks and flags from @affinity are copied.
- *
- * Return: pointer to allocated &msi_desc on success or %NULL on failure
- */
 static struct msi_desc *msi_alloc_desc(struct device *dev, int nvec,
 					const struct irq_affinity_desc *affinity)
 {
@@ -69,13 +48,6 @@ static int msi_insert_desc(struct msi_device_data *md, struct msi_desc *desc, un
 	return ret;
 }
 
-/**
- * msi_add_msi_desc - Allocate and initialize a MSI descriptor
- * @dev:	Pointer to the device for which the descriptor is allocated
- * @init_desc:	Pointer to an MSI descriptor to initialize the new descriptor
- *
- * Return: 0 on success or an appropriate failure code.
- */
 int msi_add_msi_desc(struct device *dev, struct msi_desc *init_desc)
 {
 	struct msi_desc *desc;
@@ -91,14 +63,6 @@ int msi_add_msi_desc(struct device *dev, struct msi_desc *init_desc)
 	return msi_insert_desc(dev->msi.data, desc, init_desc->msi_index);
 }
 
-/**
- * msi_add_simple_msi_descs - Allocate and initialize MSI descriptors
- * @dev:	Pointer to the device for which the descriptors are allocated
- * @index:	Index for the first MSI descriptor
- * @ndesc:	Number of descriptors to allocate
- *
- * Return: 0 on success or an appropriate failure code.
- */
 static int msi_add_simple_msi_descs(struct device *dev, unsigned int index, unsigned int ndesc)
 {
 	unsigned int idx, last = index + ndesc - 1;
@@ -138,13 +102,6 @@ static bool msi_desc_match(struct msi_desc *desc, enum msi_desc_filter filter)
 	return false;
 }
 
-/**
- * msi_free_msi_descs_range - Free MSI descriptors of a device
- * @dev:		Device to free the descriptors
- * @filter:		Descriptor state filter
- * @first_index:	Index to start freeing from
- * @last_index:		Last index to be freed
- */
 void msi_free_msi_descs_range(struct device *dev, enum msi_desc_filter filter,
 			      unsigned int first_index, unsigned int last_index)
 {
@@ -164,7 +121,6 @@ void msi_free_msi_descs_range(struct device *dev, enum msi_desc_filter filter,
 
 void __get_cached_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 {
-	*msg = entry->msg;
 }
 
 void get_cached_msi_msg(unsigned int irq, struct msi_msg *msg)
@@ -184,16 +140,6 @@ static void msi_device_data_release(struct device *dev, void *res)
 	dev->msi.data = NULL;
 }
 
-/**
- * msi_setup_device_data - Setup MSI device data
- * @dev:	Device for which MSI device data should be set up
- *
- * Return: 0 on success, appropriate error code otherwise
- *
- * This can be called more than once for @dev. If the MSI device data is
- * already allocated the call succeeds. The allocated memory is
- * automatically released when the device is destroyed.
- */
 int msi_setup_device_data(struct device *dev)
 {
 	struct msi_device_data *md;
@@ -219,20 +165,12 @@ int msi_setup_device_data(struct device *dev)
 	return 0;
 }
 
-/**
- * msi_lock_descs - Lock the MSI descriptor storage of a device
- * @dev:	Device to operate on
- */
 void msi_lock_descs(struct device *dev)
 {
 	mutex_lock(&dev->msi.data->mutex);
 }
 EXPORT_SYMBOL_GPL(msi_lock_descs);
 
-/**
- * msi_unlock_descs - Unlock the MSI descriptor storage of a device
- * @dev:	Device to operate on
- */
 void msi_unlock_descs(struct device *dev)
 {
 	/* Invalidate the index wich was cached by the iterator */
@@ -253,17 +191,6 @@ static struct msi_desc *msi_find_desc(struct msi_device_data *md, enum msi_desc_
 	return NULL;
 }
 
-/**
- * msi_first_desc - Get the first MSI descriptor of a device
- * @dev:	Device to operate on
- * @filter:	Descriptor state filter
- *
- * Must be called with the MSI descriptor mutex held, i.e. msi_lock_descs()
- * must be invoked before the call.
- *
- * Return: Pointer to the first MSI descriptor matching the search
- *	   criteria, NULL if none found.
- */
 struct msi_desc *msi_first_desc(struct device *dev, enum msi_desc_filter filter)
 {
 	struct msi_device_data *md = dev->msi.data;
@@ -278,18 +205,6 @@ struct msi_desc *msi_first_desc(struct device *dev, enum msi_desc_filter filter)
 }
 EXPORT_SYMBOL_GPL(msi_first_desc);
 
-/**
- * msi_next_desc - Get the next MSI descriptor of a device
- * @dev:	Device to operate on
- *
- * The first invocation of msi_next_desc() has to be preceeded by a
- * successful invocation of __msi_first_desc(). Consecutive invocations are
- * only valid if the previous one was successful. All these operations have
- * to be done within the same MSI mutex held region.
- *
- * Return: Pointer to the next MSI descriptor matching the search
- *	   criteria, NULL if none found.
- */
 struct msi_desc *msi_next_desc(struct device *dev, enum msi_desc_filter filter)
 {
 	struct msi_device_data *md = dev->msi.data;
@@ -307,13 +222,6 @@ struct msi_desc *msi_next_desc(struct device *dev, enum msi_desc_filter filter)
 }
 EXPORT_SYMBOL_GPL(msi_next_desc);
 
-/**
- * msi_get_virq - Return Linux interrupt number of a MSI interrupt
- * @dev:	Device to operate on
- * @index:	MSI interrupt index to look for (0-based)
- *
- * Return: The Linux interrupt number on success (> 0), 0 if not found
- */
 unsigned int msi_get_virq(struct device *dev, unsigned int index)
 {
 	struct msi_desc *desc;
@@ -329,10 +237,6 @@ unsigned int msi_get_virq(struct device *dev, unsigned int index)
 	desc = xa_load(&dev->msi.data->__store, pcimsi ? 0 : index);
 	if (desc && desc->irq) {
 		/*
-		 * PCI-MSI has only one descriptor for multiple interrupts.
-		 * PCI-MSIX and platform MSI use a descriptor per
-		 * interrupt.
-		 */
 		if (pcimsi) {
 			if (index < desc->nvec_used)
 				ret = desc->irq + index;
@@ -421,10 +325,6 @@ fail:
 }
 
 #ifdef CONFIG_PCI_MSI_ARCH_FALLBACKS
-/**
- * msi_device_populate_sysfs - Populate msi_irqs sysfs entries for a device
- * @dev:	The device (PCI, platform etc) which will get sysfs entries
- */
 int msi_device_populate_sysfs(struct device *dev)
 {
 	struct msi_desc *desc;
@@ -440,11 +340,6 @@ int msi_device_populate_sysfs(struct device *dev)
 	return 0;
 }
 
-/**
- * msi_device_destroy_sysfs - Destroy msi_irqs sysfs entries for a device
- * @dev:		The device (PCI, platform etc) for which to remove
- *			sysfs entries
- */
 void msi_device_destroy_sysfs(struct device *dev)
 {
 	struct msi_desc *desc;
@@ -471,25 +366,11 @@ static void msi_check_level(struct irq_domain *domain, struct msi_msg *msg)
 	struct msi_domain_info *info = domain->host_data;
 
 	/*
-	 * If the MSI provider has messed with the second message and
-	 * not advertized that it is level-capable, signal the breakage.
-	 */
 	WARN_ON(!((info->flags & MSI_FLAG_LEVEL_CAPABLE) &&
 		  (info->chip->flags & IRQCHIP_SUPPORTS_LEVEL_MSI)) &&
 		(msg[1].address_lo || msg[1].address_hi || msg[1].data));
 }
 
-/**
- * msi_domain_set_affinity - Generic affinity setter function for MSI domains
- * @irq_data:	The irq data associated to the interrupt
- * @mask:	The affinity mask to set
- * @force:	Flag to enforce setting (disable online checks)
- *
- * Intended to be used by MSI interrupt controllers which are
- * implemented with hierarchical domains.
- *
- * Return: IRQ_SET_MASK_* result code
- */
 int msi_domain_set_affinity(struct irq_data *irq_data,
 			    const struct cpumask *mask, bool force)
 {
@@ -668,14 +549,6 @@ static void msi_domain_update_chip_ops(struct msi_domain_info *info)
 		chip->irq_set_affinity = msi_domain_set_affinity;
 }
 
-/**
- * msi_create_irq_domain - Create an MSI interrupt domain
- * @fwnode:	Optional fwnode of the interrupt controller
- * @info:	MSI domain info
- * @parent:	Parent irq domain
- *
- * Return: pointer to the created &struct irq_domain or %NULL on failure
- */
 struct irq_domain *msi_create_irq_domain(struct fwnode_handle *fwnode,
 					 struct msi_domain_info *info,
 					 struct irq_domain *parent)
@@ -745,17 +618,6 @@ unlock:
 	return ret;
 }
 
-/*
- * Carefully check whether the device can use reservation mode. If
- * reservation mode is enabled then the early activation will assign a
- * dummy vector to the device. If the PCI/MSI device does not support
- * masking of the entry then this can result in spurious interrupts when
- * the device driver is not absolutely careful. But even then a malfunction
- * of the hardware could result in a spurious interrupt on the dummy vector
- * and render the device unusable. If the entry can be masked then the core
- * logic will prevent the spurious interrupt and reservation mode can be
- * used. For now reservation mode is restricted to PCI/MSI.
- */
 static bool msi_check_reservation_mode(struct irq_domain *domain,
 				       struct msi_domain_info *info,
 				       struct device *dev)
@@ -777,9 +639,6 @@ static bool msi_check_reservation_mode(struct irq_domain *domain,
 		return false;
 
 	/*
-	 * Checking the first MSI descriptor is sufficient. MSIX supports
-	 * masking and MSI does so when the can_mask attribute is set.
-	 */
 	desc = msi_first_desc(dev, MSI_DESC_ALL);
 	return desc->pci.msi_attrib.is_msix || desc->pci.msi_attrib.can_mask;
 }
@@ -820,12 +679,6 @@ static int msi_init_virq(struct irq_domain *domain, int virq, unsigned int vflag
 			irqd_set_msi_nomask_quirk(irqd);
 
 		/*
-		 * If the interrupt is managed but no CPU is available to
-		 * service it, shut it down until better times. Note that
-		 * we only do this on the !RESERVE path as x86 (the only
-		 * architecture using this flag) deals with this in a
-		 * different way by using a catch-all vector.
-		 */
 		if ((vflags & VIRQ_ACTIVATE) &&
 		    irqd_affinity_is_managed(irqd) &&
 		    !cpumask_intersects(irq_data_get_affinity_mask(irqd),
@@ -842,9 +695,6 @@ static int msi_init_virq(struct irq_domain *domain, int virq, unsigned int vflag
 	if (ret)
 		return ret;
 	/*
-	 * If the interrupt uses reservation mode, clear the activated bit
-	 * so request_irq() will assign the final vector.
-	 */
 	if (vflags & VIRQ_CAN_RESERVE)
 		irqd_clr_activated(irqd);
 	return 0;
@@ -866,23 +716,13 @@ int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 		return ret;
 
 	/*
-	 * This flag is set by the PCI layer as we need to activate
-	 * the MSI entries before the PCI layer enables MSI in the
-	 * card. Otherwise the card latches a random msi message.
-	 */
 	if (info->flags & MSI_FLAG_ACTIVATE_EARLY)
 		vflags |= VIRQ_ACTIVATE;
 
 	/*
-	 * Interrupt can use a reserved vector and will not occupy
-	 * a real device vector until the interrupt is requested.
-	 */
 	if (msi_check_reservation_mode(domain, info, dev)) {
 		vflags |= VIRQ_CAN_RESERVE;
 		/*
-		 * MSI affinity setting requires a special quirk (X86) when
-		 * reservation mode is active.
-		 */
 		if (domain->flags & IRQ_DOMAIN_MSI_NOMASK_QUIRK)
 			vflags |= VIRQ_NOMASK_QUIRK;
 	}
@@ -923,19 +763,6 @@ static int msi_domain_add_simple_msi_descs(struct msi_domain_info *info,
 	return msi_add_simple_msi_descs(dev, 0, num_descs);
 }
 
-/**
- * msi_domain_alloc_irqs_descs_locked - Allocate interrupts from a MSI interrupt domain
- * @domain:	The domain to allocate from
- * @dev:	Pointer to device struct of the device for which the interrupts
- *		are allocated
- * @nvec:	The number of interrupts to allocate
- *
- * Must be invoked from within a msi_lock_descs() / msi_unlock_descs()
- * pair. Use this for MSI irqdomains which implement their own vector
- * allocation/free.
- *
- * Return: %0 on success or an error code.
- */
 int msi_domain_alloc_irqs_descs_locked(struct irq_domain *domain, struct device *dev,
 				       int nvec)
 {
@@ -955,15 +782,6 @@ int msi_domain_alloc_irqs_descs_locked(struct irq_domain *domain, struct device 
 	return ret;
 }
 
-/**
- * msi_domain_alloc_irqs - Allocate interrupts from a MSI interrupt domain
- * @domain:	The domain to allocate from
- * @dev:	Pointer to device struct of the device for which the interrupts
- *		are allocated
- * @nvec:	The number of interrupts to allocate
- *
- * Return: %0 on success or an error code.
- */
 int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev, int nvec)
 {
 	int ret;
@@ -1004,16 +822,6 @@ static void msi_domain_free_msi_descs(struct msi_domain_info *info,
 		msi_free_msi_descs(dev);
 }
 
-/**
- * msi_domain_free_irqs_descs_locked - Free interrupts from a MSI interrupt @domain associated to @dev
- * @domain:	The domain to managing the interrupts
- * @dev:	Pointer to device struct of the device for which the interrupts
- *		are free
- *
- * Must be invoked from within a msi_lock_descs() / msi_unlock_descs()
- * pair. Use this for MSI irqdomains which implement their own vector
- * allocation.
- */
 void msi_domain_free_irqs_descs_locked(struct irq_domain *domain, struct device *dev)
 {
 	struct msi_domain_info *info = domain->host_data;
@@ -1025,12 +833,6 @@ void msi_domain_free_irqs_descs_locked(struct irq_domain *domain, struct device 
 	msi_domain_free_msi_descs(info, dev);
 }
 
-/**
- * msi_domain_free_irqs - Free interrupts from a MSI interrupt @domain associated to @dev
- * @domain:	The domain to managing the interrupts
- * @dev:	Pointer to device struct of the device for which the interrupts
- *		are free
- */
 void msi_domain_free_irqs(struct irq_domain *domain, struct device *dev)
 {
 	msi_lock_descs(dev);
@@ -1038,12 +840,6 @@ void msi_domain_free_irqs(struct irq_domain *domain, struct device *dev)
 	msi_unlock_descs(dev);
 }
 
-/**
- * msi_get_domain_info - Get the MSI interrupt domain info for @domain
- * @domain:	The interrupt domain to retrieve data from
- *
- * Return: the pointer to the msi_domain_info stored in @domain->host_data.
- */
 struct msi_domain_info *msi_get_domain_info(struct irq_domain *domain)
 {
 	return (struct msi_domain_info *)domain->host_data;

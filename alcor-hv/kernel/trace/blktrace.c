@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (C) 2006 Jens Axboe <axboe@kernel.dk>
- *
- */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -36,7 +31,6 @@ static bool blk_tracer_enabled __read_mostly;
 static LIST_HEAD(running_trace_list);
 static __cacheline_aligned_in_smp DEFINE_RAW_SPINLOCK(running_trace_lock);
 
-/* Select an alternative, minimalistic output than the original one */
 #define TRACE_BLK_OPT_CLASSIC	0x1
 #define TRACE_BLK_OPT_CGROUP	0x2
 #define TRACE_BLK_OPT_CGNAME	0x4
@@ -56,16 +50,12 @@ static struct tracer_flags blk_tracer_flags = {
 	.opts = blk_tracer_opts,
 };
 
-/* Global reference count of probes */
 static DEFINE_MUTEX(blk_probe_mutex);
 static int blk_probes_ref;
 
 static void blk_register_tracepoints(void);
 static void blk_unregister_tracepoints(void);
 
-/*
- * Send out a notify message.
- */
 static void trace_note(struct blk_trace *bt, pid_t pid, int action,
 		       const void *data, size_t len, u64 cgid)
 {
@@ -111,10 +101,6 @@ record_it:
 	}
 }
 
-/*
- * Send out a notify for this process, if we haven't done so since a trace
- * started
- */
 static void trace_note_tsk(struct task_struct *tsk)
 {
 	unsigned long flags;
@@ -159,9 +145,6 @@ void __blk_trace_note_message(struct blk_trace *bt,
 		return;
 
 	/*
-	 * If the BLK_TC_NOTIFY action mask isn't set, don't send any note
-	 * message to the trace.
-	 */
 	if (!(bt->act_mask & BLK_TC_NOTIFY))
 		return;
 
@@ -195,23 +178,15 @@ static int act_log_check(struct blk_trace *bt, u32 what, sector_t sector,
 	return 0;
 }
 
-/*
- * Data direction bit lookup
- */
 static const u32 ddir_act[2] = { BLK_TC_ACT(BLK_TC_READ),
 				 BLK_TC_ACT(BLK_TC_WRITE) };
 
 #define BLK_TC_RAHEAD		BLK_TC_AHEAD
 #define BLK_TC_PREFLUSH		BLK_TC_FLUSH
 
-/* The ilog2() calls fall out because they're constant */
 #define MASK_TC_BIT(rw, __name) ((__force u32)(rw & REQ_ ## __name) <<	\
 	  (ilog2(BLK_TC_ ## __name) + BLK_TC_SHIFT - __REQ_ ## __name))
 
-/*
- * The worker for the various blk_add_trace*() types. Fills out a
- * blk_io_trace structure and places it in a per-cpu subbuffer.
- */
 static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 			    const blk_opf_t opf, u32 what, int error,
 			    int pdu_len, void *pdu_data, u64 cgid)
@@ -268,10 +243,6 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 		trace_note_tsk(tsk);
 
 	/*
-	 * A word about the locking here - we disable interrupts to reserve
-	 * some space in the relay per-cpu buffer, to prevent an irq
-	 * from coming in and stepping on our toes.
-	 */
 	local_irq_save(flags);
 	t = relay_reserve(bt->rchan, sizeof(*t) + pdu_len + cgid_len);
 	if (t) {
@@ -282,11 +253,6 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 		t->time = ktime_to_ns(ktime_get());
 record_it:
 		/*
-		 * These two are not needed in ftrace as they are in the
-		 * generic trace_entry, filled by tracing_generic_entry_update,
-		 * but for the trace_event->bin() synthesizer benefit we do it
-		 * here too.
-		 */
 		t->cpu = cpu;
 		t->pid = pid;
 
@@ -316,9 +282,6 @@ static void blk_trace_free(struct request_queue *q, struct blk_trace *bt)
 	relay_close(bt->rchan);
 
 	/*
-	 * If 'bt->dir' is not set, then both 'dropped' and 'msg' are created
-	 * under 'q->debugfs_dir', thus lookup and remove them.
-	 */
 	if (!bt->dir) {
 		debugfs_remove(debugfs_lookup("dropped", q->debugfs_dir));
 		debugfs_remove(debugfs_lookup("msg", q->debugfs_dir));
@@ -425,10 +388,6 @@ static const struct file_operations blk_msg_fops = {
 	.llseek =	noop_llseek,
 };
 
-/*
- * Keep track of how many times we encountered a full subbuffer, to aid
- * the user space app in telling how many lost events there were.
- */
 static int blk_subbuf_start_callback(struct rchan_buf *buf, void *subbuf,
 				     void *prev_subbuf, size_t prev_padding)
 {
@@ -477,9 +436,6 @@ static void blk_trace_setup_lba(struct blk_trace *bt,
 	}
 }
 
-/*
- * Setup everything required to start tracing
- */
 static int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 			      struct block_device *bdev,
 			      struct blk_user_trace_setup *buts)
@@ -497,15 +453,9 @@ static int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	buts->name[BLKTRACE_BDEV_SIZE - 1] = '\0';
 
 	/*
-	 * some device names have larger paths - convert the slashes
-	 * to underscores for this to work as expected
-	 */
 	strreplace(buts->name, '/', '_');
 
 	/*
-	 * bdev can be NULL, as with scsi-generic, this is a helpful as
-	 * we can be.
-	 */
 	if (rcu_dereference_protected(q->blk_trace,
 				      lockdep_is_held(&q->debugfs_mutex))) {
 		pr_warn("Concurrent blktraces are not allowed on %s\n",
@@ -527,21 +477,12 @@ static int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 		goto err;
 
 	/*
-	 * When tracing the whole disk reuse the existing debugfs directory
-	 * created by the block layer on init. For partitions block devices,
-	 * and scsi-generic block devices we create a temporary new debugfs
-	 * directory that will be removed once the trace ends.
-	 */
 	if (bdev && !bdev_is_partition(bdev))
 		dir = q->debugfs_dir;
 	else
 		bt->dir = dir = debugfs_create_dir(buts->name, blk_debugfs_root);
 
 	/*
-	 * As blktrace relies on debugfs for its interface the debugfs directory
-	 * is required, contrary to the usual mantra of not checking for debugfs
-	 * files or directories.
-	 */
 	if (IS_ERR_OR_NULL(dir)) {
 		pr_warn("debugfs_dir not present for %s so skipping\n",
 			buts->name);
@@ -667,9 +608,6 @@ static int __blk_trace_startstop(struct request_queue *q, int start)
 		return -EINVAL;
 
 	/*
-	 * For starting a trace, we can transition from a setup or stopped
-	 * trace. For stopping a trace, the state must be running
-	 */
 	ret = -EINVAL;
 	if (start) {
 		if (bt->trace_state == Blktrace_setup ||
@@ -710,19 +648,7 @@ int blk_trace_startstop(struct request_queue *q, int start)
 }
 EXPORT_SYMBOL_GPL(blk_trace_startstop);
 
-/*
- * When reading or writing the blktrace sysfs files, the references to the
- * opened sysfs or device files should prevent the underlying block device
- * from being removed. So no further delete protection is really needed.
- */
 
-/**
- * blk_trace_ioctl: - handle the ioctls associated with tracing
- * @bdev:	the block device
- * @cmd:	the ioctl cmd
- * @arg:	the argument data, if any
- *
- **/
 int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
 {
 	struct request_queue *q;
@@ -764,11 +690,6 @@ int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
 	return ret;
 }
 
-/**
- * blk_trace_shutdown: - stop and cleanup trace structures
- * @q:    the request queue associated with the device
- *
- **/
 void blk_trace_shutdown(struct request_queue *q)
 {
 	if (rcu_dereference_protected(q->blk_trace,
@@ -810,22 +731,7 @@ blk_trace_request_get_cgid(struct request *rq)
 	return blk_trace_bio_get_cgid(rq->q, rq->bio);
 }
 
-/*
- * blktrace probes
- */
 
-/**
- * blk_add_trace_rq - Add a trace for a request oriented action
- * @rq:		the source request
- * @error:	return status to log
- * @nr_bytes:	number of completed bytes
- * @what:	the action
- * @cgid:	the cgroup info
- *
- * Description:
- *     Records an action against a request. Will log the bio offset + size.
- *
- **/
 static void blk_add_trace_rq(struct request *rq, blk_status_t error,
 			     unsigned int nr_bytes, u32 what, u64 cgid)
 {
@@ -879,17 +785,6 @@ static void blk_add_trace_rq_complete(void *ignore, struct request *rq,
 			 blk_trace_request_get_cgid(rq));
 }
 
-/**
- * blk_add_trace_bio - Add a trace for a bio oriented action
- * @q:		queue the io is for
- * @bio:	the source bio
- * @what:	the action
- * @error:	error, if any
- *
- * Description:
- *     Records an action against a bio. Will log the bio offset + size.
- *
- **/
 static void blk_add_trace_bio(struct request_queue *q, struct bio *bio,
 			      u32 what, int error)
 {
@@ -993,15 +888,6 @@ static void blk_add_trace_split(void *ignore, struct bio *bio, unsigned int pdu)
 	rcu_read_unlock();
 }
 
-/**
- * blk_add_trace_bio_remap - Add a trace for a bio-remap operation
- * @ignore:	trace callback data parameter (not used)
- * @bio:	the source bio
- * @dev:	source device
- * @from:	source sector
- *
- * Called after a bio is remapped to a different device and/or sector.
- **/
 static void blk_add_trace_bio_remap(void *ignore, struct bio *bio, dev_t dev,
 				    sector_t from)
 {
@@ -1027,18 +913,6 @@ static void blk_add_trace_bio_remap(void *ignore, struct bio *bio, dev_t dev,
 	rcu_read_unlock();
 }
 
-/**
- * blk_add_trace_rq_remap - Add a trace for a request-remap operation
- * @ignore:	trace callback data parameter (not used)
- * @rq:		the source request
- * @dev:	target device
- * @from:	source sector
- *
- * Description:
- *     Device mapper remaps request to other devices.
- *     Add a trace for that action.
- *
- **/
 static void blk_add_trace_rq_remap(void *ignore, struct request *rq, dev_t dev,
 				   sector_t from)
 {
@@ -1062,16 +936,6 @@ static void blk_add_trace_rq_remap(void *ignore, struct request *rq, dev_t dev,
 	rcu_read_unlock();
 }
 
-/**
- * blk_add_driver_data - Add binary message with driver-specific data
- * @rq:		io request
- * @data:	driver-specific data
- * @len:	length of driver-specific data
- *
- * Description:
- *     Some drivers might want to write driver-specific data per request.
- *
- **/
 void blk_add_driver_data(struct request *rq, void *data, size_t len)
 {
 	struct blk_trace *bt;
@@ -1150,9 +1014,6 @@ static void blk_unregister_tracepoints(void)
 	tracepoint_synchronize_unregister();
 }
 
-/*
- * struct blk_io_tracer formatting routines
- */
 
 static void fill_rwbs(char *rwbs, const struct blk_io_trace *t)
 {
@@ -1280,18 +1141,6 @@ static void blk_log_action(struct trace_iterator *iter, const char *act,
 				 blkcg_name_buf, act, rwbs);
 		} else {
 			/*
-			 * The cgid portion used to be "INO,GEN".  Userland
-			 * builds a FILEID_INO32_GEN fid out of them and
-			 * opens the cgroup using open_by_handle_at(2).
-			 * While 32bit ino setups are still the same, 64bit
-			 * ones now use the 64bit ino as the whole ID and
-			 * no longer use generation.
-			 *
-			 * Regardless of the content, always output
-			 * "LOW32,HIGH32" so that FILEID_INO32_GEN fid can
-			 * be mapped back to @id on both 64 and 32bit ino
-			 * setups.  See __kernfs_fh_to_dentry().
-			 */
 			trace_seq_printf(&iter->seq,
 				 "%3d,%-3d %llx,%-llx %2s %3s ",
 				 MAJOR(t->device), MINOR(t->device),
@@ -1329,9 +1178,6 @@ static void blk_log_dump_pdu(struct trace_seq *s,
 				 i == 0 ? "" : " ", pdu_buf[i]);
 
 		/*
-		 * stop when the rest is just zeros and indicate so
-		 * with a ".." appended
-		 */
 		if (i == end && end != pdu_len - 1) {
 			trace_seq_puts(s, " ..) ");
 			return;
@@ -1425,9 +1271,6 @@ static void blk_log_msg(struct trace_seq *s, const struct trace_entry *ent,
 	trace_seq_putc(s, '\n');
 }
 
-/*
- * struct tracer operations
- */
 
 static void blk_tracer_print_header(struct seq_file *m)
 {
@@ -1628,9 +1471,6 @@ static int blk_trace_remove_queue(struct request_queue *q)
 	return 0;
 }
 
-/*
- * Setup everything required to start tracing
- */
 static int blk_trace_setup_queue(struct request_queue *q,
 				 struct block_device *bdev)
 {
@@ -1659,9 +1499,6 @@ free_bt:
 	return ret;
 }
 
-/*
- * sysfs interface to enable and configure tracing
- */
 
 static ssize_t sysfs_blk_trace_attr_show(struct device *dev,
 					 struct device_attribute *attr,
@@ -1762,7 +1599,6 @@ static ssize_t blk_trace_mask2str(char *buf, int mask)
 				    (p == buf) ? "" : ",", mask_maps[i].str);
 		}
 	}
-	*p++ = '\n';
 
 	return p - buf;
 }
@@ -1870,16 +1706,6 @@ out:
 
 #ifdef CONFIG_EVENT_TRACING
 
-/**
- * blk_fill_rwbs - Fill the buffer rwbs by mapping op to character string.
- * @rwbs:	buffer to be filled
- * @opf:	request operation type (REQ_OP_XXX) and flags for the tracepoint
- *
- * Description:
- *     Maps each request operation and flag to a single character and fills the
- *     buffer provided by the caller with resulting string.
- *
- **/
 void blk_fill_rwbs(char *rwbs, blk_opf_t opf)
 {
 	int i = 0;

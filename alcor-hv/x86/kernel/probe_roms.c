@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
@@ -76,9 +75,6 @@ static struct resource video_rom_resource = {
 	.flags	= IORESOURCE_BUSY | IORESOURCE_READONLY | IORESOURCE_MEM
 };
 
-/* does this oprom support the given pci device, or any of the devices
- * that the driver supports?
- */
 static bool match_id(struct pci_dev *pdev, unsigned short vendor, unsigned short device)
 {
 	struct pci_driver *drv = to_pci_driver(pdev->dev.driver);
@@ -204,11 +200,6 @@ void __init probe_roms(void)
 	int i;
 
 	/*
-	 * The ROM memory range is not part of the e820 table and is therefore not
-	 * pre-validated by BIOS. The kernel page table maps the ROM region as encrypted
-	 * memory, and SNP requires encrypted memory to be validated before access.
-	 * Do that here.
-	 */
 	snp_prep_memory(video_rom_resource.start,
 			((system_rom_resource.end + 1) - video_rom_resource.start),
 			SNP_PAGE_STATE_PRIVATE);

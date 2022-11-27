@@ -1,15 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* -*- linux-c -*- ------------------------------------------------------- *
- *
- *   Copyright (C) 1991, 1992 Linus Torvalds
- *   Copyright 2007 rPath, Inc. - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author H. Peter Anvin
- *
- * ----------------------------------------------------------------------- */
 
-/*
- * Get EDD BIOS disk information
- */
 
 #include "boot.h"
 #include <linux/edd.h>
@@ -17,9 +6,6 @@
 
 #if defined(CONFIG_EDD) || defined(CONFIG_EDD_MODULE)
 
-/*
- * Read the MBR (first sector) from a specific device.
- */
 static int read_mbr(u8 devno, void *buf)
 {
 	struct biosregs ireg, oreg;
@@ -63,7 +49,6 @@ static u32 read_mbr_sig(u8 devno, struct edd_info *ei, u32 *mbrsig)
 	if (read_mbr(devno, mbrbuf_ptr))
 		return -1;
 
-	*mbrsig = *(u32 *)&mbrbuf_ptr[EDD_MBR_SIG_OFFSET];
 	mbr_magic = *(u16 *)&mbrbuf_ptr[510];
 
 	/* check for valid MBR magic */
@@ -159,9 +144,6 @@ void query_edd(void)
 
 	for (devno = 0x80; devno < 0x80+EDD_MBR_SIG_MAX; devno++) {
 		/*
-		 * Scan the BIOS-supported hard disks and query EDD
-		 * information...
-		 */
 		if (!get_edd_info(devno, &ei)
 		    && boot_params.eddbuf_entries < EDDMAXNR) {
 			memcpy(edp, &ei, sizeof(ei));

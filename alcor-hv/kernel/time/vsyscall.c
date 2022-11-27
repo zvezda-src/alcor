@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright 2019 ARM Ltd.
- *
- * Generic implementation of update_vsyscall and update_vsyscall_tz.
- *
- * Based on the x86 specific implementation.
- */
 
 #include <linux/hrtimer.h>
 #include <linux/timekeeper_internal.h>
@@ -101,15 +93,9 @@ void update_vsyscall(struct timekeeper *tk)
 	vdso_ts->sec	+= __iter_div_u64_rem(nsec, NSEC_PER_SEC, &vdso_ts->nsec);
 
 	/*
-	 * Read without the seqlock held by clock_getres().
-	 * Note: No need to have a second copy.
-	 */
 	WRITE_ONCE(vdata[CS_HRES_COARSE].hrtimer_res, hrtimer_resolution);
 
 	/*
-	 * If the current clocksource is not VDSO capable, then spare the
-	 * update of the high resolution parts.
-	 */
 	if (clock_mode != VDSO_CLOCKMODE_NONE)
 		update_vdso_data(vdata, tk);
 
@@ -130,18 +116,6 @@ void update_vsyscall_tz(void)
 	__arch_sync_vdso_data(vdata);
 }
 
-/**
- * vdso_update_begin - Start of a VDSO update section
- *
- * Allows architecture code to safely update the architecture specific VDSO
- * data. Disables interrupts, acquires timekeeper lock to serialize against
- * concurrent updates from timekeeping and invalidates the VDSO data
- * sequence counter to prevent concurrent readers from accessing
- * inconsistent data.
- *
- * Returns: Saved interrupt flags which need to be handed in to
- * vdso_update_end().
- */
 unsigned long vdso_update_begin(void)
 {
 	struct vdso_data *vdata = __arch_get_k_vdso_data();
@@ -152,14 +126,6 @@ unsigned long vdso_update_begin(void)
 	return flags;
 }
 
-/**
- * vdso_update_end - End of a VDSO update section
- * @flags:	Interrupt flags as returned from vdso_update_begin()
- *
- * Pairs with vdso_update_begin(). Marks vdso data consistent, invokes data
- * synchronization if the architecture requires it, drops timekeeper lock
- * and restores interrupt flags.
- */
 void vdso_update_end(unsigned long flags)
 {
 	struct vdso_data *vdata = __arch_get_k_vdso_data();

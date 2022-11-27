@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- *  linux/kernel/reboot.c
- *
- *  Copyright (C) 2013  Linus Torvalds
- */
 
 #define pr_fmt(fmt)	"reboot: " fmt
 
@@ -19,9 +13,6 @@
 #include <linux/syscore_ops.h>
 #include <linux/uaccess.h>
 
-/*
- * this indicates whether you can reboot with ctrl-alt-del: the default is yes
- */
 
 static int C_A_D = 1;
 struct pid *cad_pid;
@@ -36,13 +27,6 @@ enum reboot_mode reboot_mode DEFAULT_REBOOT_MODE;
 EXPORT_SYMBOL_GPL(reboot_mode);
 enum reboot_mode panic_reboot_mode = REBOOT_UNDEFINED;
 
-/*
- * This variable is used privately to keep track of whether or not
- * reboot_type is still set to its default value (i.e., reboot= hasn't
- * been set on the command line).  This is needed so that we can
- * suppress DMI scanning for reboot quirks.  Without it, it's
- * impossible to override a faulty reboot quirk without recompiling.
- */
 int reboot_default = 1;
 int reboot_cpu;
 enum reboot_type reboot_type = BOOT_ACPI;
@@ -57,20 +41,8 @@ struct sys_off_handler {
 	void *list;
 };
 
-/*
- * Temporary stub that prevents linkage failure while we're in process
- * of removing all uses of legacy pm_power_off() around the kernel.
- */
 void __weak (*pm_power_off)(void);
 
-/**
- *	emergency_restart - reboot the system
- *
- *	Without shutting down any hardware or taking any locks
- *	reboot the system.  This is called when we know we are in
- *	trouble so this is our best effort to reboot.  This is
- *	safe to call in interrupt context.
- */
 void emergency_restart(void)
 {
 	kmsg_dump(KMSG_DUMP_EMERG);
@@ -86,31 +58,12 @@ void kernel_restart_prepare(char *cmd)
 	device_shutdown();
 }
 
-/**
- *	register_reboot_notifier - Register function to be called at reboot time
- *	@nb: Info about notifier function to be called
- *
- *	Registers a function with the list of functions
- *	to be called at reboot time.
- *
- *	Currently always returns zero, as blocking_notifier_chain_register()
- *	always returns zero.
- */
 int register_reboot_notifier(struct notifier_block *nb)
 {
 	return blocking_notifier_chain_register(&reboot_notifier_list, nb);
 }
 EXPORT_SYMBOL(register_reboot_notifier);
 
-/**
- *	unregister_reboot_notifier - Unregister previously registered reboot notifier
- *	@nb: Hook to be unregistered
- *
- *	Unregisters a previously registered reboot
- *	notifier function.
- *
- *	Returns zero on success, or %-ENOENT on failure.
- */
 int unregister_reboot_notifier(struct notifier_block *nb)
 {
 	return blocking_notifier_chain_unregister(&reboot_notifier_list, nb);
@@ -144,82 +97,20 @@ int devm_register_reboot_notifier(struct device *dev, struct notifier_block *nb)
 }
 EXPORT_SYMBOL(devm_register_reboot_notifier);
 
-/*
- *	Notifier list for kernel code which wants to be called
- *	to restart the system.
- */
 static ATOMIC_NOTIFIER_HEAD(restart_handler_list);
 
-/**
- *	register_restart_handler - Register function to be called to reset
- *				   the system
- *	@nb: Info about handler function to be called
- *	@nb->priority:	Handler priority. Handlers should follow the
- *			following guidelines for setting priorities.
- *			0:	Restart handler of last resort,
- *				with limited restart capabilities
- *			128:	Default restart handler; use if no other
- *				restart handler is expected to be available,
- *				and/or if restart functionality is
- *				sufficient to restart the entire system
- *			255:	Highest priority restart handler, will
- *				preempt all other restart handlers
- *
- *	Registers a function with code to be called to restart the
- *	system.
- *
- *	Registered functions will be called from machine_restart as last
- *	step of the restart sequence (if the architecture specific
- *	machine_restart function calls do_kernel_restart - see below
- *	for details).
- *	Registered functions are expected to restart the system immediately.
- *	If more than one function is registered, the restart handler priority
- *	selects which function will be called first.
- *
- *	Restart handlers are expected to be registered from non-architecture
- *	code, typically from drivers. A typical use case would be a system
- *	where restart functionality is provided through a watchdog. Multiple
- *	restart handlers may exist; for example, one restart handler might
- *	restart the entire system, while another only restarts the CPU.
- *	In such cases, the restart handler which only restarts part of the
- *	hardware is expected to register with low priority to ensure that
- *	it only runs if no other means to restart the system is available.
- *
- *	Currently always returns zero, as atomic_notifier_chain_register()
- *	always returns zero.
- */
 int register_restart_handler(struct notifier_block *nb)
 {
 	return atomic_notifier_chain_register(&restart_handler_list, nb);
 }
 EXPORT_SYMBOL(register_restart_handler);
 
-/**
- *	unregister_restart_handler - Unregister previously registered
- *				     restart handler
- *	@nb: Hook to be unregistered
- *
- *	Unregisters a previously registered restart handler function.
- *
- *	Returns zero on success, or %-ENOENT on failure.
- */
 int unregister_restart_handler(struct notifier_block *nb)
 {
 	return atomic_notifier_chain_unregister(&restart_handler_list, nb);
 }
 EXPORT_SYMBOL(unregister_restart_handler);
 
-/**
- *	do_kernel_restart - Execute kernel restart handler call chain
- *
- *	Calls functions registered with register_restart_handler.
- *
- *	Expected to be called from machine_restart as last step of the restart
- *	sequence.
- *
- *	Restarts the system immediately if a restart handler function has been
- *	registered. Otherwise does nothing.
- */
 void do_kernel_restart(char *cmd)
 {
 	atomic_notifier_call_chain(&restart_handler_list, reboot_mode, cmd);
@@ -243,14 +134,6 @@ void migrate_to_reboot_cpu(void)
 	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 }
 
-/**
- *	kernel_restart - reboot the system
- *	@cmd: pointer to buffer containing command to execute for restart
- *		or %NULL
- *
- *	Shutdown everything and perform a clean reboot.
- *	This is not safe to call in interrupt context.
- */
 void kernel_restart(char *cmd)
 {
 	kernel_restart_prepare(cmd);
@@ -273,11 +156,6 @@ static void kernel_shutdown_prepare(enum system_states state)
 	usermodehelper_disable();
 	device_shutdown();
 }
-/**
- *	kernel_halt - halt the system
- *
- *	Shutdown everything and perform a clean system halt.
- */
 void kernel_halt(void)
 {
 	kernel_shutdown_prepare(SYSTEM_HALT);
@@ -289,16 +167,8 @@ void kernel_halt(void)
 }
 EXPORT_SYMBOL_GPL(kernel_halt);
 
-/*
- *	Notifier list for kernel code which wants to be called
- *	to prepare system for power off.
- */
 static BLOCKING_NOTIFIER_HEAD(power_off_prep_handler_list);
 
-/*
- *	Notifier list for kernel code which wants to be called
- *	to power off system.
- */
 static ATOMIC_NOTIFIER_HEAD(power_off_handler_list);
 
 static int sys_off_notify(struct notifier_block *nb,
@@ -323,9 +193,6 @@ static struct sys_off_handler *alloc_sys_off_handler(int priority)
 	gfp_t flags;
 
 	/*
-	 * Platforms like m68k can't allocate sys_off handler dynamically
-	 * at the early boot time because memory allocator isn't available yet.
-	 */
 	if (priority == SYS_OFF_PRIO_PLATFORM) {
 		handler = &platform_sys_off_handler;
 		if (handler->cb_data)
@@ -352,27 +219,6 @@ static void free_sys_off_handler(struct sys_off_handler *handler)
 		kfree(handler);
 }
 
-/**
- *	register_sys_off_handler - Register sys-off handler
- *	@mode: Sys-off mode
- *	@priority: Handler priority
- *	@callback: Callback function
- *	@cb_data: Callback argument
- *
- *	Registers system power-off or restart handler that will be invoked
- *	at the step corresponding to the given sys-off mode. Handler's callback
- *	should return NOTIFY_DONE to permit execution of the next handler in
- *	the call chain or NOTIFY_STOP to break the chain (in error case for
- *	example).
- *
- *	Multiple handlers can be registered at the default priority level.
- *
- *	Only one handler can be registered at the non-default priority level,
- *	otherwise ERR_PTR(-EBUSY) is returned.
- *
- *	Returns a new instance of struct sys_off_handler on success, or
- *	an ERR_PTR()-encoded error code otherwise.
- */
 struct sys_off_handler *
 register_sys_off_handler(enum sys_off_mode mode,
 			 int priority,
@@ -436,12 +282,6 @@ register_sys_off_handler(enum sys_off_mode mode,
 }
 EXPORT_SYMBOL_GPL(register_sys_off_handler);
 
-/**
- *	unregister_sys_off_handler - Unregister sys-off handler
- *	@handler: Sys-off handler
- *
- *	Unregisters given sys-off handler.
- */
 void unregister_sys_off_handler(struct sys_off_handler *handler)
 {
 	int err;
@@ -470,18 +310,6 @@ static void devm_unregister_sys_off_handler(void *data)
 	unregister_sys_off_handler(handler);
 }
 
-/**
- *	devm_register_sys_off_handler - Register sys-off handler
- *	@dev: Device that registers handler
- *	@mode: Sys-off mode
- *	@priority: Handler priority
- *	@callback: Callback function
- *	@cb_data: Callback argument
- *
- *	Registers resource-managed sys-off handler.
- *
- *	Returns zero on success, or error code on failure.
- */
 int devm_register_sys_off_handler(struct device *dev,
 				  enum sys_off_mode mode,
 				  int priority,
@@ -499,17 +327,6 @@ int devm_register_sys_off_handler(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_register_sys_off_handler);
 
-/**
- *	devm_register_power_off_handler - Register power-off handler
- *	@dev: Device that registers callback
- *	@callback: Callback function
- *	@cb_data: Callback's argument
- *
- *	Registers resource-managed sys-off handler with a default priority
- *	and using power-off mode.
- *
- *	Returns zero on success, or error code on failure.
- */
 int devm_register_power_off_handler(struct device *dev,
 				    int (*callback)(struct sys_off_data *data),
 				    void *cb_data)
@@ -521,17 +338,6 @@ int devm_register_power_off_handler(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_register_power_off_handler);
 
-/**
- *	devm_register_restart_handler - Register restart handler
- *	@dev: Device that registers callback
- *	@callback: Callback function
- *	@cb_data: Callback's argument
- *
- *	Registers resource-managed sys-off handler with a default priority
- *	and using restart mode.
- *
- *	Returns zero on success, or error code on failure.
- */
 int devm_register_restart_handler(struct device *dev,
 				  int (*callback)(struct sys_off_data *data),
 				  void *cb_data)
@@ -554,17 +360,6 @@ static int platform_power_off_notify(struct sys_off_data *data)
 	return NOTIFY_DONE;
 }
 
-/**
- *	register_platform_power_off - Register platform-level power-off callback
- *	@power_off: Power-off callback
- *
- *	Registers power-off callback that will be called as last step
- *	of the power-off sequence. This callback is expected to be invoked
- *	for the last resort. Only one platform power-off callback is allowed
- *	to be registered at a time.
- *
- *	Returns zero on success, or error code on failure.
- */
 int register_platform_power_off(void (*power_off)(void))
 {
 	struct sys_off_handler *handler;
@@ -582,12 +377,6 @@ int register_platform_power_off(void (*power_off)(void))
 }
 EXPORT_SYMBOL_GPL(register_platform_power_off);
 
-/**
- *	unregister_platform_power_off - Unregister platform-level power-off callback
- *	@power_off: Power-off callback
- *
- *	Unregisters previously registered platform power-off callback.
- */
 void unregister_platform_power_off(void (*power_off)(void))
 {
 	if (platform_power_off_handler &&
@@ -611,25 +400,11 @@ static void do_kernel_power_off_prepare(void)
 	blocking_notifier_call_chain(&power_off_prep_handler_list, 0, NULL);
 }
 
-/**
- *	do_kernel_power_off - Execute kernel power-off handler call chain
- *
- *	Expected to be called as last step of the power-off sequence.
- *
- *	Powers off the system immediately if a power-off handler function has
- *	been registered. Otherwise does nothing.
- */
 void do_kernel_power_off(void)
 {
 	struct sys_off_handler *sys_off = NULL;
 
 	/*
-	 * Register sys-off handlers for legacy PM callback. This allows
-	 * legacy PM callbacks temporary co-exist with the new sys-off API.
-	 *
-	 * TODO: Remove legacy handlers once all legacy PM users will be
-	 *       switched to the sys-off based APIs.
-	 */
 	if (pm_power_off)
 		sys_off = register_sys_off_handler(SYS_OFF_MODE_POWER_OFF,
 						   SYS_OFF_PRIO_DEFAULT,
@@ -640,12 +415,6 @@ void do_kernel_power_off(void)
 	unregister_sys_off_handler(sys_off);
 }
 
-/**
- *	kernel_can_power_off - check whether system can be powered off
- *
- *	Returns true if power-off handler is registered and system can be
- *	powered off, false otherwise.
- */
 bool kernel_can_power_off(void)
 {
 	return !atomic_notifier_call_chain_is_empty(&power_off_handler_list) ||
@@ -653,11 +422,6 @@ bool kernel_can_power_off(void)
 }
 EXPORT_SYMBOL_GPL(kernel_can_power_off);
 
-/**
- *	kernel_power_off - power_off the system
- *
- *	Shutdown everything and perform a clean system power_off.
- */
 void kernel_power_off(void)
 {
 	kernel_shutdown_prepare(SYSTEM_POWER_OFF);
@@ -672,14 +436,6 @@ EXPORT_SYMBOL_GPL(kernel_power_off);
 
 DEFINE_MUTEX(system_transition_mutex);
 
-/*
- * Reboot system call: for obvious reasons only root may call it,
- * and even root needs to set up some magic numbers in the registers
- * so that some mistake won't make this reboot the whole machine.
- * You can also set the meaning of the ctrl-alt-del-key here.
- *
- * reboot doesn't sync: do that yourself before calling this.
- */
 SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 		void __user *, arg)
 {
@@ -700,10 +456,6 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 		return -EINVAL;
 
 	/*
-	 * If pid namespaces are enabled and the current task is in a child
-	 * pid_namespace, the command is handled by reboot_pid_ns() which will
-	 * call do_exit().
-	 */
 	ret = reboot_pid_ns(pid_ns, cmd);
 	if (ret)
 		return ret;
@@ -773,11 +525,6 @@ static void deferred_cad(struct work_struct *dummy)
 	kernel_restart(NULL);
 }
 
-/*
- * This function gets called by ctrl-alt-del - ie the keyboard interrupt.
- * As it's called within an interrupt, it may NOT sync: the only choice
- * is whether to reboot at once, or just ignore the ctrl-alt-del.
- */
 void ctrl_alt_del(void)
 {
 	static DECLARE_WORK(cad_work, deferred_cad);
@@ -837,10 +584,6 @@ static int __orderly_poweroff(bool force)
 		pr_warn("Failed to start orderly shutdown: forcing the issue\n");
 
 		/*
-		 * I guess this should try to kick off some daemon to sync and
-		 * poweroff asap.  Or not even bother syncing if we're doing an
-		 * emergency shutdown?
-		 */
 		emergency_sync();
 		kernel_power_off();
 	}
@@ -857,13 +600,6 @@ static void poweroff_work_func(struct work_struct *work)
 
 static DECLARE_WORK(poweroff_work, poweroff_work_func);
 
-/**
- * orderly_poweroff - Trigger an orderly system poweroff
- * @force: force poweroff if command execution fails
- *
- * This may be called from any context to trigger a system shutdown.
- * If the orderly shutdown fails, it will force an immediate shutdown.
- */
 void orderly_poweroff(bool force)
 {
 	if (force) /* do not override the pending "true" */
@@ -879,41 +615,19 @@ static void reboot_work_func(struct work_struct *work)
 
 static DECLARE_WORK(reboot_work, reboot_work_func);
 
-/**
- * orderly_reboot - Trigger an orderly system reboot
- *
- * This may be called from any context to trigger a system reboot.
- * If the orderly reboot fails, it will force an immediate reboot.
- */
 void orderly_reboot(void)
 {
 	schedule_work(&reboot_work);
 }
 EXPORT_SYMBOL_GPL(orderly_reboot);
 
-/**
- * hw_failure_emergency_poweroff_func - emergency poweroff work after a known delay
- * @work: work_struct associated with the emergency poweroff function
- *
- * This function is called in very critical situations to force
- * a kernel poweroff after a configurable timeout value.
- */
 static void hw_failure_emergency_poweroff_func(struct work_struct *work)
 {
 	/*
-	 * We have reached here after the emergency shutdown waiting period has
-	 * expired. This means orderly_poweroff has not been able to shut off
-	 * the system for some reason.
-	 *
-	 * Try to shut down the system immediately using kernel_power_off
-	 * if populated
-	 */
 	pr_emerg("Hardware protection timed-out. Trying forced poweroff\n");
 	kernel_power_off();
 
 	/*
-	 * Worst of the worst case trigger emergency restart
-	 */
 	pr_emerg("Hardware protection shutdown failed. Trying emergency restart\n");
 	emergency_restart();
 }
@@ -921,12 +635,6 @@ static void hw_failure_emergency_poweroff_func(struct work_struct *work)
 static DECLARE_DELAYED_WORK(hw_failure_emergency_poweroff_work,
 			    hw_failure_emergency_poweroff_func);
 
-/**
- * hw_failure_emergency_poweroff - Trigger an emergency system poweroff
- *
- * This may be called from any critical situation to trigger a system shutdown
- * after a given period of time. If time is negative this is not scheduled.
- */
 static void hw_failure_emergency_poweroff(int poweroff_delay_ms)
 {
 	if (poweroff_delay_ms <= 0)
@@ -935,21 +643,6 @@ static void hw_failure_emergency_poweroff(int poweroff_delay_ms)
 			      msecs_to_jiffies(poweroff_delay_ms));
 }
 
-/**
- * hw_protection_shutdown - Trigger an emergency system poweroff
- *
- * @reason:		Reason of emergency shutdown to be printed.
- * @ms_until_forced:	Time to wait for orderly shutdown before tiggering a
- *			forced shudown. Negative value disables the forced
- *			shutdown.
- *
- * Initiate an emergency system shutdown in order to protect hardware from
- * further damage. Usage examples include a thermal protection or a voltage or
- * current regulator failures.
- * NOTE: The request is ignored if protection shutdown is already pending even
- * if the previous request has given a large timeout for forced shutdown.
- * Can be called from any context.
- */
 void hw_protection_shutdown(const char *reason, int ms_until_forced)
 {
 	static atomic_t allow_proceed = ATOMIC_INIT(1);
@@ -961,9 +654,6 @@ void hw_protection_shutdown(const char *reason, int ms_until_forced)
 		return;
 
 	/*
-	 * Queue a backup emergency shutdown in the event of
-	 * orderly_poweroff failure
-	 */
 	hw_failure_emergency_poweroff(ms_until_forced);
 	orderly_poweroff(true);
 }
@@ -975,10 +665,6 @@ static int __init reboot_setup(char *str)
 		enum reboot_mode *mode;
 
 		/*
-		 * Having anything passed on the command line via
-		 * reboot= will cause us to disable DMI checking
-		 * below.
-		 */
 		reboot_default = 0;
 
 		if (!strncmp(str, "panic_", 6)) {
@@ -1003,9 +689,6 @@ static int __init reboot_setup(char *str)
 
 		case 's':
 			/*
-			 * reboot_cpu is s[mp]#### with #### being the processor
-			 * to be used for rebooting. Skip 's' or 'smp' prefix.
-			 */
 			str += str[1] == 'm' && str[2] == 'p' ? 3 : 1;
 
 			if (isdigit(str[0])) {

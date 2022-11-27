@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/sched.h>
 #include <linux/ftrace.h>
 #include <asm/ptrace.h>
@@ -60,10 +59,6 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 		       &state->stack_mask);
 
 	/*
-	 * The caller can provide the address of the first frame directly
-	 * (first_frame) or indirectly (regs->sp) to indicate which stack frame
-	 * to start unwinding at.  Skip ahead until we reach it.
-	 */
 	if (!unwind_done(state) &&
 	    (!on_stack(&state->stack_info, first_frame, sizeof(long)) ||
 	    !__kernel_text_address(*first_frame)))

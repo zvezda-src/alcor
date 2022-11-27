@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_FPU_XCR_H
 #define _ASM_X86_FPU_XCR_H
 
@@ -21,12 +20,6 @@ static inline void xsetbv(u32 index, u64 value)
 	asm volatile("xsetbv" :: "a" (eax), "d" (edx), "c" (index));
 }
 
-/*
- * Return a mask of xfeatures which are currently being tracked
- * by the processor as being in the initial configuration.
- *
- * Callers should check X86_FEATURE_XGETBV1.
- */
 static inline u64 xfeatures_in_use(void)
 {
 	return xgetbv(XCR_XFEATURE_IN_USE_MASK);

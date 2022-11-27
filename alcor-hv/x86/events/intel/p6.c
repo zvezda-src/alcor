@@ -1,12 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/perf_event.h>
 #include <linux/types.h>
 
 #include "../perf_event.h"
 
-/*
- * Not sure about some of these
- */
 static const u64 p6_perfmon_event_map[] =
 {
   [PERF_COUNT_HW_CPU_CYCLES]		= 0x0079,	/* CPU_CLK_UNHALTED */
@@ -116,12 +112,6 @@ static u64 p6_pmu_event_map(int hw_event)
 	return p6_perfmon_event_map[hw_event];
 }
 
-/*
- * Event setting that is specified not to count anything.
- * We use this to effectively disable a counter.
- *
- * L2_RQSTS with 0 MESI unit mask.
- */
 #define P6_NOP_EVENT			0x0000002EULL
 
 static struct event_constraint p6_event_constraints[] =
@@ -172,11 +162,6 @@ static void p6_pmu_enable_event(struct perf_event *event)
 	val = hwc->config;
 
 	/*
-	 * p6 only has a global event enable, set on PerfEvtSel0
-	 * We "disable" events by programming P6_NOP_EVENT
-	 * and we rely on p6_pmu_enable_all() being called
-	 * to actually enable the events.
-	 */
 
 	(void)wrmsrl_safe(hwc->config_base, val);
 }
@@ -216,12 +201,6 @@ static __initconst const struct x86_pmu p6_pmu = {
 	.version		= 0,
 	.num_counters		= 2,
 	/*
-	 * Events have 40 bits implemented. However they are designed such
-	 * that bits [32-39] are sign extensions of bit 31. As such the
-	 * effective width of a event for P6-like PMU is 32 bits only.
-	 *
-	 * See IA-32 Intel Architecture Software developer manual Vol 3B
-	 */
 	.cntval_bits		= 32,
 	.cntval_mask		= (1ULL << 32) - 1,
 	.get_event_constraints	= x86_get_event_constraints,
@@ -236,8 +215,6 @@ static __init void p6_pmu_rdpmc_quirk(void)
 {
 	if (boot_cpu_data.x86_stepping < 9) {
 		/*
-		 * PPro erratum 26; fixed in stepping 9 and above.
-		 */
 		pr_warn("Userspace RDPMC support disabled due to a CPU erratum\n");
 		x86_pmu.attr_rdpmc_broken = 1;
 		x86_pmu.attr_rdpmc = 0;

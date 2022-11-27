@@ -1,15 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * mmconfig-shared.c - Low-level direct PCI config space access via
- *                     MMCONFIG - common code between i386 and x86-64.
- *
- * This code does:
- * - known chipset handling
- * - ACPI decoding and validation
- *
- * Per-architecture code takes care of the mappings and accesses
- * themselves.
- */
 
 #include <linux/acpi.h>
 #include <linux/pci.h>
@@ -25,7 +13,6 @@
 
 #define PREFIX "PCI: "
 
-/* Indicate if the mmcfg resources have been placed into the resource table. */
 static bool pci_mmcfg_running_state;
 static bool pci_mmcfg_arch_init_failed;
 static DEFINE_MUTEX(pci_mmcfg_lock);
@@ -214,9 +201,6 @@ static const char *__init pci_mmcfg_amd_fam10h(void)
 			 FAM10H_MMIO_CONF_BUSRANGE_MASK;
 
 	/*
-	 * only handle bus 0 ?
-	 * need to skip it
-	 */
 	if (!busnbits)
 		return NULL;
 
@@ -258,8 +242,6 @@ static const char *__init pci_mmcfg_nvidia_mcp55(void)
 	static const int extcfg_base_lshift __initconst	= 25;
 
 	/*
-	 * do check if amd fam10h already took over
-	 */
 	if (!acpi_disabled || !list_empty(&pci_mmcfg_list) || mcp55_checked)
 		return NULL;
 
@@ -516,11 +498,6 @@ pci_mmcfg_check_reserved(struct device *dev, struct pci_mmcfg_region *cfg, int e
 	}
 
 	/*
-	 * e820__mapped_all() is marked as __init.
-	 * All entries from ACPI MCFG table have been checked at boot time.
-	 * For MCFG information constructed from hotpluggable host bridge's
-	 * _CBA method, just assume it's reserved.
-	 */
 	if (pci_mmcfg_running_state)
 		return true;
 
@@ -699,10 +676,6 @@ static int __init pci_mmcfg_late_insert_resources(void)
 		return 1;
 
 	/*
-	 * Attempt to insert the mmcfg resources but not with the busy flag
-	 * marked so it won't cause request errors when __request_region is
-	 * called.
-	 */
 	list_for_each_entry(cfg, &pci_mmcfg_list, list)
 		if (!cfg->res.parent)
 			insert_resource(&iomem_resource, &cfg->res);
@@ -710,14 +683,8 @@ static int __init pci_mmcfg_late_insert_resources(void)
 	return 0;
 }
 
-/*
- * Perform MMCONFIG resource insertion after PCI initialization to allow for
- * misprogrammed MCFG tables that state larger sizes but actually conflict
- * with other system resources.
- */
 late_initcall(pci_mmcfg_late_insert_resources);
 
-/* Add MMCFG information for host bridges */
 int pci_mmconfig_insert(struct device *dev, u16 seg, u8 start, u8 end,
 			phys_addr_t addr)
 {
@@ -791,7 +758,6 @@ int pci_mmconfig_insert(struct device *dev, u16 seg, u8 start, u8 end,
 	return rc;
 }
 
-/* Delete MMCFG information for host bridges */
 int pci_mmconfig_delete(u16 seg, u8 start, u8 end)
 {
 	struct pci_mmcfg_region *cfg;

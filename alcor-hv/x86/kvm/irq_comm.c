@@ -1,13 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * irq_comm.c: Common API for in kernel interrupt controller
- * Copyright (c) 2007, Intel Corporation.
- *
- * Authors:
- *   Yaozu (Eddie) Dong <Eddie.dong@intel.com>
- *
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
- */
 
 #include <linux/kvm_host.h>
 #include <linux/slab.h>

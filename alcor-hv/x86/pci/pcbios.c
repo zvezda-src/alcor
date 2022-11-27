@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * BIOS32 and PCI BIOS handling.
- */
 
 #include <linux/pci.h>
 #include <linux/init.h>
@@ -14,16 +10,12 @@
 #include <asm/pci-functions.h>
 #include <asm/set_memory.h>
 
-/* BIOS32 signature: "_32_" */
 #define BIOS32_SIGNATURE	(('_' << 0) + ('3' << 8) + ('2' << 16) + ('_' << 24))
 
-/* PCI signature: "PCI " */
 #define PCI_SIGNATURE		(('P' << 0) + ('C' << 8) + ('I' << 16) + (' ' << 24))
 
-/* PCI service signature: "$PCI" */
 #define PCI_SERVICE		(('$' << 0) + ('P' << 8) + ('C' << 16) + ('I' << 24))
 
-/* PCI BIOS hardware mechanism flags */
 #define PCIBIOS_HW_TYPE1		0x01
 #define PCIBIOS_HW_TYPE2		0x02
 #define PCIBIOS_HW_TYPE1_SPEC		0x10
@@ -31,17 +23,6 @@
 
 int pcibios_enabled;
 
-/* According to the BIOS specification at:
- * http://members.datafast.net.au/dft0802/specs/bios21.pdf, we could
- * restrict the x zone to some pages and make it ro. But this may be
- * broken on some bios, complex to handle with static_protections.
- * We could make the 0xe0000-0x100000 range rox, but this can break
- * some ISA mapping.
- *
- * So we let's an rw and x hole when pcibios is used. This shouldn't
- * happen for modern system with mmconfig, and if you don't want it
- * you could disable pcibios...
- */
 static inline void set_bios_x(void)
 {
 	pcibios_enabled = 1;
@@ -50,15 +31,6 @@ static inline void set_bios_x(void)
 		printk(KERN_INFO "PCI: PCI BIOS area is rw and x. Use pci=nobios if you want it NX.\n");
 }
 
-/*
- * This is the standard structure used to identify the entry point
- * to the BIOS32 Service Directory, as documented in
- * 	Standard BIOS 32-bit Service Directory Proposal
- * 	Revision 0.4 May 24, 1993
- * 	Phoenix Technologies Ltd.
- *	Norwood, MA
- * and the PCI BIOS specification.
- */
 
 union bios32 {
 	struct {
@@ -72,21 +44,12 @@ union bios32 {
 	char chars[16];
 };
 
-/*
- * Physical address of the service directory.  I don't know if we're
- * allowed to have more than one of these or not, so just in case
- * we'll make pcibios_present() take a memory start parameter and store
- * the array there.
- */
 
 static struct {
 	unsigned long address;
 	unsigned short segment;
 } bios32_indirect __initdata = { 0, __KERNEL_CS };
 
-/*
- * Returns the entry point for the given service, NULL on error
- */
 
 static unsigned long __init bios32_service(unsigned long service)
 {
@@ -219,9 +182,6 @@ static int pci_bios_read(unsigned int seg, unsigned int bus,
 		  "D" ((long)reg),
 		  "S" (&pci_indirect));
 	/*
-	 * Zero-extend the result beyond 8 or 16 bits, do not trust the
-	 * BIOS having done it:
-	 */
 	if (mask)
 		*value &= mask;
 
@@ -273,18 +233,12 @@ static int pci_bios_write(unsigned int seg, unsigned int bus,
 }
 
 
-/*
- * Function table for BIOS32 access
- */
 
 static const struct pci_raw_ops pci_bios_access = {
 	.read =		pci_bios_read,
 	.write =	pci_bios_write
 };
 
-/*
- * Try to find PCI BIOS.
- */
 
 static const struct pci_raw_ops *__init pci_find_bios(void)
 {
@@ -293,10 +247,6 @@ static const struct pci_raw_ops *__init pci_find_bios(void)
 	int i, length;
 
 	/*
-	 * Follow the standard procedure for locating the BIOS32 Service
-	 * directory by scanning the permissible address range from
-	 * 0xe0000 through 0xfffff for a valid BIOS32 structure.
-	 */
 
 	for (check = (union bios32 *) __va(0xe0000);
 	     check <= (union bios32 *) __va(0xffff0);
@@ -340,9 +290,6 @@ static const struct pci_raw_ops *__init pci_find_bios(void)
 	return NULL;
 }
 
-/*
- *  BIOS Functions for IRQ Routing
- */
 
 struct irq_routing_options {
 	u16 size;

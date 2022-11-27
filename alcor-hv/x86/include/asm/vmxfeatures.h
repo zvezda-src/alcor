@@ -1,39 +1,25 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_VMXFEATURES_H
 #define _ASM_X86_VMXFEATURES_H
 
-/*
- * Defines VMX CPU feature bits
- */
 #define NVMXINTS			5 /* N 32-bit words worth of info */
 
-/*
- * Note: If the comment begins with a quoted string, that string is used
- * in /proc/cpuinfo instead of the macro name.  If the string is "",
- * this feature bit is not displayed in /proc/cpuinfo at all.
- */
 
-/* Pin-Based VM-Execution Controls, EPT/VPID, APIC and VM-Functions, word 0 */
 #define VMX_FEATURE_INTR_EXITING	( 0*32+  0) /* "" VM-Exit on vectored interrupts */
 #define VMX_FEATURE_NMI_EXITING		( 0*32+  3) /* "" VM-Exit on NMIs */
 #define VMX_FEATURE_VIRTUAL_NMIS	( 0*32+  5) /* "vnmi" NMI virtualization */
 #define VMX_FEATURE_PREEMPTION_TIMER	( 0*32+  6) /* VMX Preemption Timer */
 #define VMX_FEATURE_POSTED_INTR		( 0*32+  7) /* Posted Interrupts */
 
-/* EPT/VPID features, scattered to bits 16-23 */
 #define VMX_FEATURE_INVVPID		( 0*32+ 16) /* INVVPID is supported */
 #define VMX_FEATURE_EPT_EXECUTE_ONLY	( 0*32+ 17) /* "ept_x_only" EPT entries can be execute only */
 #define VMX_FEATURE_EPT_AD		( 0*32+ 18) /* EPT Accessed/Dirty bits */
 #define VMX_FEATURE_EPT_1GB		( 0*32+ 19) /* 1GB EPT pages */
 
-/* Aggregated APIC features 24-27 */
 #define VMX_FEATURE_FLEXPRIORITY	( 0*32+ 24) /* TPR shadow + virt APIC */
 #define VMX_FEATURE_APICV	        ( 0*32+ 25) /* TPR shadow + APIC reg virt + virt intr delivery + posted interrupts */
 
-/* VM-Functions, shifted to bits 28-31 */
 #define VMX_FEATURE_EPTP_SWITCHING	( 0*32+ 28) /* EPTP switching (in guest) */
 
-/* Primary Processor-Based VM-Execution Controls, word 1 */
 #define VMX_FEATURE_INTR_WINDOW_EXITING ( 1*32+  2) /* "" VM-Exit if INTRs are unblocked in guest */
 #define VMX_FEATURE_USE_TSC_OFFSETTING	( 1*32+  3) /* "tsc_offset" Offset hardware TSC when read in guest */
 #define VMX_FEATURE_HLT_EXITING		( 1*32+  7) /* "" VM-Exit on HLT */
@@ -57,7 +43,6 @@
 #define VMX_FEATURE_PAUSE_EXITING	( 1*32+ 30) /* "" VM-Exit on PAUSE (unconditionally) */
 #define VMX_FEATURE_SEC_CONTROLS	( 1*32+ 31) /* "" Enable Secondary VM-Execution Controls */
 
-/* Secondary Processor-Based VM-Execution Controls, word 2 */
 #define VMX_FEATURE_VIRT_APIC_ACCESSES	( 2*32+  0) /* "vapic" Virtualize memory mapped APIC accesses */
 #define VMX_FEATURE_EPT			( 2*32+  1) /* Extended Page Tables, a.k.a. Two-Dimensional Paging */
 #define VMX_FEATURE_DESC_EXITING	( 2*32+  2) /* "" VM-Exit on {S,L}*DT instructions */
@@ -87,6 +72,5 @@
 #define VMX_FEATURE_BUS_LOCK_DETECTION	( 2*32+ 30) /* "" VM-Exit when bus lock caused */
 #define VMX_FEATURE_NOTIFY_VM_EXITING	( 2*32+ 31) /* VM-Exit when no event windows after notify window */
 
-/* Tertiary Processor-Based VM-Execution Controls, word 3 */
 #define VMX_FEATURE_IPI_VIRT		( 3*32+  4) /* Enable IPI virtualization */
 #endif /* _ASM_X86_VMXFEATURES_H */

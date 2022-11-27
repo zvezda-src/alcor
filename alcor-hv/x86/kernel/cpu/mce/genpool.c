@@ -1,34 +1,15 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * MCE event pool management in MCE context
- *
- * Copyright (C) 2015 Intel Corp.
- * Author: Chen, Gong <gong.chen@linux.intel.com>
- */
 #include <linux/smp.h>
 #include <linux/mm.h>
 #include <linux/genalloc.h>
 #include <linux/llist.h>
 #include "internal.h"
 
-/*
- * printk() is not safe in MCE context. This is a lock-less memory allocator
- * used to save error information organized in a lock-less list.
- *
- * This memory pool is only to be used to save MCE records in MCE context.
- * MCE events are rare, so a fixed size memory pool should be enough. Use
- * 2 pages to save MCE events for now (~80 MCE records at most).
- */
 #define MCE_POOLSZ	(2 * PAGE_SIZE)
 
 static struct gen_pool *mce_evt_pool;
 static LLIST_HEAD(mce_event_llist);
 static char gen_pool_buf[MCE_POOLSZ];
 
-/*
- * Compare the record "t" with each of the records on list "l" to see if
- * an equivalent one is present in the list.
- */
 static bool is_duplicate_mce_record(struct mce_evt_llist *t, struct mce_evt_llist *l)
 {
 	struct mce_evt_llist *node;
@@ -45,13 +26,6 @@ static bool is_duplicate_mce_record(struct mce_evt_llist *t, struct mce_evt_llis
 	return false;
 }
 
-/*
- * The system has panicked - we'd like to peruse the list of MCE records
- * that have been queued, but not seen by anyone yet.  The list is in
- * reverse time order, so we need to reverse it. While doing that we can
- * also drop duplicate records (these were logged because some banks are
- * shared between cores or by all threads on a socket).
- */
 struct llist_node *mce_gen_pool_prepare_records(void)
 {
 	struct llist_node *head;

@@ -1,31 +1,3 @@
-/*
- *  Copyright (C) 2001  MandrakeSoft S.A.
- *  Copyright 2010 Red Hat, Inc. and/or its affiliates.
- *
- *    MandrakeSoft S.A.
- *    43, rue d'Aboukir
- *    75002 Paris - France
- *    http://www.linux-mandrake.com/
- *    http://www.mandrakesoft.com/
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License as published by the Free Software Foundation; either
- *  version 2 of the License, or (at your option) any later version.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
- *  Yunhong Jiang <yunhong.jiang@intel.com>
- *  Yaozu (Eddie) Dong <eddie.dong@intel.com>
- *  Based on Xen 3.1 code.
- */
 
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
@@ -194,9 +166,6 @@ static void ioapic_lazy_update_eoi(struct kvm_ioapic *ioapic, int irq)
 			continue;
 
 		/*
-		 * If no longer has pending EOI in LAPICs, update
-		 * EOI for this vector.
-		 */
 		rtc_irq_eoi(ioapic, vcpu, entry->fields.vector);
 		break;
 	}
@@ -220,25 +189,10 @@ static int ioapic_set_irq(struct kvm_ioapic *ioapic, unsigned int irq,
 	}
 
 	/*
-	 * AMD SVM AVIC accelerate EOI write iff the interrupt is edge
-	 * triggered, in which case the in-kernel IOAPIC will not be able
-	 * to receive the EOI.  In this case, we do a lazy update of the
-	 * pending EOI when trying to set IOAPIC irq.
-	 */
 	if (edge && kvm_apicv_activated(ioapic->kvm))
 		ioapic_lazy_update_eoi(ioapic, irq);
 
 	/*
-	 * Return 0 for coalesced interrupts; for edge-triggered interrupts,
-	 * this only happens if a previous edge has not been delivered due
-	 * to masking.  For level interrupts, the remote_irr field tells
-	 * us if the interrupt is waiting for an EOI.
-	 *
-	 * RTC is special: it is edge-triggered, but userspace likes to know
-	 * if it has been already ack-ed via EOI because coalesced RTC
-	 * interrupts lead to time drift in Windows guests.  So we track
-	 * EOI manually for the RTC interrupt.
-	 */
 	if (irq == RTC_GSI && line_status &&
 		rtc_irq_check_coalesced(ioapic)) {
 		ret = 0;
@@ -356,11 +310,6 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 		e->fields.delivery_status = old_delivery_status;
 
 		/*
-		 * Some OSes (Linux, Xen) assume that Remote IRR bit will
-		 * be cleared by IOAPIC hardware when the entry is configured
-		 * as edge-triggered. This behavior is used to simulate an
-		 * explicit EOI on IOAPICs that don't have the EOI register.
-		 */
 		if (e->fields.trig_mode == IOAPIC_EDGE_TRIG)
 			e->fields.remote_irr = 0;
 
@@ -388,10 +337,6 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 			if (old_dest_mode != e->fields.dest_mode ||
 			    old_dest_id != e->fields.dest_id) {
 				/*
-				 * Update vcpu_bitmap with vcpus specified in
-				 * the previous request as well. This is done to
-				 * keep ioapic_handled_vectors synchronized.
-				 */
 				irq.dest_id = old_dest_id;
 				irq.dest_mode =
 				    kvm_lapic_irq_dest_mode(
@@ -433,11 +378,6 @@ static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 
 	if (irq == RTC_GSI && line_status) {
 		/*
-		 * pending_eoi cannot ever become negative (see
-		 * rtc_status_pending_eoi_check_valid) and the caller
-		 * ensures that it is only called if it is >= zero, namely
-		 * if rtc_irq_check_coalesced returns false).
-		 */
 		BUG_ON(ioapic->rtc_status.pending_eoi != 0);
 		ret = kvm_irq_delivery_to_apic(ioapic->kvm, NULL, &irqe,
 					       &ioapic->rtc_status.dest_map);
@@ -506,13 +446,6 @@ static void kvm_ioapic_update_eoi_one(struct kvm_vcpu *vcpu,
 	union kvm_ioapic_redirect_entry *ent = &ioapic->redirtbl[pin];
 
 	/*
-	 * We are dropping lock while calling ack notifiers because ack
-	 * notifier callbacks for assigned devices call into IOAPIC
-	 * recursively. Since remote_irr is cleared only after call
-	 * to notifiers if the same vector will be delivered while lock
-	 * is dropped it will be put into irr and will be delivered
-	 * after ack notifier returns.
-	 */
 	spin_unlock(&ioapic->lock);
 	kvm_notify_acked_irq(ioapic->kvm, KVM_IRQCHIP_IOAPIC, pin);
 	spin_lock(&ioapic->lock);
@@ -527,13 +460,6 @@ static void kvm_ioapic_update_eoi_one(struct kvm_vcpu *vcpu,
 		++ioapic->irq_eoi[pin];
 		if (ioapic->irq_eoi[pin] == IOAPIC_SUCCESSIVE_IRQ_MAX_COUNT) {
 			/*
-			 * Real hardware does not deliver the interrupt
-			 * immediately during eoi broadcast, and this
-			 * lets a buggy guest make slow progress
-			 * even if it does not correctly handle a
-			 * level-triggered interrupt.  Emulate this
-			 * behavior if we detect an interrupt storm.
-			 */
 			schedule_delayed_work(&ioapic->eoi_inject, HZ / 100);
 			ioapic->irq_eoi[pin] = 0;
 			trace_kvm_ioapic_delayed_eoi_inj(ent->bits);

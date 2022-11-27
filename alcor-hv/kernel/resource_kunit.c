@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
-/*
- * Test cases for API provided by resource.c and ioport.h
- */
 
 #include <kunit/test.h>
 #include <linux/ioport.h>

@@ -1,12 +1,3 @@
-/*
- * Created by: Jason Wessel <jason.wessel@windriver.com>
- *
- * Copyright (c) 2009 Wind River Systems, Inc.  All Rights Reserved.
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
- */
 
 #include <linux/kgdb.h>
 #include <linux/kdb.h>
@@ -16,9 +7,6 @@
 #include "kdb_private.h"
 #include "../debug_core.h"
 
-/*
- * KDB interface to KGDB internals
- */
 get_char_func kdb_poll_funcs[] = {
 	dbg_io_get_char,
 	NULL,
@@ -92,12 +80,6 @@ int kdb_stub(struct kgdb_state *ks)
 				bp->bp_delay = 1;
 				bp->bp_delayed = 1;
 	/*
-	 * SSBPT is set when the kernel debugger must single step a
-	 * task in order to re-establish an instruction breakpoint
-	 * which uses the instruction replacement mechanism.  It is
-	 * cleared by any action that removes the need to single-step
-	 * the breakpoint.
-	 */
 				reason = KDB_REASON_BREAK;
 				db_result = KDB_DB_BPT;
 				KDB_STATE_SET(SSBPT);
@@ -135,9 +117,6 @@ int kdb_stub(struct kgdb_state *ks)
 				      ks->err_code, db_result, ks->linux_regs);
 	}
 	/*
-	 * Upon exit from the kdb main loop setup break points and restart
-	 * the system based on the requested continue state
-	 */
 	kdb_common_deinit_state();
 	KDB_STATE_CLEAR(PAGER);
 	if (error == KDB_CMD_KGDB) {
@@ -161,9 +140,6 @@ int kdb_stub(struct kgdb_state *ks)
 	if (error == KDB_CMD_CPU) {
 		KDB_STATE_SET(REENTRY);
 		/*
-		 * Force clear the single step bit because kdb emulates this
-		 * differently vs the gdbstub
-		 */
 		kgdb_single_step = 0;
 		return DBG_SWITCH_CPU_EVENT;
 	}

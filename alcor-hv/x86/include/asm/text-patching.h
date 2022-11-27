@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_TEXT_PATCHING_H
 #define _ASM_X86_TEXT_PATCHING_H
 
@@ -18,29 +17,10 @@ static inline void apply_paravirt(struct paravirt_patch_site *start,
 #define __parainstructions_end	NULL
 #endif
 
-/*
- * Currently, the max observed size in the kernel code is
- * JUMP_LABEL_NOP_SIZE/RELATIVEJUMP_SIZE, which are 5.
- * Raise it if needed.
- */
 #define POKE_MAX_OPCODE_SIZE	5
 
 extern void text_poke_early(void *addr, const void *opcode, size_t len);
 
-/*
- * Clear and restore the kernel write-protection flag on the local CPU.
- * Allows the kernel to edit read-only pages.
- * Side-effect: any interrupt handler running between save and restore will have
- * the ability to write to read-only pages.
- *
- * Warning:
- * Code patching in the UP case is safe if NMIs and MCE handlers are stopped and
- * no thread can be preempted in the instructions being modified (no iret to an
- * invalid instruction possible) or if the instructions are changed from a
- * consistent state to another consistent state atomically.
- * On the local CPU you need to be protected against NMI or MCE handlers seeing
- * an inconsistent instruction while you patch.
- */
 extern void *text_poke(void *addr, const void *opcode, size_t len);
 extern void text_poke_sync(void);
 extern void *text_poke_kgdb(void *addr, const void *opcode, size_t len);
@@ -105,10 +85,6 @@ void __text_gen_insn(void *buf, u8 opcode, const void *addr, const void *dest, i
 	BUG_ON(size < text_opcode_size(opcode));
 
 	/*
-	 * Hide the addresses to avoid the compiler folding in constants when
-	 * referencing code, these can mess up annotations like
-	 * ANNOTATE_NOENDBR.
-	 */
 	OPTIMIZER_HIDE_VAR(insn);
 	OPTIMIZER_HIDE_VAR(addr);
 	OPTIMIZER_HIDE_VAR(dest);
@@ -119,9 +95,6 @@ void __text_gen_insn(void *buf, u8 opcode, const void *addr, const void *dest, i
 		insn->disp = (long)dest - (long)(addr + size);
 		if (size == 2) {
 			/*
-			 * Ensure that for JMP8 the displacement
-			 * actually fits the signed byte.
-			 */
 			BUG_ON((insn->disp >> 31) != (insn->disp >> 7));
 		}
 	}
@@ -150,16 +123,7 @@ static __always_inline
 void int3_emulate_push(struct pt_regs *regs, unsigned long val)
 {
 	/*
-	 * The int3 handler in entry_64.S adds a gap between the
-	 * stack where the break point happened, and the saving of
-	 * pt_regs. We can extend the original stack because of
-	 * this gap. See the idtentry macro's create_gap option.
-	 *
-	 * Similarly entry_32.S will have a gap on the stack for (any) hardware
-	 * exception and pt_regs; see FIXUP_FRAME.
-	 */
 	regs->sp -= sizeof(unsigned long);
-	*(unsigned long *)regs->sp = val;
 }
 
 static __always_inline

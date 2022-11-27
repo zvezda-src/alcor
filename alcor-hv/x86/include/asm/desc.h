@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_DESC_H
 #define _ASM_X86_DESC_H
 
@@ -35,9 +34,6 @@ static inline void fill_ldt(struct desc_struct *desc, const struct user_desc *in
 
 	desc->base2		= (info->base_addr & 0xff000000) >> 24;
 	/*
-	 * Don't allow setting of the lm bit. It would confuse
-	 * user_64bit_mode and would get overridden by sysret anyway.
-	 */
 	desc->l			= 0;
 }
 
@@ -47,31 +43,26 @@ struct gdt_page {
 
 DECLARE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page);
 
-/* Provide the original GDT */
 static inline struct desc_struct *get_cpu_gdt_rw(unsigned int cpu)
 {
 	return per_cpu(gdt_page, cpu).gdt;
 }
 
-/* Provide the current original GDT */
 static inline struct desc_struct *get_current_gdt_rw(void)
 {
 	return this_cpu_ptr(&gdt_page)->gdt;
 }
 
-/* Provide the fixmap address of the remapped GDT */
 static inline struct desc_struct *get_cpu_gdt_ro(int cpu)
 {
 	return (struct desc_struct *)&get_cpu_entry_area(cpu)->gdt;
 }
 
-/* Provide the current read-only GDT */
 static inline struct desc_struct *get_current_gdt_ro(void)
 {
 	return get_cpu_gdt_ro(smp_processor_id());
 }
 
-/* Provide the physical address of the GDT page. */
 static inline phys_addr_t get_cpu_gdt_paddr(unsigned int cpu)
 {
 	return per_cpu_ptr_to_phys(get_cpu_gdt_rw(cpu));
@@ -245,11 +236,6 @@ static inline void native_idt_invalidate(void)
 	native_load_idt(&invalid_idt);
 }
 
-/*
- * The LTR instruction marks the TSS GDT entry as busy. On 64-bit, the GDT is
- * a read-only remapping. To prevent a page fault, the GDT is switched to the
- * original writeable version when needed.
- */
 #ifdef CONFIG_X86_64
 static inline void native_load_tr_desc(void)
 {
@@ -262,9 +248,6 @@ static inline void native_load_tr_desc(void)
 	fixmap_gdt = get_cpu_gdt_ro(cpu);
 
 	/*
-	 * If the current GDT is the read-only fixmap, swap to the original
-	 * writeable version. Swap back at the end.
-	 */
 	if (gdt.address == (unsigned long)fixmap_gdt) {
 		load_direct_gdt(cpu);
 		restore = 1;
@@ -308,9 +291,6 @@ static inline void force_reload_TR(void)
 	memcpy(&tss, &d[GDT_ENTRY_TSS], sizeof(tss_desc));
 
 	/*
-	 * LTR requires an available TSS, and the TSS is currently
-	 * busy.  Make it be available so that LTR will work.
-	 */
 	tss.type = DESC_TSS;
 	write_gdt_entry(d, GDT_ENTRY_TSS, &tss, DESC_TSS);
 
@@ -318,11 +298,6 @@ static inline void force_reload_TR(void)
 	this_cpu_write(__tss_limit_invalid, false);
 }
 
-/*
- * Call this if you need the TSS limit to be correct, which should be the case
- * if and only if you have TIF_IO_BITMAP set or you're switching to a task
- * with TIF_IO_BITMAP set.
- */
 static inline void refresh_tss_limit(void)
 {
 	DEBUG_LOCKS_WARN_ON(preemptible());
@@ -331,15 +306,6 @@ static inline void refresh_tss_limit(void)
 		force_reload_TR();
 }
 
-/*
- * If you do something evil that corrupts the cached TSS limit (I'm looking
- * at you, VMX exits), call this function.
- *
- * The optimization here is that the TSS limit only matters for Linux if the
- * IO bitmap is in use.  If the TSS limit gets forced to its minimum value,
- * everything works except that IO bitmap will be ignored and all CPL 3 IO
- * instructions will #GP, which is exactly what we want for normal tasks.
- */
 static inline void invalidate_tss_limit(void)
 {
 	DEBUG_LOCKS_WARN_ON(preemptible());
@@ -350,7 +316,6 @@ static inline void invalidate_tss_limit(void)
 		this_cpu_write(__tss_limit_invalid, true);
 }
 
-/* This intentionally ignores lm, since 32-bit apps don't have that field. */
 #define LDT_empty(info)					\
 	((info)->base_addr		== 0	&&	\
 	 (info)->limit			== 0	&&	\
@@ -361,7 +326,6 @@ static inline void invalidate_tss_limit(void)
 	 (info)->seg_not_present	== 1	&&	\
 	 (info)->useable		== 0)
 
-/* Lots of programs expect an all-zero user_desc to mean "no segment at all". */
 static inline bool LDT_zero(const struct user_desc *info)
 {
 	return (info->base_addr		== 0 &&

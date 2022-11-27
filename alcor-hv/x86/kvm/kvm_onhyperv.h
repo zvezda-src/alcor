@@ -1,7 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * KVM L1 hypervisor optimizations on Hyper-V.
- */
 
 #ifndef __ARCH_X86_KVM_KVM_ONHYPERV_H__
 #define __ARCH_X86_KVM_KVM_ONHYPERV_H__

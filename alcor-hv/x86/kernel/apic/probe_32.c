@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Default generic APIC driver. This handles up to 8 CPUs.
- *
- * Copyright 2003 Andi Kleen, SuSE Labs.
- *
- * Generic x86 APIC driver probe layer.
- */
 #include <linux/export.h>
 #include <linux/errno.h>
 #include <linux/smp.h>
@@ -35,11 +27,6 @@ static int default_apic_id_registered(void)
 	return physid_isset(read_apic_id(), phys_cpu_present_map);
 }
 
-/*
- * Set up the logical destination ID.  Intel recommends to set DFR, LDR and
- * TPR before enabling an APIC.  See e.g. "AP-388 82489DX User's Manual"
- * (Intel document number 292116).
- */
 static void default_init_apic_ldr(void)
 {
 	unsigned long val;
@@ -55,7 +42,6 @@ static int default_phys_pkg_id(int cpuid_apic, int index_msb)
 	return cpuid_apic >> index_msb;
 }
 
-/* should be called last. */
 static int probe_default(void)
 {
 	return 1;
@@ -155,11 +141,6 @@ void __init default_setup_apic_routing(void)
 
 #ifdef CONFIG_X86_BIGSMP
 	/*
-	 * This is used to switch to bigsmp mode when
-	 * - There is no apic= option specified by the user
-	 * - generic_apic_probe() has chosen apic_default as the sub_arch
-	 * - we find more than 8 CPUs in acpi LAPIC listing with xAPIC support
-	 */
 
 	if (!cmdline_apic && apic == &apic_default)
 		generic_bigsmp_probe();
@@ -187,7 +168,6 @@ void __init generic_apic_probe(void)
 	printk(KERN_INFO "Using APIC driver %s\n", apic->name);
 }
 
-/* This function can switch the APIC even after the initial ->probe() */
 int __init default_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	struct apic **drv;

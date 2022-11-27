@@ -1,31 +1,4 @@
-#
-#
 
-# Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 """Transportable objects for Alcor.
@@ -35,17 +8,10 @@ pass to and from external parties.
 
 """
 
-# pylint: disable=E0203,E0237,W0201,R0902
 
-# E0203: Access to member %r before its definition, since we use
-# objects.py which doesn't explicitly initialise its members
 
-# E0237: Assigning to attribute not defined in class slots. pylint doesn't
-# appear to notice many of the slots defined in __slots__ for several objects.
 
-# W0201: Attribute '%s' defined outside __init__
 
-# R0902: Allow instances of these objects to have more than 20 attributes
 
 import configparser
 import re
@@ -2416,7 +2382,6 @@ class Network(TaggableObject):
     return obj
 
 
-# need to inherit object in order to use super()
 class SerializableConfigParser(configparser.ConfigParser, object):
   """Simple wrapper over ConfigParse that allows serialization.
 

@@ -53,7 +53,6 @@ import Foreign.C.Types
 
 import Network.Curl
 
-#include <curl/curl.h>
 
 -- | Data representing a @CURLMSG@ enum.
 data CurlMsgCode = CurlMsgNone

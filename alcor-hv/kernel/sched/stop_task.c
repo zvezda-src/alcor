@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * stop-task scheduling class.
- *
- * The stop task is the highest priority task in the system, it preempts
- * everything and will be preempted by nothing.
- *
- * See kernel/stop_machine.c
- */
 
 #ifdef CONFIG_SMP
 static int
@@ -87,14 +78,6 @@ static void put_prev_task_stop(struct rq *rq, struct task_struct *prev)
 	cgroup_account_cputime(curr, delta_exec);
 }
 
-/*
- * scheduler tick hitting a task of our scheduling class.
- *
- * NOTE: This function can be called remotely by the tick offload that
- * goes along full dynticks. Therefore no local assumption can be made
- * and everything must be accessed through the @rq and @curr passed in
- * parameters.
- */
 static void task_tick_stop(struct rq *rq, struct task_struct *curr, int queued)
 {
 }
@@ -114,9 +97,6 @@ static void update_curr_stop(struct rq *rq)
 {
 }
 
-/*
- * Simple, special scheduling class for the per-CPU stop tasks:
- */
 DEFINE_SCHED_CLASS(stop) = {
 
 	.enqueue_task		= enqueue_task_stop,

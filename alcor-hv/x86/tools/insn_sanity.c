@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * x86 decoder sanity test - based on test_get_insn.c
- *
- * Copyright (C) IBM Corporation, 2009
- * Copyright (C) Hitachi, Ltd., 2011
- */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -18,11 +11,6 @@
 #include <inat.c>
 #include <insn.c>
 
-/*
- * Test of instruction analysis against tampering.
- * Feed random binary to instruction decoder and ensure not to
- * access out-of-instruction-buffer.
- */
 
 #define DEFAULT_MAX_ITER	10000
 #define INSN_NOP 0x90
@@ -119,7 +107,6 @@ fail:
 	usage("Failed to open /dev/urandom");
 }
 
-/* Read given instruction sequence from the input file */
 static int read_next_insn(unsigned char *insn_buff)
 {
 	char buf[256]  = "", *tmp;

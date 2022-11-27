@@ -1,8 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __X86_KERNEL_KPROBES_COMMON_H
 #define __X86_KERNEL_KPROBES_COMMON_H
 
-/* Kprobes and Optprobes common header */
 
 #include <asm/asm.h>
 #include <asm/frame.h>
@@ -77,18 +75,11 @@
 	"	addl $7*4, %esp\n"
 #endif
 
-/* Ensure if the instruction can be boostable */
 extern int can_boost(struct insn *insn, void *orig_addr);
-/* Recover instruction if given address is probed */
 extern unsigned long recover_probed_instruction(kprobe_opcode_t *buf,
 					 unsigned long addr);
-/*
- * Copy an instruction and adjust the displacement if the instruction
- * uses the %rip-relative addressing mode.
- */
 extern int __copy_instruction(u8 *dest, u8 *src, u8 *real, struct insn *insn);
 
-/* Generate a relative-jump/call instruction */
 extern void synthesize_reljump(void *dest, void *from, void *to);
 extern void synthesize_relcall(void *dest, void *from, void *to);
 

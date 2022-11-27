@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/kdebug.h>
 #include <linux/kprobes.h>
 #include <linux/export.h>
@@ -7,17 +6,8 @@
 #include <linux/vmalloc.h>
 #include <linux/reboot.h>
 
-/*
- *	Notifier list for kernel code which wants to be called
- *	at shutdown. This is used to stop any idling DMA operations
- *	and the like.
- */
 BLOCKING_NOTIFIER_HEAD(reboot_notifier_list);
 
-/*
- *	Notifier chain core routines.  The exported routines below
- *	are layered on top of these, with appropriate locking added.
- */
 
 static int notifier_chain_register(struct notifier_block **nl,
 				   struct notifier_block *n,
@@ -53,18 +43,6 @@ static int notifier_chain_unregister(struct notifier_block **nl,
 	return -ENOENT;
 }
 
-/**
- * notifier_call_chain - Informs the registered notifiers about an event.
- *	@nl:		Pointer to head of the blocking notifier chain
- *	@val:		Value passed unmodified to notifier function
- *	@v:		Pointer passed unmodified to notifier function
- *	@nr_to_call:	Number of notifier functions to be called. Don't care
- *			value of this parameter is -1.
- *	@nr_calls:	Records the number of notifications sent. Don't care
- *			value of this field is NULL.
- *	@returns:	notifier_call_chain returns the value returned by the
- *			last notifier function called.
- */
 static int notifier_call_chain(struct notifier_block **nl,
 			       unsigned long val, void *v,
 			       int nr_to_call, int *nr_calls)
@@ -98,21 +76,6 @@ static int notifier_call_chain(struct notifier_block **nl,
 }
 NOKPROBE_SYMBOL(notifier_call_chain);
 
-/**
- * notifier_call_chain_robust - Inform the registered notifiers about an event
- *                              and rollback on error.
- * @nl:		Pointer to head of the blocking notifier chain
- * @val_up:	Value passed unmodified to the notifier function
- * @val_down:	Value passed unmodified to the notifier function when recovering
- *              from an error on @val_up
- * @v		Pointer passed unmodified to the notifier function
- *
- * NOTE:	It is important the @nl chain doesn't change between the two
- *		invocations of notifier_call_chain() such that we visit the
- *		exact same notifier callbacks; this rules out any RCU usage.
- *
- * Returns:	the return value of the @val_up call.
- */
 static int notifier_call_chain_robust(struct notifier_block **nl,
 				     unsigned long val_up, unsigned long val_down,
 				     void *v)
@@ -126,20 +89,7 @@ static int notifier_call_chain_robust(struct notifier_block **nl,
 	return ret;
 }
 
-/*
- *	Atomic notifier chain routines.  Registration and unregistration
- *	use a spinlock, and call_chain is synchronized by RCU (no locks).
- */
 
-/**
- *	atomic_notifier_chain_register - Add notifier to an atomic notifier chain
- *	@nh: Pointer to head of the atomic notifier chain
- *	@n: New entry in notifier chain
- *
- *	Adds a notifier to an atomic notifier chain.
- *
- *	Returns 0 on success, %-EEXIST on error.
- */
 int atomic_notifier_chain_register(struct atomic_notifier_head *nh,
 		struct notifier_block *n)
 {
@@ -153,16 +103,6 @@ int atomic_notifier_chain_register(struct atomic_notifier_head *nh,
 }
 EXPORT_SYMBOL_GPL(atomic_notifier_chain_register);
 
-/**
- *	atomic_notifier_chain_register_unique_prio - Add notifier to an atomic notifier chain
- *	@nh: Pointer to head of the atomic notifier chain
- *	@n: New entry in notifier chain
- *
- *	Adds a notifier to an atomic notifier chain if there is no other
- *	notifier registered using the same priority.
- *
- *	Returns 0 on success, %-EEXIST or %-EBUSY on error.
- */
 int atomic_notifier_chain_register_unique_prio(struct atomic_notifier_head *nh,
 					       struct notifier_block *n)
 {
@@ -176,15 +116,6 @@ int atomic_notifier_chain_register_unique_prio(struct atomic_notifier_head *nh,
 }
 EXPORT_SYMBOL_GPL(atomic_notifier_chain_register_unique_prio);
 
-/**
- *	atomic_notifier_chain_unregister - Remove notifier from an atomic notifier chain
- *	@nh: Pointer to head of the atomic notifier chain
- *	@n: Entry to remove from notifier chain
- *
- *	Removes a notifier from an atomic notifier chain.
- *
- *	Returns zero on success or %-ENOENT on failure.
- */
 int atomic_notifier_chain_unregister(struct atomic_notifier_head *nh,
 		struct notifier_block *n)
 {
@@ -199,23 +130,6 @@ int atomic_notifier_chain_unregister(struct atomic_notifier_head *nh,
 }
 EXPORT_SYMBOL_GPL(atomic_notifier_chain_unregister);
 
-/**
- *	atomic_notifier_call_chain - Call functions in an atomic notifier chain
- *	@nh: Pointer to head of the atomic notifier chain
- *	@val: Value passed unmodified to notifier function
- *	@v: Pointer passed unmodified to notifier function
- *
- *	Calls each function in a notifier chain in turn.  The functions
- *	run in an atomic context, so they must not block.
- *	This routine uses RCU to synchronize with changes to the chain.
- *
- *	If the return value of the notifier can be and'ed
- *	with %NOTIFY_STOP_MASK then atomic_notifier_call_chain()
- *	will return immediately, with the return value of
- *	the notifier function which halted execution.
- *	Otherwise the return value is the return value
- *	of the last notifier function called.
- */
 int atomic_notifier_call_chain(struct atomic_notifier_head *nh,
 			       unsigned long val, void *v)
 {
@@ -230,23 +144,11 @@ int atomic_notifier_call_chain(struct atomic_notifier_head *nh,
 EXPORT_SYMBOL_GPL(atomic_notifier_call_chain);
 NOKPROBE_SYMBOL(atomic_notifier_call_chain);
 
-/**
- *	atomic_notifier_call_chain_is_empty - Check whether notifier chain is empty
- *	@nh: Pointer to head of the atomic notifier chain
- *
- *	Checks whether notifier chain is empty.
- *
- *	Returns true is notifier chain is empty, false otherwise.
- */
 bool atomic_notifier_call_chain_is_empty(struct atomic_notifier_head *nh)
 {
 	return !rcu_access_pointer(nh->head);
 }
 
-/*
- *	Blocking notifier chain routines.  All access to the chain is
- *	synchronized by an rwsem.
- */
 
 static int __blocking_notifier_chain_register(struct blocking_notifier_head *nh,
 					      struct notifier_block *n,
@@ -255,10 +157,6 @@ static int __blocking_notifier_chain_register(struct blocking_notifier_head *nh,
 	int ret;
 
 	/*
-	 * This code gets used during boot-up, when task switching is
-	 * not yet working and interrupts must remain disabled.  At
-	 * such times we must not call down_write().
-	 */
 	if (unlikely(system_state == SYSTEM_BOOTING))
 		return notifier_chain_register(&nh->head, n, unique_priority);
 
@@ -268,16 +166,6 @@ static int __blocking_notifier_chain_register(struct blocking_notifier_head *nh,
 	return ret;
 }
 
-/**
- *	blocking_notifier_chain_register - Add notifier to a blocking notifier chain
- *	@nh: Pointer to head of the blocking notifier chain
- *	@n: New entry in notifier chain
- *
- *	Adds a notifier to a blocking notifier chain.
- *	Must be called in process context.
- *
- *	Returns 0 on success, %-EEXIST on error.
- */
 int blocking_notifier_chain_register(struct blocking_notifier_head *nh,
 		struct notifier_block *n)
 {
@@ -285,16 +173,6 @@ int blocking_notifier_chain_register(struct blocking_notifier_head *nh,
 }
 EXPORT_SYMBOL_GPL(blocking_notifier_chain_register);
 
-/**
- *	blocking_notifier_chain_register_unique_prio - Add notifier to a blocking notifier chain
- *	@nh: Pointer to head of the blocking notifier chain
- *	@n: New entry in notifier chain
- *
- *	Adds a notifier to an blocking notifier chain if there is no other
- *	notifier registered using the same priority.
- *
- *	Returns 0 on success, %-EEXIST or %-EBUSY on error.
- */
 int blocking_notifier_chain_register_unique_prio(struct blocking_notifier_head *nh,
 						 struct notifier_block *n)
 {
@@ -302,26 +180,12 @@ int blocking_notifier_chain_register_unique_prio(struct blocking_notifier_head *
 }
 EXPORT_SYMBOL_GPL(blocking_notifier_chain_register_unique_prio);
 
-/**
- *	blocking_notifier_chain_unregister - Remove notifier from a blocking notifier chain
- *	@nh: Pointer to head of the blocking notifier chain
- *	@n: Entry to remove from notifier chain
- *
- *	Removes a notifier from a blocking notifier chain.
- *	Must be called from process context.
- *
- *	Returns zero on success or %-ENOENT on failure.
- */
 int blocking_notifier_chain_unregister(struct blocking_notifier_head *nh,
 		struct notifier_block *n)
 {
 	int ret;
 
 	/*
-	 * This code gets used during boot-up, when task switching is
-	 * not yet working and interrupts must remain disabled.  At
-	 * such times we must not call down_write().
-	 */
 	if (unlikely(system_state == SYSTEM_BOOTING))
 		return notifier_chain_unregister(&nh->head, n);
 
@@ -338,10 +202,6 @@ int blocking_notifier_call_chain_robust(struct blocking_notifier_head *nh,
 	int ret = NOTIFY_DONE;
 
 	/*
-	 * We check the head outside the lock, but if this access is
-	 * racy then it does not matter what the result of the test
-	 * is, we re-check the list after having taken the lock anyway:
-	 */
 	if (rcu_access_pointer(nh->head)) {
 		down_read(&nh->rwsem);
 		ret = notifier_call_chain_robust(&nh->head, val_up, val_down, v);
@@ -351,32 +211,12 @@ int blocking_notifier_call_chain_robust(struct blocking_notifier_head *nh,
 }
 EXPORT_SYMBOL_GPL(blocking_notifier_call_chain_robust);
 
-/**
- *	blocking_notifier_call_chain - Call functions in a blocking notifier chain
- *	@nh: Pointer to head of the blocking notifier chain
- *	@val: Value passed unmodified to notifier function
- *	@v: Pointer passed unmodified to notifier function
- *
- *	Calls each function in a notifier chain in turn.  The functions
- *	run in a process context, so they are allowed to block.
- *
- *	If the return value of the notifier can be and'ed
- *	with %NOTIFY_STOP_MASK then blocking_notifier_call_chain()
- *	will return immediately, with the return value of
- *	the notifier function which halted execution.
- *	Otherwise the return value is the return value
- *	of the last notifier function called.
- */
 int blocking_notifier_call_chain(struct blocking_notifier_head *nh,
 		unsigned long val, void *v)
 {
 	int ret = NOTIFY_DONE;
 
 	/*
-	 * We check the head outside the lock, but if this access is
-	 * racy then it does not matter what the result of the test
-	 * is, we re-check the list after having taken the lock anyway:
-	 */
 	if (rcu_access_pointer(nh->head)) {
 		down_read(&nh->rwsem);
 		ret = notifier_call_chain(&nh->head, val, v, -1, NULL);
@@ -386,21 +226,7 @@ int blocking_notifier_call_chain(struct blocking_notifier_head *nh,
 }
 EXPORT_SYMBOL_GPL(blocking_notifier_call_chain);
 
-/*
- *	Raw notifier chain routines.  There is no protection;
- *	the caller must provide it.  Use at your own risk!
- */
 
-/**
- *	raw_notifier_chain_register - Add notifier to a raw notifier chain
- *	@nh: Pointer to head of the raw notifier chain
- *	@n: New entry in notifier chain
- *
- *	Adds a notifier to a raw notifier chain.
- *	All locking must be provided by the caller.
- *
- *	Returns 0 on success, %-EEXIST on error.
- */
 int raw_notifier_chain_register(struct raw_notifier_head *nh,
 		struct notifier_block *n)
 {
@@ -408,16 +234,6 @@ int raw_notifier_chain_register(struct raw_notifier_head *nh,
 }
 EXPORT_SYMBOL_GPL(raw_notifier_chain_register);
 
-/**
- *	raw_notifier_chain_unregister - Remove notifier from a raw notifier chain
- *	@nh: Pointer to head of the raw notifier chain
- *	@n: Entry to remove from notifier chain
- *
- *	Removes a notifier from a raw notifier chain.
- *	All locking must be provided by the caller.
- *
- *	Returns zero on success or %-ENOENT on failure.
- */
 int raw_notifier_chain_unregister(struct raw_notifier_head *nh,
 		struct notifier_block *n)
 {
@@ -432,23 +248,6 @@ int raw_notifier_call_chain_robust(struct raw_notifier_head *nh,
 }
 EXPORT_SYMBOL_GPL(raw_notifier_call_chain_robust);
 
-/**
- *	raw_notifier_call_chain - Call functions in a raw notifier chain
- *	@nh: Pointer to head of the raw notifier chain
- *	@val: Value passed unmodified to notifier function
- *	@v: Pointer passed unmodified to notifier function
- *
- *	Calls each function in a notifier chain in turn.  The functions
- *	run in an undefined context.
- *	All locking must be provided by the caller.
- *
- *	If the return value of the notifier can be and'ed
- *	with %NOTIFY_STOP_MASK then raw_notifier_call_chain()
- *	will return immediately, with the return value of
- *	the notifier function which halted execution.
- *	Otherwise the return value is the return value
- *	of the last notifier function called.
- */
 int raw_notifier_call_chain(struct raw_notifier_head *nh,
 		unsigned long val, void *v)
 {
@@ -457,31 +256,13 @@ int raw_notifier_call_chain(struct raw_notifier_head *nh,
 EXPORT_SYMBOL_GPL(raw_notifier_call_chain);
 
 #ifdef CONFIG_SRCU
-/*
- *	SRCU notifier chain routines.    Registration and unregistration
- *	use a mutex, and call_chain is synchronized by SRCU (no locks).
- */
 
-/**
- *	srcu_notifier_chain_register - Add notifier to an SRCU notifier chain
- *	@nh: Pointer to head of the SRCU notifier chain
- *	@n: New entry in notifier chain
- *
- *	Adds a notifier to an SRCU notifier chain.
- *	Must be called in process context.
- *
- *	Returns 0 on success, %-EEXIST on error.
- */
 int srcu_notifier_chain_register(struct srcu_notifier_head *nh,
 		struct notifier_block *n)
 {
 	int ret;
 
 	/*
-	 * This code gets used during boot-up, when task switching is
-	 * not yet working and interrupts must remain disabled.  At
-	 * such times we must not call mutex_lock().
-	 */
 	if (unlikely(system_state == SYSTEM_BOOTING))
 		return notifier_chain_register(&nh->head, n, false);
 
@@ -492,26 +273,12 @@ int srcu_notifier_chain_register(struct srcu_notifier_head *nh,
 }
 EXPORT_SYMBOL_GPL(srcu_notifier_chain_register);
 
-/**
- *	srcu_notifier_chain_unregister - Remove notifier from an SRCU notifier chain
- *	@nh: Pointer to head of the SRCU notifier chain
- *	@n: Entry to remove from notifier chain
- *
- *	Removes a notifier from an SRCU notifier chain.
- *	Must be called from process context.
- *
- *	Returns zero on success or %-ENOENT on failure.
- */
 int srcu_notifier_chain_unregister(struct srcu_notifier_head *nh,
 		struct notifier_block *n)
 {
 	int ret;
 
 	/*
-	 * This code gets used during boot-up, when task switching is
-	 * not yet working and interrupts must remain disabled.  At
-	 * such times we must not call mutex_lock().
-	 */
 	if (unlikely(system_state == SYSTEM_BOOTING))
 		return notifier_chain_unregister(&nh->head, n);
 
@@ -523,22 +290,6 @@ int srcu_notifier_chain_unregister(struct srcu_notifier_head *nh,
 }
 EXPORT_SYMBOL_GPL(srcu_notifier_chain_unregister);
 
-/**
- *	srcu_notifier_call_chain - Call functions in an SRCU notifier chain
- *	@nh: Pointer to head of the SRCU notifier chain
- *	@val: Value passed unmodified to notifier function
- *	@v: Pointer passed unmodified to notifier function
- *
- *	Calls each function in a notifier chain in turn.  The functions
- *	run in a process context, so they are allowed to block.
- *
- *	If the return value of the notifier can be and'ed
- *	with %NOTIFY_STOP_MASK then srcu_notifier_call_chain()
- *	will return immediately, with the return value of
- *	the notifier function which halted execution.
- *	Otherwise the return value is the return value
- *	of the last notifier function called.
- */
 int srcu_notifier_call_chain(struct srcu_notifier_head *nh,
 		unsigned long val, void *v)
 {
@@ -552,18 +303,6 @@ int srcu_notifier_call_chain(struct srcu_notifier_head *nh,
 }
 EXPORT_SYMBOL_GPL(srcu_notifier_call_chain);
 
-/**
- *	srcu_init_notifier_head - Initialize an SRCU notifier head
- *	@nh: Pointer to head of the srcu notifier chain
- *
- *	Unlike other sorts of notifier heads, SRCU notifier heads require
- *	dynamic initialization.  Be sure to call this routine before
- *	calling any of the other SRCU notifier routines for this head.
- *
- *	If an SRCU notifier head is deallocated, it must first be cleaned
- *	up by calling srcu_cleanup_notifier_head().  Otherwise the head's
- *	per-cpu data (used by the SRCU mechanism) will leak.
- */
 void srcu_init_notifier_head(struct srcu_notifier_head *nh)
 {
 	mutex_init(&nh->mutex);

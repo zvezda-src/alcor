@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * KVM L1 hypervisor optimizations on Hyper-V for SVM.
- */
 
 #include <linux/kvm_host.h>
 

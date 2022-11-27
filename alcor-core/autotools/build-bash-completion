@@ -1,39 +1,10 @@
-#!/usr/bin/python3
-#
 
-# Copyright (C) 2009, 2010, 2011, 2012 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 """Script to generate bash_completion script for Alcor.
 
 """
 
-# pylint: disable=C0103
-# [C0103] Invalid name build-bash-completion
 
 import os
 import os.path
@@ -42,8 +13,6 @@ import itertools
 import optparse
 from io import StringIO
 
-# _constants shouldn't be imported from anywhere except constants.py, but we're
-# making an exception here because this script is only used at build time.
 from alcor import _constants
 
 from alcor import constants
@@ -54,8 +23,6 @@ from alcor import pathutils
 
 from alcor.tools import burnin
 
-#: Regular expression describing desired format of option names. Long names can
-#: contain lowercase characters, numbers and dashes only.
 _OPT_NAME_RE = re.compile(r"^-[a-zA-Z0-9]|--[a-z][-a-z0-9]+$")
 
 
@@ -733,7 +700,6 @@ def HaskellOptToOptParse(opts, kind):
     raise Exception("Unhandled option kind '%s'" % kind)
 
 
-#: serialised kind to arg type
 _ARG_MAP = {
   "choices": cli.ArgChoice,
   "command": cli.ArgCommand,

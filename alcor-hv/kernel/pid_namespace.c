@@ -1,13 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Pid namespaces
- *
- * Authors:
- *    (C) 2007 Pavel Emelyanov <xemul@openvz.org>, OpenVZ, SWsoft Inc.
- *    (C) 2007 Sukadev Bhattiprolu <sukadev@us.ibm.com>, IBM
- *     Many thanks to Oleg Nesterov for comments and help
- *
- */
 
 #include <linux/pid.h>
 #include <linux/pid_namespace.h>
@@ -26,13 +16,8 @@
 
 static DEFINE_MUTEX(pid_caches_mutex);
 static struct kmem_cache *pid_ns_cachep;
-/* Write once array, filled from the beginning. */
 static struct kmem_cache *pid_cache[MAX_PID_NS_LEVEL];
 
-/*
- * creates the kmem cache to allocate pids from.
- * @level: pid namespace level
- */
 
 static struct kmem_cache *create_pid_cachep(unsigned int level)
 {
@@ -175,27 +160,11 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	disable_pid_allocation(pid_ns);
 
 	/*
-	 * Ignore SIGCHLD causing any terminated children to autoreap.
-	 * This speeds up the namespace shutdown, plus see the comment
-	 * below.
-	 */
 	spin_lock_irq(&me->sighand->siglock);
 	me->sighand->action[SIGCHLD - 1].sa.sa_handler = SIG_IGN;
 	spin_unlock_irq(&me->sighand->siglock);
 
 	/*
-	 * The last thread in the cgroup-init thread group is terminating.
-	 * Find remaining pid_ts in the namespace, signal and wait for them
-	 * to exit.
-	 *
-	 * Note:  This signals each threads in the namespace - even those that
-	 * 	  belong to the same thread group, To avoid this, we would have
-	 * 	  to walk the entire tasklist looking a processes in this
-	 * 	  namespace, but that could be unnecessarily expensive if the
-	 * 	  pid namespace has just a few processes. Or we need to
-	 * 	  maintain a tasklist for each pid namespace.
-	 *
-	 */
 	rcu_read_lock();
 	read_lock(&tasklist_lock);
 	nr = 2;
@@ -208,38 +177,12 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	rcu_read_unlock();
 
 	/*
-	 * Reap the EXIT_ZOMBIE children we had before we ignored SIGCHLD.
-	 * kernel_wait4() will also block until our children traced from the
-	 * parent namespace are detached and become EXIT_DEAD.
-	 */
 	do {
 		clear_thread_flag(TIF_SIGPENDING);
 		rc = kernel_wait4(-1, NULL, __WALL, NULL);
 	} while (rc != -ECHILD);
 
 	/*
-	 * kernel_wait4() misses EXIT_DEAD children, and EXIT_ZOMBIE
-	 * process whose parents processes are outside of the pid
-	 * namespace.  Such processes are created with setns()+fork().
-	 *
-	 * If those EXIT_ZOMBIE processes are not reaped by their
-	 * parents before their parents exit, they will be reparented
-	 * to pid_ns->child_reaper.  Thus pidns->child_reaper needs to
-	 * stay valid until they all go away.
-	 *
-	 * The code relies on the pid_ns->child_reaper ignoring
-	 * SIGCHILD to cause those EXIT_ZOMBIE processes to be
-	 * autoreaped if reparented.
-	 *
-	 * Semantically it is also desirable to wait for EXIT_ZOMBIE
-	 * processes before allowing the child_reaper to be reaped, as
-	 * that gives the invariant that when the init process of a
-	 * pid namespace is reaped all of the processes in the pid
-	 * namespace are gone.
-	 *
-	 * Once all of the other tasks are gone from the pid_namespace
-	 * free_pid() will awaken this task.
-	 */
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (pid_ns->pid_allocated == init_pids)
@@ -267,10 +210,6 @@ static int pid_ns_ctl_handler(struct ctl_table *table, int write,
 		return -EPERM;
 
 	/*
-	 * Writing directly to ns' last_pid field is OK, since this field
-	 * is volatile in a living namespace anyway and a code writing to
-	 * it should synchronize its usage with external means.
-	 */
 
 	next = idr_get_cursor(&pid_ns->idr) - 1;
 
@@ -383,13 +322,6 @@ static int pidns_install(struct nsset *nsset, struct ns_common *ns)
 		return -EPERM;
 
 	/*
-	 * Only allow entering the current active pid namespace
-	 * or a child of the current active pid namespace.
-	 *
-	 * This is required for fork to return a usable pid value and
-	 * this maintains the property that processes and their
-	 * children can not escape their current pid namespace.
-	 */
 	if (new->level < active->level)
 		return -EINVAL;
 

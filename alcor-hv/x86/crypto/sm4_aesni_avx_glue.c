@@ -1,12 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
-/*
- * SM4 Cipher Algorithm, AES-NI/AVX optimized.
- * as specified in
- * https://tools.ietf.org/id/draft-ribose-cfrg-sm4-10.html
- *
- * Copyright (c) 2021, Alibaba Group.
- * Copyright (c) 2021 Tianjia Zhang <tianjia.zhang@linux.alibaba.com>
- */
 
 #include <linux/module.h>
 #include <linux/crypto.h>

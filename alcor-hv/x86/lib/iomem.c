@@ -5,7 +5,6 @@
 #define movs(type,to,from) \
 	asm volatile("movs" type:"=&D" (to), "=&S" (from):"0" (to), "1" (from):"memory")
 
-/* Originally from i386/string.h */
 static __always_inline void rep_movs(void *to, const void *from, size_t n)
 {
 	unsigned long d0, d1, d2;
@@ -109,9 +108,6 @@ void memset_io(volatile void __iomem *a, int b, size_t c)
 		unrolled_memset_io(a, b, c);
 	} else {
 		/*
-		 * TODO: memset can mangle the IO patterns quite a bit.
-		 * perhaps it would be better to use a dumb one:
-		 */
 		memset((void *)a, b, c);
 	}
 }

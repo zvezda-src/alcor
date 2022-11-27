@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * x64 SIMD accelerated ChaCha and XChaCha stream ciphers,
- * including ChaCha20 (RFC7539)
- *
- * Copyright (C) 2015 Martin Willi
- */
 
 #include <crypto/algapi.h>
 #include <crypto/internal/chacha.h>

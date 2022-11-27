@@ -1,24 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
 
-/* Generic device ID of a discovery table device */
 #define UNCORE_DISCOVERY_TABLE_DEVICE		0x09a7
-/* Capability ID for a discovery table device */
 #define UNCORE_EXT_CAP_ID_DISCOVERY		0x23
-/* First DVSEC offset */
 #define UNCORE_DISCOVERY_DVSEC_OFFSET		0x8
-/* Mask of the supported discovery entry type */
 #define UNCORE_DISCOVERY_DVSEC_ID_MASK		0xffff
-/* PMON discovery entry type ID */
 #define UNCORE_DISCOVERY_DVSEC_ID_PMON		0x1
-/* Second DVSEC offset */
 #define UNCORE_DISCOVERY_DVSEC2_OFFSET		0xc
-/* Mask of the discovery table BAR offset */
 #define UNCORE_DISCOVERY_DVSEC2_BIR_MASK	0x7
-/* Discovery table BAR base offset */
 #define UNCORE_DISCOVERY_BIR_BASE		0x10
-/* Discovery table BAR step */
 #define UNCORE_DISCOVERY_BIR_STEP		0x4
-/* Global discovery table size */
 #define UNCORE_DISCOVERY_GLOBAL_MAP_SIZE	0x20
 
 #define UNCORE_DISCOVERY_PCI_DOMAIN(data)	((data >> 28) & 0x7)

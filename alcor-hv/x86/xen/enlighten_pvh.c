@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/acpi.h>
 #include <linux/export.h>
 
@@ -16,12 +15,6 @@
 
 #include "xen-ops.h"
 
-/*
- * PVH variables.
- *
- * The variable xen_pvh needs to live in a data segment since it is used
- * after startup_{32|64} is invoked, which will clear the .bss segment.
- */
 bool __ro_after_init xen_pvh;
 EXPORT_SYMBOL_GPL(xen_pvh);
 

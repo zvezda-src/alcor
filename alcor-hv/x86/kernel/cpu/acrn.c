@@ -1,13 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * ACRN detection support
- *
- * Copyright (C) 2019 Intel Corporation. All rights reserved.
- *
- * Jason Chen CJ <jason.cj.chen@intel.com>
- * Zhao Yakui <yakui.zhao@intel.com>
- *
- */
 
 #include <linux/interrupt.h>
 
@@ -42,12 +32,6 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_acrn_hv_callback)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	/*
-	 * The hypervisor requires that the APIC EOI should be acked.
-	 * If the APIC EOI is not acked, the APIC ISR bit for the
-	 * HYPERVISOR_CALLBACK_VECTOR will not be cleared and then it
-	 * will block the interrupt whose vector is lower than
-	 * HYPERVISOR_CALLBACK_VECTOR.
-	 */
 	ack_APIC_irq();
 	inc_irq_stat(irq_hv_callback_count);
 

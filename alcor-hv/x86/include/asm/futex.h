@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_FUTEX_H
 #define _ASM_X86_FUTEX_H
 
@@ -22,7 +21,6 @@ do {								\
 		     : "0" (oparg), "1" (0));	\
 	if (ret)						\
 		goto label;					\
-	*oval = oldval;						\
 } while(0)
 
 
@@ -42,7 +40,6 @@ do {								\
 		     : "r" (oparg), "1" (0));			\
 	if (ret)						\
 		goto label;					\
-	*oval = oldval;						\
 } while(0)
 
 static __always_inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
@@ -95,7 +92,6 @@ static inline int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		: "memory"
 	);
 	user_access_end();
-	*uval = oldval;
 	return ret;
 }
 

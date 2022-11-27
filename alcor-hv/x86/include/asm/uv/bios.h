@@ -1,22 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _ASM_X86_UV_BIOS_H
 #define _ASM_X86_UV_BIOS_H
 
-/*
- * UV BIOS layer definitions.
- *
- * (C) Copyright 2020 Hewlett Packard Enterprise Development LP
- * Copyright (C) 2007-2017 Silicon Graphics, Inc. All rights reserved.
- * Copyright (c) Russ Anderson <rja@sgi.com>
- */
 
 #include <linux/rtc.h>
 
-/*
- * Values for the BIOS calls.  It is passed as the first * argument in the
- * BIOS call.  Passing any other value in the first argument will result
- * in a BIOS_STATUS_UNIMPLEMENTED return status.
- */
 enum uv_bios_cmd {
 	UV_BIOS_COMMON,
 	UV_BIOS_GET_SN_INFO,
@@ -42,9 +29,6 @@ enum uv_bios_cmd {
 #define UV_BIOS_EXTRA_ENUM_OBJECTS	    (12|UV_BIOS_EXTRA_OP_MEM_COPYOUT)
 #define UV_BIOS_EXTRA_ENUM_PORTS	    (13|UV_BIOS_EXTRA_OP_MEM_COPYOUT)
 
-/*
- * Status values returned from a BIOS call.
- */
 enum {
 	BIOS_STATUS_MORE_PASSES		=  1,
 	BIOS_STATUS_SUCCESS		=  0,
@@ -54,7 +38,6 @@ enum {
 	BIOS_STATUS_ABORT		= -EINTR,
 };
 
-/* Address map parameters */
 struct uv_gam_parameters {
 	u64	mmr_base;
 	u64	gru_base;
@@ -64,7 +47,6 @@ struct uv_gam_parameters {
 	u8	unused1;
 };
 
-/* UV_TABLE_GAM_RANGE_ENTRY values */
 #define UV_GAM_RANGE_TYPE_UNUSED	0 /* End of table */
 #define UV_GAM_RANGE_TYPE_RAM		1 /* Normal RAM */
 #define UV_GAM_RANGE_TYPE_NVRAM		2 /* Non-volatile memory */
@@ -73,7 +55,6 @@ struct uv_gam_parameters {
 #define UV_GAM_RANGE_TYPE_HOLE		5 /* Unused address range */
 #define UV_GAM_RANGE_TYPE_MAX		6
 
-/* The structure stores PA bits 56:26, for 64MB granularity */
 #define UV_GAM_RANGE_SHFT		26		/* 64MB */
 
 struct uv_gam_range_entry {
@@ -108,10 +89,6 @@ struct uv_arch_type_entry {
 #define	UV_SYSTAB_TYPE_ARCH_TYPE	3	/* UV arch type */
 #define	UV_SYSTAB_TYPE_MAX		4
 
-/*
- * The UV system table describes specific firmware
- * capabilities available to the Linux kernel at runtime.
- */
 struct uv_systab {
 	char signature[4];	/* must be UV_SYSTAB_SIG */
 	u32 revision;		/* distinguish different firmware revs */
@@ -149,7 +126,6 @@ struct uv_bios_port_info {
 	unsigned int conn_port;
 };
 
-/* (... end of definitions from UV BIOS ...) */
 
 enum {
 	BIOS_FREQ_BASE_PLATFORM = 0,
@@ -205,9 +181,6 @@ extern int uv_get_hubless_system(void);
 
 extern struct kobject *sgi_uv_kobj;	/* /sys/firmware/sgi_uv */
 
-/*
- * EFI runtime lock; cf. firmware/efi/runtime-wrappers.c for details
- */
 extern struct semaphore __efi_uv_runtime_lock;
 
 #endif /* _ASM_X86_UV_BIOS_H */

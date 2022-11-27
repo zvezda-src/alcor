@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * crash.c - kernel crash support code.
- * Copyright (C) 2002-2004 Eric Biederman  <ebiederm@xmission.com>
- */
 
 #include <linux/buildid.h>
 #include <linux/crash_core.h>
@@ -15,28 +10,14 @@
 
 #include <crypto/sha1.h>
 
-/* vmcoreinfo stuff */
 unsigned char *vmcoreinfo_data;
 size_t vmcoreinfo_size;
 u32 *vmcoreinfo_note;
 
-/* trusted vmcoreinfo, e.g. we can make a copy in the crash memory */
 static unsigned char *vmcoreinfo_data_safecopy;
 
-/*
- * parsing the "crashkernel" commandline
- *
- * this code is intended to be called from architecture specific code
- */
 
 
-/*
- * This function parses command lines in the format
- *
- *   crashkernel=ramsize-range:size[,...][@offset]
- *
- * The function returns 0 on success and -EINVAL on failure.
- */
 static int __init parse_crashkernel_mem(char *cmdline,
 					unsigned long long system_ram,
 					unsigned long long *crash_size,
@@ -116,20 +97,12 @@ static int __init parse_crashkernel_mem(char *cmdline,
 	return 0;
 }
 
-/*
- * That function parses "simple" (old) crashkernel command lines like
- *
- *	crashkernel=size[@offset]
- *
- * It returns 0 on success and -EINVAL on failure.
- */
 static int __init parse_crashkernel_simple(char *cmdline,
 					   unsigned long long *crash_size,
 					   unsigned long long *crash_base)
 {
 	char *cur = cmdline;
 
-	*crash_size = memparse(cmdline, &cur);
 	if (cmdline == cur) {
 		pr_warn("crashkernel: memory value expected\n");
 		return -EINVAL;
@@ -154,20 +127,12 @@ static __initdata char *suffix_tbl[] = {
 	[SUFFIX_NULL] = NULL,
 };
 
-/*
- * That function parses "suffix"  crashkernel command lines like
- *
- *	crashkernel=size,[high|low]
- *
- * It returns 0 on success and -EINVAL on failure.
- */
 static int __init parse_crashkernel_suffix(char *cmdline,
 					   unsigned long long	*crash_size,
 					   const char *suffix)
 {
 	char *cur = cmdline;
 
-	*crash_size = memparse(cmdline, &cur);
 	if (cmdline == cur) {
 		pr_warn("crashkernel: memory value expected\n");
 		return -EINVAL;
@@ -236,8 +201,6 @@ static int __init __parse_crashkernel(char *cmdline,
 	char	*ck_cmdline;
 
 	BUG_ON(!crash_size || !crash_base);
-	*crash_size = 0;
-	*crash_base = 0;
 
 	ck_cmdline = get_last_crashkernel(cmdline, name, suffix);
 	if (!ck_cmdline)
@@ -249,9 +212,6 @@ static int __init __parse_crashkernel(char *cmdline,
 		return parse_crashkernel_suffix(ck_cmdline, crash_size,
 				suffix);
 	/*
-	 * if the commandline contains a ':', then that's the extended
-	 * syntax -- if not, it must be the classic syntax
-	 */
 	first_colon = strchr(ck_cmdline, ':');
 	first_space = strchr(ck_cmdline, ' ');
 	if (first_colon && (!first_space || first_colon < first_space))
@@ -261,10 +221,6 @@ static int __init __parse_crashkernel(char *cmdline,
 	return parse_crashkernel_simple(ck_cmdline, crash_size, crash_base);
 }
 
-/*
- * That function is the entry point for command line parsing and should be
- * called from the arch-specific code.
- */
 int __init parse_crashkernel(char *cmdline,
 			     unsigned long long system_ram,
 			     unsigned long long *crash_size,
@@ -292,10 +248,6 @@ int __init parse_crashkernel_low(char *cmdline,
 				"crashkernel=", suffix_tbl[SUFFIX_LOW]);
 }
 
-/*
- * Add a dummy early_param handler to mark crashkernel= as a known command line
- * parameter and suppress incorrect warnings in init/main.c.
- */
 static int __init parse_crashkernel_dummy(char *arg)
 {
 	return 0;
@@ -373,10 +325,6 @@ void vmcoreinfo_append_str(const char *fmt, ...)
 	vmcoreinfo_size += r;
 }
 
-/*
- * provide an empty default implementation here -- architecture
- * code may override this
- */
 void __weak arch_crash_save_vmcoreinfo(void)
 {}
 

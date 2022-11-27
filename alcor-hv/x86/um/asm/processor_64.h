@@ -1,8 +1,3 @@
-/*
- * Copyright 2003 PathScale, Inc.
- *
- * Licensed under the GPL
- */
 
 #ifndef __UM_PROCESSOR_X86_64_H
 #define __UM_PROCESSOR_X86_64_H

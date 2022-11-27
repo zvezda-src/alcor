@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __ASM_X86_SHMBUF_H
 #define __ASM_X86_SHMBUF_H
 
@@ -9,13 +8,6 @@
 #include <asm/ipcbuf.h>
 #include <asm/posix_types.h>
 
-/*
- * The shmid64_ds structure for x86 architecture with x32 ABI.
- *
- * On x86-32 and x86-64 we can just use the generic definition, but
- * x32 uses the same binary layout as x86_64, which is different
- * from other 32-bit architectures.
- */
 
 struct shmid64_ds {
 	struct ipc64_perm	shm_perm;	/* operation perms */

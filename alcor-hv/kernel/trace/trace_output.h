@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #ifndef __TRACE_EVENTS_H
 #define __TRACE_EVENTS_H
 
@@ -29,7 +28,6 @@ extern enum print_line_t trace_nop_print(struct trace_iterator *iter,
 extern int
 trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry);
 
-/* used by module unregistering */
 extern int __unregister_trace_event(struct trace_event *event);
 extern struct rw_semaphore trace_event_sem;
 

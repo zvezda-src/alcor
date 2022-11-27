@@ -1,16 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Using hardware provided CRC32 instruction to accelerate the CRC32 disposal.
- * CRC32C polynomial:0x1EDC6F41(BE)/0x82F63B78(LE)
- * CRC32 is a new instruction in Intel SSE4.2, the reference can be found at:
- * http://www.intel.com/products/processor/manuals/
- * Intel(R) 64 and IA-32 Architectures Software Developer's Manual
- * Volume 2A: Instruction Set Reference, A-M
- *
- * Copyright (C) 2008 Intel Corporation
- * Authors: Austin Zhang <austin_zhang@linux.intel.com>
- *          Kent Liu <kent.liu@intel.com>
- */
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/string.h>
@@ -34,11 +21,6 @@
 #endif
 
 #ifdef CONFIG_X86_64
-/*
- * use carryless multiply version of crc32c when buffer
- * size is >= 512 to account
- * for fpu state save/restore overhead.
- */
 #define CRC32C_PCL_BREAKEVEN	512
 
 asmlinkage unsigned int crc_pcl(const u8 *buffer, int len,
@@ -75,11 +57,6 @@ static u32 __pure crc32c_intel_le_hw(u32 crc, unsigned char const *p, size_t len
 	return crc;
 }
 
-/*
- * Setting the seed allows arbitrary accumulators and flexible XOR policy
- * If your algorithm starts with ~0, then XOR with ~0 before you set
- * the seed.
- */
 static int crc32c_intel_setkey(struct crypto_shash *hash, const u8 *key,
 			unsigned int keylen)
 {
@@ -87,7 +64,6 @@ static int crc32c_intel_setkey(struct crypto_shash *hash, const u8 *key,
 
 	if (keylen != sizeof(u32))
 		return -EINVAL;
-	*mctx = le32_to_cpup((__le32 *)key);
 	return 0;
 }
 
@@ -96,7 +72,6 @@ static int crc32c_intel_init(struct shash_desc *desc)
 	u32 *mctx = crypto_shash_ctx(desc->tfm);
 	u32 *crcp = shash_desc_ctx(desc);
 
-	*crcp = *mctx;
 
 	return 0;
 }
@@ -106,14 +81,12 @@ static int crc32c_intel_update(struct shash_desc *desc, const u8 *data,
 {
 	u32 *crcp = shash_desc_ctx(desc);
 
-	*crcp = crc32c_intel_le_hw(*crcp, data, len);
 	return 0;
 }
 
 static int __crc32c_intel_finup(u32 *crcp, const u8 *data, unsigned int len,
 				u8 *out)
 {
-	*(__le32 *)out = ~cpu_to_le32(crc32c_intel_le_hw(*crcp, data, len));
 	return 0;
 }
 
@@ -127,7 +100,6 @@ static int crc32c_intel_final(struct shash_desc *desc, u8 *out)
 {
 	u32 *crcp = shash_desc_ctx(desc);
 
-	*(__le32 *)out = ~cpu_to_le32p(crcp);
 	return 0;
 }
 
@@ -142,7 +114,6 @@ static int crc32c_intel_cra_init(struct crypto_tfm *tfm)
 {
 	u32 *key = crypto_tfm_ctx(tfm);
 
-	*key = ~0;
 
 	return 0;
 }
@@ -154,9 +125,6 @@ static int crc32c_pcl_intel_update(struct shash_desc *desc, const u8 *data,
 	u32 *crcp = shash_desc_ctx(desc);
 
 	/*
-	 * use faster PCL version if datasize is large enough to
-	 * overcome kernel fpu state save/restore overhead
-	 */
 	if (len >= CRC32C_PCL_BREAKEVEN && crypto_simd_usable()) {
 		kernel_fpu_begin();
 		*crcp = crc_pcl(data, len, *crcp);

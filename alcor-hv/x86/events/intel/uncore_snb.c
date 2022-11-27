@@ -1,9 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0
-/* Nehalem/SandBridge/Haswell/Broadwell/Skylake uncore support */
 #include "uncore.h"
 #include "uncore_discovery.h"
 
-/* Uncore IMC PCI IDs */
 #define PCI_DEVICE_ID_INTEL_SNB_IMC		0x0100
 #define PCI_DEVICE_ID_INTEL_IVB_IMC		0x0154
 #define PCI_DEVICE_ID_INTEL_IVB_E3_IMC		0x0150
@@ -117,7 +114,6 @@
 	.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),	\
 }
 
-/* SNB event control */
 #define SNB_UNC_CTL_EV_SEL_MASK			0x000000ff
 #define SNB_UNC_CTL_UMASK_MASK			0x0000ff00
 #define SNB_UNC_CTL_EDGE_DET			(1 << 18)
@@ -139,58 +135,46 @@
 						 SNB_UNC_CTL_INVERT | \
 						 NHM_UNC_CTL_CMASK_MASK)
 
-/* SNB global control register */
 #define SNB_UNC_PERF_GLOBAL_CTL                 0x391
 #define SNB_UNC_FIXED_CTR_CTRL                  0x394
 #define SNB_UNC_FIXED_CTR                       0x395
 
-/* SNB uncore global control */
 #define SNB_UNC_GLOBAL_CTL_CORE_ALL             ((1 << 4) - 1)
 #define SNB_UNC_GLOBAL_CTL_EN                   (1 << 29)
 
-/* SNB Cbo register */
 #define SNB_UNC_CBO_0_PERFEVTSEL0               0x700
 #define SNB_UNC_CBO_0_PER_CTR0                  0x706
 #define SNB_UNC_CBO_MSR_OFFSET                  0x10
 
-/* SNB ARB register */
 #define SNB_UNC_ARB_PER_CTR0			0x3b0
 #define SNB_UNC_ARB_PERFEVTSEL0			0x3b2
 #define SNB_UNC_ARB_MSR_OFFSET			0x10
 
-/* NHM global control register */
 #define NHM_UNC_PERF_GLOBAL_CTL                 0x391
 #define NHM_UNC_FIXED_CTR                       0x394
 #define NHM_UNC_FIXED_CTR_CTRL                  0x395
 
-/* NHM uncore global control */
 #define NHM_UNC_GLOBAL_CTL_EN_PC_ALL            ((1ULL << 8) - 1)
 #define NHM_UNC_GLOBAL_CTL_EN_FC                (1ULL << 32)
 
-/* NHM uncore register */
 #define NHM_UNC_PERFEVTSEL0                     0x3c0
 #define NHM_UNC_UNCORE_PMC0                     0x3b0
 
-/* SKL uncore global control */
 #define SKL_UNC_PERF_GLOBAL_CTL			0xe01
 #define SKL_UNC_GLOBAL_CTL_CORE_ALL		((1 << 5) - 1)
 
-/* ICL Cbo register */
 #define ICL_UNC_CBO_CONFIG			0x396
 #define ICL_UNC_NUM_CBO_MASK			0xf
 #define ICL_UNC_CBO_0_PER_CTR0			0x702
 #define ICL_UNC_CBO_MSR_OFFSET			0x8
 
-/* ICL ARB register */
 #define ICL_UNC_ARB_PER_CTR			0x3b1
 #define ICL_UNC_ARB_PERFEVTSEL			0x3b3
 
-/* ADL uncore global control */
 #define ADL_UNC_PERF_GLOBAL_CTL			0x2ff0
 #define ADL_UNC_FIXED_CTR_CTRL                  0x2fde
 #define ADL_UNC_FIXED_CTR                       0x2fdf
 
-/* ADL Cbo register */
 #define ADL_UNC_CBO_0_PER_CTR0			0x2002
 #define ADL_UNC_CBO_0_PERFEVTSEL0		0x2000
 #define ADL_UNC_CTL_THRESHOLD			0x3f000000
@@ -200,7 +184,6 @@
 						 SNB_UNC_CTL_INVERT | \
 						 ADL_UNC_CTL_THRESHOLD)
 
-/* ADL ARB register */
 #define ADL_UNC_ARB_PER_CTR0			0x2FD2
 #define ADL_UNC_ARB_PERFEVTSEL0			0x2FD0
 #define ADL_UNC_ARB_MSR_OFFSET			0x8
@@ -214,7 +197,6 @@ DEFINE_UNCORE_FORMAT_ATTR(cmask5, cmask, "config:24-28");
 DEFINE_UNCORE_FORMAT_ATTR(cmask8, cmask, "config:24-31");
 DEFINE_UNCORE_FORMAT_ATTR(threshold, threshold, "config:24-29");
 
-/* Sandy Bridge uncore support */
 static void snb_uncore_msr_enable_event(struct intel_uncore_box *box, struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
@@ -629,7 +611,6 @@ static struct uncore_event_desc snb_uncore_imc_events[] = {
 #define SNB_UNCORE_PCI_IMC_EVENT_MASK		0xff
 #define SNB_UNCORE_PCI_IMC_BAR_OFFSET		0x48
 
-/* page size multiple covering all config regs */
 #define SNB_UNCORE_PCI_IMC_MAP_SIZE		0x6000
 
 #define SNB_UNCORE_PCI_IMC_DATA_READS		0x1
@@ -638,7 +619,6 @@ static struct uncore_event_desc snb_uncore_imc_events[] = {
 #define SNB_UNCORE_PCI_IMC_DATA_WRITES_BASE	0x5054
 #define SNB_UNCORE_PCI_IMC_CTR_BASE		SNB_UNCORE_PCI_IMC_DATA_READS_BASE
 
-/* BW break down- legacy counters */
 #define SNB_UNCORE_PCI_IMC_GT_REQUESTS		0x3
 #define SNB_UNCORE_PCI_IMC_GT_REQUESTS_BASE	0x5040
 #define SNB_UNCORE_PCI_IMC_IA_REQUESTS		0x4
@@ -716,10 +696,6 @@ static void snb_uncore_imc_enable_event(struct intel_uncore_box *box, struct per
 static void snb_uncore_imc_disable_event(struct intel_uncore_box *box, struct perf_event *event)
 {}
 
-/*
- * Keep the custom event_init() function compatible with old event
- * encoding for free running counters.
- */
 static int snb_uncore_imc_event_init(struct perf_event *event)
 {
 	struct intel_uncore_pmu *pmu;
@@ -745,9 +721,6 @@ static int snb_uncore_imc_event_init(struct perf_event *event)
 		return -EINVAL;
 
 	/*
-	 * Place all uncore events for a particular physical package
-	 * onto a single cpu
-	 */
 	if (event->cpu < 0)
 		return -EINVAL;
 
@@ -769,8 +742,6 @@ static int snb_uncore_imc_event_init(struct perf_event *event)
 	event->hw.extra_reg.idx = EXTRA_REG_NONE;
 	event->hw.branch_reg.idx = EXTRA_REG_NONE;
 	/*
-	 * check event is known (whitelist, determines counter)
-	 */
 	switch (cfg) {
 	case SNB_UNCORE_PCI_IMC_DATA_READS:
 		base = SNB_UNCORE_PCI_IMC_DATA_READS_BASE;
@@ -1108,9 +1079,7 @@ int skl_uncore_pci_init(void)
 	return imc_uncore_pci_init();
 }
 
-/* end of Sandy Bridge uncore support */
 
-/* Nehalem uncore support */
 static void nhm_uncore_msr_disable_box(struct intel_uncore_box *box)
 {
 	wrmsrl(NHM_UNC_PERF_GLOBAL_CTL, 0);
@@ -1192,9 +1161,7 @@ void nhm_uncore_cpu_init(void)
 	uncore_msr_uncores = nhm_msr_uncores;
 }
 
-/* end of Nehalem uncore support */
 
-/* Tiger Lake MMIO uncore support */
 
 static const struct pci_device_id tgl_uncore_pci_ids[] = {
 	IMC_UNCORE_DEV(TGL_U1),
@@ -1389,9 +1356,7 @@ void tgl_uncore_mmio_init(void)
 	uncore_mmio_uncores = tgl_mmio_uncores;
 }
 
-/* end of Tiger Lake MMIO uncore support */
 
-/* Alder Lake MMIO uncore support */
 #define ADL_UNCORE_IMC_BASE			0xd900
 #define ADL_UNCORE_IMC_MAP_SIZE			0x200
 #define ADL_UNCORE_IMC_CTR			0xe8
@@ -1522,4 +1487,3 @@ void adl_uncore_mmio_init(void)
 	uncore_mmio_uncores = adl_mmio_uncores;
 }
 
-/* end of Alder Lake MMIO uncore support */

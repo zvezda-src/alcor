@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Serial port routines for use during early boot reporting. This code is
- * included from both the compressed kernel and the regular kernel.
- */
 #include "boot.h"
 
 #define DEFAULT_SERIAL_PORT 0x3f8 /* ttyS0 */
@@ -62,11 +57,6 @@ static void parse_earlyprintk(void)
 			pos++;
 
 		/*
-		 * make sure we have
-		 *	"serial,0x3f8,115200"
-		 *	"serial,ttyS0,115200"
-		 *	"ttyS0,115200"
-		 */
 		if (pos == 7 && !strncmp(arg + pos, "0x", 2)) {
 			port = simple_strtoull(arg + pos, &e, 16);
 			if (port == 0 || arg + pos == e)
@@ -121,9 +111,6 @@ static void parse_console_uart8250(void)
 	int port = 0;
 
 	/*
-	 * console=uart8250,io,0x3f8,115200n8
-	 * need to make sure it is last one console !
-	 */
 	if (cmdline_find_option("console", optstr, sizeof(optstr)) <= 0)
 		return;
 

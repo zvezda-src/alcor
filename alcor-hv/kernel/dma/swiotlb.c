@@ -1,22 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Dynamic DMA mapping support.
- *
- * This implementation is a fallback for platforms that do not support
- * I/O TLBs (aka DMA address translation hardware).
- * Copyright (C) 2000 Asit Mallick <Asit.K.Mallick@intel.com>
- * Copyright (C) 2000 Goutham Rao <goutham.rao@intel.com>
- * Copyright (C) 2000, 2003 Hewlett-Packard Co
- *	David Mosberger-Tang <davidm@hpl.hp.com>
- *
- * 03/05/07 davidm	Switch from PCI-DMA to generic device DMA API.
- * 00/12/13 davidm	Rename to swiotlb.c and add mark_clean() to avoid
- *			unnecessary i-cache flushing.
- * 04/07/.. ak		Better overflow handling. Assorted fixes.
- * 05/09/10 linville	Add support for syncing ranges, support syncing for
- *			DMA_BIDIRECTIONAL mappings, miscellaneous cleanup.
- * 08/12/11 beckyb	Add highmem support
- */
 
 #define pr_fmt(fmt) "software IO TLB: " fmt
 
@@ -53,11 +34,6 @@
 
 #define SLABS_PER_PAGE (1 << (PAGE_SHIFT - IO_TLB_SHIFT))
 
-/*
- * Minimum IO TLB size to bother booting with.  Systems with mainly
- * 64bit capable cards will only lightly use the swiotlb.  If we can't
- * allocate a contiguous 1MB, we're probably in trouble anyway.
- */
 #define IO_TLB_MIN_SLABS ((1<<20) >> IO_TLB_SHIFT)
 
 #define INVALID_PHYS_ADDR (~(phys_addr_t)0)
@@ -106,10 +82,6 @@ unsigned long swiotlb_size_or_default(void)
 void __init swiotlb_adjust_size(unsigned long size)
 {
 	/*
-	 * If swiotlb parameter has not been specified, give a chance to
-	 * architectures such as those supporting memory encryption to
-	 * adjust/expand SWIOTLB size for their use.
-	 */
 	if (default_nslabs != IO_TLB_DEFAULT_SIZE >> IO_TLB_SHIFT)
 		return;
 	size = ALIGN(size, IO_TLB_SIZE);
@@ -140,11 +112,6 @@ static inline unsigned long nr_slots(u64 val)
 	return DIV_ROUND_UP(val, IO_TLB_SIZE);
 }
 
-/*
- * Remap swioltb memory in the unencrypted physical address space
- * when swiotlb_unencrypted_base is set. (e.g. for Hyper-V AMD SEV-SNP
- * Isolation VMs).
- */
 #ifdef CONFIG_HAS_IOMEM
 static void *swiotlb_mem_remap(struct io_tlb_mem *mem, unsigned long bytes)
 {
@@ -168,12 +135,6 @@ static void *swiotlb_mem_remap(struct io_tlb_mem *mem, unsigned long bytes)
 }
 #endif
 
-/*
- * Early SWIOTLB allocation may be too early to allow an architecture to
- * perform the desired operations.  This function allows the architecture to
- * call SWIOTLB when the operations are possible.  It needs to be called
- * before the SWIOTLB memory is used.
- */
 void __init swiotlb_update_mem_attributes(void)
 {
 	struct io_tlb_mem *mem = &io_tlb_default_mem;
@@ -213,9 +174,6 @@ static void swiotlb_init_io_tlb_mem(struct io_tlb_mem *mem, phys_addr_t start,
 	}
 
 	/*
-	 * If swiotlb_unencrypted_base is set, the bounce buffer memory will
-	 * be remapped and cleared in swiotlb_update_mem_attributes.
-	 */
 	if (swiotlb_unencrypted_base)
 		return;
 
@@ -224,10 +182,6 @@ static void swiotlb_init_io_tlb_mem(struct io_tlb_mem *mem, phys_addr_t start,
 	return;
 }
 
-/*
- * Statically reserve bounce buffer space and initialize bounce buffer data
- * structures for the software IO TLB used to implement the DMA API.
- */
 void __init swiotlb_init_remap(bool addressing_limit, unsigned int flags,
 		int (*remap)(void *tlb, unsigned long nslabs))
 {
@@ -243,10 +197,6 @@ void __init swiotlb_init_remap(bool addressing_limit, unsigned int flags,
 		return;
 
 	/*
-	 * By default allocate the bounce buffer memory from low memory, but
-	 * allow to pick a location everywhere for hypervisors with guest
-	 * memory encryption.
-	 */
 retry:
 	bytes = PAGE_ALIGN(nslabs << IO_TLB_SHIFT);
 	if (flags & SWIOTLB_ANY)
@@ -285,11 +235,6 @@ void __init swiotlb_init(bool addressing_limit, unsigned int flags)
 	return swiotlb_init_remap(addressing_limit, flags, NULL);
 }
 
-/*
- * Systems with larger DMA zones (those that don't support ISA) can
- * initialize the swiotlb later using the slab allocator if needed.
- * This should be just like above, but with some error catching.
- */
 int swiotlb_init_late(size_t size, gfp_t gfp_mask,
 		int (*remap)(void *tlb, unsigned long nslabs))
 {
@@ -381,17 +326,11 @@ void __init swiotlb_exit(void)
 	memset(mem, 0, sizeof(*mem));
 }
 
-/*
- * Return the offset into a iotlb slot required to keep the device happy.
- */
 static unsigned int swiotlb_align_offset(struct device *dev, u64 addr)
 {
 	return addr & dma_get_min_align_mask(dev) & (IO_TLB_SIZE - 1);
 }
 
-/*
- * Bounce: copy the swiotlb buffer from or back to the original dma location
- */
 static void swiotlb_bounce(struct device *dev, phys_addr_t tlb_addr, size_t size,
 			   enum dma_data_direction dir)
 {
@@ -466,9 +405,6 @@ static void swiotlb_bounce(struct device *dev, phys_addr_t tlb_addr, size_t size
 
 #define slot_addr(start, idx)	((start) + ((idx) << IO_TLB_SHIFT))
 
-/*
- * Carefully handle integer overflow which can occur when boundary_mask == ~0UL.
- */
 static inline unsigned long get_max_slots(unsigned long boundary_mask)
 {
 	if (boundary_mask == ~0UL)
@@ -483,10 +419,6 @@ static unsigned int wrap_index(struct io_tlb_mem *mem, unsigned int index)
 	return index;
 }
 
-/*
- * Find a suitable number of IO TLB entries size that will fit this request and
- * allocate a buffer from that IO TLB pool.
- */
 static int swiotlb_find_slots(struct device *dev, phys_addr_t orig_addr,
 			      size_t alloc_size, unsigned int alloc_align_mask)
 {
@@ -505,10 +437,6 @@ static int swiotlb_find_slots(struct device *dev, phys_addr_t orig_addr,
 	BUG_ON(!nslots);
 
 	/*
-	 * For mappings with an alignment requirement don't bother looping to
-	 * unaligned slots once we found an aligned one.  For allocations of
-	 * PAGE_SIZE or larger only look for page aligned allocations.
-	 */
 	stride = (iotlb_align_mask >> IO_TLB_SHIFT) + 1;
 	if (alloc_size >= PAGE_SIZE)
 		stride = max(stride, stride << (PAGE_SHIFT - IO_TLB_SHIFT));
@@ -528,10 +456,6 @@ static int swiotlb_find_slots(struct device *dev, phys_addr_t orig_addr,
 		}
 
 		/*
-		 * If we find a slot that indicates we have 'nslots' number of
-		 * contiguous buffers, we allocate the buffers from that slot
-		 * and mark the entries as '0' indicating unavailable.
-		 */
 		if (!iommu_is_span_boundary(index, nslots,
 					    nr_slots(tbl_dma_addr),
 					    max_slots)) {
@@ -557,8 +481,6 @@ found:
 		mem->slots[i].list = ++count;
 
 	/*
-	 * Update the indices to avoid searching in the next round.
-	 */
 	if (index + nslots < mem->nslabs)
 		mem->index = index + nslots;
 	else
@@ -603,20 +525,10 @@ phys_addr_t swiotlb_tbl_map_single(struct device *dev, phys_addr_t orig_addr,
 	}
 
 	/*
-	 * Save away the mapping from the original address to the DMA address.
-	 * This is needed when we sync the memory.  Then we sync the buffer if
-	 * needed.
-	 */
 	for (i = 0; i < nr_slots(alloc_size + offset); i++)
 		mem->slots[index + i].orig_addr = slot_addr(orig_addr, i);
 	tlb_addr = slot_addr(mem->start, index) + offset;
 	/*
-	 * When dir == DMA_FROM_DEVICE we could omit the copy from the orig
-	 * to the tlb buffer, if we knew for sure the device will
-	 * overwirte the entire current content. But we don't. Thus
-	 * unconditional bounce may prevent leaking swiotlb content (i.e.
-	 * kernel memory) to user-space.
-	 */
 	swiotlb_bounce(dev, tlb_addr, mapping_size, DMA_TO_DEVICE);
 	return tlb_addr;
 }
@@ -631,11 +543,6 @@ static void swiotlb_release_slots(struct device *dev, phys_addr_t tlb_addr)
 	int count, i;
 
 	/*
-	 * Return the buffer to the free list by setting the corresponding
-	 * entries to indicate the number of contiguous entries available.
-	 * While returning the entries to the free list, we merge the entries
-	 * with slots below and above the pool being returned.
-	 */
 	spin_lock_irqsave(&mem->lock, flags);
 	if (index + nslots < ALIGN(index + 1, IO_TLB_SEGSIZE))
 		count = mem->slots[index + nslots].list;
@@ -643,9 +550,6 @@ static void swiotlb_release_slots(struct device *dev, phys_addr_t tlb_addr)
 		count = 0;
 
 	/*
-	 * Step 1: return the slots to the free list, merging the slots with
-	 * superceeding slots
-	 */
 	for (i = index + nslots - 1; i >= index; i--) {
 		mem->slots[i].list = ++count;
 		mem->slots[i].orig_addr = INVALID_PHYS_ADDR;
@@ -653,9 +557,6 @@ static void swiotlb_release_slots(struct device *dev, phys_addr_t tlb_addr)
 	}
 
 	/*
-	 * Step 2: merge the returned slots with the preceding slots, if
-	 * available (non zero)
-	 */
 	for (i = index - 1;
 	     io_tlb_offset(i) != IO_TLB_SEGSIZE - 1 && mem->slots[i].list;
 	     i--)
@@ -664,16 +565,11 @@ static void swiotlb_release_slots(struct device *dev, phys_addr_t tlb_addr)
 	spin_unlock_irqrestore(&mem->lock, flags);
 }
 
-/*
- * tlb_addr is the physical address of the bounce buffer to unmap.
- */
 void swiotlb_tbl_unmap_single(struct device *dev, phys_addr_t tlb_addr,
 			      size_t mapping_size, enum dma_data_direction dir,
 			      unsigned long attrs)
 {
 	/*
-	 * First, sync the memory before unmapping the entry
-	 */
 	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC) &&
 	    (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL))
 		swiotlb_bounce(dev, tlb_addr, mapping_size, DMA_FROM_DEVICE);
@@ -699,10 +595,6 @@ void swiotlb_sync_single_for_cpu(struct device *dev, phys_addr_t tlb_addr,
 		BUG_ON(dir != DMA_TO_DEVICE);
 }
 
-/*
- * Create a swiotlb mapping for the buffer at @paddr, and in case of DMAing
- * to the device copy the data into it as well.
- */
 dma_addr_t swiotlb_map(struct device *dev, phys_addr_t paddr, size_t size,
 		enum dma_data_direction dir, unsigned long attrs)
 {
@@ -738,10 +630,6 @@ size_t swiotlb_max_mapping_size(struct device *dev)
 	int min_align = 0;
 
 	/*
-	 * swiotlb_find_slots() skips slots according to
-	 * min align mask. This affects max mapping size.
-	 * Take it into acount here.
-	 */
 	if (min_align_mask)
 		min_align = roundup(min_align_mask, IO_TLB_SIZE);
 
@@ -816,10 +704,6 @@ static int rmem_swiotlb_device_init(struct reserved_mem *rmem,
 	unsigned long nslabs = rmem->size >> IO_TLB_SHIFT;
 
 	/*
-	 * Since multiple devices can share the same pool, the private data,
-	 * io_tlb_mem struct, will be initialized by the first device attached
-	 * to it.
-	 */
 	if (!mem) {
 		mem = kzalloc(sizeof(*mem), GFP_KERNEL);
 		if (!mem)

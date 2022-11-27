@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Glue Code for x86_64/AVX2 assembler optimized version of Serpent
- *
- * Copyright © 2012-2013 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
- */
 
 #include <linux/module.h>
 #include <linux/types.h>
@@ -18,7 +12,6 @@
 
 #define SERPENT_AVX2_PARALLEL_BLOCKS 16
 
-/* 16-way AVX2 parallel cipher functions */
 asmlinkage void serpent_ecb_enc_16way(const void *ctx, u8 *dst, const u8 *src);
 asmlinkage void serpent_ecb_dec_16way(const void *ctx, u8 *dst, const u8 *src);
 asmlinkage void serpent_cbc_dec_16way(const void *ctx, u8 *dst, const u8 *src);

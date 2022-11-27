@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/sched.h>
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
@@ -104,28 +103,6 @@ static bool is_last_aligned_frame(struct unwind_state *state)
 	unsigned long *aligned_bp = last_aligned_frame(state);
 
 	/*
-	 * GCC can occasionally decide to realign the stack pointer and change
-	 * the offset of the stack frame in the prologue of a function called
-	 * by head/entry code.  Examples:
-	 *
-	 * <start_secondary>:
-	 *      push   %edi
-	 *      lea    0x8(%esp),%edi
-	 *      and    $0xfffffff8,%esp
-	 *      pushl  -0x4(%edi)
-	 *      push   %ebp
-	 *      mov    %esp,%ebp
-	 *
-	 * <x86_64_start_kernel>:
-	 *      lea    0x8(%rsp),%r10
-	 *      and    $0xfffffffffffffff0,%rsp
-	 *      pushq  -0x8(%r10)
-	 *      push   %rbp
-	 *      mov    %rsp,%rbp
-	 *
-	 * After aligning the stack, it pushes a duplicate copy of the return
-	 * address before pushing the frame pointer.
-	 */
 	return (state->bp == aligned_bp && *(aligned_bp + 1) == *(last_bp + 1));
 }
 
@@ -135,17 +112,6 @@ static bool is_last_ftrace_frame(struct unwind_state *state)
 	unsigned long *last_ftrace_bp = last_bp - 3;
 
 	/*
-	 * When unwinding from an ftrace handler of a function called by entry
-	 * code, the stack layout of the last frame is:
-	 *
-	 *   bp
-	 *   parent ret addr
-	 *   bp
-	 *   function ret addr
-	 *   parent ret addr
-	 *   pt_regs
-	 *   -----------------
-	 */
 	return (state->bp == last_ftrace_bp &&
 		*state->bp == *(state->bp + 2) &&
 		*(state->bp + 1) == *(state->bp + 4));
@@ -157,10 +123,6 @@ static bool is_last_task_frame(struct unwind_state *state)
 	       is_last_ftrace_frame(state);
 }
 
-/*
- * This determines if the frame pointer actually contains an encoded pointer to
- * pt_regs on the stack.  See ENCODE_FRAME_POINTER.
- */
 #ifdef CONFIG_X86_64
 static struct pt_regs *decode_frame_pointer(unsigned long *bp)
 {
@@ -209,12 +171,6 @@ static bool update_stack_state(struct unwind_state *state,
 	}
 
 	/*
-	 * If the next bp isn't on the current stack, switch to the next one.
-	 *
-	 * We may have to traverse multiple stacks to deal with the possibility
-	 * that info->next_sp could point to an empty stack and the next bp
-	 * could be on a subsequent stack.
-	 */
 	while (!on_stack(info, frame, len))
 		if (get_stack_info(info->next_sp, state->task, info,
 				   &state->stack_mask))
@@ -266,24 +222,10 @@ bool unwind_next_frame(struct unwind_state *state)
 		regs = task_pt_regs(state->task);
 
 		/*
-		 * kthreads (other than the boot CPU's idle thread) have some
-		 * partial regs at the end of their stack which were placed
-		 * there by copy_thread().  But the regs don't have any
-		 * useful information, so we can skip them.
-		 *
-		 * This user_mode() check is slightly broader than a PF_KTHREAD
-		 * check because it also catches the awkward situation where a
-		 * newly forked kthread transitions into a user task by calling
-		 * kernel_execve(), which eventually clears PF_KTHREAD.
-		 */
 		if (!user_mode(regs))
 			goto the_end;
 
 		/*
-		 * We're almost at the end, but not quite: there's still the
-		 * syscall regs frame.  Entry code doesn't encode the regs
-		 * pointer for syscalls, so we have to set it manually.
-		 */
 		state->regs = regs;
 		state->bp = NULL;
 		state->ip = 0;
@@ -310,19 +252,10 @@ bad_address:
 	state->error = true;
 
 	/*
-	 * When unwinding a non-current task, the task might actually be
-	 * running on another CPU, in which case it could be modifying its
-	 * stack while we're reading it.  This is generally not a problem and
-	 * can be ignored as long as the caller understands that unwinding
-	 * another task will not always succeed.
-	 */
 	if (state->task != current)
 		goto the_end;
 
 	/*
-	 * Don't warn if the unwinder got lost due to an interrupt in entry
-	 * code or in the C handler before the first frame pointer got set up:
-	 */
 	if (state->got_irq && in_entry_code(state->ip))
 		goto the_end;
 	if (state->regs &&
@@ -331,9 +264,6 @@ bad_address:
 		goto the_end;
 
 	/*
-	 * There are some known frame pointer issues on 32-bit.  Disable
-	 * unwinder warnings on 32-bit until it gets objtool support.
-	 */
 	if (IS_ENABLED(CONFIG_X86_32))
 		goto the_end;
 
@@ -377,14 +307,6 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 	bp = get_frame_pointer(task, regs);
 
 	/*
-	 * If we crash with IP==0, the last successfully executed instruction
-	 * was probably an indirect function call with a NULL function pointer.
-	 * That means that SP points into the middle of an incomplete frame:
-	 * *SP is a return pointer, and *(SP-sizeof(unsigned long)) is where we
-	 * would have written a frame pointer if we hadn't crashed.
-	 * Pretend that the frame is complete and that BP points to it, but save
-	 * the real BP so that we can use it when looking for the next frame.
-	 */
 	if (regs && regs->ip == 0 && (unsigned long *)regs->sp >= first_frame) {
 		state->next_bp = bp;
 		bp = ((unsigned long *)regs->sp) - 1;
@@ -396,10 +318,6 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 	update_stack_state(state, bp);
 
 	/*
-	 * The caller can provide the address of the first frame directly
-	 * (first_frame) or indirectly (regs->sp) to indicate which stack frame
-	 * to start unwinding at.  Skip ahead until we reach it.
-	 */
 	while (!unwind_done(state) &&
 	       (!on_stack(&state->stack_info, first_frame, sizeof(long)) ||
 			(state->next_bp == NULL && state->bp < first_frame)))

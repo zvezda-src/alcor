@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (c) 2018 Facebook
- */
 #include <linux/bpf.h>
 #include <linux/err.h>
 #include <linux/sock_diag.h>
@@ -18,7 +14,6 @@ static struct reuseport_array *reuseport_array(struct bpf_map *map)
 	return (struct reuseport_array *)map;
 }
 
-/* The caller must hold the reuseport_lock */
 void bpf_sk_reuseport_detach(struct sock *sk)
 {
 	uintptr_t sk_user_data;
@@ -31,11 +26,6 @@ void bpf_sk_reuseport_detach(struct sock *sk)
 		socks = (void *)(sk_user_data & SK_USER_DATA_PTRMASK);
 		WRITE_ONCE(sk->sk_user_data, NULL);
 		/*
-		 * Do not move this NULL assignment outside of
-		 * sk->sk_callback_lock because there is
-		 * a race with reuseport_array_free()
-		 * which does not hold the reuseport_lock.
-		 */
 		RCU_INIT_POINTER(*socks, NULL);
 	}
 	write_unlock_bh(&sk->sk_callback_lock);
@@ -61,7 +51,6 @@ static void *reuseport_array_lookup_elem(struct bpf_map *map, void *key)
 	return rcu_dereference(array->ptrs[index]);
 }
 
-/* Called from syscall only */
 static int reuseport_array_delete_elem(struct bpf_map *map, void *key)
 {
 	struct reuseport_array *array = reuseport_array(map);
@@ -101,40 +90,14 @@ static void reuseport_array_free(struct bpf_map *map)
 	u32 i;
 
 	/*
-	 * ops->map_*_elem() will not be able to access this
-	 * array now. Hence, this function only races with
-	 * bpf_sk_reuseport_detach() which was triggered by
-	 * close() or disconnect().
-	 *
-	 * This function and bpf_sk_reuseport_detach() are
-	 * both removing sk from "array".  Who removes it
-	 * first does not matter.
-	 *
-	 * The only concern here is bpf_sk_reuseport_detach()
-	 * may access "array" which is being freed here.
-	 * bpf_sk_reuseport_detach() access this "array"
-	 * through sk->sk_user_data _and_ with sk->sk_callback_lock
-	 * held which is enough because this "array" is not freed
-	 * until all sk->sk_user_data has stopped referencing this "array".
-	 *
-	 * Hence, due to the above, taking "reuseport_lock" is not
-	 * needed here.
-	 */
 
 	/*
-	 * Since reuseport_lock is not taken, sk is accessed under
-	 * rcu_read_lock()
-	 */
 	rcu_read_lock();
 	for (i = 0; i < map->max_entries; i++) {
 		sk = rcu_dereference(array->ptrs[i]);
 		if (sk) {
 			write_lock_bh(&sk->sk_callback_lock);
 			/*
-			 * No need for WRITE_ONCE(). At this point,
-			 * no one is reading it without taking the
-			 * sk->sk_callback_lock.
-			 */
 			sk->sk_user_data = NULL;
 			write_unlock_bh(&sk->sk_callback_lock);
 			RCU_INIT_POINTER(array->ptrs[i], NULL);
@@ -143,9 +106,6 @@ static void reuseport_array_free(struct bpf_map *map)
 	rcu_read_unlock();
 
 	/*
-	 * Once reaching here, all sk->sk_user_data is not
-	 * referencing this "array". "array" can be freed now.
-	 */
 	bpf_map_area_free(array);
 }
 
@@ -213,13 +173,6 @@ reuseport_array_update_check(const struct reuseport_array *array,
 		return -ENOTSUPP;
 
 	/*
-	 * sk must be hashed (i.e. listening in the TCP case or binded
-	 * in the UDP case) and
-	 * it must also be a SO_REUSEPORT sk (i.e. reuse cannot be NULL).
-	 *
-	 * Also, sk will be used in bpf helper that is protected by
-	 * rcu_read_lock().
-	 */
 	if (!sock_flag(nsk, SOCK_RCU_FREE) || !sk_hashed(nsk) || !nsk_reuse)
 		return -EINVAL;
 
@@ -230,11 +183,6 @@ reuseport_array_update_check(const struct reuseport_array *array,
 	return 0;
 }
 
-/*
- * Called from syscall only.
- * The "nsk" in the fd refcnt.
- * The "osk" and "reuse" are protected by reuseport_lock.
- */
 int bpf_fd_reuseport_array_update_elem(struct bpf_map *map, void *key,
 				       void *value, u64 map_flags)
 {
@@ -282,10 +230,6 @@ int bpf_fd_reuseport_array_update_elem(struct bpf_map *map, void *key,
 
 	spin_lock_bh(&reuseport_lock);
 	/*
-	 * Some of the checks only need reuseport_lock
-	 * but it is done under sk_callback_lock also
-	 * for simplicity reason.
-	 */
 	write_lock_bh(&nsk->sk_callback_lock);
 
 	osk = rcu_dereference_protected(array->ptrs[index],
@@ -318,7 +262,6 @@ put_file:
 	return err;
 }
 
-/* Called from syscall */
 static int reuseport_array_get_next_key(struct bpf_map *map, void *key,
 					void *next_key)
 {
@@ -334,7 +277,6 @@ static int reuseport_array_get_next_key(struct bpf_map *map, void *key,
 	if (index == array->map.max_entries - 1)
 		return -ENOENT;
 
-	*next = index + 1;
 	return 0;
 }
 

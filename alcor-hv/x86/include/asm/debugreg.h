@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_DEBUGREG_H
 #define _ASM_X86_DEBUGREG_H
 
@@ -9,9 +8,6 @@
 DECLARE_PER_CPU(unsigned long, cpu_dr7);
 
 #ifndef CONFIG_PARAVIRT_XXL
-/*
- * These special macros can be used to get or set a debugging register
- */
 #define get_debugreg(var, register)				\
 	(var) = native_get_debugreg(register)
 #define set_debugreg(value, register)				\
@@ -104,10 +100,6 @@ static __always_inline unsigned long local_db_save(void)
 	if (dr7)
 		set_debugreg(0, 7);
 	/*
-	 * Ensure the compiler doesn't lower the above statements into
-	 * the critical section; disabling breakpoints late would not
-	 * be good.
-	 */
 	barrier();
 
 	return dr7;
@@ -116,10 +108,6 @@ static __always_inline unsigned long local_db_save(void)
 static __always_inline void local_db_restore(unsigned long dr7)
 {
 	/*
-	 * Ensure the compiler doesn't raise this statement into
-	 * the critical section; enabling breakpoints early would
-	 * not be good.
-	 */
 	barrier();
 	if (dr7)
 		set_debugreg(dr7, 7);

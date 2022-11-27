@@ -1,23 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * sysctl.c: General linux system control interface
- *
- * Begun 24 March 1995, Stephen Tweedie
- * Added /proc support, Dec 1995
- * Added bdflush entry and intvec min/max checking, 2/23/96, Tom Dyas.
- * Added hooks for /proc/sys/net (minor, minor patch), 96/4/1, Mike Shaver.
- * Added kernel/java-{interpreter,appletviewer}, 96/5/10, Mike Shaver.
- * Dynamic registration fixes, Stephen Tweedie.
- * Added kswapd-interval, ctrl-alt-del, printk stuff, 1/8/97, Chris Horn.
- * Made sysctl support optional via CONFIG_SYSCTL, 1/10/97, Chris
- *  Horn.
- * Added proc_doulongvec_ms_jiffies_minmax, 09/08/99, Carlos H. Bauer.
- * Added proc_doulongvec_minmax, 09/08/99, Carlos H. Bauer.
- * Changed linked lists to use list.h instead of lists.h, 02/24/00, Bill
- *  Wendling.
- * The list_for_each() macro wasn't appropriate for the sysctl loop.
- *  Removed it and replaced it with older style, 03/23/00, Bill Wendling
- */
 
 #include <linux/module.h>
 #include <linux/mm.h>
@@ -84,7 +64,6 @@
 
 #if defined(CONFIG_SYSCTL)
 
-/* Constants used for minimum and  maximum */
 
 #ifdef CONFIG_PERF_EVENTS
 static const int six_hundred_forty_kb = 640 * 1024;
@@ -96,25 +75,6 @@ static const int cap_last_cap = CAP_LAST_CAP;
 
 #ifdef CONFIG_PROC_SYSCTL
 
-/**
- * enum sysctl_writes_mode - supported sysctl write modes
- *
- * @SYSCTL_WRITES_LEGACY: each write syscall must fully contain the sysctl value
- *	to be written, and multiple writes on the same sysctl file descriptor
- *	will rewrite the sysctl value, regardless of file position. No warning
- *	is issued when the initial position is not 0.
- * @SYSCTL_WRITES_WARN: same as above but warn when the initial file position is
- *	not 0.
- * @SYSCTL_WRITES_STRICT: writes to numeric sysctl entries must always be at
- *	file position 0 and the value must be fully contained in the buffer
- *	sent to the write syscall. If dealing with strings respect the file
- *	position, but restrict this to the max length of the buffer, anything
- *	passed the max length will be ignored. Multiple writes will append
- *	to the buffer.
- *
- * These write modes control how current file position affects the behavior of
- * updating sysctl values through the proc interface on each write.
- */
 enum sysctl_writes_mode {
 	SYSCTL_WRITES_LEGACY		= -1,
 	SYSCTL_WRITES_WARN		= 0,
@@ -130,15 +90,11 @@ int sysctl_legacy_va_layout;
 #endif
 
 #ifdef CONFIG_COMPACTION
-/* min_extfrag_threshold is SYSCTL_ZERO */;
 static const int max_extfrag_threshold = 1000;
 #endif
 
 #endif /* CONFIG_SYSCTL */
 
-/*
- * /proc/sys support
- */
 
 #ifdef CONFIG_PROC_SYSCTL
 
@@ -212,15 +168,6 @@ static void warn_sysctl_write(struct ctl_table *table)
 		current->comm, table->procname);
 }
 
-/**
- * proc_first_pos_non_zero_ignore - check if first position is allowed
- * @ppos: file position
- * @table: the sysctl table
- *
- * Returns true if the first position is non-zero and the sysctl_writes_strict
- * mode indicates this is not allowed for numeric input types. String proc
- * handlers can ignore the return value.
- */
 static bool proc_first_pos_non_zero_ignore(loff_t *ppos,
 					   struct ctl_table *table)
 {
@@ -238,23 +185,6 @@ static bool proc_first_pos_non_zero_ignore(loff_t *ppos,
 	}
 }
 
-/**
- * proc_dostring - read a string sysctl
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes a string from/to the user buffer. If the kernel
- * buffer provided is not large enough to hold the string, the
- * string is truncated. The copied string is %NULL-terminated.
- * If the string is being read by the user process, it is copied
- * and a newline '\n' is added. It is truncated if the buffer is
- * not large enough.
- *
- * Returns 0 on success.
- */
 int proc_dostring(struct ctl_table *table, int write,
 		  void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -270,7 +200,6 @@ static size_t proc_skip_spaces(char **buf)
 	size_t ret;
 	char *tmp = skip_spaces(*buf);
 	ret = tmp - *buf;
-	*buf = tmp;
 	return ret;
 }
 
@@ -284,21 +213,6 @@ static void proc_skip_char(char **buf, size_t *size, const char v)
 	}
 }
 
-/**
- * strtoul_lenient - parse an ASCII formatted integer from a buffer and only
- *                   fail on overflow
- *
- * @cp: kernel buffer containing the string to parse
- * @endp: pointer to store the trailing characters
- * @base: the base to use
- * @res: where the parsed integer will be stored
- *
- * In case of success 0 is returned and @res will contain the parsed integer,
- * @endp will hold any trailing characters.
- * This function will fail the parse on overflow. If there wasn't an overflow
- * the function will defer the decision what characters count as invalid to the
- * caller.
- */
 static int strtoul_lenient(const char *cp, char **endp, unsigned int base,
 			   unsigned long *res)
 {
@@ -315,27 +229,10 @@ static int strtoul_lenient(const char *cp, char **endp, unsigned int base,
 	if (endp)
 		*endp = (char *)cp;
 
-	*res = (unsigned long)result;
 	return 0;
 }
 
 #define TMPBUFLEN 22
-/**
- * proc_get_long - reads an ASCII formatted integer from a user buffer
- *
- * @buf: a kernel buffer
- * @size: size of the kernel buffer
- * @val: this is where the number will be stored
- * @neg: set to %TRUE if number is negative
- * @perm_tr: a vector which contains the allowed trailers
- * @perm_tr_len: size of the perm_tr vector
- * @tr: pointer to store the trailer character
- *
- * In case of success %0 is returned and @buf and @size are updated with
- * the amount of bytes read. If @tr is non-NULL and a trailing
- * character exists (size is non-zero after returning from this
- * function), @tr is updated with the trailing character.
- */
 static int proc_get_long(char **buf, size_t *size,
 			  unsigned long *val, bool *neg,
 			  const char *perm_tr, unsigned perm_tr_len, char *tr)
@@ -379,23 +276,10 @@ static int proc_get_long(char **buf, size_t *size,
 	if (tr && (len < *size))
 		*tr = *p;
 
-	*buf += len;
-	*size -= len;
 
 	return 0;
 }
 
-/**
- * proc_put_long - converts an integer to a decimal ASCII formatted string
- *
- * @buf: the user buffer
- * @size: the size of the user buffer
- * @val: the integer to be converted
- * @neg: sign of the number, %TRUE for negative
- *
- * In case of success @buf and @size are updated with the amount of bytes
- * written.
- */
 static void proc_put_long(void **buf, size_t *size, unsigned long val, bool neg)
 {
 	int len;
@@ -406,8 +290,6 @@ static void proc_put_long(void **buf, size_t *size, unsigned long val, bool neg)
 	if (len > *size)
 		len = *size;
 	memcpy(*buf, tmp, len);
-	*size -= len;
-	*buf += len;
 }
 #undef TMPBUFLEN
 
@@ -549,9 +431,7 @@ static int __do_proc_dointvec(void *tbl_data, struct ctl_table *table,
 		left -= proc_skip_spaces(&p);
 	if (write && first)
 		return err ? : -EINVAL;
-	*lenp -= left;
 out:
-	*ppos += *lenp;
 	return err;
 }
 
@@ -618,7 +498,6 @@ out_free:
 
 	/* This is in keeping with old __do_proc_dointvec() */
 bail_early:
-	*ppos += *lenp;
 	return err;
 }
 
@@ -647,8 +526,6 @@ static int do_proc_douintvec_r(unsigned int *tbl_data, void *buffer,
 	proc_put_char(&buffer, &left, '\n');
 
 out:
-	*lenp -= left;
-	*ppos += *lenp;
 
 	return err;
 }
@@ -672,9 +549,6 @@ static int __do_proc_douintvec(void *tbl_data, struct ctl_table *table,
 	vleft = table->maxlen / sizeof(*i);
 
 	/*
-	 * Arrays are not supported, keep this simple. *Do not* add
-	 * support for them.
-	 */
 	if (vleft != 1) {
 		*lenp = 0;
 		return -EINVAL;
@@ -700,19 +574,6 @@ int do_proc_douintvec(struct ctl_table *table, int write,
 				   buffer, lenp, ppos, conv, data);
 }
 
-/**
- * proc_dobool - read/write a bool
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
- * values from/to the user buffer, treated as an ASCII string.
- *
- * Returns 0 on success.
- */
 int proc_dobool(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
@@ -720,19 +581,6 @@ int proc_dobool(struct ctl_table *table, int write, void *buffer,
 				do_proc_dobool_conv, NULL);
 }
 
-/**
- * proc_dointvec - read a vector of integers
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
- * values from/to the user buffer, treated as an ASCII string. 
- *
- * Returns 0 on success.
- */
 int proc_dointvec(struct ctl_table *table, int write, void *buffer,
 		  size_t *lenp, loff_t *ppos)
 {
@@ -760,19 +608,6 @@ static int proc_dointvec_minmax_warn_RT_change(struct ctl_table *table,
 }
 #endif
 
-/**
- * proc_douintvec - read a vector of unsigned integers
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) unsigned integer
- * values from/to the user buffer, treated as an ASCII string.
- *
- * Returns 0 on success.
- */
 int proc_douintvec(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
@@ -780,10 +615,6 @@ int proc_douintvec(struct ctl_table *table, int write, void *buffer,
 				 do_proc_douintvec_conv, NULL);
 }
 
-/*
- * Taint values can only be increased
- * This means we can safely use a temporary.
- */
 static int proc_taint(struct ctl_table *table, int write,
 			       void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -804,17 +635,10 @@ static int proc_taint(struct ctl_table *table, int write,
 		int i;
 
 		/*
-		 * If we are relying on panic_on_taint not producing
-		 * false positives due to userspace input, bail out
-		 * before setting the requested taint flags.
-		 */
 		if (panic_on_taint_nousertaint && (tmptaint & panic_on_taint))
 			return -EINVAL;
 
 		/*
-		 * Poor man's atomic or. Not worth adding a primitive
-		 * to everyone's atomic.h for this
-		 */
 		for (i = 0; i < TAINT_FLAGS_COUNT; i++)
 			if ((1UL << i) & tmptaint)
 				add_taint(i, LOCKDEP_STILL_OK);
@@ -823,15 +647,6 @@ static int proc_taint(struct ctl_table *table, int write,
 	return err;
 }
 
-/**
- * struct do_proc_dointvec_minmax_conv_param - proc_dointvec_minmax() range checking structure
- * @min: pointer to minimum allowable value
- * @max: pointer to maximum allowable value
- *
- * The do_proc_dointvec_minmax_conv_param structure provides the
- * minimum and maximum values for doing range checking for those sysctl
- * parameters that use the proc_dointvec_minmax() handler.
- */
 struct do_proc_dointvec_minmax_conv_param {
 	int *min;
 	int *max;
@@ -844,9 +659,6 @@ static int do_proc_dointvec_minmax_conv(bool *negp, unsigned long *lvalp,
 	int tmp, ret;
 	struct do_proc_dointvec_minmax_conv_param *param = data;
 	/*
-	 * If writing, first do so via a temporary local int so we can
-	 * bounds-check it before touching *valp.
-	 */
 	int *ip = write ? &tmp : valp;
 
 	ret = do_proc_dointvec_conv(negp, lvalp, ip, write, data);
@@ -863,22 +675,6 @@ static int do_proc_dointvec_minmax_conv(bool *negp, unsigned long *lvalp,
 	return 0;
 }
 
-/**
- * proc_dointvec_minmax - read a vector of integers with min/max values
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
- * values from/to the user buffer, treated as an ASCII string.
- *
- * This routine will ensure the values are within the range specified by
- * table->extra1 (min) and table->extra2 (max).
- *
- * Returns 0 on success or -EINVAL on write when the range check fails.
- */
 int proc_dointvec_minmax(struct ctl_table *table, int write,
 		  void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -890,15 +686,6 @@ int proc_dointvec_minmax(struct ctl_table *table, int write,
 				do_proc_dointvec_minmax_conv, &param);
 }
 
-/**
- * struct do_proc_douintvec_minmax_conv_param - proc_douintvec_minmax() range checking structure
- * @min: pointer to minimum allowable value
- * @max: pointer to maximum allowable value
- *
- * The do_proc_douintvec_minmax_conv_param structure provides the
- * minimum and maximum values for doing range checking for those sysctl
- * parameters that use the proc_douintvec_minmax() handler.
- */
 struct do_proc_douintvec_minmax_conv_param {
 	unsigned int *min;
 	unsigned int *max;
@@ -929,25 +716,6 @@ static int do_proc_douintvec_minmax_conv(unsigned long *lvalp,
 	return 0;
 }
 
-/**
- * proc_douintvec_minmax - read a vector of unsigned ints with min/max values
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) unsigned integer
- * values from/to the user buffer, treated as an ASCII string. Negative
- * strings are not allowed.
- *
- * This routine will ensure the values are within the range specified by
- * table->extra1 (min) and table->extra2 (max). There is a final sanity
- * check for UINT_MAX to avoid having to support wrap around uses from
- * userspace.
- *
- * Returns 0 on success or -ERANGE on write when the range check fails.
- */
 int proc_douintvec_minmax(struct ctl_table *table, int write,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -959,23 +727,6 @@ int proc_douintvec_minmax(struct ctl_table *table, int write,
 				 do_proc_douintvec_minmax_conv, &param);
 }
 
-/**
- * proc_dou8vec_minmax - read a vector of unsigned chars with min/max values
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes up to table->maxlen/sizeof(u8) unsigned chars
- * values from/to the user buffer, treated as an ASCII string. Negative
- * strings are not allowed.
- *
- * This routine will ensure the values are within the range specified by
- * table->extra1 (min) and table->extra2 (max).
- *
- * Returns 0 on success or an error on write when the range check fails.
- */
 int proc_dou8vec_minmax(struct ctl_table *table, int write,
 			void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1105,9 +856,7 @@ static int __do_proc_doulongvec_minmax(void *data, struct ctl_table *table,
 		left -= proc_skip_spaces(&p);
 	if (write && first)
 		return err ? : -EINVAL;
-	*lenp -= left;
 out:
-	*ppos += *lenp;
 	return err;
 }
 
@@ -1119,45 +868,12 @@ static int do_proc_doulongvec_minmax(struct ctl_table *table, int write,
 			buffer, lenp, ppos, convmul, convdiv);
 }
 
-/**
- * proc_doulongvec_minmax - read a vector of long integers with min/max values
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned long) unsigned long
- * values from/to the user buffer, treated as an ASCII string.
- *
- * This routine will ensure the values are within the range specified by
- * table->extra1 (min) and table->extra2 (max).
- *
- * Returns 0 on success.
- */
 int proc_doulongvec_minmax(struct ctl_table *table, int write,
 			   void *buffer, size_t *lenp, loff_t *ppos)
 {
     return do_proc_doulongvec_minmax(table, write, buffer, lenp, ppos, 1l, 1l);
 }
 
-/**
- * proc_doulongvec_ms_jiffies_minmax - read a vector of millisecond values with min/max values
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned long) unsigned long
- * values from/to the user buffer, treated as an ASCII string. The values
- * are treated as milliseconds, and converted to jiffies when they are stored.
- *
- * This routine will ensure the values are within the range specified by
- * table->extra1 (min) and table->extra2 (max).
- *
- * Returns 0 on success.
- */
 int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
 				      void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1246,9 +962,6 @@ static int do_proc_dointvec_ms_jiffies_minmax_conv(bool *negp, unsigned long *lv
 	int tmp, ret;
 	struct do_proc_dointvec_minmax_conv_param *param = data;
 	/*
-	 * If writing, first do so via a temporary local int so we can
-	 * bounds-check it before touching *valp.
-	 */
 	int *ip = write ? &tmp : valp;
 
 	ret = do_proc_dointvec_ms_jiffies_conv(negp, lvalp, ip, write, data);
@@ -1264,21 +977,6 @@ static int do_proc_dointvec_ms_jiffies_minmax_conv(bool *negp, unsigned long *lv
 	return 0;
 }
 
-/**
- * proc_dointvec_jiffies - read a vector of integers as seconds
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
- * values from/to the user buffer, treated as an ASCII string. 
- * The values read are assumed to be in seconds, and are converted into
- * jiffies.
- *
- * Returns 0 on success.
- */
 int proc_dointvec_jiffies(struct ctl_table *table, int write,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1297,21 +995,6 @@ int proc_dointvec_ms_jiffies_minmax(struct ctl_table *table, int write,
 			do_proc_dointvec_ms_jiffies_minmax_conv, &param);
 }
 
-/**
- * proc_dointvec_userhz_jiffies - read a vector of integers as 1/USER_HZ seconds
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: pointer to the file position
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
- * values from/to the user buffer, treated as an ASCII string. 
- * The values read are assumed to be in 1/USER_HZ seconds, and 
- * are converted into jiffies.
- *
- * Returns 0 on success.
- */
 int proc_dointvec_userhz_jiffies(struct ctl_table *table, int write,
 				 void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1319,22 +1002,6 @@ int proc_dointvec_userhz_jiffies(struct ctl_table *table, int write,
 		    	    do_proc_dointvec_userhz_jiffies_conv,NULL);
 }
 
-/**
- * proc_dointvec_ms_jiffies - read a vector of integers as 1 milliseconds
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- * @ppos: the current position in the file
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
- * values from/to the user buffer, treated as an ASCII string.
- * The values read are assumed to be in 1/1000 seconds, and
- * are converted into jiffies.
- *
- * Returns 0 on success.
- */
 int proc_dointvec_ms_jiffies(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
@@ -1364,23 +1031,6 @@ static int proc_do_cad_pid(struct ctl_table *table, int write, void *buffer,
 	return 0;
 }
 
-/**
- * proc_do_large_bitmap - read/write from/to a large bitmap
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * The bitmap is stored at table->data and the bitmap length (in bits)
- * in table->maxlen.
- *
- * We use a range comma separated format (e.g. 1,3-4,10-10) so that
- * large bitmaps may be represented in a compact manner. Writing into
- * the file will clear the bitmap then update it with the given input.
- *
- * Returns 0 on success.
- */
 int proc_do_large_bitmap(struct ctl_table *table, int write,
 			 void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1420,10 +1070,6 @@ int proc_do_large_bitmap(struct ctl_table *table, int write,
 			err = proc_get_long(&p, &left, &val_a, &neg, tr_a,
 					     sizeof(tr_a), &c);
 			/*
-			 * If we consumed the entirety of a truncated buffer or
-			 * only one char is left (may be a "-"), then stop here,
-			 * reset, & come back for more.
-			 */
 			if ((left <= 1) && skipped) {
 				left = saved_left;
 				break;
@@ -1447,9 +1093,6 @@ int proc_do_large_bitmap(struct ctl_table *table, int write,
 						     &neg, tr_b, sizeof(tr_b),
 						     &c);
 				/*
-				 * If we consumed all of a truncated buffer or
-				 * then stop here, reset, & come back for more.
-				 */
 				if (!left && skipped) {
 					left = saved_left;
 					break;
@@ -1997,11 +1640,6 @@ static struct ctl_table kern_table[] = {
 #endif
 #ifdef CONFIG_PERF_EVENTS
 	/*
-	 * User-space scripts rely on the existence of this file
-	 * as a feature check for perf_events being enabled.
-	 *
-	 * So it's an ABI, do not remove!
-	 */
 	{
 		.procname	= "perf_event_paranoid",
 		.data		= &sysctl_perf_event_paranoid,
@@ -2490,10 +2128,6 @@ int __init sysctl_init_bases(void)
 	return 0;
 }
 #endif /* CONFIG_SYSCTL */
-/*
- * No sense putting this after each symbol definition, twice,
- * exception granted :-)
- */
 EXPORT_SYMBOL(proc_dobool);
 EXPORT_SYMBOL(proc_dointvec);
 EXPORT_SYMBOL(proc_douintvec);

@@ -1,24 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * This file is part of the Linux kernel.
- *
- * Copyright (c) 2011, Intel Corporation
- * Authors: Fenghua Yu <fenghua.yu@intel.com>,
- *          H. Peter Anvin <hpa@linux.intel.com>
- */
 
 #include <asm/processor.h>
 #include <asm/archrandom.h>
 #include <asm/sections.h>
 
-/*
- * RDRAND has Built-In-Self-Test (BIST) that runs on every invocation.
- * Run the instruction a few times as a sanity check. Also make sure
- * it's not outputting the same value over and over, which has happened
- * as a result of past CPU bugs.
- *
- * If it fails, it is simple to disable RDRAND and RDSEED here.
- */
 
 void x86_init_rdrand(struct cpuinfo_x86 *c)
 {

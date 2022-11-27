@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (C) 2019-2022 Red Hat, Inc. Daniel Bristot de Oliveira <bristot@kernel.org>
- *
- * Panic RV reactor:
- *   Prints the exception msg to the kernel message log and panic().
- */
 
 #include <linux/ftrace.h>
 #include <linux/tracepoint.h>

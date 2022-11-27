@@ -1,15 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* -*- linux-c -*- ------------------------------------------------------- *
- *
- *   Copyright (C) 1991, 1992 Linus Torvalds
- *   Copyright 2007 rPath, Inc. - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author H. Peter Anvin
- *
- * ----------------------------------------------------------------------- */
 
-/*
- * Main module for the real-mode kernel code
- */
 #include <linux/build_bug.h>
 
 #include "boot.h"
@@ -22,11 +11,6 @@ struct port_io_ops pio_ops;
 char *HEAP = _end;
 char *heap_end = _end;		/* Default end of heap = no heap */
 
-/*
- * Copy the header into the boot parameter block.  Since this
- * screws up the old-style command line protocol, adjust by
- * filling in the new-style command line pointer instead.
- */
 
 static void copy_boot_params(void)
 {
@@ -58,11 +42,6 @@ static void copy_boot_params(void)
 	}
 }
 
-/*
- * Query the keyboard lock status as given by the BIOS, and
- * set the keyboard repeat rate to maximum.  Unclear why the latter
- * is done here; this might be possible to kill off as stale code.
- */
 static void keyboard_init(void)
 {
 	struct biosregs ireg, oreg;
@@ -76,9 +55,6 @@ static void keyboard_init(void)
 	intcall(0x16, &ireg, NULL);
 }
 
-/*
- * Get Intel SpeedStep (IST) information.
- */
 static void query_ist(void)
 {
 	struct biosregs ireg, oreg;
@@ -99,9 +75,6 @@ static void query_ist(void)
 	boot_params.ist_info.perf_level = oreg.edx;
 }
 
-/*
- * Tell the BIOS what CPU mode we intend to run in.
- */
 static void set_bios_mode(void)
 {
 #ifdef CONFIG_X86_64

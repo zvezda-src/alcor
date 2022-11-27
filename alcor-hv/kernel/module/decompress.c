@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Copyright 2021 Google LLC.
- */
 
 #include <linux/init.h>
 #include <linux/highmem.h>
@@ -55,11 +51,6 @@ static struct page *module_get_next_page(struct load_info *info)
 #define MODULE_COMPRESSION	gzip
 #define MODULE_DECOMPRESS_FN	module_gzip_decompress
 
-/*
- * Calculate length of the header which consists of signature, header
- * flags, time stamp and operating system ID (10 bytes total), plus
- * an optional filename.
- */
 static size_t module_gzip_header_len(const u8 *buf, size_t size)
 {
 	const u8 signature[] = { 0x1f, 0x8b, 0x08 };
@@ -71,9 +62,6 @@ static size_t module_gzip_header_len(const u8 *buf, size_t size)
 	if (buf[3] & 0x08) {
 		do {
 			/*
-			 * If we can't find the end of the file name we must
-			 * be dealing with a corrupted file.
-			 */
 			if (len == size)
 				return 0;
 		} while (buf[len++] != '\0');
@@ -210,9 +198,6 @@ int module_decompress(struct load_info *info, const void *buf, size_t size)
 	int error;
 
 	/*
-	 * Start with number of pages twice as big as needed for
-	 * compressed data.
-	 */
 	n_pages = DIV_ROUND_UP(size, PAGE_SIZE) * 2;
 	error = module_extend_max_pages(info, n_pages);
 

@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2011-2014 PLUMgrid, http://plumgrid.com
- * Copyright (c) 2016 Facebook
- */
 #include <linux/bpf.h>
 #include <linux/btf.h>
 #include <linux/jhash.h>
@@ -29,56 +25,6 @@
 	.map_delete_batch =			\
 	generic_map_delete_batch
 
-/*
- * The bucket lock has two protection scopes:
- *
- * 1) Serializing concurrent operations from BPF programs on different
- *    CPUs
- *
- * 2) Serializing concurrent operations from BPF programs and sys_bpf()
- *
- * BPF programs can execute in any context including perf, kprobes and
- * tracing. As there are almost no limits where perf, kprobes and tracing
- * can be invoked from the lock operations need to be protected against
- * deadlocks. Deadlocks can be caused by recursion and by an invocation in
- * the lock held section when functions which acquire this lock are invoked
- * from sys_bpf(). BPF recursion is prevented by incrementing the per CPU
- * variable bpf_prog_active, which prevents BPF programs attached to perf
- * events, kprobes and tracing to be invoked before the prior invocation
- * from one of these contexts completed. sys_bpf() uses the same mechanism
- * by pinning the task to the current CPU and incrementing the recursion
- * protection across the map operation.
- *
- * This has subtle implications on PREEMPT_RT. PREEMPT_RT forbids certain
- * operations like memory allocations (even with GFP_ATOMIC) from atomic
- * contexts. This is required because even with GFP_ATOMIC the memory
- * allocator calls into code paths which acquire locks with long held lock
- * sections. To ensure the deterministic behaviour these locks are regular
- * spinlocks, which are converted to 'sleepable' spinlocks on RT. The only
- * true atomic contexts on an RT kernel are the low level hardware
- * handling, scheduling, low level interrupt handling, NMIs etc. None of
- * these contexts should ever do memory allocations.
- *
- * As regular device interrupt handlers and soft interrupts are forced into
- * thread context, the existing code which does
- *   spin_lock*(); alloc(GFP_ATOMIC); spin_unlock*();
- * just works.
- *
- * In theory the BPF locks could be converted to regular spinlocks as well,
- * but the bucket locks and percpu_freelist locks can be taken from
- * arbitrary contexts (perf, kprobes, tracepoints) which are required to be
- * atomic contexts even on RT. These mechanisms require preallocated maps,
- * so there is no need to invoke memory allocations within the lock held
- * sections.
- *
- * BPF maps which need dynamic allocation are only used from (forced)
- * thread context on RT and can therefore use regular spinlocks which in
- * turn allows to invoke memory allocations from the lock held section.
- *
- * On a non RT kernel this distinction is neither possible nor required.
- * spinlock maps to raw_spinlock and the extra code is optimized out by the
- * compiler.
- */
 struct bucket {
 	struct hlist_nulls_head head;
 	union {
@@ -107,7 +53,6 @@ struct bpf_htab {
 	int __percpu *map_locked[HASHTAB_MAP_LOCK_COUNT];
 };
 
-/* each htab element is struct htab_elem + key + value */
 struct htab_elem {
 	union {
 		struct hlist_nulls_node hash_node;
@@ -176,7 +121,6 @@ static inline int htab_lock_bucket(const struct bpf_htab *htab,
 		raw_spin_lock_irqsave(&b->raw_lock, flags);
 	else
 		spin_lock_irqsave(&b->lock, flags);
-	*pflags = flags;
 
 	return 0;
 }
@@ -211,7 +155,6 @@ static bool htab_is_percpu(const struct bpf_htab *htab)
 static inline void htab_elem_set_ptr(struct htab_elem *l, u32 key_size,
 				     void __percpu *pptr)
 {
-	*(void __percpu **)(l->key + key_size) = pptr;
 }
 
 static inline void __percpu *htab_elem_get_ptr(struct htab_elem *l, u32 key_size)
@@ -293,17 +236,6 @@ free_elems:
 	bpf_map_area_free(htab->elems);
 }
 
-/* The LRU list has a lock (lru_lock). Each htab bucket has a lock
- * (bucket_lock). If both locks need to be acquired together, the lock
- * order is always lru_lock -> bucket_lock and this only happens in
- * bpf_lru_list.c logic. For example, certain code path of
- * bpf_lru_pop_free(), which is called by function prealloc_lru_pop(),
- * will acquire lru_lock first followed by acquiring bucket_lock.
- *
- * In hashtab.c, to avoid deadlock, lock acquisition of
- * bucket_lock followed by lru_lock is not allowed. In such cases,
- * bucket_lock needs to be released first before acquiring lru_lock.
- */
 static struct htab_elem *prealloc_lru_pop(struct bpf_htab *htab, void *key,
 					  u32 hash)
 {
@@ -415,7 +347,6 @@ static int alloc_extra_elems(struct bpf_htab *htab)
 	return 0;
 }
 
-/* Called from syscall */
 static int htab_map_alloc_check(union bpf_attr *attr)
 {
 	bool percpu = (attr->map_type == BPF_MAP_TYPE_PERCPU_HASH ||
@@ -598,7 +529,6 @@ static inline struct hlist_nulls_head *select_bucket(struct bpf_htab *htab, u32 
 	return &__select_bucket(htab, hash)->head;
 }
 
-/* this lookup function can only be called with bucket lock taken */
 static struct htab_elem *lookup_elem_raw(struct hlist_nulls_head *head, u32 hash,
 					 void *key, u32 key_size)
 {
@@ -612,10 +542,6 @@ static struct htab_elem *lookup_elem_raw(struct hlist_nulls_head *head, u32 hash
 	return NULL;
 }
 
-/* can be called without bucket lock. it will repeat the loop in
- * the unlikely event when elements moved from one bucket into another
- * while link list is being walked
- */
 static struct htab_elem *lookup_nulls_elem_raw(struct hlist_nulls_head *head,
 					       u32 hash, void *key,
 					       u32 key_size, u32 n_buckets)
@@ -634,11 +560,6 @@ again:
 	return NULL;
 }
 
-/* Called from syscall or from eBPF program directly, so
- * arguments have to match bpf_map_lookup_elem() exactly.
- * The return value is adjusted by BPF instructions
- * in htab_map_gen_lookup().
- */
 static void *__htab_map_lookup_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
@@ -670,17 +591,6 @@ static void *htab_map_lookup_elem(struct bpf_map *map, void *key)
 	return NULL;
 }
 
-/* inline bpf_map_lookup_elem() call.
- * Instead of:
- * bpf_prog
- *   bpf_map_lookup_elem
- *     map->ops->map_lookup_elem
- *       htab_map_lookup_elem
- *         __htab_map_lookup_elem
- * do:
- * bpf_prog
- *   __htab_map_lookup_elem
- */
 static int htab_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
 {
 	struct bpf_insn *insn = insn_buf;
@@ -688,9 +598,6 @@ static int htab_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
 
 	BUILD_BUG_ON(!__same_type(&__htab_map_lookup_elem,
 		     (void *(*)(struct bpf_map *map, void *key))NULL));
-	*insn++ = BPF_EMIT_CALL(__htab_map_lookup_elem);
-	*insn++ = BPF_JMP_IMM(BPF_JEQ, ret, 0, 1);
-	*insn++ = BPF_ALU64_IMM(BPF_ADD, ret,
 				offsetof(struct htab_elem, key) +
 				round_up(map->key_size, 8));
 	return insn - insn_buf;
@@ -729,17 +636,11 @@ static int htab_lru_map_gen_lookup(struct bpf_map *map,
 
 	BUILD_BUG_ON(!__same_type(&__htab_map_lookup_elem,
 		     (void *(*)(struct bpf_map *map, void *key))NULL));
-	*insn++ = BPF_EMIT_CALL(__htab_map_lookup_elem);
-	*insn++ = BPF_JMP_IMM(BPF_JEQ, ret, 0, 4);
-	*insn++ = BPF_LDX_MEM(BPF_B, ref_reg, ret,
 			      offsetof(struct htab_elem, lru_node) +
 			      offsetof(struct bpf_lru_node, ref));
-	*insn++ = BPF_JMP_IMM(BPF_JNE, ref_reg, 0, 1);
-	*insn++ = BPF_ST_MEM(BPF_B, ret,
 			     offsetof(struct htab_elem, lru_node) +
 			     offsetof(struct bpf_lru_node, ref),
 			     1);
-	*insn++ = BPF_ALU64_IMM(BPF_ADD, ret,
 				offsetof(struct htab_elem, key) +
 				round_up(map->key_size, 8));
 	return insn - insn_buf;
@@ -756,9 +657,6 @@ static void check_and_free_fields(struct bpf_htab *htab,
 		bpf_map_free_kptrs(&htab->map, map_value);
 }
 
-/* It is called from the bpf_lru_list when the LRU needs to delete
- * older elements from the htab.
- */
 static bool htab_lru_map_delete_node(void *arg, struct bpf_lru_node *node)
 {
 	struct bpf_htab *htab = arg;
@@ -789,7 +687,6 @@ static bool htab_lru_map_delete_node(void *arg, struct bpf_lru_node *node)
 	return l == tgt_l;
 }
 
-/* Called from syscall */
 static int htab_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
@@ -1038,7 +935,6 @@ static int check_flags(struct bpf_htab *htab, struct htab_elem *l_old,
 	return 0;
 }
 
-/* Called from syscall or from eBPF program */
 static int htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 				u64 map_flags)
 {
@@ -1343,7 +1239,6 @@ static int htab_lru_percpu_map_update_elem(struct bpf_map *map, void *key,
 						 false);
 }
 
-/* Called from syscall or from eBPF program */
 static int htab_map_delete_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
@@ -1468,7 +1363,6 @@ static void htab_map_free_timers(struct bpf_map *map)
 		htab_free_prealloced_timers(htab);
 }
 
-/* Called when map->refcnt goes to zero, either from workqueue or from syscall */
 static void htab_map_free(struct bpf_map *map)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
@@ -2188,7 +2082,6 @@ const struct bpf_map_ops htab_lru_map_ops = {
 	.iter_seq_info = &iter_seq_info,
 };
 
-/* Called from eBPF program */
 static void *htab_percpu_map_lookup_elem(struct bpf_map *map, void *key)
 {
 	struct htab_elem *l = __htab_map_lookup_elem(map, key);
@@ -2386,7 +2279,6 @@ static void fd_htab_map_free(struct bpf_map *map)
 	htab_map_free(map);
 }
 
-/* only called from syscall */
 int bpf_fd_htab_map_lookup_elem(struct bpf_map *map, void *key, u32 *value)
 {
 	void **ptr;
@@ -2406,7 +2298,6 @@ int bpf_fd_htab_map_lookup_elem(struct bpf_map *map, void *key, u32 *value)
 	return ret;
 }
 
-/* only called from syscall */
 int bpf_fd_htab_map_update_elem(struct bpf_map *map, struct file *map_file,
 				void *key, void *value, u64 map_flags)
 {
@@ -2462,12 +2353,8 @@ static int htab_of_map_gen_lookup(struct bpf_map *map,
 
 	BUILD_BUG_ON(!__same_type(&__htab_map_lookup_elem,
 		     (void *(*)(struct bpf_map *map, void *key))NULL));
-	*insn++ = BPF_EMIT_CALL(__htab_map_lookup_elem);
-	*insn++ = BPF_JMP_IMM(BPF_JEQ, ret, 0, 2);
-	*insn++ = BPF_ALU64_IMM(BPF_ADD, ret,
 				offsetof(struct htab_elem, key) +
 				round_up(map->key_size, 8));
-	*insn++ = BPF_LDX_MEM(BPF_DW, ret, ret, 0);
 
 	return insn - insn_buf;
 }

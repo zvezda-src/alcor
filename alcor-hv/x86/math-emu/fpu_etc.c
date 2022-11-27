@@ -1,10 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  fpu_etc.c                                                                |
  |                                                                           |
  | Implement a few FPU instructions.                                         |
  |                                                                           |
- | Copyright (C) 1992,1993,1994,1997                                         |
  |                       W. Metzenthen, 22 Parker St, Ormond, Vic 3163,      |
  |                       Australia.  E-mail   billm@suburbia.net             |
  |                                                                           |

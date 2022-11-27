@@ -1,15 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* -*- linux-c -*- ------------------------------------------------------- *
- *
- *   Copyright (C) 1991, 1992 Linus Torvalds
- *   Copyright 2007 rPath, Inc. - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author H. Peter Anvin
- *
- * ----------------------------------------------------------------------- */
 
-/*
- * Common all-VGA modes
- */
 
 #include "boot.h"
 #include "video.h"
@@ -35,7 +24,6 @@ static struct mode_info cga_modes[] = {
 
 static __videocard video_vga;
 
-/* Set basic 80x25 mode */
 static u8 vga_set_basic_mode(void)
 {
 	struct biosregs ireg, oreg;
@@ -128,7 +116,6 @@ static void vga_set_80x43(void)
 	vga_set_8font();
 }
 
-/* I/O address of the VGA CRTC */
 u16 vga_crtc(void)
 {
 	return (inb(0x3cc) & 1) ? 0x3d4 : 0x3b4;
@@ -223,11 +210,6 @@ static int vga_set_mode(struct mode_info *mode)
 	return 0;
 }
 
-/*
- * Note: this probe includes basic information required by all
- * systems.  It should be executed first, by making sure
- * video-vga.c is listed first in the Makefile.
- */
 static int vga_probe(void)
 {
 	static const char *card_name[] = {

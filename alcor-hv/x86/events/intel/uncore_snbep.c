@@ -1,13 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0
-/* SandyBridge-EP/IvyTown uncore support */
 #include "uncore.h"
 #include "uncore_discovery.h"
 
-/* SNB-EP pci bus to socket mapping */
 #define SNBEP_CPUNODEID			0x40
 #define SNBEP_GIDNIDMAP			0x54
 
-/* SNB-EP Box level control */
 #define SNBEP_PMON_BOX_CTL_RST_CTRL	(1 << 0)
 #define SNBEP_PMON_BOX_CTL_RST_CTRS	(1 << 1)
 #define SNBEP_PMON_BOX_CTL_FRZ		(1 << 8)
@@ -15,7 +11,6 @@
 #define SNBEP_PMON_BOX_CTL_INT		(SNBEP_PMON_BOX_CTL_RST_CTRL | \
 					 SNBEP_PMON_BOX_CTL_RST_CTRS | \
 					 SNBEP_PMON_BOX_CTL_FRZ_EN)
-/* SNB-EP event control */
 #define SNBEP_PMON_CTL_EV_SEL_MASK	0x000000ff
 #define SNBEP_PMON_CTL_UMASK_MASK	0x0000ff00
 #define SNBEP_PMON_CTL_RST		(1 << 17)
@@ -30,7 +25,6 @@
 					 SNBEP_PMON_CTL_INVERT | \
 					 SNBEP_PMON_CTL_TRESH_MASK)
 
-/* SNB-EP Ubox event control */
 #define SNBEP_U_MSR_PMON_CTL_TRESH_MASK		0x1f000000
 #define SNBEP_U_MSR_PMON_RAW_EVENT_MASK		\
 				(SNBEP_PMON_CTL_EV_SEL_MASK | \
@@ -43,7 +37,6 @@
 #define SNBEP_CBO_MSR_PMON_RAW_EVENT_MASK	(SNBEP_PMON_RAW_EVENT_MASK | \
 						 SNBEP_CBO_PMON_CTL_TID_EN)
 
-/* SNB-EP PCU event control */
 #define SNBEP_PCU_MSR_PMON_CTL_OCC_SEL_MASK	0x0000c000
 #define SNBEP_PCU_MSR_PMON_CTL_TRESH_MASK	0x1f000000
 #define SNBEP_PCU_MSR_PMON_CTL_OCC_INVERT	(1 << 30)
@@ -61,33 +54,26 @@
 				(SNBEP_PMON_RAW_EVENT_MASK | \
 				 SNBEP_PMON_CTL_EV_SEL_EXT)
 
-/* SNB-EP pci control register */
 #define SNBEP_PCI_PMON_BOX_CTL			0xf4
 #define SNBEP_PCI_PMON_CTL0			0xd8
-/* SNB-EP pci counter register */
 #define SNBEP_PCI_PMON_CTR0			0xa0
 
-/* SNB-EP home agent register */
 #define SNBEP_HA_PCI_PMON_BOX_ADDRMATCH0	0x40
 #define SNBEP_HA_PCI_PMON_BOX_ADDRMATCH1	0x44
 #define SNBEP_HA_PCI_PMON_BOX_OPCODEMATCH	0x48
-/* SNB-EP memory controller register */
 #define SNBEP_MC_CHy_PCI_PMON_FIXED_CTL		0xf0
 #define SNBEP_MC_CHy_PCI_PMON_FIXED_CTR		0xd0
-/* SNB-EP QPI register */
 #define SNBEP_Q_Py_PCI_PMON_PKT_MATCH0		0x228
 #define SNBEP_Q_Py_PCI_PMON_PKT_MATCH1		0x22c
 #define SNBEP_Q_Py_PCI_PMON_PKT_MASK0		0x238
 #define SNBEP_Q_Py_PCI_PMON_PKT_MASK1		0x23c
 
-/* SNB-EP Ubox register */
 #define SNBEP_U_MSR_PMON_CTR0			0xc16
 #define SNBEP_U_MSR_PMON_CTL0			0xc10
 
 #define SNBEP_U_MSR_PMON_UCLK_FIXED_CTL		0xc08
 #define SNBEP_U_MSR_PMON_UCLK_FIXED_CTR		0xc09
 
-/* SNB-EP Cbo register */
 #define SNBEP_C0_MSR_PMON_CTR0			0xd16
 #define SNBEP_C0_MSR_PMON_CTL0			0xd10
 #define SNBEP_C0_MSR_PMON_BOX_CTL		0xd04
@@ -106,7 +92,6 @@
 	.idx = (i)				\
 }
 
-/* SNB-EP PCU register */
 #define SNBEP_PCU_MSR_PMON_CTR0			0xc36
 #define SNBEP_PCU_MSR_PMON_CTL0			0xc30
 #define SNBEP_PCU_MSR_PMON_BOX_CTL		0xc24
@@ -115,14 +100,12 @@
 #define SNBEP_PCU_MSR_CORE_C3_CTR		0x3fc
 #define SNBEP_PCU_MSR_CORE_C6_CTR		0x3fd
 
-/* IVBEP event control */
 #define IVBEP_PMON_BOX_CTL_INT		(SNBEP_PMON_BOX_CTL_RST_CTRL | \
 					 SNBEP_PMON_BOX_CTL_RST_CTRS)
 #define IVBEP_PMON_RAW_EVENT_MASK		(SNBEP_PMON_CTL_EV_SEL_MASK | \
 					 SNBEP_PMON_CTL_UMASK_MASK | \
 					 SNBEP_PMON_CTL_EDGE_DET | \
 					 SNBEP_PMON_CTL_TRESH_MASK)
-/* IVBEP Ubox */
 #define IVBEP_U_MSR_PMON_GLOBAL_CTL		0xc00
 #define IVBEP_U_PMON_GLOBAL_FRZ_ALL		(1 << 31)
 #define IVBEP_U_PMON_GLOBAL_UNFRZ_ALL		(1 << 29)
@@ -132,7 +115,6 @@
 				 SNBEP_PMON_CTL_UMASK_MASK | \
 				 SNBEP_PMON_CTL_EDGE_DET | \
 				 SNBEP_U_MSR_PMON_CTL_TRESH_MASK)
-/* IVBEP Cbo */
 #define IVBEP_CBO_MSR_PMON_RAW_EVENT_MASK		(IVBEP_PMON_RAW_EVENT_MASK | \
 						 SNBEP_CBO_PMON_CTL_TID_EN)
 
@@ -145,12 +127,10 @@
 #define IVBEP_CB0_MSR_PMON_BOX_FILTER_NC		(0x1ULL << 62)
 #define IVBEP_CB0_MSR_PMON_BOX_FILTER_ISOC	(0x1ULL << 63)
 
-/* IVBEP home agent */
 #define IVBEP_HA_PCI_PMON_CTL_Q_OCC_RST		(1 << 16)
 #define IVBEP_HA_PCI_PMON_RAW_EVENT_MASK		\
 				(IVBEP_PMON_RAW_EVENT_MASK | \
 				 IVBEP_HA_PCI_PMON_CTL_Q_OCC_RST)
-/* IVBEP PCU */
 #define IVBEP_PCU_MSR_PMON_RAW_EVENT_MASK	\
 				(SNBEP_PMON_CTL_EV_SEL_MASK | \
 				 SNBEP_PCU_MSR_PMON_CTL_OCC_SEL_MASK | \
@@ -158,7 +138,6 @@
 				 SNBEP_PCU_MSR_PMON_CTL_TRESH_MASK | \
 				 SNBEP_PCU_MSR_PMON_CTL_OCC_INVERT | \
 				 SNBEP_PCU_MSR_PMON_CTL_OCC_EDGE_DET)
-/* IVBEP QPI */
 #define IVBEP_QPI_PCI_PMON_RAW_EVENT_MASK	\
 				(IVBEP_PMON_RAW_EVENT_MASK | \
 				 SNBEP_PMON_CTL_EV_SEL_EXT)
@@ -166,7 +145,6 @@
 #define __BITS_VALUE(x, i, n)  ((typeof(x))(((x) >> ((i) * (n))) & \
 				((1ULL << (n)) - 1)))
 
-/* Haswell-EP Ubox */
 #define HSWEP_U_MSR_PMON_CTR0			0x709
 #define HSWEP_U_MSR_PMON_CTL0			0x705
 #define HSWEP_U_MSR_PMON_FILTER			0x707
@@ -180,7 +158,6 @@
 					(HSWEP_U_MSR_PMON_BOX_FILTER_TID | \
 					 HSWEP_U_MSR_PMON_BOX_FILTER_CID)
 
-/* Haswell-EP CBo */
 #define HSWEP_C0_MSR_PMON_CTR0			0xe08
 #define HSWEP_C0_MSR_PMON_CTL0			0xe01
 #define HSWEP_C0_MSR_PMON_BOX_CTL			0xe00
@@ -198,7 +175,6 @@
 #define HSWEP_CB0_MSR_PMON_BOX_FILTER_ISOC	(0x1ULL << 63)
 
 
-/* Haswell-EP Sbox */
 #define HSWEP_S0_MSR_PMON_CTR0			0x726
 #define HSWEP_S0_MSR_PMON_CTL0			0x721
 #define HSWEP_S0_MSR_PMON_BOX_CTL			0x720
@@ -206,17 +182,14 @@
 #define HSWEP_S_MSR_PMON_RAW_EVENT_MASK		(SNBEP_PMON_RAW_EVENT_MASK | \
 						 SNBEP_CBO_PMON_CTL_TID_EN)
 
-/* Haswell-EP PCU */
 #define HSWEP_PCU_MSR_PMON_CTR0			0x717
 #define HSWEP_PCU_MSR_PMON_CTL0			0x711
 #define HSWEP_PCU_MSR_PMON_BOX_CTL		0x710
 #define HSWEP_PCU_MSR_PMON_BOX_FILTER		0x715
 
-/* KNL Ubox */
 #define KNL_U_MSR_PMON_RAW_EVENT_MASK \
 					(SNBEP_U_MSR_PMON_RAW_EVENT_MASK | \
 						SNBEP_CBO_PMON_CTL_TID_EN)
-/* KNL CHA */
 #define KNL_CHA_MSR_OFFSET			0xc
 #define KNL_CHA_MSR_PMON_CTL_QOR		(1 << 16)
 #define KNL_CHA_MSR_PMON_RAW_EVENT_MASK \
@@ -229,7 +202,6 @@
 #define KNL_CHA_MSR_PMON_BOX_FILTER_LOCAL_NODE	(0x1ULL << 33)
 #define KNL_CHA_MSR_PMON_BOX_FILTER_NNC		(0x1ULL << 37)
 
-/* KNL EDC/MC UCLK */
 #define KNL_UCLK_MSR_PMON_CTR0_LOW		0x400
 #define KNL_UCLK_MSR_PMON_CTL0			0x420
 #define KNL_UCLK_MSR_PMON_BOX_CTL		0x430
@@ -237,25 +209,21 @@
 #define KNL_UCLK_MSR_PMON_UCLK_FIXED_CTL	0x454
 #define KNL_PMON_FIXED_CTL_EN			0x1
 
-/* KNL EDC */
 #define KNL_EDC0_ECLK_MSR_PMON_CTR0_LOW		0xa00
 #define KNL_EDC0_ECLK_MSR_PMON_CTL0		0xa20
 #define KNL_EDC0_ECLK_MSR_PMON_BOX_CTL		0xa30
 #define KNL_EDC0_ECLK_MSR_PMON_ECLK_FIXED_LOW	0xa3c
 #define KNL_EDC0_ECLK_MSR_PMON_ECLK_FIXED_CTL	0xa44
 
-/* KNL MC */
 #define KNL_MC0_CH0_MSR_PMON_CTR0_LOW		0xb00
 #define KNL_MC0_CH0_MSR_PMON_CTL0		0xb20
 #define KNL_MC0_CH0_MSR_PMON_BOX_CTL		0xb30
 #define KNL_MC0_CH0_MSR_PMON_FIXED_LOW		0xb3c
 #define KNL_MC0_CH0_MSR_PMON_FIXED_CTL		0xb44
 
-/* KNL IRP */
 #define KNL_IRP_PCI_PMON_BOX_CTL		0xf0
 #define KNL_IRP_PCI_PMON_RAW_EVENT_MASK		(SNBEP_PMON_RAW_EVENT_MASK | \
 						 KNL_CHA_MSR_PMON_CTL_QOR)
-/* KNL PCU */
 #define KNL_PCU_PMON_CTL_EV_SEL_MASK		0x0000007f
 #define KNL_PCU_PMON_CTL_USE_OCC_CTR		(1 << 7)
 #define KNL_PCU_MSR_PMON_CTL_TRESH_MASK		0x3f000000
@@ -270,35 +238,13 @@
 				 SNBEP_PCU_MSR_PMON_CTL_OCC_INVERT | \
 				 SNBEP_PCU_MSR_PMON_CTL_OCC_EDGE_DET)
 
-/* SKX pci bus to socket mapping */
 #define SKX_CPUNODEID			0xc0
 #define SKX_GIDNIDMAP			0xd4
 
-/*
- * The CPU_BUS_NUMBER MSR returns the values of the respective CPUBUSNO CSR
- * that BIOS programmed. MSR has package scope.
- * |  Bit  |  Default  |  Description
- * | [63]  |    00h    | VALID - When set, indicates the CPU bus
- *                       numbers have been initialized. (RO)
- * |[62:48]|    ---    | Reserved
- * |[47:40]|    00h    | BUS_NUM_5 - Return the bus number BIOS assigned
- *                       CPUBUSNO(5). (RO)
- * |[39:32]|    00h    | BUS_NUM_4 - Return the bus number BIOS assigned
- *                       CPUBUSNO(4). (RO)
- * |[31:24]|    00h    | BUS_NUM_3 - Return the bus number BIOS assigned
- *                       CPUBUSNO(3). (RO)
- * |[23:16]|    00h    | BUS_NUM_2 - Return the bus number BIOS assigned
- *                       CPUBUSNO(2). (RO)
- * |[15:8] |    00h    | BUS_NUM_1 - Return the bus number BIOS assigned
- *                       CPUBUSNO(1). (RO)
- * | [7:0] |    00h    | BUS_NUM_0 - Return the bus number BIOS assigned
- *                       CPUBUSNO(0). (RO)
- */
 #define SKX_MSR_CPU_BUS_NUMBER		0x300
 #define SKX_MSR_CPU_BUS_VALID_BIT	(1ULL << 63)
 #define BUS_NUM_STRIDE			8
 
-/* SKX CHA */
 #define SKX_CHA_MSR_PMON_BOX_FILTER_TID		(0x1ffULL << 0)
 #define SKX_CHA_MSR_PMON_BOX_FILTER_LINK	(0xfULL << 9)
 #define SKX_CHA_MSR_PMON_BOX_FILTER_STATE	(0x3ffULL << 17)
@@ -313,7 +259,6 @@
 #define SKX_CHA_MSR_PMON_BOX_FILTER_NC		(0x1ULL << 62)
 #define SKX_CHA_MSR_PMON_BOX_FILTER_ISOC	(0x1ULL << 63)
 
-/* SKX IIO */
 #define SKX_IIO0_MSR_PMON_CTL0		0xa48
 #define SKX_IIO0_MSR_PMON_CTR0		0xa41
 #define SKX_IIO0_MSR_PMON_BOX_CTL	0xa40
@@ -332,37 +277,30 @@
 					 SKX_PMON_CTL_CH_MASK | \
 					 SKX_PMON_CTL_FC_MASK)
 
-/* SKX IRP */
 #define SKX_IRP0_MSR_PMON_CTL0		0xa5b
 #define SKX_IRP0_MSR_PMON_CTR0		0xa59
 #define SKX_IRP0_MSR_PMON_BOX_CTL	0xa58
 #define SKX_IRP_MSR_OFFSET		0x20
 
-/* SKX UPI */
 #define SKX_UPI_PCI_PMON_CTL0		0x350
 #define SKX_UPI_PCI_PMON_CTR0		0x318
 #define SKX_UPI_PCI_PMON_BOX_CTL	0x378
 #define SKX_UPI_CTL_UMASK_EXT		0xffefff
 
-/* SKX M2M */
 #define SKX_M2M_PCI_PMON_CTL0		0x228
 #define SKX_M2M_PCI_PMON_CTR0		0x200
 #define SKX_M2M_PCI_PMON_BOX_CTL	0x258
 
-/* Memory Map registers device ID */
 #define SNR_ICX_MESH2IIO_MMAP_DID		0x9a2
 #define SNR_ICX_SAD_CONTROL_CFG		0x3f4
 
-/* Getting I/O stack id in SAD_COTROL_CFG notation */
 #define SAD_CONTROL_STACK_ID(data)		(((data) >> 4) & 0x7)
 
-/* SNR Ubox */
 #define SNR_U_MSR_PMON_CTR0			0x1f98
 #define SNR_U_MSR_PMON_CTL0			0x1f91
 #define SNR_U_MSR_PMON_UCLK_FIXED_CTL		0x1f93
 #define SNR_U_MSR_PMON_UCLK_FIXED_CTR		0x1f94
 
-/* SNR CHA */
 #define SNR_CHA_RAW_EVENT_MASK_EXT		0x3ffffff
 #define SNR_CHA_MSR_PMON_CTL0			0x1c01
 #define SNR_CHA_MSR_PMON_CTR0			0x1c08
@@ -370,43 +308,36 @@
 #define SNR_C0_MSR_PMON_BOX_FILTER0		0x1c05
 
 
-/* SNR IIO */
 #define SNR_IIO_MSR_PMON_CTL0			0x1e08
 #define SNR_IIO_MSR_PMON_CTR0			0x1e01
 #define SNR_IIO_MSR_PMON_BOX_CTL		0x1e00
 #define SNR_IIO_MSR_OFFSET			0x10
 #define SNR_IIO_PMON_RAW_EVENT_MASK_EXT		0x7ffff
 
-/* SNR IRP */
 #define SNR_IRP0_MSR_PMON_CTL0			0x1ea8
 #define SNR_IRP0_MSR_PMON_CTR0			0x1ea1
 #define SNR_IRP0_MSR_PMON_BOX_CTL		0x1ea0
 #define SNR_IRP_MSR_OFFSET			0x10
 
-/* SNR M2PCIE */
 #define SNR_M2PCIE_MSR_PMON_CTL0		0x1e58
 #define SNR_M2PCIE_MSR_PMON_CTR0		0x1e51
 #define SNR_M2PCIE_MSR_PMON_BOX_CTL		0x1e50
 #define SNR_M2PCIE_MSR_OFFSET			0x10
 
-/* SNR PCU */
 #define SNR_PCU_MSR_PMON_CTL0			0x1ef1
 #define SNR_PCU_MSR_PMON_CTR0			0x1ef8
 #define SNR_PCU_MSR_PMON_BOX_CTL		0x1ef0
 #define SNR_PCU_MSR_PMON_BOX_FILTER		0x1efc
 
-/* SNR M2M */
 #define SNR_M2M_PCI_PMON_CTL0			0x468
 #define SNR_M2M_PCI_PMON_CTR0			0x440
 #define SNR_M2M_PCI_PMON_BOX_CTL		0x438
 #define SNR_M2M_PCI_PMON_UMASK_EXT		0xff
 
-/* SNR PCIE3 */
 #define SNR_PCIE3_PCI_PMON_CTL0			0x508
 #define SNR_PCIE3_PCI_PMON_CTR0			0x4e8
 #define SNR_PCIE3_PCI_PMON_BOX_CTL		0x4e0
 
-/* SNR IMC */
 #define SNR_IMC_MMIO_PMON_FIXED_CTL		0x54
 #define SNR_IMC_MMIO_PMON_FIXED_CTR		0x38
 #define SNR_IMC_MMIO_PMON_CTL0			0x40
@@ -419,46 +350,37 @@
 #define SNR_IMC_MMIO_MEM0_OFFSET		0xd8
 #define SNR_IMC_MMIO_MEM0_MASK			0x7FF
 
-/* ICX CHA */
 #define ICX_C34_MSR_PMON_CTR0			0xb68
 #define ICX_C34_MSR_PMON_CTL0			0xb61
 #define ICX_C34_MSR_PMON_BOX_CTL		0xb60
 #define ICX_C34_MSR_PMON_BOX_FILTER0		0xb65
 
-/* ICX IIO */
 #define ICX_IIO_MSR_PMON_CTL0			0xa58
 #define ICX_IIO_MSR_PMON_CTR0			0xa51
 #define ICX_IIO_MSR_PMON_BOX_CTL		0xa50
 
-/* ICX IRP */
 #define ICX_IRP0_MSR_PMON_CTL0			0xa4d
 #define ICX_IRP0_MSR_PMON_CTR0			0xa4b
 #define ICX_IRP0_MSR_PMON_BOX_CTL		0xa4a
 
-/* ICX M2PCIE */
 #define ICX_M2PCIE_MSR_PMON_CTL0		0xa46
 #define ICX_M2PCIE_MSR_PMON_CTR0		0xa41
 #define ICX_M2PCIE_MSR_PMON_BOX_CTL		0xa40
 
-/* ICX UPI */
 #define ICX_UPI_PCI_PMON_CTL0			0x350
 #define ICX_UPI_PCI_PMON_CTR0			0x320
 #define ICX_UPI_PCI_PMON_BOX_CTL		0x318
 #define ICX_UPI_CTL_UMASK_EXT			0xffffff
 
-/* ICX M3UPI*/
 #define ICX_M3UPI_PCI_PMON_CTL0			0xd8
 #define ICX_M3UPI_PCI_PMON_CTR0			0xa8
 #define ICX_M3UPI_PCI_PMON_BOX_CTL		0xa0
 
-/* ICX IMC */
 #define ICX_NUMBER_IMC_CHN			3
 #define ICX_IMC_MEM_STRIDE			0x4
 
-/* SPR */
 #define SPR_RAW_EVENT_MASK_EXT			0xffffff
 
-/* SPR CHA */
 #define SPR_CHA_PMON_CTL_TID_EN			(1 << 16)
 #define SPR_CHA_PMON_EVENT_MASK			(SNBEP_PMON_RAW_EVENT_MASK | \
 						 SPR_CHA_PMON_CTL_TID_EN)
@@ -1372,9 +1294,6 @@ static struct pci_driver snbep_uncore_pci_driver = {
 
 #define NODE_ID_MASK	0x7
 
-/*
- * build pci bus to socket mapping
- */
 static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool reverse)
 {
 	struct pci_dev *ubox_dev = NULL;
@@ -1390,12 +1309,6 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 			break;
 		bus = ubox_dev->bus->number;
 		/*
-		 * The nodeid and idmap registers only contain enough
-		 * information to handle 8 nodes.  On systems with more
-		 * than 8 nodes, we need to rely on NUMA information,
-		 * filled in from BIOS supplied information, to determine
-		 * the topology.
-		 */
 		if (nr_node_ids <= 8) {
 			/* get the Node ID of the local register */
 			err = pci_read_config_dword(ubox_dev, nodeid_loc, &config);
@@ -1417,9 +1330,6 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 			}
 
 			/*
-			 * every three bits in the Node ID mapping register maps
-			 * to a particular node.
-			 */
 			for (i = 0; i < 8; i++) {
 				if (nodeid == ((config >> (3 * i)) & 0x7)) {
 					if (topology_max_die_per_package() > 1)
@@ -1466,9 +1376,6 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 
 	if (!err) {
 		/*
-		 * For PCI bus with no UBOX device, find the next bus
-		 * that has UBOX device and use its mapping.
-		 */
 		raw_spin_lock(&pci2phy_map_lock);
 		list_for_each_entry(map, &pci2phy_map_head, list) {
 			i = -1;
@@ -1505,9 +1412,7 @@ int snbep_uncore_pci_init(void)
 	uncore_pci_driver = &snbep_uncore_pci_driver;
 	return 0;
 }
-/* end of Sandy Bridge-EP uncore support */
 
-/* IvyTown uncore support */
 static void ivbep_uncore_msr_init_box(struct intel_uncore_box *box)
 {
 	unsigned msr = uncore_msr_box_ctl(box);
@@ -1853,7 +1758,6 @@ static struct intel_uncore_type ivbep_uncore_imc = {
 	IVBEP_UNCORE_PCI_COMMON_INIT(),
 };
 
-/* registers in IRP boxes are not properly aligned */
 static unsigned ivbep_uncore_irp_ctls[] = {0xd8, 0xdc, 0xe0, 0xe4};
 static unsigned ivbep_uncore_irp_ctrs[] = {0xa0, 0xb0, 0xb8, 0xc0};
 
@@ -2069,9 +1973,7 @@ int ivbep_uncore_pci_init(void)
 	uncore_pci_driver = &ivbep_uncore_pci_driver;
 	return 0;
 }
-/* end of IvyTown uncore support */
 
-/* KNL uncore support */
 static struct attribute *knl_uncore_ubox_formats_attr[] = {
 	&format_attr_event.attr,
 	&format_attr_umask.attr,
@@ -2419,23 +2321,6 @@ static struct intel_uncore_type *knl_pci_uncores[] = {
 	NULL,
 };
 
-/*
- * KNL uses a common PCI device ID for multiple instances of an Uncore PMU
- * device type. prior to KNL, each instance of a PMU device type had a unique
- * device ID.
- *
- *	PCI Device ID	Uncore PMU Devices
- *	----------------------------------
- *	0x7841		MC0 UClk, MC1 UClk
- *	0x7843		MC0 DClk CH 0, MC0 DClk CH 1, MC0 DClk CH 2,
- *			MC1 DClk CH 0, MC1 DClk CH 1, MC1 DClk CH 2
- *	0x7833		EDC0 UClk, EDC1 UClk, EDC2 UClk, EDC3 UClk,
- *			EDC4 UClk, EDC5 UClk, EDC6 UClk, EDC7 UClk
- *	0x7835		EDC0 EClk, EDC1 EClk, EDC2 EClk, EDC3 EClk,
- *			EDC4 EClk, EDC5 EClk, EDC6 EClk, EDC7 EClk
- *	0x7817		M2PCIe
- *	0x7814		IRP
-*/
 
 static const struct pci_device_id knl_uncore_pci_ids[] = {
 	{ /* MC0 UClk */
@@ -2566,9 +2451,7 @@ int knl_uncore_pci_init(void)
 	return 0;
 }
 
-/* end of KNL uncore support */
 
-/* Haswell-EP uncore support */
 static struct attribute *hswep_uncore_ubox_formats_attr[] = {
 	&format_attr_event.attr,
 	&format_attr_umask.attr,
@@ -2782,9 +2665,6 @@ static struct intel_uncore_type hswep_uncore_cbox = {
 	.format_group		= &hswep_uncore_cbox_format_group,
 };
 
-/*
- * Write SBOX Initialization register bit by bit to avoid spurious #GPs
- */
 static void hswep_uncore_sbox_msr_init_box(struct intel_uncore_box *box)
 {
 	unsigned msr = uncore_msr_box_ctl(box);
@@ -3184,9 +3064,7 @@ int hswep_uncore_pci_init(void)
 	uncore_pci_driver = &hswep_uncore_pci_driver;
 	return 0;
 }
-/* end of Haswell-EP uncore support */
 
-/* BDX uncore support */
 
 static struct intel_uncore_type bdx_uncore_ubox = {
 	.name			= "ubox",
@@ -3252,7 +3130,6 @@ static struct intel_uncore_type *bdx_msr_uncores[] = {
 	NULL,
 };
 
-/* Bit 7 'Use Occupancy' is not available for counter 0 on BDX */
 static struct event_constraint bdx_uncore_pcu_constraints[] = {
 	EVENT_CONSTRAINT(0x80, 0xe, 0x80),
 	EVENT_CONSTRAINT_END
@@ -3509,9 +3386,7 @@ int bdx_uncore_pci_init(void)
 	return 0;
 }
 
-/* end of BDX uncore support */
 
-/* SKX uncore support */
 
 static struct intel_uncore_type skx_uncore_ubox = {
 	.name			= "ubox",
@@ -3740,7 +3615,6 @@ static int skx_msr_cpu_bus_read(int cpu, u64 *topology)
 			!(msr_value & SKX_MSR_CPU_BUS_VALID_BIT))
 		return -ENXIO;
 
-	*topology = msr_value;
 
 	return 0;
 }
@@ -3749,9 +3623,6 @@ static int die_to_cpu(int die)
 {
 	int res = 0, cpu, current_die;
 	/*
-	 * Using cpus_read_lock() to ensure cpu is not going down between
-	 * looking at cpu_online_mask.
-	 */
 	cpus_read_lock();
 	for_each_online_cpu(cpu) {
 		current_die = topology_logical_die_id(cpu);
@@ -4062,10 +3933,6 @@ static struct intel_uncore_type *skx_msr_uncores[] = {
 	NULL,
 };
 
-/*
- * To determine the number of CHAs, it should read bits 27:0 in the CAPID6
- * register which located at Device 30, Function 3, Offset 0x9C. PCI ID 0x2083.
- */
 #define SKX_CAPID6		0x9c
 #define SKX_CHA_BIT_MASK	GENMASK(27, 0)
 
@@ -4340,9 +4207,7 @@ int skx_uncore_pci_init(void)
 	return 0;
 }
 
-/* end of SKX uncore support */
 
-/* SNR uncore support */
 
 static struct intel_uncore_type snr_uncore_ubox = {
 	.name			= "ubox",
@@ -4495,9 +4360,6 @@ static int sad_cfg_iio_topology(struct intel_uncore_type *type, u8 *sad_pmon_map
 	return ret;
 }
 
-/*
- * SNR has a static mapping of stack IDs from SAD_CONTROL_CFG notation to PMON
- */
 enum {
 	SNR_QAT_PMON_ID,
 	SNR_CBDMA_DMI_PMON_ID,
@@ -5028,9 +4890,7 @@ void snr_uncore_mmio_init(void)
 	uncore_mmio_uncores = snr_mmio_uncores;
 }
 
-/* end of SNR uncore support */
 
-/* ICX uncore support */
 
 static unsigned icx_cha_msr_offsets[] = {
 	0x2a0, 0x2ae, 0x2bc, 0x2ca, 0x2d8, 0x2e6, 0x2f4, 0x302, 0x310,
@@ -5111,9 +4971,6 @@ static const struct attribute_group *icx_iio_attr_update[] = {
 	NULL,
 };
 
-/*
- * ICX has a static mapping of stack IDs from SAD_CONTROL_CFG notation to PMON
- */
 enum {
 	ICX_PCIE1_PMON_ID,
 	ICX_PCIE2_PMON_ID,
@@ -5276,10 +5133,6 @@ static struct intel_uncore_type *icx_msr_uncores[] = {
 	NULL,
 };
 
-/*
- * To determine the number of CHAs, it should read CAPID6(Low) and CAPID7 (High)
- * registers which located at Device 30, Function 3
- */
 #define ICX_CAPID6		0x9c
 #define ICX_CAPID7		0xa0
 
@@ -5565,9 +5418,7 @@ void icx_uncore_mmio_init(void)
 	uncore_mmio_uncores = icx_mmio_uncores;
 }
 
-/* end of ICX uncore support */
 
-/* SPR uncore support */
 
 static void spr_uncore_msr_enable_event(struct intel_uncore_box *box,
 					struct perf_event *event)
@@ -6069,4 +5920,3 @@ void spr_uncore_mmio_init(void)
 	}
 }
 
-/* end of SPR uncore support */

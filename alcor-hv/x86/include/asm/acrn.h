@@ -1,13 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_ACRN_H
 #define _ASM_X86_ACRN_H
 
-/*
- * This CPUID returns feature bitmaps in EAX.
- * Guest VM uses this to detect the appropriate feature bit.
- */
 #define	ACRN_CPUID_FEATURES		0x40000001
-/* Bit 0 indicates whether guest VM is privileged */
 #define	ACRN_FEATURE_PRIVILEGED_VM	BIT(0)
 
 void acrn_setup_intr_handler(void (*handler)(void));
@@ -21,18 +15,6 @@ static inline u32 acrn_cpuid_base(void)
 	return 0;
 }
 
-/*
- * Hypercalls for ACRN
- *
- * - VMCALL instruction is used to implement ACRN hypercalls.
- * - ACRN hypercall ABI:
- *   - Hypercall number is passed in R8 register.
- *   - Up to 2 arguments are passed in RDI, RSI.
- *   - Return value will be placed in RAX.
- *
- * Because GCC doesn't support R8 register as direct register constraints, use
- * supported constraint as input with a explicit MOV to R8 in beginning of asm.
- */
 static inline long acrn_hypercall0(unsigned long hcall_id)
 {
 	long result;

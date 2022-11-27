@@ -1,7 +1,3 @@
-/*
- * Copyright (C) 2004 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
- */
 
 #include <sysdep/stub.h>
 #include <sysdep/faultinfo.h>

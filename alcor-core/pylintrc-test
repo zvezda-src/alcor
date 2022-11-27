@@ -1,7 +1,3 @@
-# pylint configuration file tailored to test code.
-#
-# NOTE: Keep in sync as much as possible with the standard pylintrc file.
-# Only a few settings had to be adapted for the test code.
 
 [MASTER]
 profile = no
@@ -19,17 +15,11 @@ evaluation = 10.0 - ((float(5 * error + warning + refactor + convention) / state
 comment = yes
 
 [BASIC]
-# disabling docstring checks since we have way too many without (complex
-# inheritance hierarchies)
-#no-docstring-rgx = __.*__
 no-docstring-rgx = .*
 module-rgx = (([a-z_][a-z0-9_]*)|([A-Z][a-zA-Z0-9]+))$
-# added lower-case names
 const-rgx = ((_{0,2}[A-Za-z][A-Za-z0-9_]*)|(__.*__))$
 class-rgx = _?[A-Z][a-zA-Z0-9]+$
-# added lower-case names
 function-rgx = (_?((([A-Z]+[a-z0-9]+)|test|assert)([A-Z]+[a-z0-9]*)*)|main|([a-z_][a-z0-9_]*))$
-# add lower-case names, since derived classes must obey method names
 method-rgx = (_{0,2}(([A-Z]+[a-z0-9]+)|test|assert)([A-Z]+[a-z0-9]*)*|__.*__|runTests|setUp|tearDown|([a-z_][a-z0-9_]*))$
 attr-rgx = [a-z_][a-z0-9_]{1,30}$
 argument-rgx = [a-z_][a-z0-9_]*$
@@ -60,7 +50,6 @@ max-branchs = 80
 max-statements = 200
 max-parents = 7
 max-attributes = 20
-# zero as struct-like (PODS) classes don't export any methods
 min-public-methods = 0
 max-public-methods = 50
 
@@ -85,27 +74,13 @@ ignore-docstrings = yes
 
 [MESSAGES CONTROL]
 
-# Enable only checker(s) with the given id(s). This option conflicts with the
-# disable-checker option
-#enable-checker=
 
-# Enable all checker(s) except those with the given id(s). This option
-# conflicts with the enable-checker option
-#disable-checker=
 disable-checker=similarities
 
-# Enable all messages in the listed categories (IRCWEF).
-#enable-msg-cat=
 
-# Disable all messages in the listed categories (IRCWEF).
 disable-msg-cat=
 
-# Enable the message(s) with the given id(s).
-#enable-msg=
 
-# Disable the message(s) with the given id(s).
 disable-msg=W0511,R0922,W0201
 
-# The new pylint 0.21+ style (plus the similarities checker, which is no longer
-# a separate opiton, but a generic disable control)
 disable=W0511,R0922,W0201,R0922,R0801,I0011,R0201

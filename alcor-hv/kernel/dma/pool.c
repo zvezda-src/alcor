@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (C) 2012 ARM Ltd.
- * Copyright (C) 2020 Google LLC
- */
 #include <linux/cma.h>
 #include <linux/debugfs.h>
 #include <linux/dma-map-ops.h>
@@ -20,10 +15,8 @@ static unsigned long pool_size_dma32;
 static struct gen_pool *atomic_pool_kernel __ro_after_init;
 static unsigned long pool_size_kernel;
 
-/* Size can be defined by the coherent_pool command line */
 static size_t atomic_pool_size;
 
-/* Dynamic background expansion when the atomic pool is near capacity */
 static struct work_struct atomic_pool_work;
 
 static int __init early_coherent_pool(char *p)
@@ -110,9 +103,6 @@ static int atomic_pool_expand(struct gen_pool *pool, size_t pool_size,
 	addr = page_to_virt(page);
 #endif
 	/*
-	 * Memory in the atomic DMA pools must be unencrypted, the pools do not
-	 * shrink so no re-encryption occurs in dma_direct_free().
-	 */
 	ret = set_memory_decrypted((unsigned long)page_to_virt(page),
 				   1 << order);
 	if (ret)
@@ -189,9 +179,6 @@ static int __init dma_atomic_pool_init(void)
 	int ret = 0;
 
 	/*
-	 * If coherent_pool was not used on the command line, default the pool
-	 * sizes to 128KB per 1GB of memory, min 128KB, max MAX_ORDER-1.
-	 */
 	if (!atomic_pool_size) {
 		unsigned long pages = totalram_pages() / (SZ_1G / SZ_128K);
 		pages = min_t(unsigned long, pages, MAX_ORDER_NR_PAGES);
@@ -257,7 +244,6 @@ static struct page *__dma_alloc_from_pool(struct device *dev, size_t size,
 	if (gen_pool_avail(pool) < atomic_pool_size)
 		schedule_work(&atomic_pool_work);
 
-	*cpu_addr = (void *)addr;
 	memset(*cpu_addr, 0, size);
 	return pfn_to_page(__phys_to_pfn(phys));
 }

@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * x86 single-step support code, common to 32-bit and 64-bit.
- */
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
@@ -22,11 +18,6 @@ unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *re
 
 #ifdef CONFIG_MODIFY_LDT_SYSCALL
 	/*
-	 * We'll assume that the code segments in the GDT
-	 * are all zero-based. That is largely true: the
-	 * TLS segments are used for data, and the PNPBIOS
-	 * and APM bios ones we just ignore here.
-	 */
 	if ((seg & SEGMENT_TI_MASK) == SEGMENT_LDT) {
 		struct desc_struct *desc;
 		unsigned long base;
@@ -91,12 +82,6 @@ static int is_setting_trap_flag(struct task_struct *child, struct pt_regs *regs)
 			/* CHECKME: f2, f3 */
 
 		/*
-		 * pushf: NOTE! We should probably not let
-		 * the user see the TF bit being set. But
-		 * it's more pain than it's worth to avoid
-		 * it, and a debugger could emulate this
-		 * all in user space if it _really_ cares.
-		 */
 		case 0x9c:
 		default:
 			return 0;
@@ -105,37 +90,19 @@ static int is_setting_trap_flag(struct task_struct *child, struct pt_regs *regs)
 	return 0;
 }
 
-/*
- * Enable single-stepping.  Return nonzero if user mode is not using TF itself.
- */
 static int enable_single_step(struct task_struct *child)
 {
 	struct pt_regs *regs = task_pt_regs(child);
 	unsigned long oflags;
 
 	/*
-	 * If we stepped into a sysenter/syscall insn, it trapped in
-	 * kernel mode; do_debug() cleared TF and set TIF_SINGLESTEP.
-	 * If user-mode had set TF itself, then it's still clear from
-	 * do_debug() and we need to set it again to restore the user
-	 * state so we don't wrongly set TIF_FORCED_TF below.
-	 * If enable_single_step() was used last and that is what
-	 * set TIF_SINGLESTEP, then both TF and TIF_FORCED_TF are
-	 * already set and our bookkeeping is fine.
-	 */
 	if (unlikely(test_tsk_thread_flag(child, TIF_SINGLESTEP)))
 		regs->flags |= X86_EFLAGS_TF;
 
 	/*
-	 * Always set TIF_SINGLESTEP.  This will also
-	 * cause us to set TF when returning to user mode.
-	 */
 	set_tsk_thread_flag(child, TIF_SINGLESTEP);
 
 	/*
-	 * Ensure that a trap is triggered once stepping out of a system
-	 * call prior to executing any user instruction.
-	 */
 	set_task_syscall_work(child, SYSCALL_EXIT_TRAP);
 
 	oflags = regs->flags;
@@ -144,23 +111,12 @@ static int enable_single_step(struct task_struct *child)
 	regs->flags |= X86_EFLAGS_TF;
 
 	/*
-	 * ..but if TF is changed by the instruction we will trace,
-	 * don't mark it as being "us" that set it, so that we
-	 * won't clear it by hand later.
-	 *
-	 * Note that if we don't actually execute the popf because
-	 * of a signal arriving right now or suchlike, we will lose
-	 * track of the fact that it really was "us" that set it.
-	 */
 	if (is_setting_trap_flag(child, regs)) {
 		clear_tsk_thread_flag(child, TIF_FORCED_TF);
 		return 0;
 	}
 
 	/*
-	 * If TF was already set, check whether it was us who set it.
-	 * If not, we should never attempt a block step.
-	 */
 	if (oflags & X86_EFLAGS_TF)
 		return test_tsk_thread_flag(child, TIF_FORCED_TF);
 
@@ -174,14 +130,6 @@ void set_task_blockstep(struct task_struct *task, bool on)
 	unsigned long debugctl;
 
 	/*
-	 * Ensure irq/preemption can't change debugctl in between.
-	 * Note also that both TIF_BLOCKSTEP and debugctl should
-	 * be changed atomically wrt preemption.
-	 *
-	 * NOTE: this means that set/clear TIF_BLOCKSTEP is only safe if
-	 * task is current or it can't be running, otherwise we can race
-	 * with __switch_to_xtra(). We rely on ptrace_freeze_traced().
-	 */
 	local_irq_disable();
 	debugctl = get_debugctlmsr();
 	if (on) {
@@ -196,18 +144,9 @@ void set_task_blockstep(struct task_struct *task, bool on)
 	local_irq_enable();
 }
 
-/*
- * Enable single or block step.
- */
 static void enable_step(struct task_struct *child, bool block)
 {
 	/*
-	 * Make sure block stepping (BTF) is not enabled unless it should be.
-	 * Note that we don't try to worry about any is_setting_trap_flag()
-	 * instructions after the first when using block stepping.
-	 * So no one should try to use debugger block stepping in a program
-	 * that uses user-mode single stepping itself.
-	 */
 	if (enable_single_step(child) && block)
 		set_task_blockstep(child, true);
 	else if (test_tsk_thread_flag(child, TIF_BLOCKSTEP))
@@ -227,8 +166,6 @@ void user_enable_block_step(struct task_struct *child)
 void user_disable_single_step(struct task_struct *child)
 {
 	/*
-	 * Make sure block stepping (BTF) is disabled.
-	 */
 	if (test_tsk_thread_flag(child, TIF_BLOCKSTEP))
 		set_task_blockstep(child, false);
 

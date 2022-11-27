@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * sysctl.c: General linux system control interface
- */
 
 #include <linux/sysctl.h>
 #include <linux/printk.h>

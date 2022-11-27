@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- *  Copyright (C) 2007
- *
- *  Author: Eric Biederman <ebiederm@xmision.com>
- */
 
 #include <linux/export.h>
 #include <linux/uts.h>
@@ -25,10 +19,6 @@ static void *get_uts(struct ctl_table *table)
 	return which;
 }
 
-/*
- *	Special case of dostring for the UTS structure. This has locks
- *	to observe. Should this be in kernel/sys.c ????
- */
 static int proc_do_uts_string(struct ctl_table *table, int write,
 		  void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -40,11 +30,6 @@ static int proc_do_uts_string(struct ctl_table *table, int write,
 	uts_table.data = tmp_data;
 
 	/*
-	 * Buffer the value in tmp_data so that proc_dostring() can be called
-	 * without holding any locks.
-	 * We also need to read the original value in the write==1 case to
-	 * support partial writes.
-	 */
 	down_read(&uts_sem);
 	memcpy(tmp_data, get_uts(table), sizeof(tmp_data));
 	up_read(&uts_sem);
@@ -52,11 +37,6 @@ static int proc_do_uts_string(struct ctl_table *table, int write,
 
 	if (write) {
 		/*
-		 * Write back the new value.
-		 * Note that, since we dropped uts_sem, the result can
-		 * theoretically be incorrect if there are two parallel writes
-		 * at non-zero offsets to the same sysctl.
-		 */
 		down_write(&uts_sem);
 		memcpy(get_uts(table), tmp_data, sizeof(tmp_data));
 		up_write(&uts_sem);
@@ -123,10 +103,6 @@ static struct ctl_table uts_root_table[] = {
 };
 
 #ifdef CONFIG_PROC_SYSCTL
-/*
- * Notify userspace about a change in a certain entry of uts_kern_table,
- * identified by the parameter proc.
- */
 void uts_proc_notify(enum uts_proc proc)
 {
 	struct ctl_table *table = &uts_kern_table[proc];

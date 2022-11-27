@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/extable.h>
 #include <linux/uaccess.h>
 #include <linux/sched/debug.h>
@@ -55,16 +54,6 @@ static bool ex_handler_sgx(const struct exception_table_entry *fixup,
 	return ex_handler_default(fixup, regs);
 }
 
-/*
- * Handler for when we fail to restore a task's FPU state.  We should never get
- * here because the FPU state of a task using the FPU (task->thread.fpu.state)
- * should always be valid.  However, past bugs have allowed userspace to set
- * reserved bits in the XSAVE area using PTRACE_SETREGSET or sys_rt_sigreturn().
- * These caused XRSTOR to fail when switching to the task, leaking the FPU
- * registers of the task previously executing on the CPU.  Mitigate this class
- * of vulnerability by restoring from the initial state (essentially, zeroing
- * out all the FPU registers) if we can't restore from the task's FPU state.
- */
 static bool ex_handler_fprestore(const struct exception_table_entry *fixup,
 				 struct pt_regs *regs)
 {
@@ -131,7 +120,6 @@ static bool ex_handler_clear_fs(const struct exception_table_entry *fixup,
 static bool ex_handler_imm_reg(const struct exception_table_entry *fixup,
 			       struct pt_regs *regs, int reg, int imm)
 {
-	*pt_regs_nr(regs, reg) = (long)imm;
 	return ex_handler_default(fixup, regs);
 }
 
@@ -223,7 +211,6 @@ int fixup_exception(struct pt_regs *regs, int trapnr, unsigned long error_code,
 
 extern unsigned int early_recursion_flag;
 
-/* Restricted version used during very early boot */
 void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 {
 	/* Ignore early NMIs. */
@@ -234,28 +221,10 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 		goto halt_loop;
 
 	/*
-	 * Old CPUs leave the high bits of CS on the stack
-	 * undefined.  I'm not sure which CPUs do this, but at least
-	 * the 486 DX works this way.
-	 * Xen pv domains are not using the default __KERNEL_CS.
-	 */
 	if (!xen_pv_domain() && regs->cs != __KERNEL_CS)
 		goto fail;
 
 	/*
-	 * The full exception fixup machinery is available as soon as
-	 * the early IDT is loaded.  This means that it is the
-	 * responsibility of extable users to either function correctly
-	 * when handlers are invoked early or to simply avoid causing
-	 * exceptions before they're ready to handle them.
-	 *
-	 * This is better than filtering which handlers can be used,
-	 * because refusing to call a handler here is guaranteed to
-	 * result in a hard-to-debug panic.
-	 *
-	 * Keep in mind that not all vectors actually get here.  Early
-	 * page faults, for example, are special.
-	 */
 	if (fixup_exception(regs, trapnr, regs->orig_ax, 0))
 		return;
 
@@ -267,10 +236,6 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 		}
 
 		/*
-		 * If this was a BUG and report_bug returns or if this
-		 * was just a normal #UD, we want to continue onward and
-		 * crash.
-		 */
 	}
 
 fail:

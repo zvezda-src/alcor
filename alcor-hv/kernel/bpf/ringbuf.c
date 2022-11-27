@@ -14,20 +14,12 @@
 
 #define RINGBUF_CREATE_FLAG_MASK (BPF_F_NUMA_NODE)
 
-/* non-mmap()'able part of bpf_ringbuf (everything up to consumer page) */
 #define RINGBUF_PGOFF \
 	(offsetof(struct bpf_ringbuf, consumer_pos) >> PAGE_SHIFT)
-/* consumer page and producer page */
 #define RINGBUF_POS_PAGES 2
 
 #define RINGBUF_MAX_RECORD_SZ (UINT_MAX/4)
 
-/* Maximum size of ring buffer area is limited by 32-bit page offset within
- * record header, counted in pages. Reserve 8 bits for extensibility, and take
- * into account few extra pages for consumer/producer pages and
- * non-mmap()'able parts. This gives 64GB limit, which seems plenty for single
- * ring buffer.
- */
 #define RINGBUF_MAX_DATA_SZ \
 	(((1ULL << 24) - RINGBUF_POS_PAGES - RINGBUF_PGOFF) * PAGE_SIZE)
 
@@ -53,7 +45,6 @@ struct bpf_ringbuf_map {
 	struct bpf_ringbuf *rb;
 };
 
-/* 8-byte ring buffer record header structure */
 struct bpf_ringbuf_hdr {
 	u32 len;
 	u32 pg_off;
@@ -278,21 +269,12 @@ const struct bpf_map_ops ringbuf_map_ops = {
 	.map_btf_id = &ringbuf_map_btf_ids[0],
 };
 
-/* Given pointer to ring buffer record metadata and struct bpf_ringbuf itself,
- * calculate offset from record metadata to ring buffer in pages, rounded
- * down. This page offset is stored as part of record metadata and allows to
- * restore struct bpf_ringbuf * from record pointer. This page offset is
- * stored at offset 4 of record metadata header.
- */
 static size_t bpf_ringbuf_rec_pg_off(struct bpf_ringbuf *rb,
 				     struct bpf_ringbuf_hdr *hdr)
 {
 	return ((void *)hdr - (void *)rb) >> PAGE_SHIFT;
 }
 
-/* Given pointer to ring buffer record header, restore pointer to struct
- * bpf_ringbuf itself by using page offset stored at offset 4
- */
 static struct bpf_ringbuf *
 bpf_ringbuf_restore_from_rec(struct bpf_ringbuf_hdr *hdr)
 {

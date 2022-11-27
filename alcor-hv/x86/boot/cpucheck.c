@@ -1,22 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* -*- linux-c -*- ------------------------------------------------------- *
- *
- *   Copyright (C) 1991, 1992 Linus Torvalds
- *   Copyright 2007 rPath, Inc. - All Rights Reserved
- *
- * ----------------------------------------------------------------------- */
 
-/*
- * Check for obligatory CPU features and abort if the features are not
- * present.  This code should be compilable as 16-, 32- or 64-bit
- * code, so be very careful with types and inline assembly.
- *
- * This code should not contain any messages; that requires an
- * additional wrapper.
- *
- * As written, this code is not safe for inclusion into the kernel
- * proper (after FPU initialization, in particular).
- */
 
 #ifdef _SETUP
 # include "boot.h"
@@ -84,7 +66,6 @@ static int is_intel(void)
 	       cpu_vendor[2] == A32('n', 't', 'e', 'l');
 }
 
-/* Returns a bitmask of which words we have error bits in */
 static int check_cpuflags(void)
 {
 	u32 err;
@@ -100,14 +81,6 @@ static int check_cpuflags(void)
 	return err;
 }
 
-/*
- * Returns -1 on error.
- *
- * *cpu_level is set to the current CPU level; *req_level to the required
- * level.  x86-64 is considered level 64 for this purpose.
- *
- * *err_flags_ptr is set to the flags error array if there are flags missing.
- */
 int check_cpu(int *cpu_level_ptr, int *req_level_ptr, u32 **err_flags_ptr)
 {
 	int err;
@@ -199,21 +172,12 @@ int check_cpu(int *cpu_level_ptr, int *req_level_ptr, u32 **err_flags_ptr)
 int check_knl_erratum(void)
 {
 	/*
-	 * First check for the affected model/family:
-	 */
 	if (!is_intel() ||
 	    cpu.family != 6 ||
 	    cpu.model != INTEL_FAM6_XEON_PHI_KNL)
 		return 0;
 
 	/*
-	 * This erratum affects the Accessed/Dirty bits, and can
-	 * cause stray bits to be set in !Present PTEs.  We have
-	 * enough bits in our 64-bit PTEs (which we have on real
-	 * 64-bit mode or PAE) to avoid using these troublesome
-	 * bits.  But, we do not have enough space in our 32-bit
-	 * PTEs.  So, refuse to run on 32-bit non-PAE kernels.
-	 */
 	if (IS_ENABLED(CONFIG_X86_64) || IS_ENABLED(CONFIG_X86_PAE))
 		return 0;
 

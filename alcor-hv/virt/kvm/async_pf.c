@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * kvm asynchronous fault support
- *
- * Copyright 2010 Red Hat, Inc.
- *
- * Author:
- *      Gleb Natapov <gleb@redhat.com>
- */
 
 #include <linux/kvm_host.h>
 #include <linux/slab.h>
@@ -56,10 +47,6 @@ static void async_pf_execute(struct work_struct *work)
 	might_sleep();
 
 	/*
-	 * This work is run asynchronously to the task which owns
-	 * mm and might be done in another context, so we must
-	 * access remotely.
-	 */
 	mmap_read_lock(mm);
 	get_user_pages_remote(mm, addr, 1, FOLL_WRITE, NULL, NULL,
 			&locked);
@@ -79,9 +66,6 @@ static void async_pf_execute(struct work_struct *work)
 		kvm_arch_async_page_present_queued(vcpu);
 
 	/*
-	 * apf may be freed by kvm_check_async_pf_completion() after
-	 * this point
-	 */
 
 	trace_kvm_async_pf_completed(addr, cr2_or_gpa);
 
@@ -103,9 +87,6 @@ void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu)
 		list_del(&work->queue);
 
 		/*
-		 * We know it's present in vcpu->async_pf.done, do
-		 * nothing here.
-		 */
 		if (!work->vcpu)
 			continue;
 
@@ -156,10 +137,6 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
 	}
 }
 
-/*
- * Try to schedule a job to handle page fault asynchronously. Returns 'true' on
- * success, 'false' on failure (page fault has to be handled synchronously).
- */
 bool kvm_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 			unsigned long hva, struct kvm_arch_async_pf *arch)
 {
@@ -173,9 +150,6 @@ bool kvm_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 		return false;
 
 	/*
-	 * do alloc nowait since if we are going to sleep anyway we
-	 * may as well sleep faulting in page
-	 */
 	work = kmem_cache_zalloc(async_pf_cache, GFP_NOWAIT | __GFP_NOWARN);
 	if (!work)
 		return false;

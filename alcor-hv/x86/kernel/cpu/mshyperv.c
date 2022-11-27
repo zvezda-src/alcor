@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * HyperV  Detection code.
- *
- * Copyright (C) 2010, Novell, Inc.
- * Author : K. Y. Srinivasan <ksrinivasan@novell.com>
- */
 
 #include <linux/types.h>
 #include <linux/time.h>
@@ -35,7 +28,6 @@
 #include <asm/numa.h>
 #include <asm/coco.h>
 
-/* Is Linux running as the root partition? */
 bool hv_root_partition;
 struct ms_hyperv_info ms_hyperv;
 
@@ -70,10 +62,6 @@ void hv_remove_vmbus_handler(void)
 	vmbus_handler = NULL;
 }
 
-/*
- * Routines to do per-architecture handling of stimer0
- * interrupts when in Direct Mode
- */
 DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_stimer0)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
@@ -87,7 +75,6 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_stimer0)
 	set_irq_regs(old_regs);
 }
 
-/* For x86/x64, override weak placeholders in hyperv_timer.c */
 void hv_setup_stimer0_handler(void (*handler)(void))
 {
 	hv_stimer0_handler = handler;
@@ -126,9 +113,6 @@ static void hv_machine_shutdown(void)
 		hv_kexec_handler();
 
 	/*
-	 * Call hv_cpu_die() on all the CPUs, otherwise later the hypervisor
-	 * corrupts the old VP Assist Pages and can crash the kexec kernel.
-	 */
 	if (kexec_in_progress && hyperv_init_cpuhp > 0)
 		cpuhp_remove_state(hyperv_init_cpuhp);
 
@@ -189,11 +173,6 @@ static unsigned char hv_get_nmi_reason(void)
 }
 
 #ifdef CONFIG_X86_LOCAL_APIC
-/*
- * Prior to WS2016 Debug-VM sends NMIs to all CPUs which makes
- * it difficult to process CHANNELMSG_UNLOAD in case of crash. Handle
- * unknown NMI on the first CPU which gets it.
- */
 static int hv_nmi_unknown(unsigned int val, struct pt_regs *regs)
 {
 	static atomic_t nmi_cpu = ATOMIC_INIT(-1);
@@ -266,8 +245,6 @@ static void __init ms_hyperv_init_platform(void)
 #endif
 
 	/*
-	 * Extract the features and hints
-	 */
 	ms_hyperv.features = cpuid_eax(HYPERV_CPUID_FEATURES);
 	ms_hyperv.priv_high = cpuid_ebx(HYPERV_CPUID_FEATURES);
 	ms_hyperv.misc_features = cpuid_edx(HYPERV_CPUID_FEATURES);
@@ -286,24 +263,12 @@ static void __init ms_hyperv_init_platform(void)
 		 ms_hyperv.max_vp_index, ms_hyperv.max_lp_index);
 
 	/*
-	 * Check CPU management privilege.
-	 *
-	 * To mirror what Windows does we should extract CPU management
-	 * features and use the ReservedIdentityBit to detect if Linux is the
-	 * root partition. But that requires negotiating CPU management
-	 * interface (a process to be finalized).
-	 *
-	 * For now, use the privilege flag as the indicator for running as
-	 * root.
-	 */
 	if (cpuid_ebx(HYPERV_CPUID_FEATURES) & HV_CPU_MANAGEMENT) {
 		hv_root_partition = true;
 		pr_info("Hyper-V: running as root partition\n");
 	}
 
 	/*
-	 * Extract host information.
-	 */
 	if (hv_max_functions_eax >= HYPERV_CPUID_VERSION) {
 		hv_host_info_eax = cpuid_eax(HYPERV_CPUID_VERSION);
 		hv_host_info_ebx = cpuid_ebx(HYPERV_CPUID_VERSION);
@@ -355,8 +320,6 @@ static void __init ms_hyperv_init_platform(void)
 	if (ms_hyperv.features & HV_ACCESS_FREQUENCY_MSRS &&
 	    ms_hyperv.misc_features & HV_FEATURE_FREQUENCY_MSRS_AVAILABLE) {
 		/*
-		 * Get the APIC frequency.
-		 */
 		u64	hv_lapic_frequency;
 
 		rdmsrl(HV_X64_MSR_APIC_FREQUENCY, hv_lapic_frequency);
@@ -380,39 +343,19 @@ static void __init ms_hyperv_init_platform(void)
 #endif
 	if (ms_hyperv.features & HV_ACCESS_TSC_INVARIANT) {
 		/*
-		 * Writing to synthetic MSR 0x40000118 updates/changes the
-		 * guest visible CPUIDs. Setting bit 0 of this MSR  enables
-		 * guests to report invariant TSC feature through CPUID
-		 * instruction, CPUID 0x800000007/EDX, bit 8. See code in
-		 * early_init_intel() where this bit is examined. The
-		 * setting of this MSR bit should happen before init_intel()
-		 * is called.
-		 */
 		wrmsrl(HV_X64_MSR_TSC_INVARIANT_CONTROL, 0x1);
 		setup_force_cpu_cap(X86_FEATURE_TSC_RELIABLE);
 	}
 
 	/*
-	 * Generation 2 instances don't support reading the NMI status from
-	 * 0x61 port.
-	 */
 	if (efi_enabled(EFI_BOOT))
 		x86_platform.get_nmi_reason = hv_get_nmi_reason;
 
 	/*
-	 * Hyper-V VMs have a PIT emulation quirk such that zeroing the
-	 * counter register during PIT shutdown restarts the PIT. So it
-	 * continues to interrupt @18.2 HZ. Setting i8253_clear_counter
-	 * to false tells pit_shutdown() not to zero the counter so that
-	 * the PIT really is shutdown. Generation 2 VMs don't have a PIT,
-	 * and setting this value has no effect.
-	 */
 	i8253_clear_counter_on_shutdown = false;
 
 #if IS_ENABLED(CONFIG_HYPERV)
 	/*
-	 * Setup the hook to get control post apic initialization.
-	 */
 	x86_platform.apic_post_init = hyperv_init;
 	hyperv_setup_mmu_ops();
 	/* Setup the IDT for hypervisor callback */
@@ -437,11 +380,6 @@ static void __init ms_hyperv_init_platform(void)
 # endif
 
 	/*
-	 * Hyper-V doesn't provide irq remapping for IO-APIC. To enable x2apic,
-	 * set x2apic destination mode to physical mode when x2apic is available
-	 * and Hyper-V IOMMU driver makes sure cpus assigned with IO-APIC irqs
-	 * have 8-bit APIC id.
-	 */
 # ifdef CONFIG_X86_X2APIC
 	if (x2apic_supported())
 		x2apic_phys = 1;
@@ -451,10 +389,6 @@ static void __init ms_hyperv_init_platform(void)
 	hv_init_clocksource();
 #endif
 	/*
-	 * TSC should be marked as unstable only after Hyper-V
-	 * clocksource has been initialized. This ensures that the
-	 * stability of the sched_clock is not altered.
-	 */
 	if (!(ms_hyperv.features & HV_ACCESS_TSC_INVARIANT))
 		mark_tsc_unstable("running on Hyper-V");
 
@@ -466,16 +400,6 @@ static bool __init ms_hyperv_x2apic_available(void)
 	return x2apic_supported();
 }
 
-/*
- * If ms_hyperv_msi_ext_dest_id() returns true, hyperv_prepare_irq_remapping()
- * returns -ENODEV and the Hyper-V IOMMU driver is not used; instead, the
- * generic support of the 15-bit APIC ID is used: see __irq_msi_compose_msg().
- *
- * Note: for a VM on Hyper-V, the I/O-APIC is the only device which
- * (logically) generates MSIs directly to the system APIC irq domain.
- * There is no HPET, and PCI MSI/MSI-X interrupts are remapped by the
- * pci-hyperv host bridge.
- */
 static bool __init ms_hyperv_msi_ext_dest_id(void)
 {
 	u32 eax;

@@ -1,141 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Pressure stall information for CPU, memory and IO
- *
- * Copyright (c) 2018 Facebook, Inc.
- * Author: Johannes Weiner <hannes@cmpxchg.org>
- *
- * Polling support by Suren Baghdasaryan <surenb@google.com>
- * Copyright (c) 2018 Google, Inc.
- *
- * When CPU, memory and IO are contended, tasks experience delays that
- * reduce throughput and introduce latencies into the workload. Memory
- * and IO contention, in addition, can cause a full loss of forward
- * progress in which the CPU goes idle.
- *
- * This code aggregates individual task delays into resource pressure
- * metrics that indicate problems with both workload health and
- * resource utilization.
- *
- *			Model
- *
- * The time in which a task can execute on a CPU is our baseline for
- * productivity. Pressure expresses the amount of time in which this
- * potential cannot be realized due to resource contention.
- *
- * This concept of productivity has two components: the workload and
- * the CPU. To measure the impact of pressure on both, we define two
- * contention states for a resource: SOME and FULL.
- *
- * In the SOME state of a given resource, one or more tasks are
- * delayed on that resource. This affects the workload's ability to
- * perform work, but the CPU may still be executing other tasks.
- *
- * In the FULL state of a given resource, all non-idle tasks are
- * delayed on that resource such that nobody is advancing and the CPU
- * goes idle. This leaves both workload and CPU unproductive.
- *
- *	SOME = nr_delayed_tasks != 0
- *	FULL = nr_delayed_tasks != 0 && nr_productive_tasks == 0
- *
- * What it means for a task to be productive is defined differently
- * for each resource. For IO, productive means a running task. For
- * memory, productive means a running task that isn't a reclaimer. For
- * CPU, productive means an oncpu task.
- *
- * Naturally, the FULL state doesn't exist for the CPU resource at the
- * system level, but exist at the cgroup level. At the cgroup level,
- * FULL means all non-idle tasks in the cgroup are delayed on the CPU
- * resource which is being used by others outside of the cgroup or
- * throttled by the cgroup cpu.max configuration.
- *
- * The percentage of wallclock time spent in those compound stall
- * states gives pressure numbers between 0 and 100 for each resource,
- * where the SOME percentage indicates workload slowdowns and the FULL
- * percentage indicates reduced CPU utilization:
- *
- *	%SOME = time(SOME) / period
- *	%FULL = time(FULL) / period
- *
- *			Multiple CPUs
- *
- * The more tasks and available CPUs there are, the more work can be
- * performed concurrently. This means that the potential that can go
- * unrealized due to resource contention *also* scales with non-idle
- * tasks and CPUs.
- *
- * Consider a scenario where 257 number crunching tasks are trying to
- * run concurrently on 256 CPUs. If we simply aggregated the task
- * states, we would have to conclude a CPU SOME pressure number of
- * 100%, since *somebody* is waiting on a runqueue at all
- * times. However, that is clearly not the amount of contention the
- * workload is experiencing: only one out of 256 possible execution
- * threads will be contended at any given time, or about 0.4%.
- *
- * Conversely, consider a scenario of 4 tasks and 4 CPUs where at any
- * given time *one* of the tasks is delayed due to a lack of memory.
- * Again, looking purely at the task state would yield a memory FULL
- * pressure number of 0%, since *somebody* is always making forward
- * progress. But again this wouldn't capture the amount of execution
- * potential lost, which is 1 out of 4 CPUs, or 25%.
- *
- * To calculate wasted potential (pressure) with multiple processors,
- * we have to base our calculation on the number of non-idle tasks in
- * conjunction with the number of available CPUs, which is the number
- * of potential execution threads. SOME becomes then the proportion of
- * delayed tasks to possible threads, and FULL is the share of possible
- * threads that are unproductive due to delays:
- *
- *	threads = min(nr_nonidle_tasks, nr_cpus)
- *	   SOME = min(nr_delayed_tasks / threads, 1)
- *	   FULL = (threads - min(nr_productive_tasks, threads)) / threads
- *
- * For the 257 number crunchers on 256 CPUs, this yields:
- *
- *	threads = min(257, 256)
- *	   SOME = min(1 / 256, 1)             = 0.4%
- *	   FULL = (256 - min(256, 256)) / 256 = 0%
- *
- * For the 1 out of 4 memory-delayed tasks, this yields:
- *
- *	threads = min(4, 4)
- *	   SOME = min(1 / 4, 1)               = 25%
- *	   FULL = (4 - min(3, 4)) / 4         = 25%
- *
- * [ Substitute nr_cpus with 1, and you can see that it's a natural
- *   extension of the single-CPU model. ]
- *
- *			Implementation
- *
- * To assess the precise time spent in each such state, we would have
- * to freeze the system on task changes and start/stop the state
- * clocks accordingly. Obviously that doesn't scale in practice.
- *
- * Because the scheduler aims to distribute the compute load evenly
- * among the available CPUs, we can track task state locally to each
- * CPU and, at much lower frequency, extrapolate the global state for
- * the cumulative stall times and the running averages.
- *
- * For each runqueue, we track:
- *
- *	   tSOME[cpu] = time(nr_delayed_tasks[cpu] != 0)
- *	   tFULL[cpu] = time(nr_delayed_tasks[cpu] && !nr_productive_tasks[cpu])
- *	tNONIDLE[cpu] = time(nr_nonidle_tasks[cpu] != 0)
- *
- * and then periodically aggregate:
- *
- *	tNONIDLE = sum(tNONIDLE[i])
- *
- *	   tSOME = sum(tSOME[i] * tNONIDLE[i]) / tNONIDLE
- *	   tFULL = sum(tFULL[i] * tNONIDLE[i]) / tNONIDLE
- *
- *	   %SOME = tSOME / period
- *	   %FULL = tFULL / period
- *
- * This gives us an approximation of pressure that is practical
- * cost-wise, yet way more sensitive and accurate than periodic
- * sampling of the aggregate task states would be.
- */
 
 static int psi_bug __read_mostly;
 
@@ -153,21 +15,17 @@ static int __init setup_psi(char *str)
 }
 __setup("psi=", setup_psi);
 
-/* Running averages - we need to be higher-res than loadavg */
 #define PSI_FREQ	(2*HZ+1)	/* 2 sec intervals */
 #define EXP_10s		1677		/* 1/exp(2s/10s) as fixed-point */
 #define EXP_60s		1981		/* 1/exp(2s/60s) */
 #define EXP_300s	2034		/* 1/exp(2s/300s) */
 
-/* PSI trigger definitions */
 #define WINDOW_MIN_US 500000	/* Min window size is 500ms */
 #define WINDOW_MAX_US 10000000	/* Max window size is 10s */
 #define UPDATES_PER_WINDOW 10	/* 10 updates per window */
 
-/* Sampling frequency in nanoseconds */
 static u64 psi_period __read_mostly;
 
-/* System-level pressure and stall tracking */
 static DEFINE_PER_CPU(struct psi_group_cpu, system_group_pcpu);
 struct psi_group psi_system = {
 	.pcpu = &system_group_pcpu,
@@ -249,7 +107,6 @@ static void get_recent_times(struct psi_group *group, int cpu,
 	unsigned int seq;
 	u32 state_mask;
 
-	*pchanged_states = 0;
 
 	/* Snapshot a coherent view of the CPU state */
 	do {
@@ -264,14 +121,6 @@ static void get_recent_times(struct psi_group *group, int cpu,
 	for (s = 0; s < NR_PSI_STATES; s++) {
 		u32 delta;
 		/*
-		 * In addition to already concluded states, we also
-		 * incorporate currently active states on the CPU,
-		 * since states may last for many sampling periods.
-		 *
-		 * This way we keep our delta sampling buckets small
-		 * (u32) and our reported pressure close to what's
-		 * actually happening.
-		 */
 		if (state_mask & (1 << s))
 			times[s] += now - state_start;
 
@@ -315,13 +164,6 @@ static void collect_percpu_times(struct psi_group *group,
 	int s;
 
 	/*
-	 * Collect the per-cpu time buckets and average them into a
-	 * single time sample that is normalized to wallclock time.
-	 *
-	 * For averaging, each CPU is weighted by its non-idle time in
-	 * the sampling period. This eliminates artifacts from uneven
-	 * loading, or even entirely idle CPUs.
-	 */
 	for_each_possible_cpu(cpu) {
 		u32 times[NR_PSI_STATES];
 		u32 nonidle;
@@ -339,16 +181,6 @@ static void collect_percpu_times(struct psi_group *group,
 	}
 
 	/*
-	 * Integrate the sample into the running statistics that are
-	 * reported to userspace: the cumulative stall times and the
-	 * decaying averages.
-	 *
-	 * Pressure percentages are sampled at PSI_FREQ. We might be
-	 * called more often when the user polls more frequently than
-	 * that; we might be called less often when there is no task
-	 * activity, thus no data, and clock ticks are sporadic. The
-	 * below handles both.
-	 */
 
 	/* total= */
 	for (s = 0; s < NR_PSI_STATES - 1; s++)
@@ -372,12 +204,6 @@ static u64 update_averages(struct psi_group *group, u64 now)
 		missed_periods = div_u64(now - expires, psi_period);
 
 	/*
-	 * The periodic clock tick can get delayed for various
-	 * reasons, especially on loaded systems. To avoid clock
-	 * drift, we schedule the clock in fixed psi_period intervals.
-	 * But the deltas we sample out of the per-cpu buckets above
-	 * are based on the actual time elapsing between clock ticks.
-	 */
 	avg_next_update = expires + ((1 + missed_periods) * psi_period);
 	period = now - (group->avg_last_update + (missed_periods * psi_period));
 	group->avg_last_update = now;
@@ -387,22 +213,6 @@ static u64 update_averages(struct psi_group *group, u64 now)
 
 		sample = group->total[PSI_AVGS][s] - group->avg_total[s];
 		/*
-		 * Due to the lockless sampling of the time buckets,
-		 * recorded time deltas can slip into the next period,
-		 * which under full pressure can result in samples in
-		 * excess of the period length.
-		 *
-		 * We don't want to report non-sensical pressures in
-		 * excess of 100%, nor do we want to drop such events
-		 * on the floor. Instead we punt any overage into the
-		 * future until pressure subsides. By doing this we
-		 * don't underreport the occurring pressure curve, we
-		 * just report it delayed by one period length.
-		 *
-		 * The error isn't cumulative. As soon as another
-		 * delta slips from a period P to P+1, by definition
-		 * it frees up its time T in P.
-		 */
 		if (sample > period)
 			sample = period;
 		group->avg_total[s] += sample;
@@ -430,12 +240,6 @@ static void psi_avgs_work(struct work_struct *work)
 	collect_percpu_times(group, PSI_AVGS, &changed_states);
 	nonidle = changed_states & (1 << PSI_NONIDLE);
 	/*
-	 * If there is task activity, periodically fold the per-cpu
-	 * times and feed samples into the running averages. If things
-	 * are idle and there is no data to process, stop the clock.
-	 * Once restarted, we'll catch up the running averages in one
-	 * go - see calc_avgs() and missed_periods.
-	 */
 	if (now >= group->avg_next_update)
 		group->avg_next_update = update_averages(group, now);
 
@@ -447,7 +251,6 @@ static void psi_avgs_work(struct work_struct *work)
 	mutex_unlock(&group->avgs_lock);
 }
 
-/* Trigger tracking window manipulations */
 static void window_reset(struct psi_window *win, u64 now, u64 value,
 			 u64 prev_growth)
 {
@@ -456,17 +259,6 @@ static void window_reset(struct psi_window *win, u64 now, u64 value,
 	win->prev_growth = prev_growth;
 }
 
-/*
- * PSI growth tracking window update and growth calculation routine.
- *
- * This approximates a sliding tracking window by interpolating
- * partially elapsed windows using historical growth data from the
- * previous intervals. This minimizes memory requirements (by not storing
- * all the intermediate values in the previous window) and simplifies
- * the calculations. It works well because PSI signal changes only in
- * positive direction and over relatively small window sizes the growth
- * is close to linear.
- */
 static u64 window_update(struct psi_window *win, u64 now, u64 value)
 {
 	u64 elapsed;
@@ -475,12 +267,6 @@ static u64 window_update(struct psi_window *win, u64 now, u64 value)
 	elapsed = now - win->start_time;
 	growth = value - win->start_value;
 	/*
-	 * After each tracking window passes win->start_value and
-	 * win->start_time get reset and win->prev_growth stores
-	 * the average per-window growth of the previous window.
-	 * win->prev_growth is then used to interpolate additional
-	 * growth from the previous window assuming it was linear.
-	 */
 	if (elapsed > win->size)
 		window_reset(win, now, value, growth);
 	else {
@@ -512,9 +298,6 @@ static u64 update_triggers(struct psi_group *group, u64 now)
 	u64 *total = group->total[PSI_POLL];
 
 	/*
-	 * On subsequent updates, calculate growth deltas and let
-	 * watchers know when their specified thresholds are exceeded.
-	 */
 	list_for_each_entry(t, &group->triggers, node) {
 		u64 growth;
 		bool new_stall;
@@ -525,18 +308,8 @@ static u64 update_triggers(struct psi_group *group, u64 now)
 		if (!new_stall && !t->pending_event)
 			continue;
 		/*
-		 * Check for new stall activity, as well as deferred
-		 * events that occurred in the last window after the
-		 * trigger had already fired (we want to ratelimit
-		 * events without dropping any).
-		 */
 		if (new_stall) {
 			/*
-			 * Multiple triggers might be looking at the same state,
-			 * remember to update group->polling_total[] once we've
-			 * been through all of them. Also remember to extend the
-			 * polling time if we see new stall activity.
-			 */
 			update_total = true;
 
 			/* Calculate growth since last update */
@@ -565,17 +338,11 @@ static u64 update_triggers(struct psi_group *group, u64 now)
 	return now + group->poll_min_period;
 }
 
-/* Schedule polling if it's not already scheduled. */
 static void psi_schedule_poll_work(struct psi_group *group, unsigned long delay)
 {
 	struct task_struct *task;
 
 	/*
-	 * Do not reschedule if already scheduled.
-	 * Possible race with a timer scheduled after this check but before
-	 * mod_timer below can be tolerated because group->polling_next_update
-	 * will keep updates on schedule.
-	 */
 	if (timer_pending(&group->poll_timer))
 		return;
 
@@ -583,9 +350,6 @@ static void psi_schedule_poll_work(struct psi_group *group, unsigned long delay)
 
 	task = rcu_dereference(group->poll_task);
 	/*
-	 * kworker might be NULL in case psi_trigger_destroy races with
-	 * psi_task_change (hotpath) which can't use locks
-	 */
 	if (likely(task))
 		mod_timer(&group->poll_timer, jiffies + delay);
 
@@ -609,10 +373,6 @@ static void psi_poll_work(struct psi_group *group)
 			init_triggers(group, now);
 
 		/*
-		 * Keep the monitor active for at least the duration of the
-		 * minimum tracking window as long as monitor states are
-		 * changing.
-		 */
 		group->polling_until = now +
 			group->poll_min_period * UPDATES_PER_WINDOW;
 	}
@@ -699,13 +459,6 @@ static void psi_group_change(struct psi_group *group, int cpu,
 	groupc = per_cpu_ptr(group->pcpu, cpu);
 
 	/*
-	 * First we assess the aggregate resource states this CPU's
-	 * tasks have been in since the last change, and account any
-	 * SOME and FULL time these may have resulted in.
-	 *
-	 * Then we update the task counts according to the state
-	 * change requested through the @clear and @set bits.
-	 */
 	write_seqcount_begin(&groupc->seq);
 
 	record_times(groupc, now);
@@ -736,13 +489,6 @@ static void psi_group_change(struct psi_group *group, int cpu,
 	}
 
 	/*
-	 * Since we care about lost potential, a memstall is FULL
-	 * when there are no other working tasks, but also when
-	 * the CPU is actively reclaiming and nothing productive
-	 * could run even if it were runnable. So when the current
-	 * task in a cgroup is in_memstall, the corresponding groupc
-	 * on that cpu is in PSI_MEM_FULL state.
-	 */
 	if (unlikely(groupc->tasks[NR_ONCPU] && cpu_curr(cpu)->in_memstall))
 		state_mask |= (1 << PSI_MEM_FULL);
 
@@ -777,7 +523,6 @@ static struct psi_group *iterate_groups(struct task_struct *task, void **iter)
 		}
 	}
 #endif
-	*iter = &psi_system;
 	return &psi_system;
 }
 
@@ -811,11 +556,6 @@ void psi_task_change(struct task_struct *task, int clear, int set)
 
 	now = cpu_clock(cpu);
 	/*
-	 * Periodic aggregation shuts off if there is a period of no
-	 * task changes, so we wake it back up if necessary. However,
-	 * don't do this if the task change is the aggregation worker
-	 * itself going to sleep, or we'll ping-pong forever.
-	 */
 	if (unlikely((clear & TSK_RUNNING) &&
 		     (task->flags & PF_WQ_WORKER) &&
 		     wq_worker_last_func(task) == psi_avgs_work))
@@ -838,11 +578,6 @@ void psi_task_switch(struct task_struct *prev, struct task_struct *next,
 
 		psi_flags_change(next, 0, TSK_ONCPU);
 		/*
-		 * When switching between tasks that have an identical
-		 * runtime state, the cgroup that contains both tasks
-		 * we reach the first common ancestor. Iterate @next's
-		 * ancestors only until we encounter @prev's ONCPU.
-		 */
 		identical_state = prev->psi_flags == next->psi_flags;
 		iter = NULL;
 		while ((group = iterate_groups(next, &iter))) {
@@ -860,11 +595,6 @@ void psi_task_switch(struct task_struct *prev, struct task_struct *next,
 		int clear = TSK_ONCPU, set = 0;
 
 		/*
-		 * When we're going to sleep, psi_dequeue() lets us
-		 * handle TSK_RUNNING, TSK_MEMSTALL_RUNNING and
-		 * TSK_IOWAIT here, where we can combine it with
-		 * TSK_ONCPU and save walking common ancestors twice.
-		 */
 		if (sleep) {
 			clear |= TSK_RUNNING;
 			if (prev->in_memstall)
@@ -880,9 +610,6 @@ void psi_task_switch(struct task_struct *prev, struct task_struct *next,
 			psi_group_change(group, cpu, clear, set, now, true);
 
 		/*
-		 * TSK_ONCPU is handled up to the common ancestor. If we're tasked
-		 * with dequeuing too, finish that for the rest of the hierarchy.
-		 */
 		if (sleep) {
 			clear &= ~TSK_ONCPU;
 			for (; group; group = iterate_groups(prev, &iter))
@@ -891,13 +618,6 @@ void psi_task_switch(struct task_struct *prev, struct task_struct *next,
 	}
 }
 
-/**
- * psi_memstall_enter - mark the beginning of a memory stall section
- * @flags: flags to handle nested sections
- *
- * Marks the calling task as being stalled due to a lack of memory,
- * such as waiting for a refault or performing reclaim.
- */
 void psi_memstall_enter(unsigned long *flags)
 {
 	struct rq_flags rf;
@@ -906,14 +626,9 @@ void psi_memstall_enter(unsigned long *flags)
 	if (static_branch_likely(&psi_disabled))
 		return;
 
-	*flags = current->in_memstall;
 	if (*flags)
 		return;
 	/*
-	 * in_memstall setting & accounting needs to be atomic wrt
-	 * changes to the task's scheduling state, otherwise we can
-	 * race with CPU migration.
-	 */
 	rq = this_rq_lock_irq(&rf);
 
 	current->in_memstall = 1;
@@ -922,12 +637,6 @@ void psi_memstall_enter(unsigned long *flags)
 	rq_unlock_irq(rq, &rf);
 }
 
-/**
- * psi_memstall_leave - mark the end of an memory stall section
- * @flags: flags to handle nested memdelay sections
- *
- * Marks the calling task as no longer stalled due to lack of memory.
- */
 void psi_memstall_leave(unsigned long *flags)
 {
 	struct rq_flags rf;
@@ -939,10 +648,6 @@ void psi_memstall_leave(unsigned long *flags)
 	if (*flags)
 		return;
 	/*
-	 * in_memstall clearing & accounting needs to be atomic wrt
-	 * changes to the task's scheduling state, otherwise we could
-	 * race with CPU migration.
-	 */
 	rq = this_rq_lock_irq(&rf);
 
 	current->in_memstall = 0;
@@ -982,18 +687,6 @@ void psi_cgroup_free(struct cgroup *cgroup)
 	kfree(cgroup->psi);
 }
 
-/**
- * cgroup_move_task - move task to a different cgroup
- * @task: the task
- * @to: the target css_set
- *
- * Move task to a new cgroup and safely migrate its associated stall
- * state between the different groups.
- *
- * This function acquires the task's rq lock to lock out concurrent
- * changes to the task's scheduling state and - in case the task is
- * running - concurrent changes to its stall state.
- */
 void cgroup_move_task(struct task_struct *task, struct css_set *to)
 {
 	unsigned int task_flags;
@@ -1002,9 +695,6 @@ void cgroup_move_task(struct task_struct *task, struct css_set *to)
 
 	if (static_branch_likely(&psi_disabled)) {
 		/*
-		 * Lame to do this here, but the scheduler cannot be locked
-		 * from the outside, so we move cgroups from inside sched/.
-		 */
 		rcu_assign_pointer(task->cgroups, to);
 		return;
 	}
@@ -1012,29 +702,6 @@ void cgroup_move_task(struct task_struct *task, struct css_set *to)
 	rq = task_rq_lock(task, &rf);
 
 	/*
-	 * We may race with schedule() dropping the rq lock between
-	 * deactivating prev and switching to next. Because the psi
-	 * updates from the deactivation are deferred to the switch
-	 * callback to save cgroup tree updates, the task's scheduling
-	 * state here is not coherent with its psi state:
-	 *
-	 * schedule()                   cgroup_move_task()
-	 *   rq_lock()
-	 *   deactivate_task()
-	 *     p->on_rq = 0
-	 *     psi_dequeue() // defers TSK_RUNNING & TSK_IOWAIT updates
-	 *   pick_next_task()
-	 *     rq_unlock()
-	 *                                rq_lock()
-	 *                                psi_task_change() // old cgroup
-	 *                                task->cgroups = to
-	 *                                psi_task_change() // new cgroup
-	 *                                rq_unlock()
-	 *     rq_lock()
-	 *   psi_sched_switch() // does deferred updates in new cgroup
-	 *
-	 * Don't rely on the scheduling state. Use psi_flags instead.
-	 */
 	task_flags = task->psi_flags;
 
 	if (task_flags)
@@ -1168,17 +835,11 @@ void psi_trigger_destroy(struct psi_trigger *t)
 	struct task_struct *task_to_destroy = NULL;
 
 	/*
-	 * We do not check psi_disabled since it might have been disabled after
-	 * the trigger got created.
-	 */
 	if (!t)
 		return;
 
 	group = t->group;
 	/*
-	 * Wakeup waiters to stop polling. Can happen if cgroup is deleted
-	 * from under a polling process.
-	 */
 	wake_up_interruptible(&t->event_wait);
 
 	mutex_lock(&group->trigger_lock);
@@ -1210,20 +871,10 @@ void psi_trigger_destroy(struct psi_trigger *t)
 	mutex_unlock(&group->trigger_lock);
 
 	/*
-	 * Wait for psi_schedule_poll_work RCU to complete its read-side
-	 * critical section before destroying the trigger and optionally the
-	 * poll_task.
-	 */
 	synchronize_rcu();
 	/*
-	 * Stop kthread 'psimon' after releasing trigger_lock to prevent a
-	 * deadlock while waiting for psi_poll_work to acquire trigger_lock
-	 */
 	if (task_to_destroy) {
 		/*
-		 * After the RCU grace period has expired, the worker
-		 * can no longer be found through group->poll_task.
-		 */
 		kthread_stop(task_to_destroy);
 	}
 	kfree(t);

@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Glue Code for x86_64/AVX2/AES-NI assembler optimized version of Camellia
- *
- * Copyright © 2013 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
- */
 
 #include <crypto/algapi.h>
 #include <crypto/internal/simd.h>
@@ -18,7 +12,6 @@
 #define CAMELLIA_AESNI_PARALLEL_BLOCKS 16
 #define CAMELLIA_AESNI_AVX2_PARALLEL_BLOCKS 32
 
-/* 32-way AVX2/AES-NI parallel cipher functions */
 asmlinkage void camellia_ecb_enc_32way(const void *ctx, u8 *dst, const u8 *src);
 asmlinkage void camellia_ecb_dec_32way(const void *ctx, u8 *dst, const u8 *src);
 

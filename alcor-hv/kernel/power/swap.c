@@ -1,14 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * linux/kernel/power/swap.c
- *
- * This file provides functions for reading the suspend image from
- * and writing it to a swap partition.
- *
- * Copyright (C) 1998,2001-2005 Pavel Machek <pavel@ucw.cz>
- * Copyright (C) 2006 Rafael J. Wysocki <rjw@sisk.pl>
- * Copyright (C) 2010-2012 Bojan Smojver <bojan@rexursive.com>
- */
 
 #define pr_fmt(fmt) "PM: " fmt
 
@@ -37,42 +26,17 @@
 
 u32 swsusp_hardware_signature;
 
-/*
- * When reading an {un,}compressed image, we may restore pages in place,
- * in which case some architectures need these pages cleaning before they
- * can be executed. We don't know which pages these may be, so clean the lot.
- */
 static bool clean_pages_on_read;
 static bool clean_pages_on_decompress;
 
-/*
- *	The swap map is a data structure used for keeping track of each page
- *	written to a swap partition.  It consists of many swap_map_page
- *	structures that contain each an array of MAP_PAGE_ENTRIES swap entries.
- *	These structures are stored on the swap and linked together with the
- *	help of the .next_swap member.
- *
- *	The swap map is created during suspend.  The swap map pages are
- *	allocated and populated one at a time, so we only need one memory
- *	page to set up the entire structure.
- *
- *	During resume we pick up all swap_map_page structures into a list.
- */
 
 #define MAP_PAGE_ENTRIES	(PAGE_SIZE / sizeof(sector_t) - 1)
 
-/*
- * Number of free pages that are not high.
- */
 static inline unsigned long low_free_pages(void)
 {
 	return nr_free_pages() - nr_free_highpages();
 }
 
-/*
- * Number of pages required to be kept free while writing the image. Always
- * half of all available low pages before the writing starts.
- */
 static inline unsigned long reqd_free_pages(void)
 {
 	return low_free_pages() / 2;
@@ -88,10 +52,6 @@ struct swap_map_page_list {
 	struct swap_map_page_list *next;
 };
 
-/*
- *	The swap_map_handle structure is used for handling swap in
- *	a file-alike way
- */
 
 struct swap_map_handle {
 	struct swap_map_page *cur;
@@ -116,10 +76,6 @@ struct swsusp_header {
 
 static struct swsusp_header *swsusp_header;
 
-/*
- *	The following functions are used for tracing the allocated
- *	swap pages, so that they can be freed in case of an error.
- */
 
 struct swsusp_extent {
 	struct rb_node node;
@@ -170,10 +126,6 @@ static int swsusp_extents_insert(unsigned long swap_offset)
 	return 0;
 }
 
-/*
- *	alloc_swapdev_block - allocate a swap page and register that it has
- *	been allocated, so that it can be freed in case of an error.
- */
 
 sector_t alloc_swapdev_block(int swap)
 {
@@ -189,11 +141,6 @@ sector_t alloc_swapdev_block(int swap)
 	return 0;
 }
 
-/*
- *	free_all_swap_pages - free swap pages allocated for saving image data.
- *	It also frees the extents used to register which swap entries had been
- *	allocated.
- */
 
 void free_all_swap_pages(int swap)
 {
@@ -217,9 +164,6 @@ int swsusp_swap_in_use(void)
 	return (swsusp_extents.rb_node != NULL);
 }
 
-/*
- * General things
- */
 
 static unsigned short root_swap = 0xffff;
 static struct block_device *hib_resume_bdev;
@@ -302,16 +246,10 @@ static int hib_submit_io(blk_opf_t opf, pgoff_t page_off, void *addr,
 static int hib_wait_io(struct hib_bio_batch *hb)
 {
 	/*
-	 * We are relying on the behavior of blk_plug that a thread with
-	 * a plug will flush the plug list before sleeping.
-	 */
 	wait_event(hb->wait, atomic_read(&hb->count) == 0);
 	return blk_status_to_errno(hb->error);
 }
 
-/*
- * Saving part
- */
 static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
 {
 	int error;
@@ -338,12 +276,6 @@ static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
 	return error;
 }
 
-/**
- *	swsusp_swap_check - check if the resume device is a swap device
- *	and get its index (if so)
- *
- *	This is called before saving image
- */
 static int swsusp_swap_check(void)
 {
 	int res;
@@ -368,12 +300,6 @@ static int swsusp_swap_check(void)
 	return res;
 }
 
-/**
- *	write_page - Write one page to given swap location.
- *	@buf:		Address we're writing.
- *	@offset:	Offset of the swap page we're writing to.
- *	@hb:		bio completion batch
- */
 
 static int write_page(void *buf, sector_t offset, struct hib_bio_batch *hb)
 {
@@ -477,9 +403,6 @@ static int swap_write_page(struct swap_map_handle *handle, void *buf,
 			if (error)
 				goto out;
 			/*
-			 * Recalculate the number of required free pages, to
-			 * make sure we never take more than half.
-			 */
 			handle->reqd_free_pages = reqd_free_pages();
 		}
 	}
@@ -513,29 +436,21 @@ static int swap_writer_finish(struct swap_map_handle *handle,
 	return error;
 }
 
-/* We need to remember how much compressed data we need to read. */
 #define LZO_HEADER	sizeof(size_t)
 
-/* Number of pages/bytes we'll compress at one time. */
 #define LZO_UNC_PAGES	32
 #define LZO_UNC_SIZE	(LZO_UNC_PAGES * PAGE_SIZE)
 
-/* Number of pages/bytes we need for compressed data (worst case). */
 #define LZO_CMP_PAGES	DIV_ROUND_UP(lzo1x_worst_compress(LZO_UNC_SIZE) + \
 			             LZO_HEADER, PAGE_SIZE)
 #define LZO_CMP_SIZE	(LZO_CMP_PAGES * PAGE_SIZE)
 
-/* Maximum number of threads for compression/decompression. */
 #define LZO_THREADS	3
 
-/* Minimum/maximum number of pages for read buffering. */
 #define LZO_MIN_RD_PAGES	1024
 #define LZO_MAX_RD_PAGES	8192
 
 
-/**
- *	save_image - save the suspend image data
- */
 
 static int save_image(struct swap_map_handle *handle,
                       struct snapshot_handle *snapshot,
@@ -581,9 +496,6 @@ static int save_image(struct swap_map_handle *handle,
 	return ret;
 }
 
-/**
- * Structure used for CRC32.
- */
 struct crc_data {
 	struct task_struct *thr;                  /* thread */
 	atomic_t ready;                           /* ready to start flag */
@@ -596,9 +508,6 @@ struct crc_data {
 	unsigned char *unc[LZO_THREADS];          /* uncompressed data */
 };
 
-/**
- * CRC32 update function that runs in its own thread.
- */
 static int crc32_threadfn(void *data)
 {
 	struct crc_data *d = data;
@@ -623,9 +532,6 @@ static int crc32_threadfn(void *data)
 	}
 	return 0;
 }
-/**
- * Structure used for LZO data compression.
- */
 struct cmp_data {
 	struct task_struct *thr;                  /* thread */
 	atomic_t ready;                           /* ready to start flag */
@@ -640,9 +546,6 @@ struct cmp_data {
 	unsigned char wrk[LZO1X_1_MEM_COMPRESS];  /* compression workspace */
 };
 
-/**
- * Compression function that runs in its own thread.
- */
 static int lzo_compress_threadfn(void *data)
 {
 	struct cmp_data *d = data;
@@ -668,12 +571,6 @@ static int lzo_compress_threadfn(void *data)
 	return 0;
 }
 
-/**
- * save_image_lzo - Save the suspend image data compressed with LZO.
- * @handle: Swap map handle to use for saving the image.
- * @snapshot: Image to read data from.
- * @nr_to_write: Number of pages to save.
- */
 static int save_image_lzo(struct swap_map_handle *handle,
                           struct snapshot_handle *snapshot,
                           unsigned int nr_to_write)
@@ -694,9 +591,6 @@ static int save_image_lzo(struct swap_map_handle *handle,
 	hib_init_batch(&hb);
 
 	/*
-	 * We'll limit the number of threads for compression to limit memory
-	 * footprint.
-	 */
 	nr_threads = num_online_cpus() - 1;
 	nr_threads = clamp_val(nr_threads, 1, LZO_THREADS);
 
@@ -722,8 +616,6 @@ static int save_image_lzo(struct swap_map_handle *handle,
 	}
 
 	/*
-	 * Start the compression threads.
-	 */
 	for (thr = 0; thr < nr_threads; thr++) {
 		init_waitqueue_head(&data[thr].go);
 		init_waitqueue_head(&data[thr].done);
@@ -740,8 +632,6 @@ static int save_image_lzo(struct swap_map_handle *handle,
 	}
 
 	/*
-	 * Start the CRC32 thread.
-	 */
 	init_waitqueue_head(&crc->go);
 	init_waitqueue_head(&crc->done);
 
@@ -761,9 +651,6 @@ static int save_image_lzo(struct swap_map_handle *handle,
 	}
 
 	/*
-	 * Adjust the number of required free pages after all allocations have
-	 * been done. We don't want to run out of pages when writing.
-	 */
 	handle->reqd_free_pages = reqd_free_pages();
 
 	pr_info("Using %u thread(s) for compression\n", nr_threads);
@@ -831,13 +718,6 @@ static int save_image_lzo(struct swap_map_handle *handle,
 			*(size_t *)data[thr].cmp = data[thr].cmp_len;
 
 			/*
-			 * Given we are writing one page at a time to disk, we
-			 * copy that much from the buffer, although the last
-			 * bit will likely be smaller than full page. This is
-			 * OK - we saved the length of the compressed data, so
-			 * any garbage at the end will be discarded when we
-			 * read it.
-			 */
 			for (off = 0;
 			     off < LZO_HEADER + data[thr].cmp_len;
 			     off += PAGE_SIZE) {
@@ -879,12 +759,6 @@ out_clean:
 	return ret;
 }
 
-/**
- *	enough_swap - Make sure we have enough swap to save the image.
- *
- *	Returns TRUE or FALSE after checking the total amount of swap
- *	space available from the resume partition.
- */
 
 static int enough_swap(unsigned int nr_pages)
 {
@@ -897,15 +771,6 @@ static int enough_swap(unsigned int nr_pages)
 	return free_swap > required;
 }
 
-/**
- *	swsusp_write - Write entire image and metadata.
- *	@flags: flags to pass to the "boot" kernel in the image header
- *
- *	It is important _NOT_ to umount filesystems at this point. We want
- *	them synced (in case something goes wrong) but we DO not want to mark
- *	filesystem clean: it is not. (And it does not matter, if we resume
- *	correctly, we'll mark system clean, anyway.)
- */
 
 int swsusp_write(unsigned int flags)
 {
@@ -948,10 +813,6 @@ out_finish:
 	return error;
 }
 
-/**
- *	The following functions allow us to read data using a swap map
- *	in a file-alike way
- */
 
 static void release_swap_reader(struct swap_map_handle *handle)
 {
@@ -974,7 +835,6 @@ static int get_swap_reader(struct swap_map_handle *handle,
 	struct swap_map_page_list *tmp, *last;
 	sector_t offset;
 
-	*flags_p = swsusp_header->flags;
 
 	if (!swsusp_header->image) /* how can this happen? */
 		return -EINVAL;
@@ -1049,11 +909,6 @@ static int swap_reader_finish(struct swap_map_handle *handle)
 	return 0;
 }
 
-/**
- *	load_image - load the image using the swap map handle
- *	@handle and the snapshot handle @snapshot
- *	(assume there are @nr_pages pages to load)
- */
 
 static int load_image(struct swap_map_handle *handle,
                       struct snapshot_handle *snapshot,
@@ -1107,9 +962,6 @@ static int load_image(struct swap_map_handle *handle,
 	return ret;
 }
 
-/**
- * Structure used for LZO data decompression.
- */
 struct dec_data {
 	struct task_struct *thr;                  /* thread */
 	atomic_t ready;                           /* ready to start flag */
@@ -1123,9 +975,6 @@ struct dec_data {
 	unsigned char cmp[LZO_CMP_SIZE];          /* compressed buffer */
 };
 
-/**
- * Decompression function that runs in its own thread.
- */
 static int lzo_decompress_threadfn(void *data)
 {
 	struct dec_data *d = data;
@@ -1155,12 +1004,6 @@ static int lzo_decompress_threadfn(void *data)
 	return 0;
 }
 
-/**
- * load_image_lzo - Load compressed image data and decompress them with LZO.
- * @handle: Swap map handle to use for loading data.
- * @snapshot: Image to copy uncompressed data into.
- * @nr_to_read: Number of pages to load.
- */
 static int load_image_lzo(struct swap_map_handle *handle,
                           struct snapshot_handle *snapshot,
                           unsigned int nr_to_read)
@@ -1184,9 +1027,6 @@ static int load_image_lzo(struct swap_map_handle *handle,
 	hib_init_batch(&hb);
 
 	/*
-	 * We'll limit the number of threads for decompression to limit memory
-	 * footprint.
-	 */
 	nr_threads = num_online_cpus() - 1;
 	nr_threads = clamp_val(nr_threads, 1, LZO_THREADS);
 
@@ -1214,8 +1054,6 @@ static int load_image_lzo(struct swap_map_handle *handle,
 	clean_pages_on_decompress = true;
 
 	/*
-	 * Start the decompression threads.
-	 */
 	for (thr = 0; thr < nr_threads; thr++) {
 		init_waitqueue_head(&data[thr].go);
 		init_waitqueue_head(&data[thr].done);
@@ -1232,8 +1070,6 @@ static int load_image_lzo(struct swap_map_handle *handle,
 	}
 
 	/*
-	 * Start the CRC32 thread.
-	 */
 	init_waitqueue_head(&crc->go);
 	init_waitqueue_head(&crc->done);
 
@@ -1253,12 +1089,6 @@ static int load_image_lzo(struct swap_map_handle *handle,
 	}
 
 	/*
-	 * Set the number of pages for read buffering.
-	 * This is complete guesswork, because we'll only know the real
-	 * picture once prepare_image() is called, which is much later on
-	 * during the image load phase. We'll assume the worst case and
-	 * say that none of the image pages are from high memory.
-	 */
 	if (low_free_pages() > snapshot_get_image_size())
 		read_pages = (low_free_pages() - snapshot_get_image_size()) / 2;
 	read_pages = clamp_val(read_pages, LZO_MIN_RD_PAGES, LZO_MAX_RD_PAGES);
@@ -1300,9 +1130,6 @@ static int load_image_lzo(struct swap_map_handle *handle,
 			ret = swap_read_page(handle, page[ring], &hb);
 			if (ret) {
 				/*
-				 * On real read error, finish. On end of data,
-				 * set EOF flag and just exit the read loop.
-				 */
 				if (handle->cur &&
 				    handle->cur->entries[handle->k]) {
 					goto out_finish;
@@ -1318,8 +1145,6 @@ static int load_image_lzo(struct swap_map_handle *handle,
 		want -= i;
 
 		/*
-		 * We are out of data, wait for some more.
-		 */
 		if (!have) {
 			if (!asked)
 				break;
@@ -1375,8 +1200,6 @@ static int load_image_lzo(struct swap_map_handle *handle,
 		}
 
 		/*
-		 * Wait for more data while we are decompressing.
-		 */
 		if (have < LZO_CMP_PAGES && asked) {
 			ret = hib_wait_io(&hb);
 			if (ret)
@@ -1473,11 +1296,6 @@ out_clean:
 	return ret;
 }
 
-/**
- *	swsusp_read - read the hibernation image.
- *	@flags_p: flags passed by the "frozen" kernel in the image header should
- *		  be written into this memory location
- */
 
 int swsusp_read(unsigned int *flags_p)
 {
@@ -1510,9 +1328,6 @@ end:
 	return error;
 }
 
-/**
- *      swsusp_check - Check for swsusp signature in the resume device
- */
 
 int swsusp_check(void)
 {
@@ -1560,9 +1375,6 @@ put:
 	return error;
 }
 
-/**
- *	swsusp_close - close swap device.
- */
 
 void swsusp_close(fmode_t mode)
 {
@@ -1574,9 +1386,6 @@ void swsusp_close(fmode_t mode)
 	blkdev_put(hib_resume_bdev, mode);
 }
 
-/**
- *      swsusp_unmark - Unmark swsusp signature in the resume device
- */
 
 #ifdef CONFIG_SUSPEND
 int swsusp_unmark(void)
@@ -1596,8 +1405,6 @@ int swsusp_unmark(void)
 	}
 
 	/*
-	 * We just returned from suspend, we don't need the image any more.
-	 */
 	free_all_swap_pages(root_swap);
 
 	return error;

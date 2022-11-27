@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * rtmutex API
- */
 #include <linux/spinlock.h>
 #include <linux/export.h>
 
@@ -17,10 +13,6 @@ int ww_mutex_trylock(struct ww_mutex *lock, struct ww_acquire_ctx *ww_ctx)
 		return rt_mutex_trylock(rtm);
 
 	/*
-	 * Reset the wounded flag after a kill. No other process can
-	 * race and wound us here, since they can't have a valid owner
-	 * pointer if we don't have any locks held.
-	 */
 	if (ww_ctx->acquired == 0)
 		ww_ctx->wounded = 0;
 
@@ -49,10 +41,6 @@ __ww_rt_mutex_lock(struct ww_mutex *lock, struct ww_acquire_ctx *ww_ctx,
 			return -EALREADY;
 
 		/*
-		 * Reset the wounded flag after a kill. No other process can
-		 * race and wound us here, since they can't have a valid owner
-		 * pointer if we don't have any locks held.
-		 */
 		if (ww_ctx->acquired == 0)
 			ww_ctx->wounded = 0;
 

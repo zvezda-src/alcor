@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Common interrupt code for 32 and 64 bit
- */
 #include <linux/cpu.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
@@ -31,31 +27,16 @@ EXPORT_PER_CPU_SYMBOL(irq_stat);
 
 atomic_t irq_err_count;
 
-/*
- * 'what should we do if we get a hw irq event on an illegal vector'.
- * each architecture has to answer this themselves.
- */
 void ack_bad_irq(unsigned int irq)
 {
 	if (printk_ratelimit())
 		pr_err("unexpected IRQ trap at vector %02x\n", irq);
 
 	/*
-	 * Currently unexpected vectors happen only on SMP and APIC.
-	 * We _must_ ack these because every local APIC has only N
-	 * irq slots per priority level, and a 'hanging, unacked' IRQ
-	 * holds up an irq slot - in excessive cases (when multiple
-	 * unexpected vectors occur) that might lock up the APIC
-	 * completely.
-	 * But only ack when the APIC is enabled -AK
-	 */
 	ack_APIC_irq();
 }
 
 #define irq_stats(x)		(&per_cpu(irq_stat, x))
-/*
- * /proc/interrupts printing for arch specific interrupts
- */
 int arch_show_interrupts(struct seq_file *p, int prec)
 {
 	int j;
@@ -185,9 +166,6 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	return 0;
 }
 
-/*
- * /proc/stat helpers
- */
 u64 arch_irq_stat_cpu(unsigned int cpu)
 {
 	u64 sum = irq_stats(cpu)->__nmi_count;
@@ -233,10 +211,6 @@ static __always_inline void handle_irq(struct irq_desc *desc,
 		__handle_irq(desc, regs);
 }
 
-/*
- * common_interrupt() handles all normal device IRQ's (the special SMP
- * cross-CPU interrupts have their own entry points).
- */
 DEFINE_IDTENTRY_IRQ(common_interrupt)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
@@ -264,11 +238,7 @@ DEFINE_IDTENTRY_IRQ(common_interrupt)
 }
 
 #ifdef CONFIG_X86_LOCAL_APIC
-/* Function pointer for generic interrupt vector handling */
 void (*x86_platform_ipi_callback)(void) = NULL;
-/*
- * Handler for X86_PLATFORM_IPI_VECTOR.
- */
 DEFINE_IDTENTRY_SYSVEC(sysvec_x86_platform_ipi)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
@@ -298,18 +268,12 @@ void kvm_set_posted_intr_wakeup_handler(void (*handler)(void))
 }
 EXPORT_SYMBOL_GPL(kvm_set_posted_intr_wakeup_handler);
 
-/*
- * Handler for POSTED_INTERRUPT_VECTOR.
- */
 DEFINE_IDTENTRY_SYSVEC_SIMPLE(sysvec_kvm_posted_intr_ipi)
 {
 	ack_APIC_irq();
 	inc_irq_stat(kvm_posted_intr_ipis);
 }
 
-/*
- * Handler for POSTED_INTERRUPT_WAKEUP_VECTOR.
- */
 DEFINE_IDTENTRY_SYSVEC(sysvec_kvm_posted_intr_wakeup_ipi)
 {
 	ack_APIC_irq();
@@ -317,9 +281,6 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_kvm_posted_intr_wakeup_ipi)
 	kvm_posted_intr_wakeup_handler();
 }
 
-/*
- * Handler for POSTED_INTERRUPT_NESTED_VECTOR.
- */
 DEFINE_IDTENTRY_SYSVEC_SIMPLE(sysvec_kvm_posted_intr_nested_ipi)
 {
 	ack_APIC_irq();
@@ -329,7 +290,6 @@ DEFINE_IDTENTRY_SYSVEC_SIMPLE(sysvec_kvm_posted_intr_nested_ipi)
 
 
 #ifdef CONFIG_HOTPLUG_CPU
-/* A cpu has been removed from cpu_online_mask.  Reset irq affinities. */
 void fixup_irqs(void)
 {
 	unsigned int irr, vector;
@@ -340,21 +300,9 @@ void fixup_irqs(void)
 	irq_migrate_all_off_this_cpu();
 
 	/*
-	 * We can remove mdelay() and then send spurious interrupts to
-	 * new cpu targets for all the irqs that were handled previously by
-	 * this cpu. While it works, I have seen spurious interrupt messages
-	 * (nothing wrong but still...).
-	 *
-	 * So for now, retain mdelay(1) and check the IRR and then send those
-	 * interrupts to new targets as this cpu is already offlined...
-	 */
 	mdelay(1);
 
 	/*
-	 * We can walk the vector array of this cpu without holding
-	 * vector_lock because the cpu is already marked !online, so
-	 * nothing else will touch it.
-	 */
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
 		if (IS_ERR_OR_NULL(__this_cpu_read(vector_irq[vector])))
 			continue;

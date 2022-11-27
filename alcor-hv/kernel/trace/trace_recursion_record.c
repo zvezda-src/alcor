@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/seq_file.h>
 #include <linux/kallsyms.h>
@@ -16,10 +15,6 @@ struct recursed_functions {
 static struct recursed_functions recursed_functions[CONFIG_FTRACE_RECORD_RECURSION_SIZE];
 static atomic_t nr_records;
 
-/*
- * Cache the last found function. Yes, updates to this is racey, but
- * so is memory cache ;-)
- */
 static unsigned long cached_function;
 
 void ftrace_record_recursion(unsigned long ip, unsigned long parent_ip)
@@ -40,21 +35,6 @@ void ftrace_record_recursion(unsigned long ip, unsigned long parent_ip)
 		return;
 
 	/*
-	 * If there's two writers and this writer comes in second,
-	 * the cmpxchg() below to update the ip will fail. Then this
-	 * writer will try again. It is possible that index will now
-	 * be greater than nr_records. This is because the writer
-	 * that succeeded has not updated the nr_records yet.
-	 * This writer could keep trying again until the other writer
-	 * updates nr_records. But if the other writer takes an
-	 * interrupt, and that interrupt locks up that CPU, we do
-	 * not want this CPU to lock up due to the recursion protection,
-	 * and have a bug report showing this CPU as the cause of
-	 * locking up the computer. To not lose this record, this
-	 * writer will simply use the next position to update the
-	 * recursed_functions, and it will update the nr_records
-	 * accordingly.
-	 */
 	if (index < i)
 		index = i;
 	if (index >= CONFIG_FTRACE_RECORD_RECURSION_SIZE)
@@ -70,11 +50,6 @@ void ftrace_record_recursion(unsigned long ip, unsigned long parent_ip)
 	cached_function = ip;
 
 	/*
-	 * We only want to add a function if it hasn't been added before.
-	 * Add to the current location before incrementing the count.
-	 * If it fails to add, then increment the index (save in i)
-	 * and try again.
-	 */
 	old = cmpxchg(&recursed_functions[index].ip, 0, ip);
 	if (old != 0) {
 		/* Did something else already added this for us? */
@@ -88,24 +63,6 @@ void ftrace_record_recursion(unsigned long ip, unsigned long parent_ip)
 	recursed_functions[index].parent_ip = parent_ip;
 
 	/*
-	 * It's still possible that we could race with the clearing
-	 *    CPU0                                    CPU1
-	 *    ----                                    ----
-	 *                                       ip = func
-	 *  nr_records = -1;
-	 *  recursed_functions[0] = 0;
-	 *                                       i = -1
-	 *                                       if (i < 0)
-	 *  nr_records = 0;
-	 *  (new recursion detected)
-	 *      recursed_functions[0] = func
-	 *                                            cmpxchg(recursed_functions[0],
-	 *                                                    func, 0)
-	 *
-	 * But the worse that could happen is that we get a zero in
-	 * the recursed_functions array, and it's likely that "func" will
-	 * be recorded again.
-	 */
 	i = atomic_read(&nr_records);
 	smp_mb__after_atomic();
 	if (i < 0)

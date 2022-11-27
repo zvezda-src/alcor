@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _ASM_X86_APIC_H
 #define _ASM_X86_APIC_H
 
@@ -15,24 +14,14 @@
 
 #define ARCH_APICTIMER_STOPS_ON_C3	1
 
-/*
- * Debugging macros
- */
 #define APIC_QUIET   0
 #define APIC_VERBOSE 1
 #define APIC_DEBUG   2
 
-/* Macros for apic_extnmi which controls external NMI masking */
 #define APIC_EXTNMI_BSP		0 /* Default */
 #define APIC_EXTNMI_ALL		1
 #define APIC_EXTNMI_NONE	2
 
-/*
- * Define the default level of output to be very little
- * This can be turned up by using apic=verbose for more
- * information and apic=debug for _lots_ of information.
- * apic_verbosity is defined in apic.c
- */
 #define apic_printk(v, s, a...) do {       \
 		if ((v) <= apic_verbosity) \
 			printk(s, ##a);    \
@@ -78,22 +67,11 @@ static inline void default_inquire_remote_apic(int apicid)
 		__inquire_remote_apic(apicid);
 }
 
-/*
- * With 82489DX we can't rely on apic feature bit
- * retrieved via cpuid but still have to deal with
- * such an apic chip so we assume that SMP configuration
- * is found from MP table (64bit case uses ACPI mostly
- * which set smp presence flag as well so we are safe
- * to use this helper too).
- */
 static inline bool apic_from_smp_config(void)
 {
 	return smp_found_config && !disable_apic;
 }
 
-/*
- * Basic functions accessing APICs.
- */
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #endif
@@ -159,9 +137,6 @@ extern int apic_force_enable(unsigned long addr);
 
 extern void apic_ap_setup(void);
 
-/*
- * On 32bit this is mach-xxx local
- */
 #ifdef CONFIG_X86_64
 extern int apic_is_clustered_box(void);
 #else
@@ -270,15 +245,6 @@ static inline int x2apic_enabled(void) { return 0; }
 
 struct irq_data;
 
-/*
- * Copyright 2004 James Cleverdon, IBM.
- *
- * Generic APIC sub-arch data struct.
- *
- * Hacked for x86-64 by James Cleverdon from i386 architecture code by
- * Martin Bligh, Andi Kleen, James Bottomley, John Stultz, and
- * James Cleverdon.
- */
 struct apic {
 	/* Hotpath functions first */
 	void	(*eoi_write)(u32 reg, u32 v);
@@ -335,35 +301,13 @@ struct apic {
 
 #ifdef CONFIG_X86_32
 	/*
-	 * Called very early during boot from get_smp_config().  It should
-	 * return the logical apicid.  x86_[bios]_cpu_to_apicid is
-	 * initialized before this function is called.
-	 *
-	 * If logical apicid can't be determined that early, the function
-	 * may return BAD_APICID.  Logical apicid will be configured after
-	 * init_apic_ldr() while bringing up CPUs.  Note that NUMA affinity
-	 * won't be applied properly during early boot in this case.
-	 */
 	int (*x86_32_early_logical_apicid)(int cpu);
 #endif
 	char	*name;
 };
 
-/*
- * Pointer to the local APIC driver in use on this system (there's
- * always just one such driver in use - the kernel decides via an
- * early probing process which one it picks - and then sticks to it):
- */
 extern struct apic *apic;
 
-/*
- * APIC drivers are probed based on how they are listed in the .apicdrivers
- * section. So the order is important and enforced by the ordering
- * of different apic driver files in the Makefile.
- *
- * For the files having two apic drivers, we use apic_drivers()
- * to enforce the order with in them.
- */
 #define apic_driver(sym)					\
 	static const struct apic *__apicdrivers_##sym __used		\
 	__aligned(sizeof(struct apic *))			\
@@ -376,9 +320,6 @@ extern struct apic *apic;
 
 extern struct apic *__apicdrivers[], *__apicdrivers_end[];
 
-/*
- * APIC functionality to boot other CPUs - only used on SMP:
- */
 #ifdef CONFIG_SMP
 extern int wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip);
 extern int lapic_can_unplug_cpu(void);
@@ -441,9 +382,6 @@ extern void apic_ack_irq(struct irq_data *data);
 static inline void ack_APIC_irq(void)
 {
 	/*
-	 * ack_APIC_irq() actually gets compiled as a single instruction
-	 * ... yummie.
-	 */
 	apic_eoi();
 }
 
@@ -465,9 +403,6 @@ static inline unsigned default_get_apic_id(unsigned long x)
 		return (x >> 24) & 0x0F;
 }
 
-/*
- * Warm reset vector position:
- */
 #define TRAMPOLINE_PHYS_LOW		0x467
 #define TRAMPOLINE_PHYS_HIGH		0x469
 

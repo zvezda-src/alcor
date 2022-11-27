@@ -1,28 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_KGDB_H
 #define _ASM_X86_KGDB_H
 
-/*
- * Copyright (C) 2001-2004 Amit S. Kale
- * Copyright (C) 2008 Wind River Systems, Inc.
- */
 
 #include <asm/ptrace.h>
 
-/*
- * BUFMAX defines the maximum number of characters in inbound/outbound
- * buffers at least NUMREGBYTES*2 are needed for register packets
- * Longer buffer is needed to list all threads
- */
 #define BUFMAX			1024
 
-/*
- *  Note that this register image is in a different order than
- *  the register image that Linux produces at interrupt time.
- *
- *  Linux's register image is defined by struct pt_regs in ptrace.h.
- *  Just why GDB uses a different order is a historical mystery.
- */
 #ifdef CONFIG_X86_32
 enum regnames {
 	GDB_AX,			/* 0 */
@@ -74,7 +57,6 @@ enum regnames {
 };
 #define GDB_ORIG_AX		57
 #define DBG_MAX_REG_NUM		24
-/* 17 64 bit regs and 5 32 bit regs */
 #define NUMREGBYTES		((17 * 8) + (5 * 4))
 #endif /* ! CONFIG_X86_32 */
 

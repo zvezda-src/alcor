@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * KVM paravirt_ops implementation
- *
- * Copyright (C) 2007, Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
- * Copyright IBM Corporation, 2007
- *   Authors: Anthony Liguori <aliguori@us.ibm.com>
- */
 
 #define pr_fmt(fmt) "kvm-guest: " fmt
 
@@ -70,9 +62,6 @@ DEFINE_PER_CPU_DECRYPTED(struct kvm_steal_time, steal_time) __aligned(64) __visi
 static int has_steal_clock = 0;
 
 static int has_guest_poll = 0;
-/*
- * No need for any "IO delay" on KVM
- */
 static void kvm_io_delay(void)
 {
 }
@@ -131,13 +120,6 @@ static bool kvm_async_pf_queue_task(u32 token, struct kvm_task_sleep_node *n)
 	return true;
 }
 
-/*
- * kvm_async_pf_task_wait_schedule - Wait for pagefault to be handled
- * @token:	Token to identify the sleep node entry
- *
- * Invoked from the async pagefault handling code or from the VM exit page
- * fault handler. In both cases RCU is watching.
- */
 void kvm_async_pf_task_wait_schedule(u32 token)
 {
 	struct kvm_task_sleep_node n;
@@ -203,26 +185,15 @@ again:
 	n = _find_apf_task(b, token);
 	if (!n) {
 		/*
-		 * Async #PF not yet handled, add a dummy entry for the token.
-		 * Allocating the token must be down outside of the raw lock
-		 * as the allocator is preemptible on PREEMPT_RT kernels.
-		 */
 		if (!dummy) {
 			raw_spin_unlock(&b->lock);
 			dummy = kzalloc(sizeof(*dummy), GFP_ATOMIC);
 
 			/*
-			 * Continue looping on allocation failure, eventually
-			 * the async #PF will be handled and allocating a new
-			 * node will be unnecessary.
-			 */
 			if (!dummy)
 				cpu_relax();
 
 			/*
-			 * Recheck for async #PF completion before enqueueing
-			 * the dummy token to avoid duplicate list entries.
-			 */
 			goto again;
 		}
 		dummy->token = token;
@@ -265,10 +236,6 @@ noinstr bool __kvm_handle_async_pf(struct pt_regs *regs, u32 token)
 	instrumentation_begin();
 
 	/*
-	 * If the host managed to inject an async #PF into an interrupt
-	 * disabled region, then die hard as this is not going to end well
-	 * and the host side is seriously broken.
-	 */
 	if (unlikely(!(regs->flags & X86_EFLAGS_IF)))
 		panic("Host injected async #PF in interrupt disabled region\n");
 
@@ -422,14 +389,6 @@ static inline void __set_percpu_decrypted(void *ptr, unsigned long size)
 	early_set_memory_decrypted((unsigned long) ptr, size);
 }
 
-/*
- * Iterate through all possible CPUs and map the memory region pointed
- * by apf_reason, steal_time and kvm_apic_eoi as decrypted at once.
- *
- * Note: we iterate through all possible CPUs to ensure that CPUs
- * hotplugged will have their per-cpu variable already mapped as
- * decrypted.
- */
 static void __init sev_map_percpu_data(void)
 {
 	int cpu;
@@ -619,9 +578,6 @@ static int __init setup_efi_kvm_sev_migration(void)
 
 late_initcall(setup_efi_kvm_sev_migration);
 
-/*
- * Set the IPI entry points
- */
 static void kvm_setup_pv_ipi(void)
 {
 	apic->send_IPI_mask = kvm_send_ipi_mask;
@@ -654,15 +610,8 @@ static void kvm_flush_tlb_multi(const struct cpumask *cpumask,
 
 	cpumask_copy(flushmask, cpumask);
 	/*
-	 * We have to call flush only on online vCPUs. And
-	 * queue flush_on_enter for pre-empted vCPUs
-	 */
 	for_each_cpu(cpu, flushmask) {
 		/*
-		 * The local vCPU is never preempted, so we do not explicitly
-		 * skip check for local vCPU - it will never be cleared from
-		 * flushmask.
-		 */
 		src = &per_cpu(steal_time, cpu);
 		state = READ_ONCE(src->preempted);
 		if ((state & KVM_VCPU_PREEMPTED)) {
@@ -695,9 +644,6 @@ arch_initcall(kvm_alloc_cpumask);
 static void __init kvm_smp_prepare_boot_cpu(void)
 {
 	/*
-	 * Map the per-cpu variables as decrypted before kvm_guest_cpu_init()
-	 * shares the guest physical address with the hypervisor.
-	 */
 	sev_map_percpu_data();
 
 	kvm_guest_cpu_init();
@@ -763,12 +709,6 @@ static struct notifier_block kvm_pv_reboot_nb = {
 	.notifier_call = kvm_pv_reboot_notify,
 };
 
-/*
- * After a PV feature is registered, the host will keep writing to the
- * registered memory location. If the guest happens to shutdown, this memory
- * won't be valid. In cases like kexec, in which you install a new kernel, this
- * means a random memory location will be kept being written.
- */
 #ifdef CONFIG_KEXEC_CORE
 static void kvm_crash_shutdown(struct pt_regs *regs)
 {
@@ -794,10 +734,6 @@ PV_CALLEE_SAVE_REGS_THUNK(__kvm_vcpu_is_preempted);
 
 extern bool __raw_callee_save___kvm_vcpu_is_preempted(long);
 
-/*
- * Hand-optimize version for x86-64 to avoid 8 64-bit register saving and
- * restoring to/from the stack.
- */
 asm(
 ".pushsection .text;"
 ".global __raw_callee_save___kvm_vcpu_is_preempted;"
@@ -865,10 +801,6 @@ static void __init kvm_guest_init(void)
 	register_syscore_ops(&kvm_syscore_ops);
 
 	/*
-	 * Hard lockup detection is enabled by default. Disable it, as guests
-	 * can get false positives too easily, for example if the host is
-	 * overcommitted.
-	 */
 	hardlockup_detector_disable();
 }
 
@@ -945,15 +877,6 @@ static void __init kvm_init_platform(void)
 			kvm_sev_hc_page_enc_status;
 
 		/*
-		 * Reset the host's shared pages list related to kernel
-		 * specific page encryption status settings before we load a
-		 * new kernel by kexec. Reset the page encryption status
-		 * during early boot intead of just before kexec to avoid SMP
-		 * races during kvm_pv_guest_cpu_reboot().
-		 * NOTE: We cannot reset the complete shared pages list
-		 * here as we need to retain the UEFI/OVMF firmware
-		 * specific settings.
-		 */
 
 		for (i = 0; i < e820_table->nr_entries; i++) {
 			struct e820_entry *entry = &e820_table->entries[i];
@@ -969,17 +892,12 @@ static void __init kvm_init_platform(void)
 		}
 
 		/*
-		 * Ensure that _bss_decrypted section is marked as decrypted in the
-		 * shared pages list.
-		 */
 		nr_pages = DIV_ROUND_UP(__end_bss_decrypted - __start_bss_decrypted,
 					PAGE_SIZE);
 		early_set_mem_enc_dec_hypercall((unsigned long)__start_bss_decrypted,
 						nr_pages, 0);
 
 		/*
-		 * If not booted using EFI, enable Live migration support.
-		 */
 		if (!efi_enabled(EFI_BOOT))
 			wrmsrl(MSR_KVM_MIGRATION_CONTROL,
 			       KVM_MIGRATION_READY);
@@ -1033,7 +951,6 @@ arch_initcall(activate_jump_labels);
 
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
 
-/* Kick a cpu by its apicid. Used to wake up a halted vcpu */
 static void kvm_kick_cpu(int cpu)
 {
 	int apicid;
@@ -1051,10 +968,6 @@ static void kvm_wait(u8 *ptr, u8 val)
 		return;
 
 	/*
-	 * halt until it's our turn and kicked. Note that we do safe halt
-	 * for irq enabled case to avoid hang when lock info is overwritten
-	 * in irq spinlock slowpath and no spurious interrupt occur to save us.
-	 */
 	if (irqs_disabled()) {
 		if (READ_ONCE(*ptr) == val)
 			halt();
@@ -1069,25 +982,15 @@ static void kvm_wait(u8 *ptr, u8 val)
 	}
 }
 
-/*
- * Setup pv_lock_ops to exploit KVM_FEATURE_PV_UNHALT if present.
- */
 void __init kvm_spinlock_init(void)
 {
 	/*
-	 * In case host doesn't support KVM_FEATURE_PV_UNHALT there is still an
-	 * advantage of keeping virt_spin_lock_key enabled: virt_spin_lock() is
-	 * preferred over native qspinlock when vCPU is preempted.
-	 */
 	if (!kvm_para_has_feature(KVM_FEATURE_PV_UNHALT)) {
 		pr_info("PV spinlocks disabled, no host support\n");
 		return;
 	}
 
 	/*
-	 * Disable PV spinlocks and use native qspinlock when dedicated pCPUs
-	 * are available.
-	 */
 	if (kvm_para_has_hint(KVM_HINTS_REALTIME)) {
 		pr_info("PV spinlocks disabled with KVM_HINTS_REALTIME hints\n");
 		goto out;
@@ -1113,10 +1016,6 @@ void __init kvm_spinlock_init(void)
 	pv_ops.lock.kick = kvm_kick_cpu;
 
 	/*
-	 * When PV spinlock is enabled which is preferred over
-	 * virt_spin_lock(), virt_spin_lock_key's value is meaningless.
-	 * Just disable it anyway.
-	 */
 out:
 	static_branch_disable(&virt_spin_lock_key);
 }

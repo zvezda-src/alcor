@@ -1,31 +1,4 @@
-#
-#
 
-# Copyright (C) 2010, 2011, 2012, 2013 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 """Module for query operations
@@ -86,9 +59,6 @@ from alcor.constants import (QFT_UNKNOWN, QFT_TEXT, QFT_BOOL, QFT_NUMBER,
  NETQ_STATS,
  NETQ_INST) = range(300, 304)
 
-# Constants for requesting data from the caller/data provider. Each property
-# collected/computed separately by the data provider should have its own to
-# only collect the requested data and not more.
 
 (NQ_CONFIG,
  NQ_INST,
@@ -118,19 +88,16 @@ from alcor.constants import (QFT_UNKNOWN, QFT_TEXT, QFT_BOOL, QFT_NUMBER,
 
 (JQ_ARCHIVED, ) = range(400, 401)
 
-# Query field flags
 QFF_HOSTNAME = 0x01
 QFF_IP_ADDRESS = 0x02
 QFF_JOB_ID = 0x04
 QFF_SPLIT_TIMESTAMP = 0x08
-# Next values: 0x10, 0x20, 0x40, 0x80, 0x100, 0x200
 QFF_ALL = (QFF_HOSTNAME | QFF_IP_ADDRESS | QFF_JOB_ID | QFF_SPLIT_TIMESTAMP)
 
 FIELD_NAME_RE = re.compile(r"^[a-z0-9/._]+$")
 TITLE_RE = re.compile(r"^[^\s]+$")
 DOC_RE = re.compile(r"^[A-Z].*[^.,?!]$")
 
-#: Verification function for each field type
 _VERIFY_FN = {
   QFT_UNKNOWN: ht.TNone,
   QFT_TEXT: ht.TString,
@@ -142,13 +109,11 @@ _VERIFY_FN = {
   QFT_OTHER: lambda _: True,
   }
 
-# Unique objects for special field statuses
 _FS_UNKNOWN = object()
 _FS_NODATA = object()
 _FS_UNAVAIL = object()
 _FS_OFFLINE = object()
 
-#: List of all special status
 _FS_ALL = compat.UniqueFrozenset([
   _FS_UNKNOWN,
   _FS_NODATA,
@@ -156,7 +121,6 @@ _FS_ALL = compat.UniqueFrozenset([
   _FS_OFFLINE,
   ])
 
-#: VType to QFT mapping
 _VTToQFT = {
   # TODO: fix validation of empty strings
   constants.VTYPE_STRING: QFT_OTHER, # since VTYPE_STRINGs can be empty
@@ -1146,7 +1110,6 @@ class NodeQueryData(object):
       yield node
 
 
-#: Fields that are direct attributes of an L{objects.Node} object
 _NODE_SIMPLE_FIELDS = {
   "drained": ("Drained", QFT_BOOL, 0, "Whether node is drained"),
   "master_candidate": ("MasterC", QFT_BOOL, 0,
@@ -1161,8 +1124,6 @@ _NODE_SIMPLE_FIELDS = {
   }
 
 
-#: Fields requiring talking to the node
-# Note that none of these are available for non-vm_capable nodes
 _NODE_LIVE_FIELDS = {
   "bootid": ("BootID", QFT_TEXT, "bootid",
              "Random UUID renewed for each system reboot, can be used"
@@ -2942,40 +2903,28 @@ def _BuildFilterFields():
 
   return _PrepareFieldList(fields, [])
 
-#: Fields for cluster information
 CLUSTER_FIELDS = _BuildClusterFields()
 
-#: Fields available for node queries
 NODE_FIELDS = _BuildNodeFields()
 
-#: Fields available for instance queries
 INSTANCE_FIELDS = _BuildInstanceFields()
 
-#: Fields available for lock queries
 LOCK_FIELDS = _BuildLockFields()
 
-#: Fields available for node group queries
 GROUP_FIELDS = _BuildGroupFields()
 
-#: Fields available for operating system queries
 OS_FIELDS = _BuildOsFields()
 
-#: Fields available for extstorage provider queries
 EXTSTORAGE_FIELDS = _BuildExtStorageFields()
 
-#: Fields available for job queries
 JOB_FIELDS = _BuildJobFields()
 
-#: Fields available for exports
 EXPORT_FIELDS = _BuildExportFields()
 
-#: Fields available for network queries
 NETWORK_FIELDS = _BuildNetworkFields()
 
-#: Fields available for job filter queries
 FILTER_FIELDS = _BuildFilterFields()
 
-#: All available resources
 ALL_FIELDS = {
   constants.QR_CLUSTER: CLUSTER_FIELDS,
   constants.QR_INSTANCE: INSTANCE_FIELDS,
@@ -2990,5 +2939,4 @@ ALL_FIELDS = {
   constants.QR_FILTER: FILTER_FIELDS,
   }
 
-#: All available field lists
 ALL_FIELD_LISTS = list(ALL_FIELDS.values())

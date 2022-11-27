@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2019 Facebook  */
 #include <linux/rculist.h>
 #include <linux/list.h>
 #include <linux/hash.h>
@@ -100,10 +98,6 @@ static void bpf_selem_free_rcu(struct rcu_head *rcu)
 	kfree_rcu(selem, rcu);
 }
 
-/* local_storage->lock must be held and selem->local_storage == local_storage.
- * The caller must ensure selem->smap is still valid to be
- * dereferenced for its smap->elem_size and smap->cache_idx.
- */
 bool bpf_selem_unlink_storage_nolock(struct bpf_local_storage *local_storage,
 				     struct bpf_local_storage_elem *selem,
 				     bool uncharge_mem, bool use_trace_rcu)
@@ -353,11 +347,6 @@ uncharge:
 	return err;
 }
 
-/* sk cannot be going away because it is linking new elem
- * to sk->sk_bpf_storage. (i.e. sk->sk_refcnt cannot be 0).
- * Otherwise, it will become a leak (and other memory issues
- * during map destruction).
- */
 struct bpf_local_storage_data *
 bpf_local_storage_update(void *owner, struct bpf_local_storage_map *smap,
 			 void *value, u64 map_flags, gfp_t gfp_flags)

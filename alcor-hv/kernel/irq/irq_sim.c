@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
-/*
- * Copyright (C) 2017-2018 Bartosz Golaszewski <brgl@bgdev.pl>
- * Copyright (C) 2020 Bartosz Golaszewski <bgolaszewski@baylibre.com>
- */
 
 #include <linux/irq.h>
 #include <linux/irq_sim.h>
@@ -151,16 +146,6 @@ static const struct irq_domain_ops irq_sim_domain_ops = {
 	.unmap		= irq_sim_domain_unmap,
 };
 
-/**
- * irq_domain_create_sim - Create a new interrupt simulator irq_domain and
- *                         allocate a range of dummy interrupts.
- *
- * @fwnode:     struct fwnode_handle to be associated with this domain.
- * @num_irqs:   Number of interrupts to allocate.
- *
- * On success: return a new irq_domain object.
- * On failure: a negative errno wrapped with ERR_PTR().
- */
 struct irq_domain *irq_domain_create_sim(struct fwnode_handle *fwnode,
 					 unsigned int num_irqs)
 {
@@ -194,12 +179,6 @@ err_out:
 }
 EXPORT_SYMBOL_GPL(irq_domain_create_sim);
 
-/**
- * irq_domain_remove_sim - Deinitialize the interrupt simulator domain: free
- *                         the interrupt descriptors and allocated memory.
- *
- * @domain:     The interrupt simulator domain to tear down.
- */
 void irq_domain_remove_sim(struct irq_domain *domain)
 {
 	struct irq_sim_work_ctx *work_ctx = domain->host_data;
@@ -219,17 +198,6 @@ static void devm_irq_domain_remove_sim(void *data)
 	irq_domain_remove_sim(domain);
 }
 
-/**
- * devm_irq_domain_create_sim - Create a new interrupt simulator for
- *                              a managed device.
- *
- * @dev:        Device to initialize the simulator object for.
- * @fwnode:     struct fwnode_handle to be associated with this domain.
- * @num_irqs:   Number of interrupts to allocate
- *
- * On success: return a new irq_domain object.
- * On failure: a negative errno wrapped with ERR_PTR().
- */
 struct irq_domain *devm_irq_domain_create_sim(struct device *dev,
 					      struct fwnode_handle *fwnode,
 					      unsigned int num_irqs)

@@ -1,8 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * Support Intel uncore PerfMon discovery mechanism.
- * Copyright(c) 2021 Intel Corporation.
- */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include "uncore.h"
@@ -36,10 +31,6 @@ static int get_device_die_id(struct pci_dev *dev)
 	int cpu, node = pcibus_to_node(dev->bus);
 
 	/*
-	 * If the NUMA info is not available, assume that the logical die id is
-	 * continuous in the order in which the discovery table devices are
-	 * detected.
-	 */
 	if (node < 0)
 		return logical_die_id++;
 
@@ -51,10 +42,6 @@ static int get_device_die_id(struct pci_dev *dev)
 	}
 
 	/*
-	 * All CPUs of a node may be offlined. For this case,
-	 * the PCI and MMIO type of uncore blocks which are
-	 * enumerated by the device will be unavailable.
-	 */
 	return -1;
 }
 
@@ -261,7 +248,6 @@ static int parse_discovery_table(struct pci_dev *dev, int die,
 		uncore_insert_box_info(&unit, die, *parsed);
 	}
 
-	*parsed = true;
 	iounmap(io_addr);
 	return 0;
 }
@@ -279,9 +265,6 @@ bool intel_uncore_has_discovery_tables(void)
 		device = PCI_ANY_ID;
 
 	/*
-	 * Start a new search and iterates through the list of
-	 * the discovery table devices.
-	 */
 	while ((dev = pci_get_device(PCI_VENDOR_ID_INTEL, device, dev)) != NULL) {
 		while ((dvsec = pci_find_next_ext_capability(dev, dvsec, UNCORE_EXT_CAP_ID_DISCOVERY))) {
 			pci_read_config_dword(dev, dvsec + UNCORE_DISCOVERY_DVSEC_OFFSET, &val);

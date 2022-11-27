@@ -1,11 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _ASM_X86_KVM_H
 #define _ASM_X86_KVM_H
 
-/*
- * KVM x86 specific structures and definitions
- *
- */
 
 #include <linux/types.h>
 #include <linux/ioctl.h>
@@ -33,7 +28,6 @@
 #define XM_VECTOR 19
 #define VE_VECTOR 20
 
-/* Select x86 specific features in <linux/kvm.h> */
 #define __KVM_HAVE_PIT
 #define __KVM_HAVE_IOAPIC
 #define __KVM_HAVE_IRQ_LINE
@@ -50,7 +44,6 @@
 #define __KVM_HAVE_XCRS
 #define __KVM_HAVE_READONLY_MEM
 
-/* Architectural interrupt line count. */
 #define KVM_NR_INTERRUPTS 256
 
 struct kvm_memory_alias {
@@ -61,7 +54,6 @@ struct kvm_memory_alias {
 	__u64 target_phys_addr;
 };
 
-/* for KVM_GET_IRQCHIP and KVM_SET_IRQCHIP */
 struct kvm_pic_state {
 	__u8 last_irr;	/* edge detection */
 	__u8 irr;		/* interrupt request register */
@@ -114,7 +106,6 @@ struct kvm_ioapic_state {
 #define KVM_RUN_X86_SMM		 (1 << 0)
 #define KVM_RUN_X86_BUS_LOCK     (1 << 1)
 
-/* for KVM_GET_REGS and KVM_SET_REGS */
 struct kvm_regs {
 	/* out (KVM_GET_REGS) / in (KVM_SET_REGS) */
 	__u64 rax, rbx, rcx, rdx;
@@ -124,7 +115,6 @@ struct kvm_regs {
 	__u64 rip, rflags;
 };
 
-/* for KVM_GET_LAPIC and KVM_SET_LAPIC */
 #define KVM_APIC_REG_SIZE 0x400
 struct kvm_lapic_state {
 	char regs[KVM_APIC_REG_SIZE];
@@ -147,7 +137,6 @@ struct kvm_dtable {
 };
 
 
-/* for KVM_GET_SREGS and KVM_SET_SREGS */
 struct kvm_sregs {
 	/* out (KVM_GET_SREGS) / in (KVM_SET_SREGS) */
 	struct kvm_segment cs, ds, es, fs, gs, ss;
@@ -172,7 +161,6 @@ struct kvm_sregs2 {
 };
 #define KVM_SREGS2_FLAGS_PDPTRS_VALID 1
 
-/* for KVM_GET_FPU and KVM_SET_FPU */
 struct kvm_fpu {
 	__u8  fpr[8][16];
 	__u16 fcw;
@@ -193,7 +181,6 @@ struct kvm_msr_entry {
 	__u64 data;
 };
 
-/* for KVM_GET_MSRS and KVM_SET_MSRS */
 struct kvm_msrs {
 	__u32 nmsrs; /* number of msrs in entries */
 	__u32 pad;
@@ -201,16 +188,13 @@ struct kvm_msrs {
 	struct kvm_msr_entry entries[];
 };
 
-/* for KVM_GET_MSR_INDEX_LIST */
 struct kvm_msr_list {
 	__u32 nmsrs; /* number of msrs in entries */
 	__u32 indices[];
 };
 
-/* Maximum size of any access bitmap in bytes */
 #define KVM_MSR_FILTER_MAX_BITMAP_SIZE 0x600
 
-/* for KVM_X86_SET_MSR_FILTER */
 struct kvm_msr_filter_range {
 #define KVM_MSR_FILTER_READ  (1 << 0)
 #define KVM_MSR_FILTER_WRITE (1 << 1)
@@ -237,7 +221,6 @@ struct kvm_cpuid_entry {
 	__u32 padding;
 };
 
-/* for KVM_SET_CPUID */
 struct kvm_cpuid {
 	__u32 nent;
 	__u32 padding;
@@ -259,14 +242,12 @@ struct kvm_cpuid_entry2 {
 #define KVM_CPUID_FLAG_STATEFUL_FUNC		(1 << 1)
 #define KVM_CPUID_FLAG_STATE_READ_NEXT		(1 << 2)
 
-/* for KVM_SET_CPUID2 */
 struct kvm_cpuid2 {
 	__u32 nent;
 	__u32 padding;
 	struct kvm_cpuid_entry2 entries[];
 };
 
-/* for KVM_GET_PIT and KVM_SET_PIT */
 struct kvm_pit_channel_state {
 	__u32 count; /* can be 65536 */
 	__u16 latched_count;
@@ -297,7 +278,6 @@ struct kvm_debug_exit_arch {
 #define KVM_GUESTDBG_INJECT_BP		0x00080000
 #define KVM_GUESTDBG_BLOCKIRQ		0x00100000
 
-/* for KVM_SET_GUEST_DEBUG */
 struct kvm_guest_debug_arch {
 	__u64 debugreg[8];
 };
@@ -320,7 +300,6 @@ struct kvm_reinject_control {
 	__u8 reserved[31];
 };
 
-/* When set in flags, include corresponding fields on KVM_SET_VCPU_EVENTS */
 #define KVM_VCPUEVENT_VALID_NMI_PENDING	0x00000001
 #define KVM_VCPUEVENT_VALID_SIPI_VECTOR	0x00000002
 #define KVM_VCPUEVENT_VALID_SHADOW	0x00000004
@@ -328,11 +307,9 @@ struct kvm_reinject_control {
 #define KVM_VCPUEVENT_VALID_PAYLOAD	0x00000010
 #define KVM_VCPUEVENT_VALID_TRIPLE_FAULT	0x00000020
 
-/* Interrupt shadow states */
 #define KVM_X86_SHADOW_INT_MOV_SS	0x01
 #define KVM_X86_SHADOW_INT_STI		0x02
 
-/* for KVM_GET/SET_VCPU_EVENTS */
 struct kvm_vcpu_events {
 	struct {
 		__u8 injected;
@@ -369,7 +346,6 @@ struct kvm_vcpu_events {
 	__u64 exception_payload;
 };
 
-/* for KVM_GET/SET_DEBUGREGS */
 struct kvm_debugregs {
 	__u64 db[4];
 	__u64 dr6;
@@ -378,21 +354,8 @@ struct kvm_debugregs {
 	__u64 reserved[9];
 };
 
-/* for KVM_CAP_XSAVE and KVM_CAP_XSAVE2 */
 struct kvm_xsave {
 	/*
-	 * KVM_GET_XSAVE2 and KVM_SET_XSAVE write and read as many bytes
-	 * as are returned by KVM_CHECK_EXTENSION(KVM_CAP_XSAVE2)
-	 * respectively, when invoked on the vm file descriptor.
-	 *
-	 * The size value returned by KVM_CHECK_EXTENSION(KVM_CAP_XSAVE2)
-	 * will always be at least 4096. Currently, it is only greater
-	 * than 4096 if a dynamic feature has been enabled with
-	 * ``arch_prctl()``, but this may change in the future.
-	 *
-	 * The offsets of the state save areas in struct kvm_xsave follow
-	 * the contents of CPUID leaf 0xD on the host.
-	 */
 	__u32 region[1024];
 	__u32 extra[];
 };
@@ -421,7 +384,6 @@ struct kvm_xcrs {
 	 KVM_SYNC_X86_SREGS| \
 	 KVM_SYNC_X86_EVENTS)
 
-/* kvm_sync_regs struct included by kvm_run struct */
 struct kvm_sync_regs {
 	/* Members of this structure are potentially malicious.
 	 * Care must be taken by code reading, esp. interpreting,
@@ -459,7 +421,6 @@ struct kvm_sync_regs {
 
 #define KVM_STATE_VMX_PREEMPTION_TIMER_DEADLINE	0x00000001
 
-/* attributes for system fd (group 0) */
 #define KVM_X86_XCOMP_GUEST_SUPP	0
 
 struct kvm_vmx_nested_state_data {
@@ -490,7 +451,6 @@ struct kvm_svm_nested_state_hdr {
 	__u64 vmcb_pa;
 };
 
-/* for KVM_CAP_NESTED_STATE */
 struct kvm_nested_state {
 	__u16 flags;
 	__u16 format;
@@ -505,17 +465,12 @@ struct kvm_nested_state {
 	} hdr;
 
 	/*
-	 * Define data region as 0 bytes to preserve backwards-compatability
-	 * to old definition of kvm_nested_state in order to avoid changing
-	 * KVM_{GET,PUT}_NESTED_STATE ioctl values.
-	 */
 	union {
 		struct kvm_vmx_nested_state_data vmx[0];
 		struct kvm_svm_nested_state_data svm[0];
 	} data;
 };
 
-/* for KVM_CAP_PMU_EVENT_FILTER */
 struct kvm_pmu_event_filter {
 	__u32 action;
 	__u32 nevents;
@@ -528,7 +483,6 @@ struct kvm_pmu_event_filter {
 #define KVM_PMU_EVENT_ALLOW 0
 #define KVM_PMU_EVENT_DENY 1
 
-/* for KVM_{GET,SET,HAS}_DEVICE_ATTR */
 #define KVM_VCPU_TSC_CTRL 0 /* control group for the timestamp counter (TSC) */
 #define   KVM_VCPU_TSC_OFFSET 0 /* attribute for the TSC offset */
 

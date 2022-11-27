@@ -1,16 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Kernel-based Virtual Machine driver for Linux
- *
- * AMD SVM support
- *
- * Copyright (C) 2006 Qumranet, Inc.
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
- *
- * Authors:
- *   Yaniv Kamay  <yaniv@qumranet.com>
- *   Avi Kivity   <avi@qumranet.com>
- */
 
 #define pr_fmt(fmt) "SVM: " fmt
 
@@ -27,7 +14,6 @@
 #include "irq.h"
 #include "svm.h"
 
-/* AVIC GATAG is encoded using VM and VCPU IDs */
 #define AVIC_VCPU_ID_BITS		8
 #define AVIC_VCPU_ID_MASK		((1 << AVIC_VCPU_ID_BITS) - 1)
 
@@ -43,11 +29,6 @@
 static bool force_avic;
 module_param_unsafe(force_avic, bool, 0444);
 
-/* Note:
- * This hash table is used to map VM_ID to a struct kvm_svm,
- * when handling AMD IOMMU GALOG notification to schedule in
- * a particular vCPU.
- */
 #define SVM_VM_DATA_HASH_BITS	8
 static DEFINE_HASHTABLE(svm_vm_data_hash, SVM_VM_DATA_HASH_BITS);
 static u32 next_vm_id = 0;
@@ -55,9 +36,6 @@ static bool next_vm_id_wrapped = 0;
 static DEFINE_SPINLOCK(svm_vm_data_hash_lock);
 enum avic_modes avic_mode;
 
-/*
- * This is a wrapper of struct amd_iommu_ir_data.
- */
 struct amd_svm_iommu_ir {
 	struct list_head node;	/* Used by SVM for per-vcpu ir_list */
 	void *data;		/* Storing pointer to struct amd_ir_data */
@@ -101,9 +79,6 @@ static void avic_deactivate_vmcb(struct vcpu_svm *svm)
 	vmcb->control.avic_physical_id &= ~AVIC_PHYSICAL_MAX_INDEX_MASK;
 
 	/*
-	 * If running nested and the guest uses its own MSR bitmap, there
-	 * is no need to update L0's msr bitmap
-	 */
 	if (is_guest_mode(&svm->vcpu) &&
 	    vmcb12_is_intercept(&svm->nested.ctl, INTERCEPT_MSR_PROT))
 		return;
@@ -112,10 +87,6 @@ static void avic_deactivate_vmcb(struct vcpu_svm *svm)
 	svm_set_x2apic_msr_interception(svm, true);
 }
 
-/* Note:
- * This function is called from IOMMU driver to notify
- * SVM to schedule in a particular vCPU of a particular VM.
- */
 int avic_ga_log_notifier(u32 ga_tag)
 {
 	unsigned long flags;
@@ -250,14 +221,6 @@ static u64 *avic_get_physical_id_entry(struct kvm_vcpu *vcpu,
 	return &avic_physical_id_table[index];
 }
 
-/*
- * Note:
- * AVIC hardware walks the nested page table to check permissions,
- * but does not use the SPA address specified in the leaf page
- * table entry since it uses  address in the AVIC_BACKING_PAGE pointer
- * field of the VMCB. Therefore, we set up the
- * APIC_ACCESS_PAGE_PRIVATE_MEMSLOT (4KB) here.
- */
 static int avic_alloc_access_page(struct kvm *kvm)
 {
 	void __user *ret;
@@ -324,12 +287,6 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 void avic_ring_doorbell(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * Note, the vCPU could get migrated to a different pCPU at any point,
-	 * which could result in signalling the wrong/previous pCPU.  But if
-	 * that happens the vCPU is guaranteed to do a VMRUN (after being
-	 * migrated) and thus will process pending interrupts, i.e. a doorbell
-	 * is not needed (and the spurious one is harmless).
-	 */
 	int cpu = READ_ONCE(vcpu->cpu);
 
 	if (cpu != get_cpu()) {
@@ -339,10 +296,6 @@ void avic_ring_doorbell(struct kvm_vcpu *vcpu)
 	put_cpu();
 }
 
-/*
- * A fast-path version of avic_kick_target_vcpus(), which attempts to match
- * destination APIC ID to vCPU without looping through all vCPUs.
- */
 static int avic_kick_target_vcpus_fast(struct kvm *kvm, struct kvm_lapic *source,
 				       u32 icrl, u32 icrh, u32 index)
 {
@@ -417,17 +370,10 @@ static int avic_kick_target_vcpus_fast(struct kvm *kvm, struct kvm_lapic *source
 					 AVIC_LOGICAL_ID_ENTRY_GUEST_PHYSICAL_ID_MASK;
 		} else {
 			/*
-			 * For x2APIC logical mode, cannot leverage the index.
-			 * Instead, calculate physical ID from logical ID in ICRH.
-			 */
 			int cluster = (icrh & 0xffff0000) >> 16;
 			int apic = ffs(icrh & 0xffff) - 1;
 
 			/*
-			 * If the x2APIC logical ID sub-field (i.e. icrh[15:0])
-			 * contains anything but a single bit, we cannot use the
-			 * fast path, because it is limited to a single vCPU.
-			 */
 			if (apic < 0 || icrh != (1 << apic))
 				return -EINVAL;
 
@@ -460,11 +406,6 @@ static void avic_kick_target_vcpus(struct kvm *kvm, struct kvm_lapic *source,
 	trace_kvm_avic_kick_vcpu_slowpath(icrh, icrl, index);
 
 	/*
-	 * Wake any target vCPUs that are blocking, i.e. waiting for a wake
-	 * event.  There's no need to signal doorbells, as hardware has handled
-	 * vCPUs that were in guest at the time of the IPI, and vCPUs that have
-	 * since entered the guest will have processed pending IRQs at VMRUN.
-	 */
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		u32 dest;
 
@@ -498,14 +439,6 @@ int avic_incomplete_ipi_interception(struct kvm_vcpu *vcpu)
 	switch (id) {
 	case AVIC_IPI_FAILURE_INVALID_INT_TYPE:
 		/*
-		 * Emulate IPIs that are not handled by AVIC hardware, which
-		 * only virtualizes Fixed, Edge-Triggered INTRs.  The exit is
-		 * a trap, e.g. ICR holds the correct value and RIP has been
-		 * advanced, KVM is responsible only for emulating the IPI.
-		 * Sadly, hardware may sometimes leave the BUSY flag set, in
-		 * which case KVM needs to emulate the ICR write as well in
-		 * order to clear the BUSY flag.
-		 */
 		if (icrl & APIC_ICR_BUSY)
 			kvm_apic_write_nodecode(vcpu, APIC_ICR);
 		else
@@ -513,10 +446,6 @@ int avic_incomplete_ipi_interception(struct kvm_vcpu *vcpu)
 		break;
 	case AVIC_IPI_FAILURE_TARGET_NOT_RUNNING:
 		/*
-		 * At this point, we expect that the AVIC HW has already
-		 * set the appropriate IRR bits on the valid target
-		 * vcpus. So, we just need to kick the appropriate vcpu.
-		 */
 		avic_kick_target_vcpus(vcpu->kvm, apic, icrl, icrh, index);
 		break;
 	case AVIC_IPI_FAILURE_INVALID_TARGET:
@@ -762,9 +691,6 @@ static int avic_set_pi_irte_mode(struct kvm_vcpu *vcpu, bool activate)
 		return 0;
 
 	/*
-	 * Here, we go through the per-vcpu ir_list to update all existing
-	 * interrupt remapping table entry targeting this vcpu.
-	 */
 	spin_lock_irqsave(&svm->ir_list_lock, flags);
 
 	if (list_empty(&svm->ir_list))
@@ -843,17 +769,6 @@ out:
 	return ret;
 }
 
-/*
- * Note:
- * The HW cannot support posting multicast/broadcast
- * interrupts to a vCPU. So, we still use legacy interrupt
- * remapping for these kind of interrupts.
- *
- * For lowest-priority interrupts, we only support
- * those with single CPU as the destination, e.g. user
- * configures the interrupts via /proc/irq or uses
- * irqbalance to make the interrupts single-CPU.
- */
 static int
 get_pi_vcpu_info(struct kvm *kvm, struct kvm_kernel_irq_routing_entry *e,
 		 struct vcpu_data *vcpu_info, struct vcpu_svm **svm)
@@ -872,22 +787,12 @@ get_pi_vcpu_info(struct kvm *kvm, struct kvm_kernel_irq_routing_entry *e,
 
 	pr_debug("SVM: %s: use GA mode for irq %u\n", __func__,
 		 irq.vector);
-	*svm = to_svm(vcpu);
 	vcpu_info->pi_desc_addr = __sme_set(page_to_phys((*svm)->avic_backing_page));
 	vcpu_info->vector = irq.vector;
 
 	return 0;
 }
 
-/*
- * avic_pi_update_irte - set IRTE for Posted-Interrupts
- *
- * @kvm: kvm
- * @host_irq: host irq of the interrupt
- * @guest_irq: gsi of the interrupt
- * @set: set or unset PI
- * returns 0 on success, < 0 on failure
- */
 int avic_pi_update_irte(struct kvm *kvm, unsigned int host_irq,
 			uint32_t guest_irq, bool set)
 {
@@ -1024,9 +929,6 @@ avic_update_iommu_vcpu_affinity(struct kvm_vcpu *vcpu, int cpu, bool r)
 		return 0;
 
 	/*
-	 * Here, we go through the per-vcpu ir_list to update all existing
-	 * interrupt remapping table entry targeting this vcpu.
-	 */
 	spin_lock_irqsave(&svm->ir_list_lock, flags);
 
 	if (list_empty(&svm->ir_list))
@@ -1054,12 +956,6 @@ void avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		return;
 
 	/*
-	 * No need to update anything if the vCPU is blocking, i.e. if the vCPU
-	 * is being scheduled in after being preempted.  The CPU entries in the
-	 * Physical APIC table and IRTE are consumed iff IsRun{ning} is '1'.
-	 * If the vCPU was migrated, its new CPU value will be stuffed when the
-	 * vCPU unblocks.
-	 */
 	if (kvm_vcpu_is_blocking(vcpu))
 		return;
 
@@ -1131,18 +1027,6 @@ void avic_vcpu_blocking(struct kvm_vcpu *vcpu)
 		return;
 
        /*
-        * Unload the AVIC when the vCPU is about to block, _before_
-        * the vCPU actually blocks.
-        *
-        * Any IRQs that arrive before IsRunning=0 will not cause an
-        * incomplete IPI vmexit on the source, therefore vIRR will also
-        * be checked by kvm_vcpu_check_block() before blocking.  The
-        * memory barrier implicit in set_current_state orders writing
-        * IsRunning=0 before reading the vIRR.  The processor needs a
-        * matching memory barrier on interrupt delivery between writing
-        * IRR and reading IsRunning; the lack of this barrier might be
-        * the cause of errata #1235).
-        */
 	avic_vcpu_put(vcpu);
 }
 
@@ -1154,12 +1038,6 @@ void avic_vcpu_unblocking(struct kvm_vcpu *vcpu)
 	avic_vcpu_load(vcpu, vcpu->cpu);
 }
 
-/*
- * Note:
- * - The module param avic enable both xAPIC and x2APIC mode.
- * - Hypervisor can support both xAVIC and x2AVIC in the same guest.
- * - The mode can be switched at run-time.
- */
 bool avic_hardware_setup(struct kvm_x86_ops *x86_ops)
 {
 	if (!npt_enabled)
@@ -1170,9 +1048,6 @@ bool avic_hardware_setup(struct kvm_x86_ops *x86_ops)
 		pr_info("AVIC enabled\n");
 	} else if (force_avic) {
 		/*
-		 * Some older systems does not advertise AVIC support.
-		 * See Revision Guide for specific AMD processor for more detail.
-		 */
 		avic_mode = AVIC_MODE_X1;
 		pr_warn("AVIC is not supported in CPUID but force enabled");
 		pr_warn("Your system might crash and burn");

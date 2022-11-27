@@ -1,25 +1,8 @@
-/*
- * Architecture specific parts of the Floppy driver
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * Copyright (C) 1995
- */
 #ifndef _ASM_X86_FLOPPY_H
 #define _ASM_X86_FLOPPY_H
 
 #include <linux/vmalloc.h>
 
-/*
- * The DMA channel used by the floppy controller cannot access data at
- * addresses >= 16MB
- *
- * Went back to the 1MB limit, as some people had problems with the floppy
- * driver otherwise. It doesn't matter much for performance anyway, as most
- * floppy accesses go through the track buffer.
- */
 #define _CROSS_64KB(a, s, vdma)						\
 	(!(vdma) &&							\
 	 ((unsigned long)(a)/K_64 != ((unsigned long)(a) + (s) - 1) / K_64))
@@ -248,11 +231,6 @@ static struct fd_routine_l {
 static int FDC1 = 0x3f0;
 static int FDC2 = -1;
 
-/*
- * Floppy types are stored in the rtc's CMOS RAM and so rtc_lock
- * is needed to prevent corrupted CMOS RAM in case "insmod floppy"
- * coincides with another rtc CMOS user.		Paul G.
- */
 #define FLOPPY0_TYPE					\
 ({							\
 	unsigned long flags;				\

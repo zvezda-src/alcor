@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Glue Code for assembler optimized version of Blowfish
- *
- * Copyright (c) 2011 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
- *
- * CBC & ECB parts based on code (crypto/cbc.c,ecb.c) by:
- *   Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
- */
 
 #include <crypto/algapi.h>
 #include <crypto/blowfish.h>
@@ -16,12 +7,10 @@
 #include <linux/module.h>
 #include <linux/types.h>
 
-/* regular block cipher functions */
 asmlinkage void __blowfish_enc_blk(struct bf_ctx *ctx, u8 *dst, const u8 *src,
 				   bool xor);
 asmlinkage void blowfish_dec_blk(struct bf_ctx *ctx, u8 *dst, const u8 *src);
 
-/* 4-way parallel cipher functions */
 asmlinkage void __blowfish_enc_blk_4way(struct bf_ctx *ctx, u8 *dst,
 					const u8 *src, bool xor);
 asmlinkage void blowfish_dec_blk_4way(struct bf_ctx *ctx, u8 *dst,
@@ -130,7 +119,6 @@ static unsigned int __cbc_encrypt(struct bf_ctx *ctx,
 		nbytes -= bsize;
 	} while (nbytes >= bsize);
 
-	*(u64 *)walk->iv = *iv;
 	return nbytes;
 }
 
@@ -209,8 +197,6 @@ static unsigned int __cbc_decrypt(struct bf_ctx *ctx,
 	}
 
 done:
-	*dst ^= *(u64 *)walk->iv;
-	*(u64 *)walk->iv = last_iv;
 
 	return nbytes;
 }
@@ -289,10 +275,6 @@ static bool is_blacklisted_cpu(void)
 
 	if (boot_cpu_data.x86 == 0x0f) {
 		/*
-		 * On Pentium 4, blowfish-x86_64 is slower than generic C
-		 * implementation because use of 64bit rotates (which are really
-		 * slow on P4). Therefore blacklist P4s.
-		 */
 		return true;
 	}
 

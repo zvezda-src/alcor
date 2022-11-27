@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * patch.c - livepatch patching functions
- *
- * Copyright (C) 2014 Seth Jennings <sjenning@redhat.com>
- * Copyright (C) 2014 SUSE
- * Copyright (C) 2015 Josh Poimboeuf <jpoimboe@redhat.com>
- */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -50,11 +42,6 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 	ops = container_of(fops, struct klp_ops, fops);
 
 	/*
-	 * The ftrace_test_recursion_trylock() will disable preemption,
-	 * which is required for the variant of synchronize_rcu() that is
-	 * used to allow patching functions where RCU is not watching.
-	 * See klp_synchronize_transition() for more details.
-	 */
 	bit = ftrace_test_recursion_trylock(ip, parent_ip);
 	if (WARN_ON_ONCE(bit < 0))
 		return;
@@ -63,34 +50,15 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 				      stack_node);
 
 	/*
-	 * func should never be NULL because preemption should be disabled here
-	 * and unregister_ftrace_function() does the equivalent of a
-	 * synchronize_rcu() before the func_stack removal.
-	 */
 	if (WARN_ON_ONCE(!func))
 		goto unlock;
 
 	/*
-	 * In the enable path, enforce the order of the ops->func_stack and
-	 * func->transition reads.  The corresponding write barrier is in
-	 * __klp_enable_patch().
-	 *
-	 * (Note that this barrier technically isn't needed in the disable
-	 * path.  In the rare case where klp_update_patch_state() runs before
-	 * this handler, its TIF_PATCH_PENDING read and this func->transition
-	 * read need to be ordered.  But klp_update_patch_state() already
-	 * enforces that.)
-	 */
 	smp_rmb();
 
 	if (unlikely(func->transition)) {
 
 		/*
-		 * Enforce the order of the func->transition and
-		 * current->patch_state reads.  Otherwise we could read an
-		 * out-of-date task state and pick the wrong function.  The
-		 * corresponding write barrier is in klp_init_transition().
-		 */
 		smp_rmb();
 
 		patch_state = current->patch_state;
@@ -99,10 +67,6 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 
 		if (patch_state == KLP_UNPATCHED) {
 			/*
-			 * Use the previously patched version of the function.
-			 * If no previous patches exist, continue with the
-			 * original function.
-			 */
 			func = list_entry_rcu(func->stack_node.next,
 					      struct klp_func, stack_node);
 
@@ -112,9 +76,6 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 	}
 
 	/*
-	 * NOPs are used to replace existing patches with original code.
-	 * Do nothing! Setting pc would cause an infinite loop.
-	 */
 	if (func->nop)
 		goto unlock;
 

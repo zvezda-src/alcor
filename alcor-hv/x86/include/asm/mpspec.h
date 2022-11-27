@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_MPSPEC_H
 #define _ASM_X86_MPSPEC_H
 
@@ -11,10 +10,6 @@ extern int pic_mode;
 
 #ifdef CONFIG_X86_32
 
-/*
- * Summit or generic (i.e. installer) kernels need lots of bus entries.
- * Maximum 256 PCI busses, plus 1 ISA bus in each of 4 cabinets.
- */
 #if CONFIG_BASE_SMALL == 0
 # define MAX_MP_BUSSES		260
 #else
@@ -28,7 +23,6 @@ extern unsigned int def_to_bigsmp;
 #else /* CONFIG_X86_64: */
 
 #define MAX_MP_BUSSES		256
-/* Each PCI slot may be a combo card with its own bus.  4 IRQ pins per slot. */
 #define MAX_IRQ_SOURCES		(MAX_MP_BUSSES * 4)
 
 #endif /* CONFIG_X86_64 */

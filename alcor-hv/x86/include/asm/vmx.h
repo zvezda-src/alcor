@@ -1,13 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * vmx.h: VMX Architecture related definitions
- * Copyright (c) 2004, Intel Corporation.
- *
- * A few random additions are:
- * Copyright (C) 2006 Qumranet
- *    Avi Kivity <avi@qumranet.com>
- *    Yaniv Kamay <yaniv@qumranet.com>
- */
 #ifndef VMX_H
 #define VMX_H
 
@@ -19,9 +9,6 @@
 
 #define VMCS_CONTROL_BIT(x)	BIT(VMX_FEATURE_##x & 0x1f)
 
-/*
- * Definitions of Primary Processor-Based VM-Execution Controls.
- */
 #define CPU_BASED_INTR_WINDOW_EXITING           VMCS_CONTROL_BIT(INTR_WINDOW_EXITING)
 #define CPU_BASED_USE_TSC_OFFSETTING            VMCS_CONTROL_BIT(USE_TSC_OFFSETTING)
 #define CPU_BASED_HLT_EXITING                   VMCS_CONTROL_BIT(HLT_EXITING)
@@ -47,9 +34,6 @@
 
 #define CPU_BASED_ALWAYSON_WITHOUT_TRUE_MSR	0x0401e172
 
-/*
- * Definitions of Secondary Processor-Based VM-Execution Controls.
- */
 #define SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES VMCS_CONTROL_BIT(VIRT_APIC_ACCESSES)
 #define SECONDARY_EXEC_ENABLE_EPT               VMCS_CONTROL_BIT(EPT)
 #define SECONDARY_EXEC_DESC			VMCS_CONTROL_BIT(DESC_EXITING)
@@ -77,9 +61,6 @@
 #define SECONDARY_EXEC_BUS_LOCK_DETECTION	VMCS_CONTROL_BIT(BUS_LOCK_DETECTION)
 #define SECONDARY_EXEC_NOTIFY_VM_EXITING	VMCS_CONTROL_BIT(NOTIFY_VM_EXITING)
 
-/*
- * Definitions of Tertiary Processor-Based VM-Execution Controls.
- */
 #define TERTIARY_EXEC_IPI_VIRT			VMCS_CONTROL_BIT(IPI_VIRT)
 
 #define PIN_BASED_EXT_INTR_MASK                 VMCS_CONTROL_BIT(INTR_EXITING)
@@ -125,7 +106,6 @@
 #define VMX_MISC_ZERO_LEN_INS			0x40000000
 #define VMX_MISC_MSR_LIST_MULTIPLIER		512
 
-/* VMFUNC functions */
 #define VMFUNC_CONTROL_BIT(x)	BIT((VMX_FEATURE_##x & 0x1f) - 28)
 
 #define VMX_VMFUNC_EPTP_SWITCHING               VMFUNC_CONTROL_BIT(EPTP_SWITCHING)
@@ -161,7 +141,6 @@ static inline int vmx_misc_mseg_revid(u64 vmx_misc)
 	return (vmx_misc & GENMASK_ULL(63, 32)) >> 32;
 }
 
-/* VMCS Encodings */
 enum vmcs_field {
 	VIRTUAL_PROCESSOR_ID            = 0x00000000,
 	POSTED_INTR_NV                  = 0x00000002,
@@ -357,9 +336,6 @@ enum vmcs_field {
 	HOST_RIP                        = 0x00006c16,
 };
 
-/*
- * Interruption-information format
- */
 #define INTR_INFO_VECTOR_MASK           0xff            /* 7:0 */
 #define INTR_INFO_INTR_TYPE_MASK        0x700           /* 10:8 */
 #define INTR_INFO_DELIVER_CODE_MASK     0x800           /* 11 */
@@ -381,22 +357,17 @@ enum vmcs_field {
 #define INTR_TYPE_SOFT_EXCEPTION	(6 << 8) /* software exception */
 #define INTR_TYPE_OTHER_EVENT           (7 << 8) /* other event */
 
-/* GUEST_INTERRUPTIBILITY_INFO flags. */
 #define GUEST_INTR_STATE_STI		0x00000001
 #define GUEST_INTR_STATE_MOV_SS		0x00000002
 #define GUEST_INTR_STATE_SMI		0x00000004
 #define GUEST_INTR_STATE_NMI		0x00000008
 #define GUEST_INTR_STATE_ENCLAVE_INTR	0x00000010
 
-/* GUEST_ACTIVITY_STATE flags */
 #define GUEST_ACTIVITY_ACTIVE		0
 #define GUEST_ACTIVITY_HLT		1
 #define GUEST_ACTIVITY_SHUTDOWN		2
 #define GUEST_ACTIVITY_WAIT_SIPI	3
 
-/*
- * Exit Qualifications for MOV for Control Register Access
- */
 #define CONTROL_REG_ACCESS_NUM          0x7     /* 2:0, number of control reg.*/
 #define CONTROL_REG_ACCESS_TYPE         0x30    /* 5:4, access type */
 #define CONTROL_REG_ACCESS_REG          0xf00   /* 10:8, general purpose reg. */
@@ -419,9 +390,6 @@ enum vmcs_field {
 #define REG_R14                        (14 << 8)
 #define REG_R15                        (15 << 8)
 
-/*
- * Exit Qualifications for MOV for Debug Register Access
- */
 #define DEBUG_REG_ACCESS_NUM            0x7     /* 2:0, number of debug reg. */
 #define DEBUG_REG_ACCESS_TYPE           0x10    /* 4, direction of access */
 #define TYPE_MOV_TO_DR                  (0 << 4)
@@ -429,9 +397,6 @@ enum vmcs_field {
 #define DEBUG_REG_ACCESS_REG(eq)        (((eq) >> 8) & 0xf) /* 11:8, general purpose reg. */
 
 
-/*
- * Exit Qualifications for APIC-Access
- */
 #define APIC_ACCESS_OFFSET              0xfff   /* 11:0, offset within the APIC page */
 #define APIC_ACCESS_TYPE                0xf000  /* 15:12, access type */
 #define TYPE_LINEAR_APIC_INST_READ      (0 << 12)
@@ -441,7 +406,6 @@ enum vmcs_field {
 #define TYPE_PHYSICAL_APIC_EVENT        (10 << 12)
 #define TYPE_PHYSICAL_APIC_INST         (15 << 12)
 
-/* segment AR in VMCS -- these are different from what LAR reports */
 #define VMX_SEGMENT_AR_L_MASK (1 << 13)
 
 #define VMX_AR_TYPE_ACCESSES_MASK 1
@@ -528,7 +492,6 @@ static inline u8 vmx_eptp_page_walk_level(u64 eptp)
 	return 4;
 }
 
-/* The mask to use to trigger an EPT Misconfiguration in order to track MMIO */
 #define VMX_EPT_MISCONFIG_WX_VALUE		(VMX_EPT_WRITABLE_MASK |       \
 						 VMX_EPT_EXECUTABLE_MASK)
 
@@ -540,9 +503,6 @@ struct vmx_msr_entry {
 	u64 value;
 } __aligned(16);
 
-/*
- * Exit Qualifications for entry failure during or after loading guest state
- */
 enum vm_entry_failure_code {
 	ENTRY_FAIL_DEFAULT		= 0,
 	ENTRY_FAIL_PDPTE		= 2,
@@ -550,9 +510,6 @@ enum vm_entry_failure_code {
 	ENTRY_FAIL_VMCS_LINK_PTR	= 4,
 };
 
-/*
- * Exit Qualifications for EPT Violations
- */
 #define EPT_VIOLATION_ACC_READ_BIT	0
 #define EPT_VIOLATION_ACC_WRITE_BIT	1
 #define EPT_VIOLATION_ACC_INSTR_BIT	2
@@ -566,14 +523,8 @@ enum vm_entry_failure_code {
 #define EPT_VIOLATION_GVA_IS_VALID	(1 << EPT_VIOLATION_GVA_IS_VALID_BIT)
 #define EPT_VIOLATION_GVA_TRANSLATED	(1 << EPT_VIOLATION_GVA_TRANSLATED_BIT)
 
-/*
- * Exit Qualifications for NOTIFY VM EXIT
- */
 #define NOTIFY_VM_CONTEXT_INVALID     BIT(0)
 
-/*
- * VM-instruction error numbers
- */
 enum vm_instruction_error_number {
 	VMXERR_VMCALL_IN_VMX_ROOT_OPERATION = 1,
 	VMXERR_VMCLEAR_INVALID_ADDRESS = 2,
@@ -602,12 +553,6 @@ enum vm_instruction_error_number {
 	VMXERR_INVALID_OPERAND_TO_INVEPT_INVVPID = 28,
 };
 
-/*
- * VM-instruction errors that can be encountered on VM-Enter, used to trace
- * nested VM-Enter failures reported by hardware.  Errors unique to VM-Enter
- * from a SMI Transfer Monitor are not included as things have gone seriously
- * sideways if we get one of those...
- */
 #define VMX_VMENTER_INSTRUCTION_ERRORS \
 	{ VMXERR_VMLAUNCH_NONCLEAR_VMCS,		"VMLAUNCH_NONCLEAR_VMCS" }, \
 	{ VMXERR_VMRESUME_NONLAUNCHED_VMCS,		"VMRESUME_NONLAUNCHED_VMCS" }, \

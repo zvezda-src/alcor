@@ -1,24 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * This file implements KASLR memory randomization for x86_64. It randomizes
- * the virtual address space of kernel memory regions (physical memory
- * mapping, vmalloc & vmemmap) for x86_64. This security feature mitigates
- * exploits relying on predictable kernel addresses.
- *
- * Entropy is generated using the KASLR early boot functions now shared in
- * the lib directory (originally written by Kees Cook). Randomization is
- * done on PGD & P4D/PUD page table levels to increase possible addresses.
- * The physical memory mapping code was adapted to support P4D/PUD level
- * virtual addresses. This implementation on the best configuration provides
- * 30,000 possible virtual addresses in average for each memory region.
- * An additional low memory page is used to ensure each CPU can start with
- * a PGD aligned virtual address (for realmode).
- *
- * The order of each memory region is not changed. The feature looks at
- * the available space for the regions based on different configuration
- * options and randomizes the base and space between each. The size of the
- * physical memory mapping is the available physical memory.
- */
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -33,18 +12,8 @@
 
 #define TB_SHIFT 40
 
-/*
- * The end address could depend on more configuration options to make the
- * highest amount of space for randomization available, but that's too hard
- * to keep straight and caused issues already.
- */
 static const unsigned long vaddr_end = CPU_ENTRY_AREA_BASE;
 
-/*
- * Memory regions randomized by KASLR (except modules that use a separate logic
- * earlier during boot). The list is ordered based on virtual addresses. This
- * order is kept after randomization.
- */
 static __initdata struct kaslr_memory_region {
 	unsigned long *base;
 	unsigned long size_tb;
@@ -54,13 +23,11 @@ static __initdata struct kaslr_memory_region {
 	{ &vmemmap_base, 0 },
 };
 
-/* Get size in bytes used by the memory region */
 static inline unsigned long get_padding(struct kaslr_memory_region *region)
 {
 	return (region->size_tb << TB_SHIFT);
 }
 
-/* Initialize base and padding for each memory region randomized with KASLR */
 void __init kernel_randomize_memory(void)
 {
 	size_t i;
@@ -74,10 +41,6 @@ void __init kernel_randomize_memory(void)
 	vaddr = vaddr_start;
 
 	/*
-	 * These BUILD_BUG_ON checks ensure the memory layout is consistent
-	 * with the vaddr_start/vaddr_end variables. These checks are very
-	 * limited....
-	 */
 	BUILD_BUG_ON(vaddr_start >= vaddr_end);
 	BUILD_BUG_ON(vaddr_end != CPU_ENTRY_AREA_BASE);
 	BUILD_BUG_ON(vaddr_end > __START_KERNEL_map);
@@ -89,9 +52,6 @@ void __init kernel_randomize_memory(void)
 	kaslr_regions[1].size_tb = VMALLOC_SIZE_TB;
 
 	/*
-	 * Update Physical memory mapping to available and
-	 * add padding if needed (especially for memory hotplug support).
-	 */
 	BUG_ON(kaslr_regions[0].base != &page_offset_base);
 	memory_tb = DIV_ROUND_UP(max_pfn << PAGE_SHIFT, 1UL << TB_SHIFT) +
 		CONFIG_RANDOMIZE_MEMORY_PHYSICAL_PADDING;
@@ -101,9 +61,6 @@ void __init kernel_randomize_memory(void)
 		kaslr_regions[0].size_tb = memory_tb;
 
 	/*
-	 * Calculate the vmemmap region size in TBs, aligned to a TB
-	 * boundary.
-	 */
 	vmemmap_size = (kaslr_regions[0].size_tb << (TB_SHIFT - PAGE_SHIFT)) *
 			sizeof(struct page);
 	kaslr_regions[2].size_tb = DIV_ROUND_UP(vmemmap_size, 1UL << TB_SHIFT);
@@ -119,9 +76,6 @@ void __init kernel_randomize_memory(void)
 		unsigned long entropy;
 
 		/*
-		 * Select a random virtual address using the extra entropy
-		 * available.
-		 */
 		entropy = remain_entropy / (ARRAY_SIZE(kaslr_regions) - i);
 		prandom_bytes_state(&rand_state, &rand, sizeof(rand));
 		entropy = (rand % (entropy + 1)) & PUD_MASK;
@@ -129,9 +83,6 @@ void __init kernel_randomize_memory(void)
 		*kaslr_regions[i].base = vaddr;
 
 		/*
-		 * Jump the region and add a minimum padding based on
-		 * randomization alignment.
-		 */
 		vaddr += get_padding(&kaslr_regions[i]);
 		vaddr = round_up(vaddr + 1, PUD_SIZE);
 		remain_entropy -= entropy;
@@ -148,12 +99,6 @@ void __meminit init_trampoline_kaslr(void)
 	pud_page_tramp = alloc_low_page();
 
 	/*
-	 * There are two mappings for the low 1MB area, the direct mapping
-	 * and the 1:1 mapping for the real mode trampoline:
-	 *
-	 * Direct mapping: virt_addr = phys_addr + PAGE_OFFSET
-	 * 1:1 mapping:    virt_addr = phys_addr
-	 */
 	paddr = 0;
 	vaddr = (unsigned long)__va(paddr);
 	pgd = pgd_offset_k(vaddr);
@@ -162,7 +107,6 @@ void __meminit init_trampoline_kaslr(void)
 	pud = pud_offset(p4d, vaddr);
 
 	pud_tramp = pud_page_tramp + pud_index(paddr);
-	*pud_tramp = *pud;
 
 	if (pgtable_l5_enabled()) {
 		p4d_page_tramp = alloc_low_page();

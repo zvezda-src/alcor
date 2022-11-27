@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (c) 2011-2014 PLUMgrid, http://plumgrid.com
- * Copyright (c) 2016 Facebook
- */
 
 #include <linux/bpf.h>
 

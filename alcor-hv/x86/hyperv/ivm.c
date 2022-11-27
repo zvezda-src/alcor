@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Hyper-V Isolation VM interface with paravisor and hypervisor
- *
- * Author:
- *  Tianyu Lan <Tianyu.Lan@microsoft.com>
- */
 
 #include <linux/bitfield.h>
 #include <linux/hyperv.h>
@@ -243,10 +236,6 @@ enum hv_isolation_type hv_get_isolation_type(void)
 }
 EXPORT_SYMBOL_GPL(hv_get_isolation_type);
 
-/*
- * hv_is_isolation_supported - Check system runs in the Hyper-V
- * isolation VM.
- */
 bool hv_is_isolation_supported(void)
 {
 	if (!cpu_feature_enabled(X86_FEATURE_HYPERVISOR))
@@ -260,22 +249,11 @@ bool hv_is_isolation_supported(void)
 
 DEFINE_STATIC_KEY_FALSE(isolation_type_snp);
 
-/*
- * hv_isolation_type_snp - Check system runs in the AMD SEV-SNP based
- * isolation VM.
- */
 bool hv_isolation_type_snp(void)
 {
 	return static_branch_unlikely(&isolation_type_snp);
 }
 
-/*
- * hv_mark_gpa_visibility - Set pages visible to host via hvcall.
- *
- * In Isolation VM, all guest memory is encrypted from host and guest
- * needs to set memory visible to host via hvcall before sharing memory
- * with host.
- */
 static int hv_mark_gpa_visibility(u16 count, const u64 pfn[],
 			   enum hv_mem_host_visibility visibility)
 {
@@ -319,14 +297,6 @@ static int hv_mark_gpa_visibility(u16 count, const u64 pfn[],
 		return -EFAULT;
 }
 
-/*
- * hv_set_mem_host_visibility - Set specified memory visible to host.
- *
- * In Isolation VM, all guest memory is encrypted from host and guest
- * needs to set memory visible to host via hvcall before sharing memory
- * with host. This function works as wrap of hv_mark_gpa_visibility()
- * with memory base and size.
- */
 int hv_set_mem_host_visibility(unsigned long kbuffer, int pagecount, bool visible)
 {
 	enum hv_mem_host_visibility visibility = visible ?
@@ -360,9 +330,6 @@ int hv_set_mem_host_visibility(unsigned long kbuffer, int pagecount, bool visibl
 	return ret;
 }
 
-/*
- * hv_map_memory - map memory to extra space in the AMD SEV-SNP Isolation VM.
- */
 void *hv_map_memory(void *addr, unsigned long size)
 {
 	unsigned long *pfns = kcalloc(size / PAGE_SIZE,

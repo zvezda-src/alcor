@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * arch-independent dma-mapping routines
- *
- * Copyright (c) 2006  SUSE Linux Products GmbH
- * Copyright (c) 2006  Tejun Heo <teheo@suse.de>
- */
 #include <linux/memblock.h> /* for max_pfn */
 #include <linux/acpi.h>
 #include <linux/dma-map-ops.h>
@@ -18,9 +11,6 @@
 
 bool dma_default_coherent;
 
-/*
- * Managed DMA API
- */
 struct dma_devres {
 	size_t		size;
 	void		*vaddr;
@@ -48,15 +38,6 @@ static int dmam_match(struct device *dev, void *res, void *match_data)
 	return 0;
 }
 
-/**
- * dmam_free_coherent - Managed dma_free_coherent()
- * @dev: Device to free coherent memory for
- * @size: Size of allocation
- * @vaddr: Virtual address of the memory to free
- * @dma_handle: DMA handle of the memory to free
- *
- * Managed dma_free_coherent().
- */
 void dmam_free_coherent(struct device *dev, size_t size, void *vaddr,
 			dma_addr_t dma_handle)
 {
@@ -67,20 +48,6 @@ void dmam_free_coherent(struct device *dev, size_t size, void *vaddr,
 }
 EXPORT_SYMBOL(dmam_free_coherent);
 
-/**
- * dmam_alloc_attrs - Managed dma_alloc_attrs()
- * @dev: Device to allocate non_coherent memory for
- * @size: Size of allocation
- * @dma_handle: Out argument for allocated DMA handle
- * @gfp: Allocation flags
- * @attrs: Flags in the DMA_ATTR_* namespace.
- *
- * Managed dma_alloc_attrs().  Memory allocated using this function will be
- * automatically released on driver detach.
- *
- * RETURNS:
- * Pointer to allocated memory on success, NULL on failure.
- */
 void *dmam_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		gfp_t gfp, unsigned long attrs)
 {
@@ -122,11 +89,6 @@ static bool dma_go_direct(struct device *dev, dma_addr_t mask,
 }
 
 
-/*
- * Check if the devices uses a direct mapping for streaming DMA operations.
- * This allows IOMMU drivers to set a bypass mode if the DMA mask is large
- * enough.
- */
 static inline bool dma_alloc_direct(struct device *dev,
 		const struct dma_map_ops *ops)
 {
@@ -203,23 +165,6 @@ static int __dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
 	return ents;
 }
 
-/**
- * dma_map_sg_attrs - Map the given buffer for DMA
- * @dev:	The device for which to perform the DMA operation
- * @sg:		The sg_table object describing the buffer
- * @nents:	Number of entries to map
- * @dir:	DMA direction
- * @attrs:	Optional DMA attributes for the map operation
- *
- * Maps a buffer described by a scatterlist passed in the sg argument with
- * nents segments for the @dir DMA operation by the @dev device.
- *
- * Returns the number of mapped entries (which can be less than nents)
- * on success. Zero is returned for any error.
- *
- * dma_unmap_sg_attrs() should be used to unmap the buffer with the
- * original sg and original nents (not the value returned by this funciton).
- */
 unsigned int dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
 		    int nents, enum dma_data_direction dir, unsigned long attrs)
 {
@@ -232,30 +177,6 @@ unsigned int dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
 }
 EXPORT_SYMBOL(dma_map_sg_attrs);
 
-/**
- * dma_map_sgtable - Map the given buffer for DMA
- * @dev:	The device for which to perform the DMA operation
- * @sgt:	The sg_table object describing the buffer
- * @dir:	DMA direction
- * @attrs:	Optional DMA attributes for the map operation
- *
- * Maps a buffer described by a scatterlist stored in the given sg_table
- * object for the @dir DMA operation by the @dev device. After success, the
- * ownership for the buffer is transferred to the DMA domain.  One has to
- * call dma_sync_sgtable_for_cpu() or dma_unmap_sgtable() to move the
- * ownership of the buffer back to the CPU domain before touching the
- * buffer by the CPU.
- *
- * Returns 0 on success or a negative error code on error. The following
- * error codes are supported with the given meaning:
- *
- *   -EINVAL	An invalid argument, unaligned access or other error
- *		in usage. Will not succeed if retried.
- *   -ENOMEM	Insufficient resources (like memory or IOVA space) to
- *		complete the mapping. Should succeed if retried later.
- *   -EIO	Legacy error code with an unknown meaning. eg. this is
- *		returned if a lower level call returned DMA_MAPPING_ERROR.
- */
 int dma_map_sgtable(struct device *dev, struct sg_table *sgt,
 		    enum dma_data_direction dir, unsigned long attrs)
 {
@@ -374,17 +295,6 @@ void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 }
 EXPORT_SYMBOL(dma_sync_sg_for_device);
 
-/*
- * The whole dma_get_sgtable() idea is fundamentally unsafe - it seems
- * that the intention is to allow exporting memory allocated via the
- * coherent DMA APIs through the dma_buf API, which only accepts a
- * scattertable.  This presents a couple of problems:
- * 1. Not all memory allocated via the coherent DMA APIs is backed by
- *    a struct page
- * 2. Passing coherent DMA memory into the streaming APIs is not allowed
- *    as we will try to flush the memory through a different alias to that
- *    actually being used (and the flushes are redundant.)
- */
 int dma_get_sgtable_attrs(struct device *dev, struct sg_table *sgt,
 		void *cpu_addr, dma_addr_t dma_addr, size_t size,
 		unsigned long attrs)
@@ -401,10 +311,6 @@ int dma_get_sgtable_attrs(struct device *dev, struct sg_table *sgt,
 EXPORT_SYMBOL(dma_get_sgtable_attrs);
 
 #ifdef CONFIG_MMU
-/*
- * Return the page attributes used for mapping dma_alloc_* memory, either in
- * kernel space if remapping is needed, or to userspace through dma_mmap_*.
- */
 pgprot_t dma_pgprot(struct device *dev, pgprot_t prot, unsigned long attrs)
 {
 	if (dev_is_dma_coherent(dev))
@@ -417,13 +323,6 @@ pgprot_t dma_pgprot(struct device *dev, pgprot_t prot, unsigned long attrs)
 }
 #endif /* CONFIG_MMU */
 
-/**
- * dma_can_mmap - check if a given device supports dma_mmap_*
- * @dev: device to check
- *
- * Returns %true if @dev supports dma_mmap_coherent() and dma_mmap_attrs() to
- * map DMA allocations to userspace.
- */
 bool dma_can_mmap(struct device *dev)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
@@ -434,19 +333,6 @@ bool dma_can_mmap(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dma_can_mmap);
 
-/**
- * dma_mmap_attrs - map a coherent DMA allocation into user space
- * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
- * @vma: vm_area_struct describing requested user mapping
- * @cpu_addr: kernel CPU-view address returned from dma_alloc_attrs
- * @dma_addr: device-view address returned from dma_alloc_attrs
- * @size: size of memory originally requested in dma_alloc_attrs
- * @attrs: attributes of mapping properties requested in dma_alloc_attrs
- *
- * Map a coherent DMA buffer previously allocated by dma_alloc_attrs into user
- * space.  The coherent DMA buffer must not be freed by the driver until the
- * user space mapping has been released.
- */
 int dma_mmap_attrs(struct device *dev, struct vm_area_struct *vma,
 		void *cpu_addr, dma_addr_t dma_addr, size_t size,
 		unsigned long attrs)
@@ -472,13 +358,6 @@ u64 dma_get_required_mask(struct device *dev)
 		return ops->get_required_mask(dev);
 
 	/*
-	 * We require every DMA ops implementation to at least support a 32-bit
-	 * DMA mask (and use bounce buffering if that isn't supported in
-	 * hardware).  As the direct mapping code has its own routine to
-	 * actually report an optimal mask we default to 32-bit here as that
-	 * is the right thing for most IOMMUs, and at least not actively
-	 * harmful in general.
-	 */
 	return DMA_BIT_MASK(32);
 }
 EXPORT_SYMBOL_GPL(dma_get_required_mask);
@@ -517,12 +396,6 @@ void dma_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 	if (dma_release_from_dev_coherent(dev, get_order(size), cpu_addr))
 		return;
 	/*
-	 * On non-coherent platforms which implement DMA-coherent buffers via
-	 * non-cacheable remaps, ops->free() may call vunmap(). Thus getting
-	 * this far in IRQ context is a) at risk of a BUG_ON() or trying to
-	 * sleep on some machines, and b) an indication that the driver is
-	 * probably misusing the coherent API anyway.
-	 */
 	WARN_ON(irqs_disabled());
 
 	if (!cpu_addr)
@@ -709,9 +582,6 @@ int dma_supported(struct device *dev, u64 mask)
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
 	/*
-	 * ->dma_supported sets the bypass flag, so we must always call
-	 * into the method here unless the device is truly direct mapped.
-	 */
 	if (!ops)
 		return dma_direct_supported(dev, mask);
 	if (!ops->dma_supported)
@@ -729,16 +599,12 @@ void arch_dma_set_mask(struct device *dev, u64 mask);
 int dma_set_mask(struct device *dev, u64 mask)
 {
 	/*
-	 * Truncate the mask to the actually supported dma_addr_t width to
-	 * avoid generating unsupportable addresses.
-	 */
 	mask = (dma_addr_t)mask;
 
 	if (!dev->dma_mask || !dma_supported(dev, mask))
 		return -EIO;
 
 	arch_dma_set_mask(dev, mask);
-	*dev->dma_mask = mask;
 	return 0;
 }
 EXPORT_SYMBOL(dma_set_mask);
@@ -746,9 +612,6 @@ EXPORT_SYMBOL(dma_set_mask);
 int dma_set_coherent_mask(struct device *dev, u64 mask)
 {
 	/*
-	 * Truncate the mask to the actually supported dma_addr_t width to
-	 * avoid generating unsupportable addresses.
-	 */
 	mask = (dma_addr_t)mask;
 
 	if (!dma_supported(dev, mask))

@@ -1,38 +1,8 @@
-#
-#
 
-# Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011, 2012 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """Module implementing the Alcor locking code."""
 
-# pylint: disable=W0212
 
-# W0212 since e.g. LockSet methods use (a lot) the internals of
-# SharedLock
 
 import os
 import select
@@ -54,8 +24,6 @@ _DELETED_TEXT = "deleted"
 
 _DEFAULT_PRIORITY = 0
 
-#: Minimum timeout required to consider scheduling a pending acquisition
-#: (seconds)
 _LOCK_ACQUIRE_MIN_TIMEOUT = (1.0 / 1000)
 
 
@@ -907,8 +875,6 @@ class SharedLock(object):
     self.acquire(shared=shared)
 
 
-# Whenever we want to acquire a full LockSet we pass None as the value
-# to acquire.  Hide this behind this nicely named constant.
 ALL_SET = None
 
 LOCKSET_NAME = "[lockset]"
@@ -927,16 +893,6 @@ class _AcquireTimeout(Exception):
   """
 
 
-# Locking levels, must be acquired in increasing order. Current rules are:
-# - At level LEVEL_CLUSTER resides the Big Alcor Lock (BGL) which must be
-#   acquired before performing any operation, either in shared or exclusive
-#   mode. Acquiring the BGL in exclusive mode is discouraged and should be
-#   avoided..
-# - At levels LEVEL_NODE and LEVEL_INSTANCE reside node and instance locks. If
-#   you need more than one node, or more than one instance, acquire them at the
-#   same time.
-# - LEVEL_NODE_RES is for node resources and should be used by operations with
-#   possibly high impact on the node's disks.
 (LEVEL_CLUSTER,
  LEVEL_INSTANCE,
  LEVEL_NODEGROUP,
@@ -953,7 +909,6 @@ LEVELS = [
   LEVEL_NETWORK,
   ]
 
-# Lock levels which are modifiable
 LEVELS_MOD = compat.UniqueFrozenset([
   LEVEL_NODE_RES,
   LEVEL_NODE,
@@ -962,7 +917,6 @@ LEVELS_MOD = compat.UniqueFrozenset([
   LEVEL_NETWORK,
   ])
 
-#: Lock level names (make sure to use singular form)
 LEVEL_NAMES = {
   LEVEL_CLUSTER: "cluster",
   LEVEL_INSTANCE: "instance",
@@ -972,5 +926,4 @@ LEVEL_NAMES = {
   LEVEL_NETWORK: "network",
   }
 
-# Constant for the big alcor lock
 BGL = "BGL"

@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/export.h>
 #include <linux/preempt.h>
 #include <linux/smp.h>
@@ -42,8 +41,6 @@ int rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
 
 	rv.msr_no = msr_no;
 	err = smp_call_function_single(cpu, __rdmsr_on_cpu, &rv, 1);
-	*l = rv.reg.l;
-	*h = rv.reg.h;
 
 	return err;
 }
@@ -58,7 +55,6 @@ int rdmsrl_on_cpu(unsigned int cpu, u32 msr_no, u64 *q)
 
 	rv.msr_no = msr_no;
 	err = smp_call_function_single(cpu, __rdmsr_on_cpu, &rv, 1);
-	*q = rv.reg.q;
 
 	return err;
 }
@@ -117,27 +113,12 @@ static void __rwmsr_on_cpus(const struct cpumask *mask, u32 msr_no,
 	put_cpu();
 }
 
-/* rdmsr on a bunch of CPUs
- *
- * @mask:       which CPUs
- * @msr_no:     which MSR
- * @msrs:       array of MSR values
- *
- */
 void rdmsr_on_cpus(const struct cpumask *mask, u32 msr_no, struct msr *msrs)
 {
 	__rwmsr_on_cpus(mask, msr_no, msrs, __rdmsr_on_cpu);
 }
 EXPORT_SYMBOL(rdmsr_on_cpus);
 
-/*
- * wrmsr on a bunch of CPUs
- *
- * @mask:       which CPUs
- * @msr_no:     which MSR
- * @msrs:       array of MSR values
- *
- */
 void wrmsr_on_cpus(const struct cpumask *mask, u32 msr_no, struct msr *msrs)
 {
 	__rwmsr_on_cpus(mask, msr_no, msrs, __wrmsr_on_cpu);
@@ -149,7 +130,6 @@ struct msr_info_completion {
 	struct completion	done;
 };
 
-/* These "safe" variants are slower and should be used when the target MSR
    may not actually exist. */
 static void __rdmsr_safe_on_cpu(void *info)
 {
@@ -183,8 +163,6 @@ int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
 		wait_for_completion(&rv.done);
 		err = rv.msr.err;
 	}
-	*l = rv.msr.reg.l;
-	*h = rv.msr.reg.h;
 
 	return err;
 }
@@ -228,16 +206,11 @@ int rdmsrl_safe_on_cpu(unsigned int cpu, u32 msr_no, u64 *q)
 	int err;
 
 	err = rdmsr_safe_on_cpu(cpu, msr_no, &low, &high);
-	*q = (u64)high << 32 | low;
 
 	return err;
 }
 EXPORT_SYMBOL(rdmsrl_safe_on_cpu);
 
-/*
- * These variants are significantly slower, but allows control over
- * the entire 32-bit GPR set.
- */
 static void __rdmsr_safe_regs_on_cpu(void *info)
 {
 	struct msr_regs_info *rv = info;

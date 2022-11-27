@@ -1,30 +1,3 @@
-/*
- * Populate sysfs with topology information
- *
- * Written by: Matthew Dobson, IBM Corporation
- * Original Code: Paul Dorwin, IBM Corporation, Patrick Mochel, OSDL
- *
- * Copyright (C) 2002, IBM Corp.
- *
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * Send feedback to <colpatch@us.ibm.com>
- */
 #include <linux/interrupt.h>
 #include <linux/nodemask.h>
 #include <linux/export.h>
@@ -53,12 +26,6 @@ __setup("cpu0_hotplug", enable_cpu0_hotplug);
 #endif
 
 #ifdef CONFIG_DEBUG_HOTPLUG_CPU0
-/*
- * This function offlines a CPU as early as possible and allows userspace to
- * boot up without the CPU. The CPU can be onlined back by user after boot.
- *
- * This is only called for debugging CPU offline/online feature.
- */
 int _debug_hotplug_cpu(int cpu, int action)
 {
 	int ret;
@@ -101,28 +68,14 @@ int arch_register_cpu(int num)
 	struct cpuinfo_x86 *c = &cpu_data(num);
 
 	/*
-	 * Currently CPU0 is only hotpluggable on Intel platforms. Other
-	 * vendors can add hotplug support later.
-	 * Xen PV guests don't support CPU0 hotplug at all.
-	 */
 	if (c->x86_vendor != X86_VENDOR_INTEL ||
 	    boot_cpu_has(X86_FEATURE_XENPV))
 		cpu0_hotpluggable = 0;
 
 	/*
-	 * Two known BSP/CPU0 dependencies: Resume from suspend/hibernate
-	 * depends on BSP. PIC interrupts depend on BSP.
-	 *
-	 * If the BSP dependencies are under control, one can tell kernel to
-	 * enable BSP hotplug. This basically adds a control file and
-	 * one can attempt to offline BSP.
-	 */
 	if (num == 0 && cpu0_hotpluggable) {
 		unsigned int irq;
 		/*
-		 * We won't take down the boot processor on i386 if some
-		 * interrupts only are able to be serviced by the BSP in PIC.
-		 */
 		for_each_active_irq(irq) {
 			if (!IO_APIC_IRQ(irq) && irq_has_action(irq)) {
 				cpu0_hotpluggable = 0;

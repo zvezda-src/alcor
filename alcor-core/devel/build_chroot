@@ -1,16 +1,5 @@
-#!/bin/bash
 
-#Requirements for this script to work:
-#* Make sure that the user who uses the chroot is in group 'src', or change
-#  the ${GROUP} variable to a group that contains the user.
-#* Add any path of the host system that you want to access inside the chroot
-#  to the /etc/schroot/default/fstab file. This is important in particular if
-#  your homedir is not in /home.
-#* Add this to your /etc/fstab:
-#  tmpfs /var/lib/schroot/mount tmpfs defaults,size=3G 0 0
-#  tmpfs /var/lib/schroot/unpack tmpfs defaults,size=3G 0 0
 
-#Configuration
 : ${ARCH:=amd64}
 : ${DIST_RELEASE:=wheezy}
 : ${VARIANT:=}
@@ -19,14 +8,9 @@
 : ${ALTERNATIVE_EDITOR:=/usr/bin/vim.basic}
 : ${CHROOT_FINAL_HOOK:=/bin/true}
 : ${GROUP:=src}
-# Additional Variables taken from the environmen
-# DATA_DIR
-# CHROOT_EXTRA_DEBIAN_PACKAGES
 
-# make the appended variant name more readable
 [ -n "$VARIANT" ] && VARIANT="-${VARIANT#-}"
 
-#Automatically generated variables
 CHROOTNAME=$DIST_RELEASE-$ARCH$VARIANT
 CHNAME=building_$CHROOTNAME
 TEMP_CHROOT_CONF=$CONF_DIR/$CHNAME.conf
@@ -48,15 +32,10 @@ ghc-7.8.4-i386-unknown-linux-deb7.tar.bz2 4f523f854c37a43b738359506a89a37a9fa9fc
 ghc-7.8.4-x86_64-unknown-linux-deb7.tar.bz2 3f68321b064e5c1ffcb05838b85bcc00aa2315b4
 '
 
-# export all variables needed in the schroot
 export ARCH SHA1_LIST
 
-# Use gzip --rsyncable if available, to speed up transfers of generated files
-# The environment variable GZIP is read automatically by 'gzip',
-# see ENVIRONMENT in gzip(1).
 gzip --rsyncable </dev/null >/dev/null 2>&1 && export GZIP="--rsyncable"
 
-#Runnability checks
 if [ $USER != 'root' ]
 then
   echo "This script requires root permissions to run"
@@ -72,7 +51,6 @@ then
   exit
 fi
 
-#Create configuration dir and files if they do not exist
 if [ ! -d $ACTUAL_DATA_DIR ]
 then
   mkdir $ACTUAL_DATA_DIR
@@ -111,14 +89,11 @@ END
   echo "has been created with default configurations."
 fi
 
-#Stop on errors
 set -e
 
-#Cleanup
 rm -rf $CHDIR
 mkdir $CHDIR
 
-#Install tools for building chroots
 apt-get install -y schroot debootstrap
 
 shopt -s expand_aliases
@@ -134,11 +109,9 @@ function subst_variables {
     -e "s/\${DIST_RELEASE}/$DIST_RELEASE/" $@
 }
 
-#Generate chroot configurations
 cat $ACTUAL_DATA_DIR/temp.schroot.conf.in | subst_variables > $TEMP_CHROOT_CONF
 cat $ACTUAL_DATA_DIR/final.schroot.conf.in | subst_variables > $FINAL_CHROOT_CONF
 
-#Install the base system
 debootstrap --arch $ARCH $DIST_RELEASE $CHDIR
 
 APT_INSTALL="apt-get install -y --no-install-recommends"
@@ -150,15 +123,11 @@ then
        > $CHDIR/etc/apt/sources.list.d/backports.list
 fi
 
-#Install all the packages
 in_chroot -- \
   apt-get update
 
 
-# Functions for downloading and checking Haskell core components.
-# The functions run commands within the schroot.
 
-# arguments : file_name expected_sha1
 function verify_sha1 {
   local SUM="$( in_chroot -- sha1sum "$1" | awk '{print $1;exit}' )"
   if [ "$SUM" != "$2" ] ; then
@@ -169,12 +138,10 @@ function verify_sha1 {
   fi
 }
 
-# arguments: URL
 function lookup_sha1 {
   grep -o "${1##*/}"'\s\+[0-9a-fA-F]*' <<<"$SHA1_LIST" | awk '{print $2;exit}'
 }
 
-# arguments : file_name URL
 function download {
   local FNAME="$1"
   local URL="$2"
@@ -594,14 +561,12 @@ EOF
 ;;
 esac
 
-# print what packages and versions are installed:
 in_chroot -- \
   cabal list --installed --simple-output
 
 in_chroot -- \
   $APT_INSTALL sudo fakeroot rsync locales less socat
 
-# Configure the locale
 case $DIST_RELEASE in
   precise)
     in_chroot -- \
@@ -632,18 +597,15 @@ in_chroot -- \
   $APT_INSTALL \
   python-epydoc debhelper quilt
 
-# extra debian packages
 
 for package in $CHROOT_EXTRA_DEBIAN_PACKAGES
 do in_chroot -- \
   $APT_INSTALL $package
 done
 
-#Set default editor
 in_chroot -- \
   update-alternatives --set editor $ALTERNATIVE_EDITOR
 
-# Final user hook
 
 in_chroot -- $CHROOT_FINAL_HOOK
 

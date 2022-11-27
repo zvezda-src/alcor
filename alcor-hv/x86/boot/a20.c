@@ -1,15 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* -*- linux-c -*- ------------------------------------------------------- *
- *
- *   Copyright (C) 1991, 1992 Linus Torvalds
- *   Copyright 2007-2008 rPath, Inc. - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author H. Peter Anvin
- *
- * ----------------------------------------------------------------------- */
 
-/*
- * Enable A20 gate (return -1 on failure)
- */
 
 #include "boot.h"
 
@@ -44,7 +33,6 @@ static int empty_8042(void)
 	return -1;
 }
 
-/* Returns nonzero if the A20 line is enabled.  The memory address
    used as a test is the int $0x80 vector, which should be safe. */
 
 #define A20_TEST_ADDR	(4*0x80)
@@ -73,13 +61,11 @@ static int a20_test(int loops)
 	return ok;
 }
 
-/* Quick test to see if A20 is already enabled */
 static int a20_test_short(void)
 {
 	return a20_test(A20_TEST_SHORT);
 }
 
-/* Longer test that actually waits for A20 to come on line; this
    is useful when dealing with the KBC or other slow external circuitry. */
 static int a20_test_long(void)
 {
@@ -119,9 +105,6 @@ static void enable_a20_fast(void)
 	outb(port_a, 0x92);
 }
 
-/*
- * Actual routine to enable A20; return 0 on ok, -1 on failure
- */
 
 #define A20_ENABLE_LOOPS 255	/* Number of times to try */
 

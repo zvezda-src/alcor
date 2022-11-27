@@ -1,22 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* -*- linux-c -*- ------------------------------------------------------- *
- *
- *   Copyright (C) 1991, 1992 Linus Torvalds
- *   Copyright 2007 rPath, Inc. - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author H. Peter Anvin
- *
- * ----------------------------------------------------------------------- */
 
-/*
- * VESA text modes
- */
 
 #include "boot.h"
 #include "video.h"
 #include "vesa.h"
 #include "string.h"
 
-/* VESA information */
 static struct vesa_general_info vginfo;
 static struct vesa_mode_info vminfo;
 
@@ -157,7 +145,6 @@ static int vesa_set_mode(struct mode_info *mode)
 
 #ifndef _WAKEUP
 
-/* Switch DAC to 8-bit mode */
 static void vesa_dac_set_8bits(void)
 {
 	struct biosregs ireg, oreg;
@@ -185,7 +172,6 @@ static void vesa_dac_set_8bits(void)
 	boot_params.screen_info.rsvd_pos   = 0;
 }
 
-/* Save the VESA protected mode info */
 static void vesa_store_pm_info(void)
 {
 	struct biosregs ireg, oreg;
@@ -201,9 +187,6 @@ static void vesa_store_pm_info(void)
 	boot_params.screen_info.vesapm_off = oreg.di;
 }
 
-/*
- * Save video mode parameters for graphics mode
- */
 static void vesa_store_mode_params_graphics(void)
 {
 	/* Tell the kernel we're in VESA graphics mode */
@@ -229,10 +212,6 @@ static void vesa_store_mode_params_graphics(void)
 	vesa_store_pm_info();
 }
 
-/*
- * Save EDID information for the kernel; this is invoked, separately,
- * after mode-setting.
- */
 void vesa_store_edid(void)
 {
 #ifdef CONFIG_FIRMWARE_EDID

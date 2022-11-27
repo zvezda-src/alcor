@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (C) 2020 Collabora Ltd.
- */
 #include <linux/sched.h>
 #include <linux/prctl.h>
 #include <linux/syscall_user_dispatch.h>
@@ -44,9 +40,6 @@ bool syscall_user_dispatch(struct pt_regs *regs)
 
 	if (likely(sd->selector)) {
 		/*
-		 * access_ok() is performed once, at prctl time, when
-		 * the selector is loaded by userspace.
-		 */
 		if (unlikely(__get_user(state, sd->selector))) {
 			force_exit_sig(SIGSEGV);
 			return true;
@@ -78,11 +71,6 @@ int set_syscall_user_dispatch(unsigned long mode, unsigned long offset,
 		break;
 	case PR_SYS_DISPATCH_ON:
 		/*
-		 * Validate the direct dispatcher region just for basic
-		 * sanity against overflow and a 0-sized dispatcher
-		 * region.  If the user is able to submit a syscall from
-		 * an address, that address is obviously valid.
-		 */
 		if (offset && offset + len <= offset)
 			return -EINVAL;
 

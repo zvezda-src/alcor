@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Coherent per-device memory handling.
- * Borrowed from i386
- */
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
@@ -97,23 +92,6 @@ static int dma_assign_coherent_memory(struct device *dev,
 	return 0;
 }
 
-/*
- * Declare a region of memory to be handed out by dma_alloc_coherent() when it
- * is asked for coherent memory for this device.  This shall only be used
- * from platform code, usually based on the device tree description.
- *
- * phys_addr is the CPU physical address to which the memory is currently
- * assigned (this will be ioremapped so the CPU can access the region).
- *
- * device_addr is the DMA address the device needs to be programmed with to
- * actually address this memory (this will be handed out as the dma_addr_t in
- * dma_alloc_coherent()).
- *
- * size is the size of the area (must be a multiple of PAGE_SIZE).
- *
- * As a simplification for the platforms, only *one* such region of memory may
- * be declared per device.
- */
 int dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 				dma_addr_t device_addr, size_t size)
 {
@@ -149,9 +127,6 @@ static void *__dma_alloc_from_coherent(struct device *dev,
 		goto err;
 
 	/*
-	 * Memory was found in the coherent area.
-	 */
-	*dma_handle = dma_get_device_base(dev, mem) +
 			((dma_addr_t)pageno << PAGE_SHIFT);
 	ret = mem->virt_base + ((dma_addr_t)pageno << PAGE_SHIFT);
 	spin_unlock_irqrestore(&mem->spinlock, flags);
@@ -162,20 +137,6 @@ err:
 	return NULL;
 }
 
-/**
- * dma_alloc_from_dev_coherent() - allocate memory from device coherent pool
- * @dev:	device from which we allocate memory
- * @size:	size of requested memory area
- * @dma_handle:	This will be filled with the correct dma handle
- * @ret:	This pointer will be filled with the virtual address
- *		to allocated area.
- *
- * This function should be only called from per-arch dma_alloc_coherent()
- * to support allocation from per-device coherent memory pools.
- *
- * Returns 0 if dma_alloc_coherent should continue with allocating from
- * generic memory areas, or !0 if dma_alloc_coherent should return @ret.
- */
 int dma_alloc_from_dev_coherent(struct device *dev, ssize_t size,
 		dma_addr_t *dma_handle, void **ret)
 {
@@ -184,7 +145,6 @@ int dma_alloc_from_dev_coherent(struct device *dev, ssize_t size,
 	if (!mem)
 		return 0;
 
-	*ret = __dma_alloc_from_coherent(dev, mem, size, dma_handle);
 	return 1;
 }
 
@@ -204,18 +164,6 @@ static int __dma_release_from_coherent(struct dma_coherent_mem *mem,
 	return 0;
 }
 
-/**
- * dma_release_from_dev_coherent() - free memory to device coherent memory pool
- * @dev:	device from which the memory was allocated
- * @order:	the order of pages allocated
- * @vaddr:	virtual address of allocated pages
- *
- * This checks whether the memory was allocated from the per-device
- * coherent memory pool and if so, releases that memory.
- *
- * Returns 1 if we correctly released the memory, or 0 if the caller should
- * proceed with releasing memory from generic pools.
- */
 int dma_release_from_dev_coherent(struct device *dev, int order, void *vaddr)
 {
 	struct dma_coherent_mem *mem = dev_get_coherent_memory(dev);
@@ -245,21 +193,6 @@ static int __dma_mmap_from_coherent(struct dma_coherent_mem *mem,
 	return 0;
 }
 
-/**
- * dma_mmap_from_dev_coherent() - mmap memory from the device coherent pool
- * @dev:	device from which the memory was allocated
- * @vma:	vm_area for the userspace memory
- * @vaddr:	cpu address returned by dma_alloc_from_dev_coherent
- * @size:	size of the memory buffer allocated
- * @ret:	result from remap_pfn_range()
- *
- * This checks whether the memory was allocated from the per-device
- * coherent memory pool and if so, maps that memory to the provided vma.
- *
- * Returns 1 if @vaddr belongs to the device coherent pool and the caller
- * should return @ret, or 0 if they should proceed with mapping memory from
- * generic areas.
- */
 int dma_mmap_from_dev_coherent(struct device *dev, struct vm_area_struct *vma,
 			   void *vaddr, size_t size, int *ret)
 {
@@ -313,9 +246,6 @@ int dma_init_global_coherent(phys_addr_t phys_addr, size_t size)
 }
 #endif /* CONFIG_DMA_GLOBAL_POOL */
 
-/*
- * Support for reserved memory regions defined in device tree
- */
 #ifdef CONFIG_OF_RESERVED_MEM
 #include <linux/of.h>
 #include <linux/of_fdt.h>

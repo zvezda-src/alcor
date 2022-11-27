@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PAGE_64_H
 #define _ASM_X86_PAGE_64_H
 
@@ -8,7 +7,6 @@
 #include <asm/cpufeatures.h>
 #include <asm/alternative.h>
 
-/* duplicated to the one in bootmem.h */
 extern unsigned long max_pfn;
 extern unsigned long phys_base;
 
@@ -58,24 +56,6 @@ static inline void clear_page(void *page)
 void copy_page(void *to, void *from);
 
 #ifdef CONFIG_X86_5LEVEL
-/*
- * User space process size.  This is the first address outside the user range.
- * There are a few constraints that determine this:
- *
- * On Intel CPUs, if a SYSCALL instruction is at the highest canonical
- * address, then that syscall will enter the kernel with a
- * non-canonical return address, and SYSRET will explode dangerously.
- * We avoid this particular problem by preventing anything
- * from being mapped at the maximum canonical address.
- *
- * On AMD CPUs in the Ryzen family, there's a nasty bug in which the
- * CPUs malfunction if they execute code from the highest canonical page.
- * They'll speculate right off the end of the canonical space, and
- * bad things happen.  This is worked around in the same way as the
- * Intel problem.
- *
- * With page table isolation enabled, we map the LDT in ... [stay tuned]
- */
 static __always_inline unsigned long task_size_max(void)
 {
 	unsigned long ret;

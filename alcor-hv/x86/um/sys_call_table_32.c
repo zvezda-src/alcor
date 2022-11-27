@@ -1,20 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * System call table for UML/i386, copied from arch/x86/kernel/syscall_*.c
- * with some changes for UML.
- */
 
 #include <linux/linkage.h>
 #include <linux/sys.h>
 #include <linux/cache.h>
 #include <asm/syscall.h>
 
-/*
- * Below you can see, in terms of #define's, the differences between the x86-64
- * and the UML syscall table.
- */
 
-/* Not going to be implemented by UML, since we have no hardware. */
 #define sys_iopl sys_ni_syscall
 #define sys_ioperm sys_ni_syscall
 

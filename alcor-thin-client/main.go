@@ -6,7 +6,6 @@ import (
 	"os"
 	"runtime/pprof"
 
-	"github.com/Zvezda/VDI/res"
 
 )
 

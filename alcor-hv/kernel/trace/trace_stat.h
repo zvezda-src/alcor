@@ -1,14 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
 #ifndef __TRACE_STAT_H
 #define __TRACE_STAT_H
 
 #include <linux/seq_file.h>
 
-/*
- * If you want to provide a stat file (one-shot statistics), fill
- * an iterator with stat_start/stat_next and a stat_show callbacks.
- * The others callbacks are optional.
- */
 struct tracer_stat {
 	/* The name of your stat file */
 	const char		*name;
@@ -25,9 +19,6 @@ struct tracer_stat {
 	int			(*stat_headers)(struct seq_file *s);
 };
 
-/*
- * Destroy or create a stat file
- */
 extern int register_stat_tracer(struct tracer_stat *trace);
 extern void unregister_stat_tracer(struct tracer_stat *trace);
 

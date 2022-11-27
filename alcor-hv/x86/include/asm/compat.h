@@ -1,10 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_COMPAT_H
 #define _ASM_X86_COMPAT_H
 
-/*
- * Architecture specific compatibility types
- */
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
@@ -54,10 +50,6 @@ struct compat_stat {
 	u32		__unused5;
 };
 
-/*
- * IA32 uses 4 byte alignment for 64 bit quantities, so we need to pack the
- * compat flock64 structure.
- */
 #define __ARCH_NEED_COMPAT_FLOCK64_PACKED
 
 struct compat_statfs {

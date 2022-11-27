@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __KVM_X86_SVM_OPS_H
 #define __KVM_X86_SVM_OPS_H
 
@@ -51,11 +50,6 @@ static inline void invlpga(unsigned long addr, u32 asid)
 	svm_asm2(invlpga, "c"(asid), "a"(addr));
 }
 
-/*
- * Despite being a physical address, the portion of rAX that is consumed by
- * VMSAVE, VMLOAD, etc... is still controlled by the effective address size,
- * hence 'unsigned long' instead of 'hpa_t'.
- */
 static __always_inline void vmsave(unsigned long pa)
 {
 	svm_asm1(vmsave, "a" (pa), "memory");

@@ -1,23 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Modules tree lookup
- *
- * Copyright (C) 2015 Peter Zijlstra
- * Copyright (C) 2015 Rusty Russell
- */
 
 #include <linux/module.h>
 #include <linux/rbtree_latch.h>
 #include "internal.h"
 
-/*
- * Use a latched RB-tree for __module_address(); this allows us to use
- * RCU-sched lookups of the address from any context.
- *
- * This is conditional on PERF_EVENTS || TRACING because those can really hit
- * __module_address() hard by doing a lot of stack unwinding; potentially from
- * NMI context.
- */
 
 static __always_inline unsigned long __mod_tree_val(struct latch_tree_node *n)
 {
@@ -71,10 +56,6 @@ static void __mod_tree_remove(struct mod_tree_node *node, struct mod_tree_root *
 	latch_tree_erase(&node->node, &tree->root, &mod_tree_ops);
 }
 
-/*
- * These modifications: insert, remove_init and remove; are serialized by the
- * module_mutex.
- */
 void mod_tree_insert(struct module *mod)
 {
 	mod->core_layout.mtn.mod = mod;

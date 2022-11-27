@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- *  Copyright (C) 1991, 1992  Linus Torvalds
- *  Copyright (C) 2000, 2001, 2002 Andi Kleen SuSE Labs
- *
- *  1997-11-28  Modified for POSIX.1b signals by Richard Henderson
- *  2000-06-20  Pentium III FXSR, SSE support by Gareth Hughes
- *  2000-2002   x86-64 support by Andi Kleen
- */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -49,11 +40,6 @@
 #include <asm/signal.h>
 
 #ifdef CONFIG_X86_64
-/*
- * If regs->ss will cause an IRET fault, change it.  Otherwise leave it
- * alone.  Using this generally makes no sense unless
- * user_64bit_mode(regs) would return true.
- */
 static void force_valid_ss(struct pt_regs *regs)
 {
 	u32 ar;
@@ -65,11 +51,6 @@ static void force_valid_ss(struct pt_regs *regs)
 		      : [old_ss] "rm" ((u16)regs->ss));
 
 	/*
-	 * For a valid 64-bit user context, we need DPL 3, type
-	 * read-write data or read-write exp-down data, and S and P
-	 * set.  We can't use VERW because VERW doesn't check the
-	 * P bit.
-	 */
 	ar &= AR_DPL_MASK | AR_S | AR_P | AR_TYPE_MASK;
 	if (ar != (AR_DPL3 | AR_S | AR_P | AR_TYPE_RWDATA) &&
 	    ar != (AR_DPL3 | AR_S | AR_P | AR_TYPE_RWDATA_EXPDOWN))
@@ -130,9 +111,6 @@ static bool restore_sigcontext(struct pt_regs *regs,
 
 #ifdef CONFIG_X86_64
 	/*
-	 * Fix up SS if needed for the benefit of old DOSEMU and
-	 * CRIU.
-	 */
 	if (unlikely(!(uc_flags & UC_STRICT_RESTORE_SS) && user_64bit_mode(regs)))
 		force_valid_ss(regs);
 #endif
@@ -211,25 +189,15 @@ do {									\
 			(__u64 __user *)&(frame)->uc.uc_sigmask, \
 			label)
 
-/*
- * Set up a signal frame.
- */
 
-/* x86 ABI requires 16-byte alignment */
 #define FRAME_ALIGNMENT	16UL
 
 #define MAX_FRAME_PADDING	(FRAME_ALIGNMENT - 1)
 
-/*
- * Determine which stack to use..
- */
 static unsigned long align_sigframe(unsigned long sp)
 {
 #ifdef CONFIG_X86_32
 	/*
-	 * Align the stack pointer according to the i386 ABI,
-	 * i.e. so that on function entry ((sp + 4) & 15) == 0.
-	 */
 	sp = ((sp + 4) & -FRAME_ALIGNMENT) - 4;
 #else /* !CONFIG_X86_32 */
 	sp = round_down(sp, FRAME_ALIGNMENT) - 8;
@@ -255,10 +223,6 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	/* This is the X/Open sanctioned signal stack switching.  */
 	if (ka->sa.sa_flags & SA_ONSTACK) {
 		/*
-		 * This checks nested_altstack via sas_ss_flags(). Sensible
-		 * programs use SS_AUTODISARM, which disables that check, and
-		 * programs that don't use SS_AUTODISARM get compatible.
-		 */
 		if (sas_ss_flags(sp) == 0) {
 			sp = current->sas_ss_sp + current->sas_ss_size;
 			entering_altstack = true;
@@ -275,14 +239,10 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 
 	sp = fpu__alloc_mathframe(sp, IS_ENABLED(CONFIG_X86_32),
 				  &buf_fx, &math_size);
-	*fpstate = (void __user *)sp;
 
 	sp = align_sigframe(sp - frame_size);
 
 	/*
-	 * If we are on the alternate signal stack and would overflow it, don't.
-	 * Return an always-bogus address instead so we will die with SIGSEGV.
-	 */
 	if (unlikely((nested_altstack || entering_altstack) &&
 		     !__on_sig_stack(sp))) {
 
@@ -351,12 +311,6 @@ __setup_frame(int sig, struct ksignal *ksig, sigset_t *set,
 	unsafe_put_user(restorer, &frame->pretcode, Efault);
 
 	/*
-	 * This is popl %eax ; movl $__NR_sigreturn, %eax ; int $0x80
-	 *
-	 * WE DO NOT USE IT ANY MORE! It's only left here for historical
-	 * reasons and because gdb uses it as a signature to notice
-	 * signal handler stack frames.
-	 */
 	unsafe_put_user(*((u64 *)&retcode), (u64 *)frame->retcode, Efault);
 	user_access_end();
 
@@ -411,12 +365,6 @@ static int __setup_rt_frame(int sig, struct ksignal *ksig,
 	unsafe_put_user(restorer, &frame->pretcode, Efault);
 
 	/*
-	 * This is movl $__NR_rt_sigreturn, %ax ; int $0x80
-	 *
-	 * WE DO NOT USE IT ANY MORE! It's only left here for historical
-	 * reasons and because gdb uses it as a signature to notice
-	 * signal handler stack frames.
-	 */
 	unsafe_put_user(*((u64 *)&rt_retcode), (u64 *)frame->retcode, Efault);
 	unsafe_put_sigcontext(&frame->uc.uc_mcontext, fp, regs, set, Efault);
 	unsafe_put_sigmask(set, frame, Efault);
@@ -506,22 +454,6 @@ static int __setup_rt_frame(int sig, struct ksignal *ksig,
 	regs->sp = (unsigned long)frame;
 
 	/*
-	 * Set up the CS and SS registers to run signal handlers in
-	 * 64-bit mode, even if the handler happens to be interrupting
-	 * 32-bit or 16-bit code.
-	 *
-	 * SS is subtle.  In 64-bit mode, we don't need any particular
-	 * SS descriptor, but we do need SS to be valid.  It's possible
-	 * that the old SS is entirely bogus -- this can happen if the
-	 * signal we're trying to deliver is #GP or #SS caused by a bad
-	 * SS value.  We also have a compatibility issue here: DOSEMU
-	 * relies on the contents of the SS register indicating the
-	 * SS value at the time of the signal, even though that code in
-	 * DOSEMU predates sigreturn's ability to restore SS.  (DOSEMU
-	 * avoids relying on sigreturn to restore SS; instead it uses
-	 * a trampoline.)  So we do our best: if the old SS was valid,
-	 * we keep it.  Otherwise we replace it.
-	 */
 	regs->cs = __USER_CS;
 
 	if (unlikely(regs->ss != __USER_DS))
@@ -620,9 +552,6 @@ Efault:
 #endif
 }
 
-/*
- * Do a signal return; undo the signal stack.
- */
 #ifdef CONFIG_X86_32
 SYSCALL_DEFINE0(sigreturn)
 {
@@ -641,9 +570,6 @@ SYSCALL_DEFINE0(sigreturn)
 	set_current_blocked(&set);
 
 	/*
-	 * x86_32 has no uc_flags bits relevant to restore_sigcontext.
-	 * Save a few cycles by skipping the __get_user.
-	 */
 	if (!restore_sigcontext(regs, &frame->sc, 0))
 		goto badframe;
 	return regs->ax;
@@ -685,42 +611,15 @@ badframe:
 	return 0;
 }
 
-/*
- * There are four different struct types for signal frame: sigframe_ia32,
- * rt_sigframe_ia32, rt_sigframe_x32, and rt_sigframe. Use the worst case
- * -- the largest size. It means the size for 64-bit apps is a bit more
- * than needed, but this keeps the code simple.
- */
 #if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
 # define MAX_FRAME_SIGINFO_UCTXT_SIZE	sizeof(struct sigframe_ia32)
 #else
 # define MAX_FRAME_SIGINFO_UCTXT_SIZE	sizeof(struct rt_sigframe)
 #endif
 
-/*
- * The FP state frame contains an XSAVE buffer which must be 64-byte aligned.
- * If a signal frame starts at an unaligned address, extra space is required.
- * This is the max alignment padding, conservatively.
- */
 #define MAX_XSAVE_PADDING	63UL
 
-/*
- * The frame data is composed of the following areas and laid out as:
- *
- * -------------------------
- * | alignment padding     |
- * -------------------------
- * | (f)xsave frame        |
- * -------------------------
- * | fsave header          |
- * -------------------------
- * | alignment padding     |
- * -------------------------
- * | siginfo + ucontext    |
- * -------------------------
- */
 
-/* max_frame_size tells userspace the worst case signal stack size. */
 static unsigned long __ro_after_init max_frame_size;
 static unsigned int __ro_after_init fpu_default_state_size;
 
@@ -815,10 +714,6 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	}
 
 	/*
-	 * If TF is set due to a debugger (TIF_FORCED_TF), clear TF now
-	 * so that register information in the sigcontext is correct and
-	 * then notify the tracer before entering the signal handler.
-	 */
 	stepping = test_thread_flag(TIF_SINGLESTEP);
 	if (stepping)
 		user_disable_single_step(current);
@@ -826,19 +721,8 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	failed = (setup_rt_frame(ksig, regs) < 0);
 	if (!failed) {
 		/*
-		 * Clear the direction flag as per the ABI for function entry.
-		 *
-		 * Clear RF when entering the signal handler, because
-		 * it might disable possible debug exception from the
-		 * signal handler.
-		 *
-		 * Clear TF for the case when it wasn't set by debugger to
-		 * avoid the recursive send_sigtrap() in SIGTRAP handler.
-		 */
 		regs->flags &= ~(X86_EFLAGS_DF|X86_EFLAGS_RF|X86_EFLAGS_TF);
 		/*
-		 * Ensure the signal handler starts with the new fpu state.
-		 */
 		fpu__clear_user_states(fpu);
 	}
 	signal_setup_done(failed, ksig, stepping);
@@ -857,11 +741,6 @@ static inline unsigned long get_nr_restart_syscall(const struct pt_regs *regs)
 #endif
 }
 
-/*
- * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
- * mistake.
- */
 void arch_do_signal_or_restart(struct pt_regs *regs)
 {
 	struct ksignal ksig;
@@ -891,9 +770,6 @@ void arch_do_signal_or_restart(struct pt_regs *regs)
 	}
 
 	/*
-	 * If there's no signal to deliver, we just put the saved sigmask
-	 * back.
-	 */
 	restore_saved_sigmask();
 }
 
@@ -927,24 +803,6 @@ static int __init strict_sas_size(char *arg)
 }
 __setup("strict_sas_size", strict_sas_size);
 
-/*
- * MINSIGSTKSZ is 2048 and can't be changed despite the fact that AVX512
- * exceeds that size already. As such programs might never use the
- * sigaltstack they just continued to work. While always checking against
- * the real size would be correct, this might be considered a regression.
- *
- * Therefore avoid the sanity check, unless enforced by kernel
- * configuration or command line option.
- *
- * When dynamic FPU features are supported, the check is also enforced when
- * the task has permissions to use dynamic features. Tasks which have no
- * permission are checked against the size of the non-dynamic feature set
- * if strict checking is enabled. This avoids forcing all tasks on the
- * system to allocate large sigaltstacks even if they are never going
- * to use a dynamic feature. As this is serialized via sighand::siglock
- * any permission request for a dynamic feature either happened already
- * or will see the newly install sigaltstack size in the permission checks.
- */
 bool sigaltstack_size_valid(size_t ss_size)
 {
 	unsigned long fsize = max_frame_size - fpu_default_state_size;

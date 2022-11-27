@@ -1,31 +1,4 @@
-/* GPL HEADER START
- *
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 only,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License version 2 for more details (a copy is included
- * in the LICENSE file that accompanied this code).
- *
- * You should have received a copy of the GNU General Public License
- * version 2 along with this program; If not, see http://www.gnu.org/licenses
- *
- * Please  visit http://www.xyratex.com/contact if you need additional
- * information or have any questions.
- *
- * GPL HEADER END
- */
 
-/*
- * Copyright 2012 Xyratex Technology Limited
- *
- * Wrappers for kernel crypto shash api to pclmulqdq crc32 implementation.
- */
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/string.h>
@@ -84,7 +57,6 @@ static int crc32_pclmul_cra_init(struct crypto_tfm *tfm)
 {
 	u32 *key = crypto_tfm_ctx(tfm);
 
-	*key = 0;
 
 	return 0;
 }
@@ -96,7 +68,6 @@ static int crc32_pclmul_setkey(struct crypto_shash *hash, const u8 *key,
 
 	if (keylen != sizeof(u32))
 		return -EINVAL;
-	*mctx = le32_to_cpup((__le32 *)key);
 	return 0;
 }
 
@@ -105,7 +76,6 @@ static int crc32_pclmul_init(struct shash_desc *desc)
 	u32 *mctx = crypto_shash_ctx(desc->tfm);
 	u32 *crcp = shash_desc_ctx(desc);
 
-	*crcp = *mctx;
 
 	return 0;
 }
@@ -115,15 +85,12 @@ static int crc32_pclmul_update(struct shash_desc *desc, const u8 *data,
 {
 	u32 *crcp = shash_desc_ctx(desc);
 
-	*crcp = crc32_pclmul_le(*crcp, data, len);
 	return 0;
 }
 
-/* No final XOR 0xFFFFFFFF, like crc32_le */
 static int __crc32_pclmul_finup(u32 *crcp, const u8 *data, unsigned int len,
 				u8 *out)
 {
-	*(__le32 *)out = cpu_to_le32(crc32_pclmul_le(*crcp, data, len));
 	return 0;
 }
 
@@ -137,7 +104,6 @@ static int crc32_pclmul_final(struct shash_desc *desc, u8 *out)
 {
 	u32 *crcp = shash_desc_ctx(desc);
 
-	*(__le32 *)out = cpu_to_le32p(crcp);
 	return 0;
 }
 

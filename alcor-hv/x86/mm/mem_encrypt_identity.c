@@ -1,39 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * AMD Memory Encryption Support
- *
- * Copyright (C) 2016 Advanced Micro Devices, Inc.
- *
- * Author: Tom Lendacky <thomas.lendacky@amd.com>
- */
 
 #define DISABLE_BRANCH_PROFILING
 
-/*
- * Since we're dealing with identity mappings, physical and virtual
- * addresses are the same, so override these defines which are ultimately
- * used by the headers in misc.h.
- */
 #define __pa(x)  ((unsigned long)(x))
 #define __va(x)  ((void *)((unsigned long)(x)))
 
-/*
- * Special hack: we have to be careful, because no indirections are
- * allowed here, and paravirt_ops is a kind of one. As it will only run in
- * baremetal anyway, we just keep it from happening. (This list needs to
- * be extended when new paravirt and debugging variants are added.)
- */
 #undef CONFIG_PARAVIRT
 #undef CONFIG_PARAVIRT_XXL
 #undef CONFIG_PARAVIRT_SPINLOCKS
 
-/*
- * This code runs before CPU feature bits are set. By default, the
- * pgtable_l5_enabled() function uses bit X86_FEATURE_LA57 to determine if
- * 5-level paging is active, so that won't work here. USE_EARLY_PGTABLE_L5
- * is provided to handle this situation and, instead, use a variable that
- * has been set by the early boot code.
- */
 #define USE_EARLY_PGTABLE_L5
 
 #include <linux/kernel.h>
@@ -82,17 +56,6 @@ struct sme_populate_pgd_data {
 	unsigned long vaddr_end;
 };
 
-/*
- * This work area lives in the .init.scratch section, which lives outside of
- * the kernel proper. It is sized to hold the intermediate copy buffer and
- * more than enough pagetable pages.
- *
- * By using this section, the kernel can be encrypted in place and it
- * avoids any possibility of boot parameters or initramfs images being
- * placed such that the in-place encryption logic overwrites them.  This
- * section is 2MB aligned to allow for simple pagetable setup using only
- * PMD entries (see vmlinux.lds.S).
- */
 static char sme_workarea[2 * PMD_PAGE_SIZE] __section(".init.scratch");
 
 static char sme_cmdline_arg[] __initdata = "mem_encrypt";
@@ -257,17 +220,6 @@ static unsigned long __init sme_pgtable_calc(unsigned long len)
 	unsigned long entries = 0, tables = 0;
 
 	/*
-	 * Perform a relatively simplistic calculation of the pagetable
-	 * entries that are needed. Those mappings will be covered mostly
-	 * by 2MB PMD entries so we can conservatively calculate the required
-	 * number of P4D, PUD and PMD structures needed to perform the
-	 * mappings.  For mappings that are not 2MB aligned, PTE mappings
-	 * would be needed for the start and end portion of the address range
-	 * that fall outside of the 2MB alignment.  This results in, at most,
-	 * two extra pages to hold PTE entries for each range that is mapped.
-	 * Incrementing the count for each covers the case where the addresses
-	 * cross entries.
-	 */
 
 	/* PGDIR_SIZE is equal to P4D_SIZE on 4-level machine. */
 	if (PTRS_PER_P4D > 1)
@@ -277,9 +229,6 @@ static unsigned long __init sme_pgtable_calc(unsigned long len)
 	entries += 2 * sizeof(pte_t) * PTRS_PER_PTE;
 
 	/*
-	 * Now calculate the added pagetable structures needed to populate
-	 * the new pagetables.
-	 */
 
 	if (PTRS_PER_P4D > 1)
 		tables += DIV_ROUND_UP(entries, PGDIR_SIZE) * sizeof(p4d_t) * PTRS_PER_P4D;
@@ -300,28 +249,10 @@ void __init sme_encrypt_kernel(struct boot_params *bp)
 	unsigned long decrypted_base;
 
 	/*
-	 * This is early code, use an open coded check for SME instead of
-	 * using cc_platform_has(). This eliminates worries about removing
-	 * instrumentation or checking boot_cpu_data in the cc_platform_has()
-	 * function.
-	 */
 	if (!sme_get_me_mask() || sev_status & MSR_AMD64_SEV_ENABLED)
 		return;
 
 	/*
-	 * Prepare for encrypting the kernel and initrd by building new
-	 * pagetables with the necessary attributes needed to encrypt the
-	 * kernel in place.
-	 *
-	 *   One range of virtual addresses will map the memory occupied
-	 *   by the kernel and initrd as encrypted.
-	 *
-	 *   Another range of virtual addresses will map the memory occupied
-	 *   by the kernel and initrd as decrypted and write-protected.
-	 *
-	 *     The use of write-protect attribute will prevent any of the
-	 *     memory from being cached.
-	 */
 
 	/* Physical addresses gives us the identity mapped virtual addresses */
 	kernel_start = __pa_symbol(_text);
@@ -343,30 +274,16 @@ void __init sme_encrypt_kernel(struct boot_params *bp)
 #endif
 
 	/*
-	 * We're running identity mapped, so we must obtain the address to the
-	 * SME encryption workarea using rip-relative addressing.
-	 */
 	asm ("lea sme_workarea(%%rip), %0"
 	     : "=r" (workarea_start)
 	     : "p" (sme_workarea));
 
 	/*
-	 * Calculate required number of workarea bytes needed:
-	 *   executable encryption area size:
-	 *     stack page (PAGE_SIZE)
-	 *     encryption routine page (PAGE_SIZE)
-	 *     intermediate copy buffer (PMD_PAGE_SIZE)
-	 *   pagetable structures for the encryption of the kernel
-	 *   pagetable structures for workarea (in case not currently mapped)
-	 */
 	execute_start = workarea_start;
 	execute_end = execute_start + (PAGE_SIZE * 2) + PMD_PAGE_SIZE;
 	execute_len = execute_end - execute_start;
 
 	/*
-	 * One PGD for both encrypted and decrypted mappings and a set of
-	 * PUDs and PMDs for each of the encrypted and decrypted mappings.
-	 */
 	pgtable_area_len = sizeof(pgd_t) * PTRS_PER_PGD;
 	pgtable_area_len += sme_pgtable_calc(execute_end - kernel_start) * 2;
 	if (initrd_len)
@@ -376,28 +293,13 @@ void __init sme_encrypt_kernel(struct boot_params *bp)
 	pgtable_area_len += sme_pgtable_calc(execute_len + pgtable_area_len);
 
 	/*
-	 * The total workarea includes the executable encryption area and
-	 * the pagetable area. The start of the workarea is already 2MB
-	 * aligned, align the end of the workarea on a 2MB boundary so that
-	 * we don't try to create/allocate PTE entries from the workarea
-	 * before it is mapped.
-	 */
 	workarea_len = execute_len + pgtable_area_len;
 	workarea_end = ALIGN(workarea_start + workarea_len, PMD_PAGE_SIZE);
 
 	/*
-	 * Set the address to the start of where newly created pagetable
-	 * structures (PGDs, PUDs and PMDs) will be allocated. New pagetable
-	 * structures are created when the workarea is added to the current
-	 * pagetables and when the new encrypted and decrypted kernel
-	 * mappings are populated.
-	 */
 	ppd.pgtable_area = (void *)execute_end;
 
 	/*
-	 * Make sure the current pagetable structure has entries for
-	 * addressing the workarea.
-	 */
 	ppd.pgd = (pgd_t *)native_read_cr3_pa();
 	ppd.paddr = workarea_start;
 	ppd.vaddr = workarea_start;
@@ -408,21 +310,11 @@ void __init sme_encrypt_kernel(struct boot_params *bp)
 	native_write_cr3(__native_read_cr3());
 
 	/*
-	 * A new pagetable structure is being built to allow for the kernel
-	 * and initrd to be encrypted. It starts with an empty PGD that will
-	 * then be populated with new PUDs and PMDs as the encrypted and
-	 * decrypted kernel mappings are created.
-	 */
 	ppd.pgd = ppd.pgtable_area;
 	memset(ppd.pgd, 0, sizeof(pgd_t) * PTRS_PER_PGD);
 	ppd.pgtable_area += sizeof(pgd_t) * PTRS_PER_PGD;
 
 	/*
-	 * A different PGD index/entry must be used to get different
-	 * pagetable entries for the decrypted mapping. Choose the next
-	 * PGD index and convert it to a virtual address to be used as
-	 * the base of the mapping.
-	 */
 	decrypted_base = (pgd_index(workarea_end) + 1) & (PTRS_PER_PGD - 1);
 	if (initrd_len) {
 		unsigned long check_base;
@@ -451,8 +343,6 @@ void __init sme_encrypt_kernel(struct boot_params *bp)
 		ppd.vaddr_end = initrd_end;
 		sme_map_range_encrypted(&ppd);
 		/*
-		 * Add decrypted, write-protected initrd (non-identity) mappings
-		 */
 		ppd.paddr = initrd_start;
 		ppd.vaddr = initrd_start + decrypted_base;
 		ppd.vaddr_end = initrd_end + decrypted_base;
@@ -480,10 +370,6 @@ void __init sme_encrypt_kernel(struct boot_params *bp)
 				    (unsigned long)ppd.pgd);
 
 	/*
-	 * At this point we are running encrypted.  Remove the mappings for
-	 * the decrypted areas - all that is needed for this is to remove
-	 * the PGD entry/entries.
-	 */
 	ppd.vaddr = kernel_start + decrypted_base;
 	ppd.vaddr_end = kernel_end + decrypted_base;
 	sme_clear_pgd(&ppd);
@@ -526,13 +412,6 @@ void __init sme_enable(struct boot_params *bp)
 #define AMD_SEV_BIT	BIT(1)
 
 	/*
-	 * Check for the SME/SEV feature:
-	 *   CPUID Fn8000_001F[EAX]
-	 *   - Bit 0 - Secure Memory Encryption support
-	 *   - Bit 1 - Secure Encrypted Virtualization support
-	 *   CPUID Fn8000_001F[EBX]
-	 *   - Bits 5:0 - Pagetable bit position used to indicate encryption
-	 */
 	eax = 0x8000001f;
 	ecx = 0;
 	native_cpuid(&eax, &ebx, &ecx, &edx);
@@ -553,14 +432,6 @@ void __init sme_enable(struct boot_params *bp)
 	/* Check if memory encryption is enabled */
 	if (feature_mask == AMD_SME_BIT) {
 		/*
-		 * No SME if Hypervisor bit is set. This check is here to
-		 * prevent a guest from trying to enable SME. For running as a
-		 * KVM guest the MSR_AMD64_SYSCFG will be sufficient, but there
-		 * might be other hypervisors which emulate that MSR as non-zero
-		 * or even pass it through to the guest.
-		 * A malicious hypervisor can still trick a guest into this
-		 * path, but there is no way to protect against that.
-		 */
 		eax = 1;
 		ecx = 0;
 		native_cpuid(&eax, &ebx, &ecx, &edx);
@@ -578,10 +449,6 @@ void __init sme_enable(struct boot_params *bp)
 	}
 
 	/*
-	 * Fixups have not been applied to phys_base yet and we're running
-	 * identity mapped, so we must obtain the address to the SME command
-	 * line argument data using rip-relative addressing.
-	 */
 	asm ("lea sme_cmdline_arg(%%rip), %0"
 	     : "=r" (cmdline_arg)
 	     : "p" (sme_cmdline_arg));

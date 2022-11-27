@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * trace_events_hist - trace event hist triggers
- *
- * Copyright (C) 2015 Tom Zanussi <tom.zanussi@linux.intel.com>
- */
 
 #include <linux/module.h>
 #include <linux/kallsyms.h>
@@ -14,7 +8,6 @@
 #include <linux/rculist.h>
 #include <linux/tracefs.h>
 
-/* for gfp flag names */
 #include <linux/trace_events.h>
 #include <trace/events/mmflags.h>
 
@@ -104,16 +97,6 @@ enum field_op_id {
 	FIELD_OP_MULT,
 };
 
-/*
- * A hist_var (histogram variable) contains variable information for
- * hist_fields having the HIST_FIELD_FL_VAR or HIST_FIELD_FL_VAR_REF
- * flag set.  A hist_var has a variable name e.g. ts0, and is
- * associated with a given histogram trigger, as specified by
- * hist_data.  The hist_var idx is the unique index assigned to the
- * variable by the hist trigger's tracing_map.  The idx is what is
- * used to set a variable's value and, by a variable reference, to
- * retrieve it.
- */
 struct hist_var {
 	char				*name;
 	struct hist_trigger_data	*hist_data;
@@ -134,27 +117,15 @@ struct hist_field {
 	struct hist_trigger_data	*hist_data;
 
 	/*
-	 * Variable fields contain variable-specific info in var.
-	 */
 	struct hist_var			var;
 	enum field_op_id		operator;
 	char				*system;
 	char				*event_name;
 
 	/*
-	 * The name field is used for EXPR and VAR_REF fields.  VAR
-	 * fields contain the variable name in var.name.
-	 */
 	char				*name;
 
 	/*
-	 * When a histogram trigger is hit, if it has any references
-	 * to variables, the values of those variables are collected
-	 * into a var_ref_vals array by resolve_var_refs().  The
-	 * current value of each variable is read from the tracing_map
-	 * using the hist field's hist_var.idx and entered into the
-	 * var_ref_idx entry i.e. var_ref_vals[var_ref_idx].
-	 */
 	unsigned int			var_ref_idx;
 	bool                            read_once;
 
@@ -369,19 +340,6 @@ static u64 div_by_mult_and_shift(struct hist_field *hist_field,
 	u64 val1 = operand1->fn(operand1, elt, buffer, rbe, event);
 
 	/*
-	 * If the divisor is a constant, do a multiplication and shift instead.
-	 *
-	 * Choose Z = some power of 2. If Y <= Z, then:
-	 *     X / Y = (X * (Z / Y)) / Z
-	 *
-	 * (Z / Y) is a constant (mult) which is calculated at parse time, so:
-	 *     X / Y = (X * mult) / Z
-	 *
-	 * The division by Z can be replaced by a shift since Z is a power of 2:
-	 *     X / Y = (X * mult) >> HIST_DIV_SHIFT
-	 *
-	 * As long, as X < Z the results will not be off by more than 1.
-	 */
 	if (val1 < (1 << HIST_DIV_SHIFT)) {
 		u64 mult = operand2->div_multiplier;
 
@@ -580,14 +538,6 @@ struct action_data {
 	char			*params[SYNTH_FIELDS_MAX];
 
 	/*
-	 * When a histogram trigger is hit, the values of any
-	 * references to variables, including variables being passed
-	 * as parameters to synthetic events, are collected into a
-	 * var_ref_vals array.  This var_ref_idx array is an array of
-	 * indices into the var_ref_vals array, one for each synthetic
-	 * event param, and is passed to the synthetic event
-	 * invocation.
-	 */
 	unsigned int		var_ref_idx[TRACING_MAP_VARS_MAX];
 	struct synth_event	*synth_event;
 	bool			use_trace_keyword;
@@ -601,26 +551,12 @@ struct action_data {
 
 		struct {
 			/*
-			 * var_str contains the $-unstripped variable
-			 * name referenced by var_ref, and used when
-			 * printing the action.  Because var_ref
-			 * creation is deferred to create_actions(),
-			 * we need a per-action way to save it until
-			 * then, thus var_str.
-			 */
 			char			*var_str;
 
 			/*
-			 * var_ref refers to the variable being
-			 * tracked e.g onmax($var).
-			 */
 			struct hist_field	*var_ref;
 
 			/*
-			 * track_var contains the 'invisible' tracking
-			 * variable created to keep the current
-			 * e.g. max value.
-			 */
 			struct hist_field	*track_var;
 
 			check_track_val_fn_t	check_val;
@@ -653,10 +589,6 @@ struct snapshot_context {
 	void			*key;
 };
 
-/*
- * Returns the specific division function to use if the divisor
- * is constant. This avoids extra branches when the trigger is hit.
- */
 static hist_field_fn_t hist_field_get_div_fn(struct hist_field *divisor)
 {
 	u64 div = divisor->constant;
@@ -862,17 +794,6 @@ static u64 hist_field_cpu(struct hist_field *hist_field,
 	return cpu;
 }
 
-/**
- * check_field_for_var_ref - Check if a VAR_REF field references a variable
- * @hist_field: The VAR_REF field to check
- * @var_data: The hist trigger that owns the variable
- * @var_idx: The trigger variable identifier
- *
- * Check the given VAR_REF field to see whether or not it references
- * the given variable associated with the given trigger.
- *
- * Return: The VAR_REF field if it does reference the variable, NULL if not
- */
 static struct hist_field *
 check_field_for_var_ref(struct hist_field *hist_field,
 			struct hist_trigger_data *var_data,
@@ -887,18 +808,6 @@ check_field_for_var_ref(struct hist_field *hist_field,
 	return NULL;
 }
 
-/**
- * find_var_ref - Check if a trigger has a reference to a trigger variable
- * @hist_data: The hist trigger that might have a reference to the variable
- * @var_data: The hist trigger that owns the variable
- * @var_idx: The trigger variable identifier
- *
- * Check the list of var_refs[] on the first hist trigger to see
- * whether any of them are references to the variable on the second
- * trigger.
- *
- * Return: The VAR_REF field referencing the variable if so, NULL if not
- */
 static struct hist_field *find_var_ref(struct hist_trigger_data *hist_data,
 				       struct hist_trigger_data *var_data,
 				       unsigned int var_idx)
@@ -915,20 +824,6 @@ static struct hist_field *find_var_ref(struct hist_trigger_data *hist_data,
 	return NULL;
 }
 
-/**
- * find_any_var_ref - Check if there is a reference to a given trigger variable
- * @hist_data: The hist trigger
- * @var_idx: The trigger variable identifier
- *
- * Check to see whether the given variable is currently referenced by
- * any other trigger.
- *
- * The trigger the variable is defined on is explicitly excluded - the
- * assumption being that a self-reference doesn't prevent a trigger
- * from being removed.
- *
- * Return: The VAR_REF field referencing the variable if so, NULL if not
- */
 static struct hist_field *find_any_var_ref(struct hist_trigger_data *hist_data,
 					   unsigned int var_idx)
 {
@@ -947,19 +842,7 @@ static struct hist_field *find_any_var_ref(struct hist_trigger_data *hist_data,
 	return found;
 }
 
-/**
- * check_var_refs - Check if there is a reference to any of trigger's variables
- * @hist_data: The hist trigger
- *
- * A trigger can define one or more variables.  If any one of them is
- * currently referenced by any other trigger, this function will
- * determine that.
 
- * Typically used to determine whether or not a trigger can be removed
- * - if there are any references to a trigger's variables, it cannot.
- *
- * Return: True if there is a reference to any of trigger's variables
- */
 static bool check_var_refs(struct hist_trigger_data *hist_data)
 {
 	struct hist_field *field;
@@ -1767,10 +1650,6 @@ static char *expr_str(struct hist_field *field, unsigned int level)
 	return expr;
 }
 
-/*
- * If field_op != FIELD_OP_NONE, *sep points to the root operator
- * of the expression tree to be evaluated.
- */
 static int contains_operator(char *str, char **sep)
 {
 	enum field_op_id field_op = FIELD_OP_NONE;
@@ -1778,25 +1657,11 @@ static int contains_operator(char *str, char **sep)
 
 
 	/*
-	 * Report the last occurrence of the operators first, so that the
-	 * expression is evaluated left to right. This is important since
-	 * subtraction and division are not associative.
-	 *
-	 *	e.g
-	 *		64/8/4/2 is 1, i.e 64/8/4/2 = ((64/8)/4)/2
-	 *		14-7-5-2 is 0, i.e 14-7-5-2 = ((14-7)-5)-2
-	 */
 
 	/*
-	 * First, find lower precedence addition and subtraction
-	 * since the expression will be evaluated recursively.
-	 */
 	minus_op = strrchr(str, '-');
 	if (minus_op) {
 		/*
-		 * Unary minus is not supported in sub-expressions. If
-		 * present, it is always the next root operator.
-		 */
 		if (minus_op == str) {
 			field_op = FIELD_OP_UNARY_MINUS;
 			goto out;
@@ -1808,27 +1673,18 @@ static int contains_operator(char *str, char **sep)
 	plus_op = strrchr(str, '+');
 	if (plus_op || minus_op) {
 		/*
-		 * For operators of the same precedence use to rightmost as the
-		 * root, so that the expression is evaluated left to right.
-		 */
 		if (plus_op > minus_op)
 			field_op = FIELD_OP_PLUS;
 		goto out;
 	}
 
 	/*
-	 * Multiplication and division have higher precedence than addition and
-	 * subtraction.
-	 */
 	div_op = strrchr(str, '/');
 	if (div_op)
 		field_op = FIELD_OP_DIV;
 
 	mult_op = strrchr(str, '*');
 	/*
-	 * For operators of the same precedence use to rightmost as the
-	 * root, so that the expression is evaluated left to right.
-	 */
 	if (mult_op > div_op)
 		field_op = FIELD_OP_MULT;
 
@@ -2118,21 +1974,6 @@ static int find_var_ref_idx(struct hist_trigger_data *hist_data,
 	return -ENOENT;
 }
 
-/**
- * create_var_ref - Create a variable reference and attach it to trigger
- * @hist_data: The trigger that will be referencing the variable
- * @var_field: The VAR field to create a reference to
- * @system: The optional system string
- * @event_name: The optional event_name string
- *
- * Given a variable hist_field, create a VAR_REF hist_field that
- * represents a reference to it.
- *
- * This function also adds the reference to the trigger that
- * now references the variable.
- *
- * Return: The VAR_REF field if successful, NULL if not
- */
 static struct hist_field *create_var_ref(struct hist_trigger_data *hist_data,
 					 struct hist_field *var_field,
 					 char *system, char *event_name)
@@ -2262,9 +2103,6 @@ parse_field(struct hist_trigger_data *hist_data, struct trace_event_file *file,
 		else if (strcmp(modifier, "sym") == 0)
 			*flags |= HIST_FIELD_FL_SYM;
 		/*
-		 * 'sym-offset' occurrences in the trigger string are modified
-		 * to 'symXoffset' to simplify arithmetic expression parsing.
-		 */
 		else if (strcmp(modifier, "symXoffset") == 0)
 			*flags |= HIST_FIELD_FL_SYM_OFFSET;
 		else if ((strcmp(modifier, "execname") == 0) &&
@@ -2309,10 +2147,6 @@ parse_field(struct hist_trigger_data *hist_data, struct trace_event_file *file,
 		field = trace_find_event_field(file->event_call, field_name);
 		if (!field || !field->size) {
 			/*
-			 * For backward compatibility, if field_name
-			 * was "cpu", then we treat this the same as
-			 * common_cpu. This also works for "CPU".
-			 */
 			if (field && field->filter_type == FILTER_CPU) {
 				*flags |= HIST_FIELD_FL_CPU;
 			} else {
@@ -2366,7 +2200,6 @@ static struct hist_field *parse_const(struct hist_trigger_data *hist_data,
 		return NULL;
 	}
 
-	*flags |= HIST_FIELD_FL_CONST;
 	field = create_hist_field(hist_data, NULL, *flags, var_name);
 	if (!field)
 		return NULL;
@@ -2541,10 +2374,6 @@ static struct hist_field *parse_unary(struct hist_trigger_data *hist_data,
 	return ERR_PTR(ret);
 }
 
-/*
- * If the operands are var refs, return pointers the
- * variable(s) referenced in var1 and var2, else NULL.
- */
 static int check_expr_operands(struct trace_array *tr,
 			       struct hist_field *operand1,
 			       struct hist_field *operand2,
@@ -2618,7 +2447,6 @@ static struct hist_field *parse_expr(struct hist_trigger_data *hist_data,
 	if (!sep)
 		return ERR_PTR(-EINVAL);
 
-	*sep = '\0';
 	operand1_str = str;
 	str = sep+1;
 
@@ -2678,9 +2506,6 @@ static struct hist_field *parse_expr(struct hist_trigger_data *hist_data,
 	operand2_flags = var2 ? var2->flags : operand2->flags;
 
 	/*
-	 * If both operands are constant, the expression can be
-	 * collapsed to a single constant.
-	 */
 	combine_consts = operand_flags & operand2_flags & HIST_FIELD_FL_CONST;
 
 	flags |= combine_consts ? HIST_FIELD_FL_CONST : HIST_FIELD_FL_EXPR;
@@ -2712,9 +2537,6 @@ static struct hist_field *parse_expr(struct hist_trigger_data *hist_data,
 		}
 
 		/*
-		 * Copy the divisor here so we don't have to look it up
-		 * later if this is a var ref
-		 */
 		operand2->constant = divisor;
 		op_fn = hist_field_get_div_fn(operand2);
 	}
@@ -2731,9 +2553,6 @@ static struct hist_field *parse_expr(struct hist_trigger_data *hist_data,
 		expr->operands[1] = NULL;
 
 		/*
-		 * var refs won't be destroyed immediately
-		 * See: destroy_hist_field()
-		 */
 		destroy_hist_field(operand2, 0);
 		destroy_hist_field(operand1, 0);
 
@@ -2876,31 +2695,6 @@ find_synthetic_field_var(struct hist_trigger_data *target_hist_data,
 	return event_var;
 }
 
-/**
- * create_field_var_hist - Automatically create a histogram and var for a field
- * @target_hist_data: The target hist trigger
- * @subsys_name: Optional subsystem name
- * @event_name: Optional event name
- * @field_name: The name of the field (and the resulting variable)
- *
- * Hist trigger actions fetch data from variables, not directly from
- * events.  However, for convenience, users are allowed to directly
- * specify an event field in an action, which will be automatically
- * converted into a variable on their behalf.
- *
- * If a user specifies a field on an event that isn't the event the
- * histogram currently being defined (the target event histogram), the
- * only way that can be accomplished is if a new hist trigger is
- * created and the field variable defined on that.
- *
- * This function creates a new histogram compatible with the target
- * event (meaning a histogram with the same key as the target
- * histogram), and creates a variable for the specified field, but
- * with 'synthetic_' prepended to the variable name in order to avoid
- * collision with normal field variables.
- *
- * Return: The variable created for the field.
- */
 static struct hist_field *
 create_field_var_hist(struct hist_trigger_data *target_hist_data,
 		      char *subsys_name, char *event_name, char *field_name)
@@ -2930,11 +2724,6 @@ create_field_var_hist(struct hist_trigger_data *target_hist_data,
 	}
 
 	/*
-	 * Look for a histogram compatible with target.  We'll use the
-	 * found histogram specification to create a new matching
-	 * histogram with our variable on it.  target_hist_data is not
-	 * yet a registered histogram so we can't use that.
-	 */
 	hist_data = find_compatible_hist(target_hist_data, file);
 	if (!hist_data) {
 		hist_err(tr, HIST_ERR_HIST_NOT_FOUND, errpos(field_name));
@@ -3191,26 +2980,7 @@ static struct field_var *create_field_var(struct hist_trigger_data *hist_data,
 	goto out;
 }
 
-/**
- * create_target_field_var - Automatically create a variable for a field
- * @target_hist_data: The target hist trigger
- * @subsys_name: Optional subsystem name
- * @event_name: Optional event name
- * @var_name: The name of the field (and the resulting variable)
- *
- * Hist trigger actions fetch data from variables, not directly from
- * events.  However, for convenience, users are allowed to directly
- * specify an event field in an action, which will be automatically
- * converted into a variable on their behalf.
 
- * This function creates a field variable with the name var_name on
- * the hist trigger currently being defined on the target event.  If
- * subsys_name and event_name are specified, this function simply
- * verifies that they do in fact match the target event subsystem and
- * event name.
- *
- * Return: The variable created for the field.
- */
 static struct field_var *
 create_target_field_var(struct hist_trigger_data *target_hist_data,
 			char *subsys_name, char *event_name, char *var_name)
@@ -3789,10 +3559,6 @@ static int check_synth_field(struct synth_event *event,
 	field = event->fields[field_pos];
 
 	/*
-	 * A dynamic string synth field can accept static or
-	 * dynamic. A static string synth field can only accept a
-	 * same-sized static string, which is checked for later.
-	 */
 	if (strstr(hist_field->type, "char[") && field->is_string
 	    && field->is_dynamic)
 		return 0;
@@ -3841,11 +3607,6 @@ trace_action_create_field_var(struct hist_trigger_data *hist_data,
 	struct field_var *field_var;
 
 	/*
-	 * First try to create a field var on the target event (the
-	 * currently being defined).  This will create a variable for
-	 * unqualified fields on the target event, or if qualified,
-	 * target fields that have qualified names matching the target.
-	 */
 	field_var = create_target_field_var(hist_data, system, event, var);
 
 	if (field_var && !IS_ERR(field_var)) {
@@ -3854,10 +3615,6 @@ trace_action_create_field_var(struct hist_trigger_data *hist_data,
 	} else {
 		field_var = NULL;
 		/*
-		 * If no explicit system.event is specified, default to
-		 * looking for fields on the onmatch(system.event.xxx)
-		 * event.
-		 */
 		if (!system && data->handler == HANDLER_ONMATCH) {
 			system = data->match_data.event_system;
 			event = data->match_data.event;
@@ -3866,12 +3623,6 @@ trace_action_create_field_var(struct hist_trigger_data *hist_data,
 		if (!event)
 			goto free;
 		/*
-		 * At this point, we're looking at a field on another
-		 * event.  Because we can't modify a hist trigger on
-		 * another event to add a variable for a field, we need
-		 * to create a new trigger on that event and create the
-		 * variable at the same time.
-		 */
 		hist_field = create_field_var_hist(hist_data, system, event, var);
 		if (IS_ERR(hist_field))
 			goto free;
@@ -4186,7 +3937,6 @@ static u64 hist_field_execname(struct hist_field *hist_field,
 	return (u64)(unsigned long)(elt_data->comm);
 }
 
-/* Convert a var that points to common_pid.execname to a string */
 static void update_var_execname(struct hist_field *hist_field)
 {
 	hist_field->flags = HIST_FIELD_FL_STRING | HIST_FIELD_FL_VAR |
@@ -6231,9 +5981,6 @@ static int event_hist_trigger_parse(struct event_command *cmd_ops,
 		return -EINVAL;
 
 	/*
-	 * separate the trigger from the filter (k:v [if filter])
-	 * allowing for whitespace in the trigger
-	 */
 	p = param = param_and_filter;
 	do {
 		p = strstr(p, "if");
@@ -6263,9 +6010,6 @@ static int event_hist_trigger_parse(struct event_command *cmd_ops,
 	}
 
 	/*
-	 * To simplify arithmetic expression parsing, replace occurrences of
-	 * '.sym-offset' modifier with '.symXoffset'
-	 */
 	start = strstr(param, ".sym-offset");
 	while (start) {
 		*(start + 4) = 'X';

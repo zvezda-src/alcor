@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/* Include in trace.c */
 
 #include <uapi/linux/sched/types.h>
 #include <linux/stringify.h>
@@ -33,10 +31,6 @@ static int trace_test_buffer_cpu(struct array_buffer *buf, int cpu)
 		entry = ring_buffer_event_data(event);
 
 		/*
-		 * The ring buffer is a size of trace_buf_size, if
-		 * we loop more than the size, there's something wrong
-		 * with the ring buffer.
-		 */
 		if (loops++ > trace_buf_size) {
 			printk(KERN_CONT ".. bad ring buffer ");
 			goto failed;
@@ -56,10 +50,6 @@ static int trace_test_buffer_cpu(struct array_buffer *buf, int cpu)
 	return -1;
 }
 
-/*
- * Test the trace buffer to see if all the elements
- * are still sane.
- */
 static int __maybe_unused trace_test_buffer(struct array_buffer *buf, unsigned long *count)
 {
 	unsigned long flags, cnt = 0;
@@ -72,12 +62,6 @@ static int __maybe_unused trace_test_buffer(struct array_buffer *buf, unsigned l
 	cnt = ring_buffer_entries(buf->buffer);
 
 	/*
-	 * The trace_test_buffer_cpu runs a while loop to consume all data.
-	 * If the calling tracer is broken, and is constantly filling
-	 * the buffer, this will run forever, and hard lock the box.
-	 * We disable the ring buffer while we do this test to prevent
-	 * a hard lock up.
-	 */
 	tracing_off();
 	for_each_possible_cpu(cpu) {
 		ret = trace_test_buffer_cpu(buf, cpu);
@@ -202,10 +186,6 @@ static int trace_selftest_ops(struct trace_array *tr, int cnt)
 	len2 = strlen(func2_name);
 
 	/*
-	 * Probe 1 will trace function 1.
-	 * Probe 2 will trace function 2.
-	 * Probe 3 will trace functions 1 and 2.
-	 */
 	ftrace_set_filter(&test_probe1, func1_name, len1, 1);
 	ftrace_set_filter(&test_probe2, func2_name, len2, 1);
 	ftrace_set_filter(&test_probe3, func1_name, len1, 1);
@@ -352,7 +332,6 @@ static int trace_selftest_ops(struct trace_array *tr, int cnt)
 	return ret;
 }
 
-/* Test dynamic code modification and ftrace filters */
 static int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 						  struct trace_array *tr,
 						  int (*func)(void))
@@ -373,10 +352,6 @@ static int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 	func();
 
 	/*
-	 * Some archs *cough*PowerPC*cough* add characters to the
-	 * start of the function names. We simply put a '*' to
-	 * accommodate them.
-	 */
 	func_name = "*" __stringify(DYN_FTRACE_TEST_NAME);
 
 	/* filter only on our function */
@@ -451,10 +426,6 @@ static void trace_selftest_test_recursion_func(unsigned long ip,
 					       struct ftrace_regs *fregs)
 {
 	/*
-	 * This function is registered without the recursion safe flag.
-	 * The ftrace infrastructure should provide the recursion
-	 * protection. If not, this will crash the kernel!
-	 */
 	if (trace_selftest_recursion_cnt++ > 10)
 		return;
 	DYN_FTRACE_TEST_NAME();
@@ -466,12 +437,6 @@ static void trace_selftest_test_recursion_safe_func(unsigned long ip,
 						    struct ftrace_regs *fregs)
 {
 	/*
-	 * We said we would provide our own recursion. By calling
-	 * this function again, we should recurse back into this function
-	 * and count again. But this only happens if the arch supports
-	 * all of ftrace features and nothing else is using the function
-	 * tracing utility.
-	 */
 	if (trace_selftest_recursion_cnt++)
 		return;
 	DYN_FTRACE_TEST_NAME();
@@ -524,9 +489,6 @@ trace_selftest_function_recursion(void)
 
 	ret = -1;
 	/*
-	 * Recursion allows for transitions between context,
-	 * and may call the callback twice.
-	 */
 	if (trace_selftest_recursion_cnt != 1 &&
 	    trace_selftest_recursion_cnt != 2) {
 		pr_cont("*callback not called once (or twice) (%d)* ",
@@ -624,9 +586,6 @@ trace_selftest_function_regs(void)
 
 	ret = ftrace_set_filter(&test_regs_probe, func_name, len, 1);
 	/*
-	 * If DYNAMIC_FTRACE is not set, then we just trace all functions.
-	 * This test really doesn't care.
-	 */
 	if (ret && ret != -ENODEV) {
 		pr_cont("*Could not set filter* ");
 		goto out;
@@ -634,9 +593,6 @@ trace_selftest_function_regs(void)
 
 	ret = register_ftrace_function(&test_regs_probe);
 	/*
-	 * Now if the arch does not support passing regs, then this should
-	 * have failed.
-	 */
 	if (!supported) {
 		if (!ret) {
 			pr_cont("*registered save-regs without arch support* ");
@@ -682,11 +638,6 @@ out:
 	return ret;
 }
 
-/*
- * Simple verification test of ftrace function tracer.
- * Enable ftrace, sleep 1/10 second, and then read the trace
- * buffer to see if all is in order.
- */
 __init int
 trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 {
@@ -756,12 +707,10 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
-/* Maximum number of functions to trace before diagnosing a hang */
 #define GRAPH_MAX_FUNC_TEST	100000000
 
 static unsigned int graph_hang_thresh;
 
-/* Wrap the real function entry probe to avoid possible hanging */
 static int trace_graph_entry_watchdog(struct ftrace_graph_ent *trace)
 {
 	/* This is harmlessly racy, we want to approximately detect a hang */
@@ -788,10 +737,6 @@ static struct fgraph_ops fgraph_ops __initdata  = {
 noinline __noclone static void trace_direct_tramp(void) { }
 #endif
 
-/*
- * Pretty much the same than for the function tracer from which the selftest
- * has been borrowed.
- */
 __init int
 trace_selftest_startup_function_graph(struct tracer *trace,
 					struct trace_array *tr)
@@ -808,9 +753,6 @@ trace_selftest_startup_function_graph(struct tracer *trace,
 #endif
 
 	/*
-	 * Simulate the init() callback but we attach a watchdog callback
-	 * to detect and recover from possible hangs
-	 */
 	tracing_reset_online_cpus(&tr->array_buffer);
 	set_graph_array(tr);
 	ret = register_ftrace_graph(&fgraph_ops);
@@ -852,17 +794,10 @@ trace_selftest_startup_function_graph(struct tracer *trace,
 	set_graph_array(tr);
 
 	/*
-	 * Some archs *cough*PowerPC*cough* add characters to the
-	 * start of the function names. We simply put a '*' to
-	 * accommodate them.
-	 */
 	func_name = "*" __stringify(DYN_FTRACE_TEST_NAME);
 	ftrace_set_global_filter(func_name, strlen(func_name), 1);
 
 	/*
-	 * Register direct function together with graph tracer
-	 * and make sure we get graph trace.
-	 */
 	ret = register_ftrace_direct((unsigned long) DYN_FTRACE_TEST_NAME,
 				     (unsigned long) trace_direct_tramp);
 	if (ret)
@@ -934,11 +869,6 @@ trace_selftest_startup_irqsoff(struct tracer *trace, struct trace_array *tr)
 	local_irq_enable();
 
 	/*
-	 * Stop the tracer to avoid a warning subsequent
-	 * to buffer flipping failure because tracing_stop()
-	 * disables the tr and max buffers, making flipping impossible
-	 * in case of parallels max irqs off latencies.
-	 */
 	trace->stop(tr);
 	/* stop the tracing. */
 	tracing_stop();
@@ -969,13 +899,6 @@ trace_selftest_startup_preemptoff(struct tracer *trace, struct trace_array *tr)
 	int ret;
 
 	/*
-	 * Now that the big kernel lock is no longer preemptible,
-	 * and this is called with the BKL held, it will always
-	 * fail. If preemption is already disabled, simply
-	 * pass the test. When the BKL is removed, or becomes
-	 * preemptible again, we will once again test this,
-	 * so keep it in.
-	 */
 	if (preempt_count()) {
 		printk(KERN_CONT "can not test ... force ");
 		return 0;
@@ -996,11 +919,6 @@ trace_selftest_startup_preemptoff(struct tracer *trace, struct trace_array *tr)
 	preempt_enable();
 
 	/*
-	 * Stop the tracer to avoid a warning subsequent
-	 * to buffer flipping failure because tracing_stop()
-	 * disables the tr and max buffers, making flipping impossible
-	 * in case of parallels max preempt off latencies.
-	 */
 	trace->stop(tr);
 	/* stop the tracing. */
 	tracing_stop();
@@ -1031,13 +949,6 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	int ret;
 
 	/*
-	 * Now that the big kernel lock is no longer preemptible,
-	 * and this is called with the BKL held, it will always
-	 * fail. If preemption is already disabled, simply
-	 * pass the test. When the BKL is removed, or becomes
-	 * preemptible again, we will once again test this,
-	 * so keep it in.
-	 */
 	if (preempt_count()) {
 		printk(KERN_CONT "can not test ... force ");
 		return 0;
@@ -1062,11 +973,6 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	local_irq_enable();
 
 	/*
-	 * Stop the tracer to avoid a warning subsequent
-	 * to buffer flipping failure because tracing_stop()
-	 * disables the tr and max buffers, making flipping impossible
-	 * in case of parallels max irqs/preempt off latencies.
-	 */
 	trace->stop(tr);
 	/* stop the tracing. */
 	tracing_stop();
@@ -1211,10 +1117,6 @@ trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 
 	while (p->on_rq) {
 		/*
-		 * Sleep to make sure the -deadline thread is asleep too.
-		 * On virtual machines we can't rely on timings,
-		 * but we want to make sure this test still works.
-		 */
 		msleep(100);
 	}
 

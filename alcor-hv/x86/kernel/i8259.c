@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/linkage.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
@@ -24,35 +23,14 @@
 #include <asm/apic.h>
 #include <asm/i8259.h>
 
-/*
- * This is the 'legacy' 8259A Programmable Interrupt Controller,
- * present in the majority of PC/AT boxes.
- * plus some generic x86 specific things if generic specifics makes
- * any sense at all.
- */
 static void init_8259A(int auto_eoi);
 
 static int i8259A_auto_eoi;
 DEFINE_RAW_SPINLOCK(i8259A_lock);
 
-/*
- * 8259A PIC functions to handle ISA devices:
- */
 
-/*
- * This contains the irq mask for both 8259A irq controllers,
- */
 unsigned int cached_irq_mask = 0xffff;
 
-/*
- * Not all IRQs can be routed through the IO-APIC, eg. on certain (older)
- * boards the timer interrupt is not really connected to any IO-APIC pin,
- * it's fed to the master 8259A's IR0 line only.
- *
- * Any '1' bit in this mask means the IRQ is routed through the IO-APIC.
- * this 'mixed mode' IRQ handling costs nothing because it's only used
- * at IRQ setup time.
- */
 unsigned long io_apic_irqs;
 
 static void mask_8259A_irq(unsigned int irq)
@@ -118,12 +96,6 @@ static void make_8259A_irq(unsigned int irq)
 	lapic_assign_legacy_vector(irq, true);
 }
 
-/*
- * This function assumes to be called rarely. Switching between
- * 8259A registers is slow.
- * This has to be protected by the irq controller spinlock
- * before being called.
- */
 static inline int i8259A_irq_real(unsigned int irq)
 {
 	int value;
@@ -141,12 +113,6 @@ static inline int i8259A_irq_real(unsigned int irq)
 	return value;
 }
 
-/*
- * Careful! The 8259A is a fragile beast, it pretty
- * much _has_ to be done exactly like this (mask it
- * first, _then_ send the EOI, and the order of EOI
- * to the two 8259s is important!
- */
 static void mask_and_ack_8259A(struct irq_data *data)
 {
 	unsigned int irq = data->irq;
@@ -155,20 +121,6 @@ static void mask_and_ack_8259A(struct irq_data *data)
 
 	raw_spin_lock_irqsave(&i8259A_lock, flags);
 	/*
-	 * Lightweight spurious IRQ detection. We do not want
-	 * to overdo spurious IRQ handling - it's usually a sign
-	 * of hardware problems, so we only do the checks we can
-	 * do without slowing down good hardware unnecessarily.
-	 *
-	 * Note that IRQ7 and IRQ15 (the two spurious IRQs
-	 * usually resulting from the 8259A-1|2 PICs) occur
-	 * even if the IRQ is masked in the 8259A. Thus we
-	 * can check spurious 8259A IRQs without doing the
-	 * quite slow i8259A_irq_real() call for every IRQ.
-	 * This does not cover 100% of spurious interrupts,
-	 * but should be enough to warn the user that there
-	 * is something bad going on ...
-	 */
 	if (cached_irq_mask & irqmask)
 		goto spurious_8259A_irq;
 	cached_irq_mask |= irqmask;
@@ -191,21 +143,13 @@ handle_real_irq:
 
 spurious_8259A_irq:
 	/*
-	 * this is the slow path - should happen rarely.
-	 */
 	if (i8259A_irq_real(irq))
 		/*
-		 * oops, the IRQ _is_ in service according to the
-		 * 8259A - not spurious, go handle it.
-		 */
 		goto handle_real_irq;
 
 	{
 		static int spurious_irq_mask;
 		/*
-		 * At this point we can be sure the IRQ is spurious,
-		 * lets ACK and report it. [once per IRQ]
-		 */
 		if (!(spurious_irq_mask & irqmask)) {
 			printk_deferred(KERN_DEBUG
 			       "spurious 8259A interrupt: IRQ%d.\n", irq);
@@ -213,10 +157,6 @@ spurious_8259A_irq:
 		}
 		atomic_inc(&irq_err_count);
 		/*
-		 * Theoretically we do not have to handle this IRQ,
-		 * but in Linux this does not cause problems and is
-		 * simpler for us.
-		 */
 		goto handle_real_irq;
 	}
 }
@@ -230,9 +170,6 @@ struct irq_chip i8259A_chip = {
 };
 
 static char irq_trigger[2];
-/**
- * ELCR registers (0x4d0, 0x4d1) control edge/level of IRQ
- */
 static void restore_ELCR(char *trigger)
 {
 	outb(trigger[0], PIC_ELCR1);
@@ -304,12 +241,6 @@ static int probe_8259A(void)
 	unsigned char probe_val = ~(1 << PIC_CASCADE_IR);
 	unsigned char new_val;
 	/*
-	 * Check to see if we have a PIC.
-	 * Mask all except the cascade and read
-	 * back the value we just wrote. If we don't
-	 * have a PIC, we will read 0xff as opposed to the
-	 * value we wrote.
-	 */
 	raw_spin_lock_irqsave(&i8259A_lock, flags);
 
 	outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-2 */
@@ -335,8 +266,6 @@ static void init_8259A(int auto_eoi)
 	outb(0xff, PIC_MASTER_IMR);	/* mask all of 8259A-1 */
 
 	/*
-	 * outb_pic - this has to work on a wide range of PC hardware.
-	 */
 	outb_pic(0x11, PIC_MASTER_CMD);	/* ICW1: select 8259A-1 init */
 
 	/* ICW2: 8259A-1 IR0-7 mapped to ISA_IRQ_VECTOR(0) */
@@ -361,9 +290,6 @@ static void init_8259A(int auto_eoi)
 
 	if (auto_eoi)
 		/*
-		 * In AEOI mode we just have to mask the interrupt
-		 * when acking.
-		 */
 		i8259A_chip.irq_mask_ack = disable_8259A_irq;
 	else
 		i8259A_chip.irq_mask_ack = mask_and_ack_8259A;
@@ -376,11 +302,6 @@ static void init_8259A(int auto_eoi)
 	raw_spin_unlock_irqrestore(&i8259A_lock, flags);
 }
 
-/*
- * make i8259 a driver so that we can select pic functions at run time. the goal
- * is to make x86 binary compatible among pc compatible and non-pc compatible
- * platforms, such as x86 MID.
- */
 
 static void legacy_pic_noop(void) { };
 static void legacy_pic_uint_noop(unsigned int unused) { };

@@ -1,9 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _KERNEL_TIME_TIMEKEEPING_H
 #define _KERNEL_TIME_TIMEKEEPING_H
-/*
- * Internal interfaces for kernel/time/
- */
 extern ktime_t ktime_get_update_offsets_now(unsigned int *cwsseq,
 					    ktime_t *offs_real,
 					    ktime_t *offs_boot,

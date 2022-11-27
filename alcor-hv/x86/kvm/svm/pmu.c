@@ -1,14 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * KVM PMU support for AMD
- *
- * Copyright 2015, Red Hat, Inc. and/or its affiliates.
- *
- * Author:
- *   Wei Huang <wei@redhat.com>
- *
- * Implementation is based on pmu_intel.c file
- */
 #include <linux/types.h>
 #include <linux/kvm_host.h>
 #include <linux/perf_event.h>
@@ -131,9 +120,6 @@ static bool amd_hw_event_available(struct kvm_pmc *pmc)
 	return true;
 }
 
-/* check if a PMC is enabled by comparing it against global_ctrl bits. Because
- * AMD CPU doesn't have global_ctrl MSR, all PMCs are enabled (return TRUE).
- */
 static bool amd_pmc_is_enabled(struct kvm_pmc *pmc)
 {
 	return true;
@@ -146,9 +132,6 @@ static struct kvm_pmc *amd_pmc_idx_to_pmc(struct kvm_pmu *pmu, int pmc_idx)
 
 	if (guest_cpuid_has(vcpu, X86_FEATURE_PERFCTR_CORE)) {
 		/*
-		 * The idx is contiguous. The MSRs are not. The counter MSRs
-		 * are interleaved with the event select MSRs.
-		 */
 		pmc_idx *= 2;
 	}
 
@@ -164,7 +147,6 @@ static bool amd_is_valid_rdpmc_ecx(struct kvm_vcpu *vcpu, unsigned int idx)
 	return idx < pmu->nr_arch_gp_counters;
 }
 
-/* idx is the ECX register of RDPMC instruction */
 static struct kvm_pmc *amd_rdpmc_ecx_to_pmc(struct kvm_vcpu *vcpu,
 	unsigned int idx, u64 *mask)
 {

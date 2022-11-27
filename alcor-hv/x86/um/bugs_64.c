@@ -1,8 +1,3 @@
-/*
- * Copyright 2003 PathScale, Inc.
- *
- * Licensed under the GPL
- */
 
 #include <sysdep/ptrace.h>
 

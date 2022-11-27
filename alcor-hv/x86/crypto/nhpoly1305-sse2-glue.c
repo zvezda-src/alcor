@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * NHPoly1305 - ε-almost-∆-universal hash function for Adiantum
- * (SSE2 accelerated version)
- *
- * Copyright 2018 Google LLC
- */
 
 #include <crypto/internal/hash.h>
 #include <crypto/internal/simd.h>
@@ -16,7 +9,6 @@
 asmlinkage void nh_sse2(const u32 *key, const u8 *message, size_t message_len,
 			u8 hash[NH_HASH_BYTES]);
 
-/* wrapper to avoid indirect call to assembly, which doesn't work with CFI */
 static void _nh_sse2(const u32 *key, const u8 *message, size_t message_len,
 		     __le64 hash[NH_NUM_PASSES])
 {

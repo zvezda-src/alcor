@@ -1,13 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef BOOT_COMPRESSED_MISC_H
 #define BOOT_COMPRESSED_MISC_H
 
-/*
- * Special hack: we have to be careful, because no indirections are allowed here,
- * and paravirt_ops is a kind of one. As it will only run in baremetal anyway,
- * we just keep it from happening. (This list needs to be extended when new
- * paravirt and debugging variants are added.)
- */
 #undef CONFIG_PARAVIRT
 #undef CONFIG_PARAVIRT_XXL
 #undef CONFIG_PARAVIRT_SPINLOCKS
@@ -16,7 +9,6 @@
 
 #define __NO_FORTIFY
 
-/* cpu_feature_enabled() cannot be used this early */
 #define USE_EARLY_PGTABLE_L5
 
 #include <linux/linkage.h>
@@ -44,10 +36,8 @@
 #define memptr unsigned
 #endif
 
-/* boot/compressed/vmlinux start and end markers */
 extern char _head[], _end[];
 
-/* misc.c */
 extern memptr free_mem_ptr;
 extern memptr free_mem_end_ptr;
 void *malloc(int size);
@@ -78,7 +68,6 @@ static inline void debug_puthex(unsigned long value)
 
 #endif
 
-/* cmdline.c */
 int cmdline_find_option(const char *option, char *buffer, int bufsize);
 int cmdline_find_option_bool(const char *option);
 
@@ -88,7 +77,6 @@ struct mem_vector {
 };
 
 #ifdef CONFIG_RANDOMIZE_BASE
-/* kaslr.c */
 void choose_random_location(unsigned long input,
 			    unsigned long input_size,
 			    unsigned long *output,
@@ -104,7 +92,6 @@ static inline void choose_random_location(unsigned long input,
 }
 #endif
 
-/* cpuflags.c */
 bool has_cpuflag(int flag);
 
 #ifdef CONFIG_X86_64
@@ -115,7 +102,6 @@ extern unsigned char _pgtable[];
 #endif
 
 #ifdef CONFIG_EARLY_PRINTK
-/* early_serial_console.c */
 extern int early_serial_base;
 void console_init(void);
 #else
@@ -143,7 +129,6 @@ static inline void snp_set_page_shared(unsigned long paddr) { }
 static inline void sev_prep_identity_maps(unsigned long top_level_pgt) { }
 #endif
 
-/* acpi.c */
 #ifdef CONFIG_ACPI
 acpi_physical_address get_rsdp_addr(void);
 #else
@@ -157,16 +142,13 @@ int count_immovable_mem_regions(void);
 static inline int count_immovable_mem_regions(void) { return 0; }
 #endif
 
-/* ident_map_64.c */
 #ifdef CONFIG_X86_5LEVEL
 extern unsigned int __pgtable_l5_enabled, pgdir_shift, ptrs_per_p4d;
 #endif
 extern void kernel_add_identity_map(unsigned long start, unsigned long end);
 
-/* Used by PAGE_KERN* macros: */
 extern pteval_t __default_kernel_pte_mask;
 
-/* idt_64.c */
 extern gate_desc boot_idt[BOOT_IDT_ENTRIES];
 extern struct desc_ptr boot_idt_desc;
 
@@ -176,7 +158,6 @@ void cleanup_exception_handling(void);
 static inline void cleanup_exception_handling(void) { }
 #endif
 
-/* IDT Entry Points */
 void boot_page_fault(void);
 void boot_stage1_vc(void);
 void boot_stage2_vc(void);
@@ -190,7 +171,6 @@ enum efi_type {
 };
 
 #ifdef CONFIG_EFI
-/* helpers for early EFI config table access */
 enum efi_type efi_get_type(struct boot_params *bp);
 unsigned long efi_get_system_table(struct boot_params *bp);
 int efi_get_conf_table(struct boot_params *bp, unsigned long *cfg_tbl_pa,

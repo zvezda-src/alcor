@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM msr
 
@@ -13,10 +12,6 @@
 
 #include <linux/tracepoint.h>
 
-/*
- * Tracing for x86 model specific registers. Directly maps to the
- * RDMSR/WRMSR instructions.
- */
 
 DECLARE_EVENT_CLASS(msr_trace_class,
 	    TP_PROTO(unsigned msr, u64 val, int failed),
@@ -54,5 +49,4 @@ DEFINE_EVENT(msr_trace_class, rdpmc,
 
 #endif /* _TRACE_MSR_H */
 
-/* This part must be outside protection */
 #include <trace/define_trace.h>

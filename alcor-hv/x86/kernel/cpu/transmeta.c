@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
@@ -93,9 +92,6 @@ static void init_transmeta(struct cpuinfo_x86 *c)
 
 #ifdef CONFIG_SYSCTL
 	/*
-	 * randomize_va_space slows us down enormously;
-	 * it probably triggers retranslation of x86->native bytecode
-	 */
 	randomize_va_space = 0;
 #endif
 }

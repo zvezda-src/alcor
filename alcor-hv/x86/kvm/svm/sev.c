@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Kernel-based Virtual Machine driver for Linux
- *
- * AMD SVM-SEV support
- *
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
- */
 
 #include <linux/kvm_types.h>
 #include <linux/kvm_host.h>
@@ -30,26 +22,14 @@
 #include "trace.h"
 
 #ifndef CONFIG_KVM_AMD_SEV
-/*
- * When this config is not defined, SEV feature is not supported and APIs in
- * this file are not used but this file still gets compiled into the KVM AMD
- * module.
- *
- * We will not have MISC_CG_RES_SEV and MISC_CG_RES_SEV_ES entries in the enum
- * misc_res_type {} defined in linux/misc_cgroup.h.
- *
- * Below macros allow compilation to succeed.
- */
 #define MISC_CG_RES_SEV MISC_CG_RES_TYPES
 #define MISC_CG_RES_SEV_ES MISC_CG_RES_TYPES
 #endif
 
 #ifdef CONFIG_KVM_AMD_SEV
-/* enable/disable SEV support */
 static bool sev_enabled = true;
 module_param_named(sev, sev_enabled, bool, 0444);
 
-/* enable/disable SEV-ES support */
 static bool sev_es_enabled = true;
 module_param_named(sev_es, sev_es_enabled, bool, 0444);
 #else
@@ -75,7 +55,6 @@ struct enc_region {
 	unsigned long size;
 };
 
-/* Called with the sev_bitmap_lock held, or on shutdown  */
 static int sev_flush_asids(int min_asid, int max_asid)
 {
 	int ret, asid, error = 0;
@@ -86,9 +65,6 @@ static int sev_flush_asids(int min_asid, int max_asid)
 		return -EBUSY;
 
 	/*
-	 * DEACTIVATE will clear the WBINVD indicator causing DF_FLUSH to fail,
-	 * so it must be guarded.
-	 */
 	down_write(&sev_deactivate_lock);
 
 	wbinvd_on_all_cpus();
@@ -107,7 +83,6 @@ static inline bool is_mirroring_enc_context(struct kvm *kvm)
 	return !!to_kvm_svm(kvm)->sev_info.enc_context_owner;
 }
 
-/* Must be called with the sev_bitmap_lock held */
 static bool __sev_recycle_asids(int min_asid, int max_asid)
 {
 	if (sev_flush_asids(min_asid, max_asid))
@@ -150,9 +125,6 @@ static int sev_asid_new(struct kvm_sev_info *sev)
 	mutex_lock(&sev_bitmap_lock);
 
 	/*
-	 * SEV-enabled guests must use asid from min_sev_asid to max_sev_asid.
-	 * SEV-ES-enabled guest can use from 1 to min_sev_asid - 1.
-	 */
 	min_asid = sev->es_active ? 1 : min_sev_asid;
 	max_asid = sev->es_active ? min_sev_asid - 1 : max_sev_asid;
 again:
@@ -432,7 +404,6 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 		goto err;
 	}
 
-	*n = npages;
 	sev->pages_locked = locked;
 
 	return pages;
@@ -518,9 +489,6 @@ static int sev_launch_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		return PTR_ERR(inpages);
 
 	/*
-	 * Flush (on non-coherent CPUs) before LAUNCH_UPDATE encrypts pages in
-	 * place; the cache may contain the data that was written unencrypted.
-	 */
 	sev_clflush_pages(inpages, npages);
 
 	data.reserved = 0;
@@ -530,9 +498,6 @@ static int sev_launch_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		int offset, len;
 
 		/*
-		 * If the user buffer is not page-aligned, calculate the offset
-		 * within the page.
-		 */
 		offset = vaddr & (PAGE_SIZE - 1);
 
 		/* Calculate the number of pages that can be encrypted in one go. */
@@ -570,11 +535,6 @@ static int sev_es_sync_vmsa(struct vcpu_svm *svm)
 		return -EINVAL;
 
 	/*
-	 * SEV-ES will use a VMSA that is pointed to by the VMCB, not
-	 * the traditional VMSA that is part of the VMCB. Copy the
-	 * traditional VMSA as it has been built so far (in prep
-	 * for LAUNCH_UPDATE_VMSA) to be the initial SEV-ES state.
-	 */
 	memcpy(save, &svm->vmcb->save, sizeof(svm->vmcb->save));
 
 	/* Sync registgers */
@@ -623,10 +583,6 @@ static int __sev_launch_update_vmsa(struct kvm *kvm, struct kvm_vcpu *vcpu,
 		return ret;
 
 	/*
-	 * The LAUNCH_UPDATE_VMSA command will perform in-place encryption of
-	 * the VMSA memory content (i.e it will write the same memory region
-	 * with the guest's key), so invalidate it first.
-	 */
 	clflush_cache_range(svm->sev_es.vmsa, PAGE_SIZE);
 
 	vmsa.reserved = 0;
@@ -705,8 +661,6 @@ cmd:
 	ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_MEASURE, &data, &argp->error);
 
 	/*
-	 * If we query the session length, FW responded with expected data.
-	 */
 	if (!params.len)
 		goto done;
 
@@ -790,9 +744,6 @@ static int __sev_dbg_decrypt(struct kvm *kvm, unsigned long src_paddr,
 	int offset;
 
 	/*
-	 * Its safe to read more than we are asked, caller should ensure that
-	 * destination has enough space.
-	 */
 	offset = src_paddr & 15;
 	src_paddr = round_down(src_paddr, 16);
 	sz = round_up(sz + offset, 16);
@@ -861,11 +812,6 @@ static int __sev_dbg_encrypt_user(struct kvm *kvm, unsigned long paddr,
 	}
 
 	/*
-	 *  If destination buffer or length is not aligned then do read-modify-write:
-	 *   - decrypt destination in an intermediate buffer
-	 *   - copy the source buffer in an intermediate buffer
-	 *   - use the intermediate buffer as source buffer
-	 */
 	if (!IS_ALIGNED((unsigned long)dst_vaddr, 16) || !IS_ALIGNED(size, 16)) {
 		int dst_offset;
 
@@ -881,9 +827,6 @@ static int __sev_dbg_encrypt_user(struct kvm *kvm, unsigned long paddr,
 			goto e_free;
 
 		/*
-		 *  If source is kernel buffer then use memcpy() otherwise
-		 *  copy_from_user().
-		 */
 		dst_offset = dst_paddr & 15;
 
 		if (src_tpage)
@@ -953,17 +896,10 @@ static int sev_dbg_crypt(struct kvm *kvm, struct kvm_sev_cmd *argp, bool dec)
 		}
 
 		/*
-		 * Flush (on non-coherent CPUs) before DBG_{DE,EN}CRYPT read or modify
-		 * the pages; flush the destination too so that future accesses do not
-		 * see stale data.
-		 */
 		sev_clflush_pages(src_p, 1);
 		sev_clflush_pages(dst_p, 1);
 
 		/*
-		 * Since user buffer may not be page aligned, calculate the
-		 * offset within the page.
-		 */
 		s_off = vaddr & ~PAGE_MASK;
 		d_off = dst_vaddr & ~PAGE_MASK;
 		len = min_t(size_t, (PAGE_SIZE - s_off), size);
@@ -1017,15 +953,9 @@ static int sev_launch_secret(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		return PTR_ERR(pages);
 
 	/*
-	 * Flush (on non-coherent CPUs) before LAUNCH_SECRET encrypts pages in
-	 * place; the cache may contain the data that was written unencrypted.
-	 */
 	sev_clflush_pages(pages, n);
 
 	/*
-	 * The secret must be copied into contiguous memory region, lets verify
-	 * that userspace memory pages are contiguous before we issue command.
-	 */
 	if (get_num_contig_pages(0, pages, n) != n) {
 		ret = -EINVAL;
 		goto e_unpin_memory;
@@ -1110,8 +1040,6 @@ cmd:
 	data.handle = sev->handle;
 	ret = sev_issue_cmd(kvm, SEV_CMD_ATTESTATION_REPORT, &data, &argp->error);
 	/*
-	 * If we query the session length, FW responded with expected data.
-	 */
 	if (!params.len)
 		goto done;
 
@@ -1132,7 +1060,6 @@ e_free_blob:
 	return ret;
 }
 
-/* Userspace wants to query session length. */
 static int
 __sev_send_start_query_session_length(struct kvm *kvm, struct kvm_sev_cmd *argp,
 				      struct kvm_sev_send_start *params)
@@ -1243,7 +1170,6 @@ e_free_session:
 	return ret;
 }
 
-/* Userspace wants to query either header or trans length. */
 static int
 __sev_send_update_data_query_lengths(struct kvm *kvm, struct kvm_sev_cmd *argp,
 				     struct kvm_sev_send_update_data *params)
@@ -1501,10 +1427,6 @@ static int sev_receive_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	}
 
 	/*
-	 * Flush (on non-coherent CPUs) before RECEIVE_UPDATE_DATA, the PSP
-	 * encrypts the written data with the guest's key, and the cache may
-	 * contain dirty, unencrypted data.
-	 */
 	sev_clflush_pages(guest_page, n);
 
 	/* The RECEIVE_UPDATE_DATA command requires C-bit to be always set. */
@@ -1541,9 +1463,6 @@ static int sev_receive_finish(struct kvm *kvm, struct kvm_sev_cmd *argp)
 static bool is_cmd_allowed_from_mirror(u32 cmd_id)
 {
 	/*
-	 * Allow mirrors VM to call KVM_SEV_LAUNCH_UPDATE_VMSA to enable SEV-ES
-	 * active mirror VMs. Also allow the debugging and status commands.
-	 */
 	if (cmd_id == KVM_SEV_LAUNCH_UPDATE_VMSA ||
 	    cmd_id == KVM_SEV_GUEST_STATUS || cmd_id == KVM_SEV_DBG_DECRYPT ||
 	    cmd_id == KVM_SEV_DBG_ENCRYPT)
@@ -1562,9 +1481,6 @@ static int sev_lock_two_vms(struct kvm *dst_kvm, struct kvm *src_kvm)
 		return -EINVAL;
 
 	/*
-	 * Bail if these VMs are already involved in a migration to avoid
-	 * deadlock between two VMs trying to migrate to/from each other.
-	 */
 	if (atomic_cmpxchg_acquire(&dst_sev->migration_in_progress, 0, 1))
 		return -EBUSY;
 
@@ -1598,7 +1514,6 @@ static void sev_unlock_two_vms(struct kvm *dst_kvm, struct kvm *src_kvm)
 	atomic_set_release(&src_sev->migration_in_progress, 0);
 }
 
-/* vCPU mutex subclasses.  */
 enum sev_migration_role {
 	SEV_MIGRATION_SOURCE = 0,
 	SEV_MIGRATION_TARGET,
@@ -1618,9 +1533,6 @@ static int sev_lock_vcpus_for_migration(struct kvm *kvm,
 #ifdef CONFIG_PROVE_LOCKING
 		if (!i)
 			/*
-			 * Reset the role to one that avoids colliding with
-			 * the role used for the first vcpu mutex.
-			 */
 			role = SEV_NR_MIGRATION_ROLES;
 		else
 			mutex_release(&vcpu->mutex.dep_map, _THIS_IP_);
@@ -1688,10 +1600,6 @@ static void sev_migrate_from(struct kvm *dst_kvm, struct kvm *src_kvm)
 	list_cut_before(&dst->regions_list, &src->regions_list, &src->regions_list);
 
 	/*
-	 * If this VM has mirrors, "transfer" each mirror's refcount of the
-	 * source to the destination (this KVM).  The caller holds a reference
-	 * to the source, so there's no danger of use-after-free.
-	 */
 	list_cut_before(&dst->mirror_vms, &src->mirror_vms, &src->mirror_vms);
 	list_for_each_entry(mirror, &dst->mirror_vms, mirror_entry) {
 		kvm_get_kvm(dst_kvm);
@@ -1700,9 +1608,6 @@ static void sev_migrate_from(struct kvm *dst_kvm, struct kvm *src_kvm)
 	}
 
 	/*
-	 * If this VM is a mirror, remove the old mirror from the owners list
-	 * and add the new mirror to the list.
-	 */
 	if (is_mirroring_enc_context(dst_kvm)) {
 		struct kvm_sev_info *owner_sev_info =
 			&to_kvm_svm(dst->enc_context_owner)->sev_info;
@@ -1720,17 +1625,10 @@ static void sev_migrate_from(struct kvm *dst_kvm, struct kvm *src_kvm)
 			continue;
 
 		/*
-		 * Note, the source is not required to have the same number of
-		 * vCPUs as the destination when migrating a vanilla SEV VM.
-		 */
 		src_vcpu = kvm_get_vcpu(dst_kvm, i);
 		src_svm = to_svm(src_vcpu);
 
 		/*
-		 * Transfer VMSA and GHCB state to the destination.  Nullify and
-		 * clear source fields as appropriate, the state now belongs to
-		 * the destination.
-		 */
 		memcpy(&dst_svm->sev_es, &src_svm->sev_es, sizeof(src_svm->sev_es));
 		dst_svm->vmcb->control.ghcb_gpa = src_svm->vmcb->control.ghcb_gpa;
 		dst_svm->vmcb->control.vmsa_pa = src_svm->vmcb->control.vmsa_pa;
@@ -1965,11 +1863,6 @@ int sev_mem_enc_register_region(struct kvm *kvm,
 	mutex_unlock(&kvm->lock);
 
 	/*
-	 * The guest may change the memory encryption attribute from C=0 -> C=1
-	 * or vice versa for this memory range. Lets make sure caches are
-	 * flushed to ensure that guest data gets written into memory with
-	 * correct C-bit.
-	 */
 	sev_clflush_pages(region->pages, region->npages);
 
 	return ret;
@@ -2027,10 +1920,6 @@ int sev_mem_enc_unregister_region(struct kvm *kvm,
 	}
 
 	/*
-	 * Ensure that all guest tagged cache entries are flushed before
-	 * releasing the pages back to the system for use. CLFLUSH will
-	 * not do this, so issue a WBINVD.
-	 */
 	wbinvd_on_all_cpus();
 
 	__unregister_enc_region_locked(kvm, region);
@@ -2062,11 +1951,6 @@ int sev_vm_copy_enc_context_from(struct kvm *kvm, unsigned int source_fd)
 		goto e_source_fput;
 
 	/*
-	 * Mirrors of mirrors should work, but let's not get silly.  Also
-	 * disallow out-of-band SEV/SEV-ES init if the target is already an
-	 * SEV guest, or if vCPUs have been created.  KVM relies on vCPUs being
-	 * created after SEV/SEV-ES initialization, e.g. to init intercepts.
-	 */
 	if (sev_guest(kvm) || !sev_guest(source_kvm) ||
 	    is_mirroring_enc_context(source_kvm) || kvm->created_vcpus) {
 		ret = -EINVAL;
@@ -2074,9 +1958,6 @@ int sev_vm_copy_enc_context_from(struct kvm *kvm, unsigned int source_fd)
 	}
 
 	/*
-	 * The mirror kvm holds an enc_context_owner ref so its asid can't
-	 * disappear until we're done with it
-	 */
 	source_sev = &to_kvm_svm(source_kvm)->sev_info;
 	kvm_get_kvm(source_kvm);
 	mirror_sev = &to_kvm_svm(kvm)->sev_info;
@@ -2094,10 +1975,6 @@ int sev_vm_copy_enc_context_from(struct kvm *kvm, unsigned int source_fd)
 	ret = 0;
 
 	/*
-	 * Do not copy ap_jump_table. Since the mirror does not share the same
-	 * KVM contexts as the original, and they may have different
-	 * memory-views.
-	 */
 
 e_unlock:
 	sev_unlock_two_vms(kvm, source_kvm);
@@ -2130,16 +2007,9 @@ void sev_vm_destroy(struct kvm *kvm)
 	}
 
 	/*
-	 * Ensure that all guest tagged cache entries are flushed before
-	 * releasing the pages back to the system for use. CLFLUSH will
-	 * not do this, so issue a WBINVD.
-	 */
 	wbinvd_on_all_cpus();
 
 	/*
-	 * if userspace was terminated before unregistering the memory regions
-	 * then lets unpin all the registered memory.
-	 */
 	if (!list_empty(head)) {
 		list_for_each_safe(pos, q, head) {
 			__unregister_enc_region_locked(kvm,
@@ -2171,10 +2041,6 @@ void __init sev_hardware_setup(void)
 		goto out;
 
 	/*
-	 * SEV must obviously be supported in hardware.  Sanity check that the
-	 * CPU supports decode assists, which is mandatory for SEV guests to
-	 * support instruction emulation.
-	 */
 	if (!boot_cpu_has(X86_FEATURE_SEV) ||
 	    WARN_ON_ONCE(!boot_cpu_has(X86_FEATURE_DECODEASSISTS)))
 		goto out;
@@ -2195,10 +2061,6 @@ void __init sev_hardware_setup(void)
 	sev_me_mask = 1UL << (ebx & 0x3f);
 
 	/*
-	 * Initialize SEV ASID bitmaps. Allocate space for ASID 0 in the bitmap,
-	 * even though it's never used, so that the bitmap is indexed by the
-	 * actual ASID.
-	 */
 	nr_asids = max_sev_asid + 1;
 	sev_asid_bitmap = bitmap_zalloc(nr_asids, GFP_KERNEL);
 	if (!sev_asid_bitmap)
@@ -2223,11 +2085,6 @@ void __init sev_hardware_setup(void)
 		goto out;
 
 	/*
-	 * SEV-ES requires MMIO caching as KVM doesn't have access to the guest
-	 * instruction stream, i.e. can't emulate in response to a #NPF and
-	 * instead relies on #NPF(RSVD) being reflected into the guest as #VC
-	 * (the guest can then do a #VMGEXIT to request MMIO emulation).
-	 */
 	if (!enable_mmio_caching)
 		goto out;
 
@@ -2279,37 +2136,20 @@ int sev_cpu_init(struct svm_cpu_data *sd)
 	return 0;
 }
 
-/*
- * Pages used by hardware to hold guest encrypted state must be flushed before
- * returning them to the system.
- */
 static void sev_flush_encrypted_page(struct kvm_vcpu *vcpu, void *va)
 {
 	int asid = to_kvm_svm(vcpu->kvm)->sev_info.asid;
 
 	/*
-	 * Note!  The address must be a kernel address, as regular page walk
-	 * checks are performed by VM_PAGE_FLUSH, i.e. operating on a user
-	 * address is non-deterministic and unsafe.  This function deliberately
-	 * takes a pointer to deter passing in a user address.
-	 */
 	unsigned long addr = (unsigned long)va;
 
 	/*
-	 * If CPU enforced cache coherency for encrypted mappings of the
-	 * same physical page is supported, use CLFLUSHOPT instead. NOTE: cache
-	 * flush is still needed in order to work properly with DMA devices.
-	 */
 	if (boot_cpu_has(X86_FEATURE_SME_COHERENT)) {
 		clflush_cache_range(va, PAGE_SIZE);
 		return;
 	}
 
 	/*
-	 * VM Page Flush takes a host virtual address and a guest ASID.  Fall
-	 * back to WBINVD if this faults so as not to make any problems worse
-	 * by leaving stale encrypted data in the cache.
-	 */
 	if (WARN_ON_ONCE(wrmsrl_safe(MSR_AMD64_VM_PAGE_FLUSH, addr | asid)))
 		goto do_wbinvd;
 
@@ -2376,13 +2216,6 @@ static void sev_es_sync_to_ghcb(struct vcpu_svm *svm)
 	struct ghcb *ghcb = svm->sev_es.ghcb;
 
 	/*
-	 * The GHCB protocol so far allows for the following data
-	 * to be returned:
-	 *   GPRs RAX, RBX, RCX, RDX
-	 *
-	 * Copy their values, even if they may not have been written during the
-	 * VM-Exit.  It's the guest's responsibility to not consume random data.
-	 */
 	ghcb_set_rax(ghcb, vcpu->arch.regs[VCPU_REGS_RAX]);
 	ghcb_set_rbx(ghcb, vcpu->arch.regs[VCPU_REGS_RBX]);
 	ghcb_set_rcx(ghcb, vcpu->arch.regs[VCPU_REGS_RCX]);
@@ -2397,17 +2230,6 @@ static void sev_es_sync_from_ghcb(struct vcpu_svm *svm)
 	u64 exit_code;
 
 	/*
-	 * The GHCB protocol so far allows for the following data
-	 * to be supplied:
-	 *   GPRs RAX, RBX, RCX, RDX
-	 *   XCR0
-	 *   CPL
-	 *
-	 * VMMCALL allows the guest to provide extra registers. KVM also
-	 * expects RSI for hypercalls, so include that, too.
-	 *
-	 * Copy their values to the appropriate location if supplied.
-	 */
 	memset(vcpu->arch.regs, 0, sizeof(vcpu->arch.regs));
 
 	vcpu->arch.regs[VCPU_REGS_RAX] = ghcb_get_rax_if_valid(ghcb);
@@ -2444,9 +2266,6 @@ static int sev_es_validate_vmgexit(struct vcpu_svm *svm)
 	ghcb = svm->sev_es.ghcb;
 
 	/*
-	 * Retrieve the exit code now even though it may not be marked valid
-	 * as it could help with debugging.
-	 */
 	exit_code = ghcb_get_sw_exit_code(ghcb);
 
 	/* Only GHCB Usage code 0 is supported */
@@ -2573,10 +2392,6 @@ void sev_es_unmap_ghcb(struct vcpu_svm *svm)
 
 	if (svm->sev_es.ghcb_sa_free) {
 		/*
-		 * The scratch area lives outside the GHCB, so there is a
-		 * buffer that, depending on the operation performed, may
-		 * need to be synced, then freed.
-		 */
 		if (svm->sev_es.ghcb_sa_sync) {
 			kvm_write_guest(svm->vcpu.kvm,
 					ghcb_get_sw_scratch(svm->sev_es.ghcb),
@@ -2607,11 +2422,6 @@ void pre_sev_run(struct vcpu_svm *svm, int cpu)
 	svm->asid = asid;
 
 	/*
-	 * Flush guest TLB:
-	 *
-	 * 1) when different VMCB for the same ASID is to be run on the same host CPU.
-	 * 2) or this VMCB was executed on different host CPU in previous VMRUNs.
-	 */
 	if (sd->sev_vmcbs[asid] == svm->vmcb &&
 	    svm->vcpu.arch.last_vmentry_cpu == cpu)
 		return;
@@ -2651,9 +2461,6 @@ static int setup_vmgexit_scratch(struct vcpu_svm *svm, bool sync, u64 len)
 				   offsetof(struct ghcb, reserved_1);
 
 		/*
-		 * If the scratch area begins within the GHCB, it must be
-		 * completely contained in the GHCB shared buffer area.
-		 */
 		if (scratch_gpa_beg < ghcb_scratch_beg ||
 		    scratch_gpa_end > ghcb_scratch_end) {
 			pr_err("vmgexit: scratch area is outside of GHCB shared buffer area (%#llx - %#llx)\n",
@@ -2665,9 +2472,6 @@ static int setup_vmgexit_scratch(struct vcpu_svm *svm, bool sync, u64 len)
 		scratch_va += (scratch_gpa_beg - control->ghcb_gpa);
 	} else {
 		/*
-		 * The guest memory must be read into a kernel buffer, so
-		 * limit the size
-		 */
 		if (len > GHCB_SCRATCH_AREA_LIMIT) {
 			pr_err("vmgexit: scratch area exceeds KVM limits (%#llx requested, %#llx limit)\n",
 			       len, GHCB_SCRATCH_AREA_LIMIT);
@@ -2686,11 +2490,6 @@ static int setup_vmgexit_scratch(struct vcpu_svm *svm, bool sync, u64 len)
 		}
 
 		/*
-		 * The scratch area is outside the GHCB. The operation will
-		 * dictate whether the buffer needs to be synced before running
-		 * the vCPU next time (i.e. a read was requested so the data
-		 * must be written back to the guest memory).
-		 */
 		svm->sev_es.ghcb_sa_sync = sync;
 		svm->sev_es.ghcb_sa_free = true;
 	}
@@ -2945,10 +2744,6 @@ static void sev_es_init_vmcb(struct vcpu_svm *svm)
 	svm->vmcb->control.virt_ext |= LBR_CTL_ENABLE_MASK;
 
 	/*
-	 * An SEV-ES guest requires a VMSA area that is a separate from the
-	 * VMCB page. Do not include the encryption mask on the VMSA physical
-	 * address since hardware will access it using the guest key.
-	 */
 	svm->vmcb->control.vmsa_pa = __pa(svm->sev_es.vmsa);
 
 	/* Can't intercept CR register access, HV can't modify CR registers */
@@ -3002,9 +2797,6 @@ void sev_init_vmcb(struct vcpu_svm *svm)
 void sev_es_vcpu_reset(struct vcpu_svm *svm)
 {
 	/*
-	 * Set the GHCB MSR value as per the GHCB specification when emulating
-	 * vCPU RESET for an SEV-ES guest.
-	 */
 	set_ghcb_msr(svm, GHCB_MSR_SEV_INFO(GHCB_VERSION_MAX,
 					    GHCB_VERSION_MIN,
 					    sev_enc_bit));
@@ -3013,11 +2805,6 @@ void sev_es_vcpu_reset(struct vcpu_svm *svm)
 void sev_es_prepare_switch_to_guest(struct sev_es_save_area *hostsa)
 {
 	/*
-	 * As an SEV-ES guest, hardware will restore the host state on VMEXIT,
-	 * of which one step is to perform a VMLOAD.  KVM performs the
-	 * corresponding VMSAVE in svm_prepare_guest_switch for both
-	 * traditional and SEV-ES guests.
-	 */
 
 	/* XCR0 is restored on VMEXIT, save the current host value */
 	hostsa->xcr0 = xgetbv(XCR_XFEATURE_ENABLED_MASK);
@@ -3040,10 +2827,6 @@ void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector)
 	}
 
 	/*
-	 * Subsequent SIPI: Return from an AP Reset Hold VMGEXIT, where
-	 * the guest will set the CS and RIP. Set SW_EXIT_INFO_2 to a
-	 * non-zero value.
-	 */
 	if (!svm->sev_es.ghcb)
 		return;
 

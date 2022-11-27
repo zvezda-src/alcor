@@ -1,31 +1,4 @@
-#
-#
 
-# Copyright (C) 2006, 2007, 2010, 2011 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """Utility functions for manipulating or working with text.
 
@@ -42,19 +15,14 @@ from alcor import errors
 from alcor import compat
 
 
-#: Unit checker regexp
 _PARSEUNIT_REGEX = re.compile(r"^([.\d]+)\s*([a-zA-Z]+)?$")
 
-#: Characters which don't need to be quoted for shell commands
 _SHELL_UNQUOTED_RE = re.compile("^[-.,=:/_+@A-Za-z0-9]+$")
 
-#: Shell param checker regexp
 _SHELLPARAM_REGEX = re.compile(r"^[-a-zA-Z0-9._+/:%@]+$")
 
-#: ASCII equivalent of unicode character 'HORIZONTAL ELLIPSIS' (U+2026)
 _ASCII_ELLIPSIS = "..."
 
-#: MAC address octet
 _MAC_ADDR_OCTET_RE = r"[0-9a-f]{2}"
 
 
@@ -340,10 +308,8 @@ def _MakeMacAddrRegexp(octets):
                     re.I)
 
 
-#: Regular expression for full MAC address
 _MAC_CHECK_RE = _MakeMacAddrRegexp(6)
 
-#: Regular expression for half a MAC address
 _MAC_PREFIX_CHECK_RE = _MakeMacAddrRegexp(3)
 
 

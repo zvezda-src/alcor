@@ -1,20 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Module livepatch support
- *
- * Copyright (C) 2016 Jessica Yu <jeyu@redhat.com>
- */
 
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include "internal.h"
 
-/*
- * Persist Elf information about a module. Copy the Elf header,
- * section header table, section string table, and symtab section
- * index from info to mod->klp_info.
- */
 int copy_module_elf(struct module *mod, struct load_info *info)
 {
 	unsigned int size, symndx;
@@ -50,11 +39,6 @@ int copy_module_elf(struct module *mod, struct load_info *info)
 	mod->klp_info->symndx = symndx;
 
 	/*
-	 * For livepatch modules, core_kallsyms.symtab is a complete
-	 * copy of the original symbol table. Adjust sh_addr to point
-	 * to core_kallsyms.symtab since the copy of the symtab in module
-	 * init memory is freed at the end of do_init_module().
-	 */
 	mod->klp_info->sechdrs[symndx].sh_addr = (unsigned long)mod->core_kallsyms.symtab;
 
 	return 0;

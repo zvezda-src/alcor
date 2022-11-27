@@ -1,57 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Support Intel/AMD RAPL energy consumption counters
- * Copyright (C) 2013 Google, Inc., Stephane Eranian
- *
- * Intel RAPL interface is specified in the IA-32 Manual Vol3b
- * section 14.7.1 (September 2013)
- *
- * AMD RAPL interface for Fam17h is described in the public PPR:
- * https://bugzilla.kernel.org/show_bug.cgi?id=206537
- *
- * RAPL provides more controls than just reporting energy consumption
- * however here we only expose the 3 energy consumption free running
- * counters (pp0, pkg, dram).
- *
- * Each of those counters increments in a power unit defined by the
- * RAPL_POWER_UNIT MSR. On SandyBridge, this unit is 1/(2^16) Joules
- * but it can vary.
- *
- * Counter to rapl events mappings:
- *
- *  pp0 counter: consumption of all physical cores (power plane 0)
- * 	  event: rapl_energy_cores
- *    perf code: 0x1
- *
- *  pkg counter: consumption of the whole processor package
- *	  event: rapl_energy_pkg
- *    perf code: 0x2
- *
- * dram counter: consumption of the dram domain (servers only)
- *	  event: rapl_energy_dram
- *    perf code: 0x3
- *
- * gpu counter: consumption of the builtin-gpu domain (client only)
- *	  event: rapl_energy_gpu
- *    perf code: 0x4
- *
- *  psys counter: consumption of the builtin-psys domain (client only)
- *	  event: rapl_energy_psys
- *    perf code: 0x5
- *
- * We manage those counters as free running (read-only). They may be
- * use simultaneously by other tools, such as turbostat.
- *
- * The events only support system-wide mode counting. There is no
- * sampling support because it does not make sense and is not
- * supported by the RAPL hardware.
- *
- * Because we want to avoid floating-point operations in the kernel,
- * the events are all reported in fixed point arithmetic (32.32).
- * Tools must adjust the counts to convert them to Watts using
- * the duration of the measurement. Tools may use a function such as
- * ldexp(raw_count, -32);
- */
 
 #define pr_fmt(fmt) "RAPL PMU: " fmt
 
@@ -66,9 +12,6 @@
 
 MODULE_LICENSE("GPL");
 
-/*
- * RAPL energy status counters
- */
 enum perf_rapl_events {
 	PERF_RAPL_PP0 = 0,		/* all cores */
 	PERF_RAPL_PKG,			/* entire package */
@@ -88,10 +31,6 @@ static const char *const rapl_domain_names[NR_RAPL_DOMAINS] __initconst = {
 	"psys",
 };
 
-/*
- * event code: LSB 8 bits, passed in attr->config
- * any other bit is reserved
- */
 #define RAPL_EVENT_MASK	0xFFULL
 #define RAPL_CNTR_WIDTH 32
 
@@ -144,9 +83,6 @@ static inline struct rapl_pmu *cpu_to_rapl_pmu(unsigned int cpu)
 	unsigned int dieid = topology_logical_die_id(cpu);
 
 	/*
-	 * The unsigned check also catches the '-1' return value for non
-	 * existent mappings in the topology map.
-	 */
 	return dieid < rapl_pmus->maxdie ? rapl_pmus->pmus[dieid] : NULL;
 }
 
@@ -164,11 +100,6 @@ static inline u64 rapl_scale(u64 v, int cfg)
 		return v;
 	}
 	/*
-	 * scale delta to smallest unit (1/2^32)
-	 * users must then scale back: count * 1/(1e9*2^32) to get Joules
-	 * or use ldexp(count, -32).
-	 * Watts = Joules/Time delta
-	 */
 	return v << (32 - rapl_hw_unit[cfg - 1]);
 }
 
@@ -190,13 +121,6 @@ again:
 	}
 
 	/*
-	 * Now we have the new raw value and have updated the prev
-	 * timestamp already. We can now calculate the elapsed delta
-	 * (event-)time and add that to the generic event.
-	 *
-	 * Careful, not all hw sign-extends above the physical width
-	 * of the count.
-	 */
 	delta = (new_raw_count << shift) - (prev_raw_count << shift);
 	delta >>= shift;
 
@@ -293,9 +217,6 @@ static void rapl_pmu_event_stop(struct perf_event *event, int mode)
 	/* check if update of sw counter is necessary */
 	if ((mode & PERF_EF_UPDATE) && !(hwc->state & PERF_HES_UPTODATE)) {
 		/*
-		 * Drain the remaining delta count out of a event
-		 * that we are disabling:
-		 */
 		rapl_event_update(event);
 		hwc->state |= PERF_HES_UPTODATE;
 	}
@@ -406,20 +327,12 @@ RAPL_EVENT_ATTR_STR(energy-ram.unit  ,   rapl_ram_unit, "Joules");
 RAPL_EVENT_ATTR_STR(energy-gpu.unit  ,   rapl_gpu_unit, "Joules");
 RAPL_EVENT_ATTR_STR(energy-psys.unit,   rapl_psys_unit, "Joules");
 
-/*
- * we compute in 0.23 nJ increments regardless of MSR
- */
 RAPL_EVENT_ATTR_STR(energy-cores.scale, rapl_cores_scale, "2.3283064365386962890625e-10");
 RAPL_EVENT_ATTR_STR(energy-pkg.scale,     rapl_pkg_scale, "2.3283064365386962890625e-10");
 RAPL_EVENT_ATTR_STR(energy-ram.scale,     rapl_ram_scale, "2.3283064365386962890625e-10");
 RAPL_EVENT_ATTR_STR(energy-gpu.scale,     rapl_gpu_scale, "2.3283064365386962890625e-10");
 RAPL_EVENT_ATTR_STR(energy-psys.scale,   rapl_psys_scale, "2.3283064365386962890625e-10");
 
-/*
- * There are no default events, but we need to create
- * "events" group (with empty attrs) before updating
- * it with detected events.
- */
 static struct attribute *attrs_empty[] = {
 	NULL,
 };
@@ -512,7 +425,6 @@ static bool test_msr(int idx, void *data)
 	return test_bit(idx, (unsigned long *) data);
 }
 
-/* Only lower 32bits of the MSR represents the energy counter */
 #define RAPL_MSR_MASK 0xFFFFFFFF
 
 static struct perf_msr intel_rapl_msrs[] = {
@@ -531,11 +443,6 @@ static struct perf_msr intel_rapl_spr_msrs[] = {
 	[PERF_RAPL_PSYS] = { MSR_PLATFORM_ENERGY_STATUS, &rapl_events_psys_group,  test_msr, true, RAPL_MSR_MASK },
 };
 
-/*
- * Force to PERF_RAPL_MAX size due to:
- * - perf_msr_probe(PERF_RAPL_MAX)
- * - want to use same event codes across both architectures
- */
 static struct perf_msr amd_rapl_msrs[] = {
 	[PERF_RAPL_PP0]  = { 0, &rapl_events_cores_group, 0, false, 0 },
 	[PERF_RAPL_PKG]  = { MSR_AMD_PKG_ENERGY_STATUS,  &rapl_events_pkg_group,   test_msr, false, RAPL_MSR_MASK },
@@ -586,9 +493,6 @@ static int rapl_cpu_online(unsigned int cpu)
 	}
 
 	/*
-	 * Check if there is an online cpu in the package which collects rapl
-	 * events already.
-	 */
 	target = cpumask_any_and(&rapl_cpu_mask, topology_die_cpumask(cpu));
 	if (target < nr_cpu_ids)
 		return 0;
@@ -611,18 +515,10 @@ static int rapl_check_hw_unit(struct rapl_model *rm)
 
 	switch (rm->unit_quirk) {
 	/*
-	 * DRAM domain on HSW server and KNL has fixed energy unit which can be
-	 * different than the unit from power unit MSR. See
-	 * "Intel Xeon Processor E5-1600 and E5-2600 v3 Product Families, V2
-	 * of 2. Datasheet, September 2014, Reference Number: 330784-001 "
-	 */
 	case RAPL_UNIT_QUIRK_INTEL_HSW:
 		rapl_hw_unit[PERF_RAPL_RAM] = 16;
 		break;
 	/*
-	 * SPR shares the same DRAM domain energy unit as HSW, plus it
-	 * also has a fixed energy unit for Psys domain.
-	 */
 	case RAPL_UNIT_QUIRK_INTEL_SPR:
 		rapl_hw_unit[PERF_RAPL_RAM] = 16;
 		rapl_hw_unit[PERF_RAPL_PSYS] = 0;
@@ -633,12 +529,6 @@ static int rapl_check_hw_unit(struct rapl_model *rm)
 
 
 	/*
-	 * Calculate the timer rate:
-	 * Use reference of 200W for scaling the timeout to avoid counter
-	 * overflows. 200W = 200 Joules/sec
-	 * Divide interval by 2 to avoid lockstep (2 * 100)
-	 * if hw unit is 32, then we use 2 ms 1/200/2
-	 */
 	rapl_timer_ms = 2;
 	if (rapl_hw_unit[0] < 32) {
 		rapl_timer_ms = (1000 / (2 * 100));
@@ -837,8 +727,6 @@ static int __init rapl_pmu_init(void)
 		return ret;
 
 	/*
-	 * Install callbacks. Core will call them for each online cpu.
-	 */
 	ret = cpuhp_setup_state(CPUHP_AP_PERF_X86_RAPL_ONLINE,
 				"perf/x86/rapl:online",
 				rapl_cpu_online, rapl_cpu_offline);

@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * KCSAN short boot-time selftests.
- *
- * Copyright (C) 2019, Google LLC.
- */
 
 #define pr_fmt(fmt) "kcsan: " fmt
 
@@ -22,17 +16,12 @@
 
 #define ITERS_PER_TEST 2000
 
-/* Test requirements. */
 static bool __init test_requires(void)
 {
 	/* random should be initialized for the below tests */
 	return prandom_u32() + prandom_u32() != 0;
 }
 
-/*
- * Test watchpoint encode and decode: check that encoding some access's info,
- * and then subsequent decode preserves the access's info.
- */
 static bool __init test_encode_decode(void)
 {
 	int i;
@@ -82,7 +71,6 @@ fail:
 	return true;
 }
 
-/* Test access matching function. */
 static bool __init test_matching_access(void)
 {
 	if (WARN_ON(!matching_access(10, 1, 10, 1)))
@@ -97,22 +85,12 @@ static bool __init test_matching_access(void)
 		return false;
 
 	/*
-	 * An access of size 0 could match another access, as demonstrated here.
-	 * Rather than add more comparisons to 'matching_access()', which would
-	 * end up in the fast-path for *all* checks, check_access() simply
-	 * returns for all accesses of size 0.
-	 */
 	if (WARN_ON(!matching_access(8, 8, 12, 0)))
 		return false;
 
 	return true;
 }
 
-/*
- * Correct memory barrier instrumentation is critical to avoiding false
- * positives: simple test to check at boot certain barriers are always properly
- * instrumented. See kcsan_test for a more complete test.
- */
 static DEFINE_SPINLOCK(test_spinlock);
 static bool __init test_barrier(void)
 {

@@ -1,33 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Common EFI (Extensible Firmware Interface) support functions
- * Based on Extensible Firmware Interface Specification version 1.0
- *
- * Copyright (C) 1999 VA Linux Systems
- * Copyright (C) 1999 Walt Drummond <drummond@valinux.com>
- * Copyright (C) 1999-2002 Hewlett-Packard Co.
- *	David Mosberger-Tang <davidm@hpl.hp.com>
- *	Stephane Eranian <eranian@hpl.hp.com>
- * Copyright (C) 2005-2008 Intel Co.
- *	Fenghua Yu <fenghua.yu@intel.com>
- *	Bibo Mao <bibo.mao@intel.com>
- *	Chandramouli Narayanan <mouli@linux.intel.com>
- *	Huang Ying <ying.huang@intel.com>
- * Copyright (C) 2013 SuSE Labs
- *	Borislav Petkov <bp@suse.de> - runtime services VA mapping
- *
- * Copied from efi_32.c to eliminate the duplicated code between EFI
- * 32/64 support code. --ying 2007-10-26
- *
- * All EFI Runtime Services are not implemented yet as EFI only
- * supports physical mode addressing on SoftSDV. This is to be fixed
- * in a future version.  --drummond 1999-07-20
- *
- * Implemented EFI runtime services and virtual mode calls.  --davidm
- *
- * Goutham Rao: <goutham.rao@intel.com>
- *	Skip non-WB memory and ignore empty memory ranges.
- */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -108,12 +78,6 @@ static int __init setup_add_efi_memmap(char *arg)
 }
 early_param("add_efi_memmap", setup_add_efi_memmap);
 
-/*
- * Tell the kernel about the EFI memory map.  This might include
- * more than the max 128 entries that can fit in the passed in e820
- * legacy (zeropage) memory map, but the kernel's e820 table can hold
- * E820_MAX_ENTRIES.
- */
 
 static void __init do_add_efi_memmap(void)
 {
@@ -155,10 +119,6 @@ static void __init do_add_efi_memmap(void)
 			break;
 		default:
 			/*
-			 * EFI_RESERVED_TYPE EFI_RUNTIME_SERVICES_CODE
-			 * EFI_RUNTIME_SERVICES_DATA EFI_MEMORY_MAPPED_IO
-			 * EFI_MEMORY_MAPPED_IO_PORT_SPACE EFI_PAL_CODE
-			 */
 			e820_type = E820_TYPE_RESERVED;
 			break;
 		}
@@ -168,13 +128,6 @@ static void __init do_add_efi_memmap(void)
 	e820__update_table(e820_table);
 }
 
-/*
- * Given add_efi_memmap defaults to 0 and there there is no alternative
- * e820 mechanism for soft-reserved memory, import the full EFI memory
- * map if soft reservations are present and enabled. Otherwise, the
- * mechanism to disable the kernel's consideration of EFI_MEMORY_SP is
- * the efi=nosoftreserve option.
- */
 static bool do_efi_soft_reserve(void)
 {
 	efi_memory_desc_t *md;
@@ -406,8 +359,6 @@ static int __init efi_config_init(const efi_config_table_type_t *arch_tables)
 		sz = sizeof(efi_config_table_32_t);
 
 	/*
-	 * Let's see what config tables the firmware passed to us.
-	 */
 	config_tables = early_memremap(efi_config_table, efi_nr_tables * sz);
 	if (config_tables == NULL) {
 		pr_err("Could not map Configuration table!\n");
@@ -443,9 +394,6 @@ void __init efi_init(void)
 		return;
 
 	/*
-	 * Note: We currently don't support runtime services on an EFI
-	 * that doesn't match the kernel 32/64-bit mode.
-	 */
 
 	if (!efi_runtime_supported())
 		pr_err("No EFI runtime due to 32/64-bit mismatch with kernel\n");
@@ -478,7 +426,6 @@ void __init efi_init(void)
 		efi_print_memmap();
 }
 
-/* Merge contiguous regions of the same type and attribute */
 static void __init efi_merge_regions(void)
 {
 	efi_memory_desc_t *md, *prev_md = NULL;
@@ -518,8 +465,6 @@ static void *realloc_pages(void *old_memmap, int old_shift)
 		goto out;
 
 	/*
-	 * A first-time allocation doesn't have anything to copy.
-	 */
 	if (!old_memmap)
 		return ret;
 
@@ -530,12 +475,6 @@ out:
 	return ret;
 }
 
-/*
- * Iterate the EFI memory map in reverse order because the regions
- * will be mapped top-down. The end result is the same as if we had
- * mapped things forward, but doesn't require us to change the
- * existing implementation of efi_map_region().
- */
 static inline void *efi_map_next_entry_reverse(void *entry)
 {
 	/* Initial call */
@@ -549,37 +488,10 @@ static inline void *efi_map_next_entry_reverse(void *entry)
 	return entry;
 }
 
-/*
- * efi_map_next_entry - Return the next EFI memory map descriptor
- * @entry: Previous EFI memory map descriptor
- *
- * This is a helper function to iterate over the EFI memory map, which
- * we do in different orders depending on the current configuration.
- *
- * To begin traversing the memory map @entry must be %NULL.
- *
- * Returns %NULL when we reach the end of the memory map.
- */
 static void *efi_map_next_entry(void *entry)
 {
 	if (efi_enabled(EFI_64BIT)) {
 		/*
-		 * Starting in UEFI v2.5 the EFI_PROPERTIES_TABLE
-		 * config table feature requires us to map all entries
-		 * in the same order as they appear in the EFI memory
-		 * map. That is to say, entry N must have a lower
-		 * virtual address than entry N+1. This is because the
-		 * firmware toolchain leaves relative references in
-		 * the code/data sections, which are split and become
-		 * separate EFI memory regions. Mapping things
-		 * out-of-order leads to the firmware accessing
-		 * unmapped addresses.
-		 *
-		 * Since we need to map things this way whether or not
-		 * the kernel actually makes use of
-		 * EFI_PROPERTIES_TABLE, let's just switch to this
-		 * scheme by default for 64-bit.
-		 */
 		return efi_map_next_entry_reverse(entry);
 	}
 
@@ -597,32 +509,20 @@ static void *efi_map_next_entry(void *entry)
 static bool should_map_region(efi_memory_desc_t *md)
 {
 	/*
-	 * Runtime regions always require runtime mappings (obviously).
-	 */
 	if (md->attribute & EFI_MEMORY_RUNTIME)
 		return true;
 
 	/*
-	 * 32-bit EFI doesn't suffer from the bug that requires us to
-	 * reserve boot services regions, and mixed mode support
-	 * doesn't exist for 32-bit kernels.
-	 */
 	if (IS_ENABLED(CONFIG_X86_32))
 		return false;
 
 	/*
-	 * EFI specific purpose memory may be reserved by default
-	 * depending on kernel config and boot options.
-	 */
 	if (md->type == EFI_CONVENTIONAL_MEMORY &&
 	    efi_soft_reserve_enabled() &&
 	    (md->attribute & EFI_MEMORY_SP))
 		return false;
 
 	/*
-	 * Map all of RAM so that we can access arguments in the 1:1
-	 * mapping when making EFI runtime calls.
-	 */
 	if (efi_is_mixed()) {
 		if (md->type == EFI_CONVENTIONAL_MEMORY ||
 		    md->type == EFI_LOADER_DATA ||
@@ -631,11 +531,6 @@ static bool should_map_region(efi_memory_desc_t *md)
 	}
 
 	/*
-	 * Map boot services regions as a workaround for buggy
-	 * firmware that accesses them even when they shouldn't.
-	 *
-	 * See efi_{reserve,free}_boot_services().
-	 */
 	if (md->type == EFI_BOOT_SERVICES_CODE ||
 	    md->type == EFI_BOOT_SERVICES_DATA)
 		return true;
@@ -643,10 +538,6 @@ static bool should_map_region(efi_memory_desc_t *md)
 	return false;
 }
 
-/*
- * Map the efi memory ranges of the runtime services and update new_mmap with
- * virtual addresses.
- */
 static void * __init efi_map_regions(int *count, int *pg_shift)
 {
 	void *p, *new_memmap = NULL;
@@ -690,9 +581,6 @@ static void __init kexec_enter_virtual_mode(void)
 	unsigned int num_pages;
 
 	/*
-	 * We don't do virtual mode, since we don't do runtime services, on
-	 * non-native EFI.
-	 */
 	if (efi_is_mixed()) {
 		efi_memmap_unmap();
 		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
@@ -706,16 +594,10 @@ static void __init kexec_enter_virtual_mode(void)
 	}
 
 	/*
-	* Map efi regions which were passed via setup_data. The virt_addr is a
-	* fixed addr which was used in first kernel of a kexec boot.
-	*/
 	for_each_efi_memory_desc(md)
 		efi_map_region_fixed(md); /* FIXME: add error handling */
 
 	/*
-	 * Unregister the early EFI memmap from efi_init() and install
-	 * the new EFI memory map.
-	 */
 	efi_memmap_unmap();
 
 	if (efi_memmap_init_late(efi.memmap.phys_map,
@@ -738,22 +620,6 @@ static void __init kexec_enter_virtual_mode(void)
 #endif
 }
 
-/*
- * This function will switch the EFI runtime services to virtual mode.
- * Essentially, we look through the EFI memmap and map every region that
- * has the runtime attribute bit set in its memory descriptor into the
- * efi_pgd page table.
- *
- * The new method does a pagetable switch in a preemption-safe manner
- * so that we're in a different address space when calling a runtime
- * function. For function arguments passing we do copy the PUDs of the
- * kernel page table into efi_pgd prior to each call.
- *
- * Specially for kexec boot, efi runtime maps in previous kernel should
- * be passed in via setup_data. In that case runtime ranges will be mapped
- * to the same virtual addresses as the first kernel, see
- * kexec_enter_virtual_mode().
- */
 static void __init __efi_enter_virtual_mode(void)
 {
 	int count = 0, pg_shift = 0;
@@ -776,10 +642,6 @@ static void __init __efi_enter_virtual_mode(void)
 	pa = __pa(new_memmap);
 
 	/*
-	 * Unregister the early EFI memmap from efi_init() and install
-	 * the new EFI memory map that we are about to pass to the
-	 * firmware via SetVirtualAddressMap().
-	 */
 	efi_memmap_unmap();
 
 	if (efi_memmap_init_late(pa, efi.memmap.desc_size * count)) {
@@ -817,10 +679,6 @@ static void __init __efi_enter_virtual_mode(void)
 		efi_thunk_runtime_setup();
 
 	/*
-	 * Apply more restrictive page table mapping attributes now that
-	 * SVAM() has been called and the firmware has performed all
-	 * necessary relocation fixups for the new virtual addresses.
-	 */
 	efi_runtime_update_mappings();
 
 	/* clean DUMMY object */

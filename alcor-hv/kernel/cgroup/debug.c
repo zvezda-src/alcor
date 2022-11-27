@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Debug controller
- *
- * WARNING: This controller is for cgroup core debugging only.
- * Its interfaces are unstable and subject to changes at any time.
- */
 #include <linux/ctype.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -27,10 +20,6 @@ static void debug_css_free(struct cgroup_subsys_state *css)
 	kfree(css);
 }
 
-/*
- * debug_taskcount_read - return the number of tasks in a cgroup.
- * @cgrp: the cgroup in question
- */
 static u64 debug_taskcount_read(struct cgroup_subsys_state *css,
 				struct cftype *cft)
 {
@@ -58,8 +47,6 @@ static int current_css_set_read(struct seq_file *seq, void *v)
 	seq_puts(seq, "\n");
 
 	/*
-	 * Print the css'es stored in the current css_set.
-	 */
 	for_each_subsys(ss, i) {
 		css = cset->subsys[ss->id];
 		if (!css)
@@ -126,9 +113,6 @@ static int cgroup_css_links_read(struct seq_file *seq, void *v)
 		int refcnt = refcount_read(&cset->refcount);
 
 		/*
-		 * Print out the proc_cset and threaded_cset relationship
-		 * and highlight difference between refcount and task_count.
-		 */
 		seq_printf(seq, "css_set %pK", cset);
 		if (rcu_dereference_protected(cset->dom_cset, 1) != cset) {
 			threaded_csets++;
@@ -151,9 +135,6 @@ static int cgroup_css_links_read(struct seq_file *seq, void *v)
 
 				seq_printf(seq, " +%d", extra);
 				/*
-				 * Take out the one additional reference in
-				 * init_css_set.
-				 */
 				if (cset == &init_css_set)
 					extra--;
 				extra_refs += extra;
@@ -369,10 +350,6 @@ struct cgroup_subsys debug_cgrp_subsys = {
 	.legacy_cftypes	= debug_legacy_files,
 };
 
-/*
- * On v2, debug is an implicit controller enabled by "cgroup_debug" boot
- * parameter.
- */
 void __init enable_debug_cgroup(void)
 {
 	debug_cgrp_subsys.dfl_cftypes = debug_files;

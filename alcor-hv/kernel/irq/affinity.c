@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (C) 2016 Thomas Gleixner.
- * Copyright (C) 2016-2017 Christoph Hellwig.
- */
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -112,19 +107,6 @@ static int ncpus_cmp_func(const void *l, const void *r)
 	return ln->ncpus - rn->ncpus;
 }
 
-/*
- * Allocate vector number for each node, so that for each node:
- *
- * 1) the allocated number is >= 1
- *
- * 2) the allocated numbver is <= active CPU number of this node
- *
- * The actual allocated total vectors may be less than @numvecs when
- * active total CPU number is less than @numvecs.
- *
- * Active CPUs means the CPUs in '@cpu_mask AND @node_to_cpumask[]'
- * for each node.
- */
 static void alloc_nodes_vectors(unsigned int numvecs,
 				cpumask_var_t *node_to_cpumask,
 				const struct cpumask *cpu_mask,
@@ -157,73 +139,6 @@ static void alloc_nodes_vectors(unsigned int numvecs,
 	     ncpus_cmp_func, NULL);
 
 	/*
-	 * Allocate vectors for each node according to the ratio of this
-	 * node's nr_cpus to remaining un-assigned ncpus. 'numvecs' is
-	 * bigger than number of active numa nodes. Always start the
-	 * allocation from the node with minimized nr_cpus.
-	 *
-	 * This way guarantees that each active node gets allocated at
-	 * least one vector, and the theory is simple: over-allocation
-	 * is only done when this node is assigned by one vector, so
-	 * other nodes will be allocated >= 1 vector, since 'numvecs' is
-	 * bigger than number of numa nodes.
-	 *
-	 * One perfect invariant is that number of allocated vectors for
-	 * each node is <= CPU count of this node:
-	 *
-	 * 1) suppose there are two nodes: A and B
-	 * 	ncpu(X) is CPU count of node X
-	 * 	vecs(X) is the vector count allocated to node X via this
-	 * 	algorithm
-	 *
-	 * 	ncpu(A) <= ncpu(B)
-	 * 	ncpu(A) + ncpu(B) = N
-	 * 	vecs(A) + vecs(B) = V
-	 *
-	 * 	vecs(A) = max(1, round_down(V * ncpu(A) / N))
-	 * 	vecs(B) = V - vecs(A)
-	 *
-	 * 	both N and V are integer, and 2 <= V <= N, suppose
-	 * 	V = N - delta, and 0 <= delta <= N - 2
-	 *
-	 * 2) obviously vecs(A) <= ncpu(A) because:
-	 *
-	 * 	if vecs(A) is 1, then vecs(A) <= ncpu(A) given
-	 * 	ncpu(A) >= 1
-	 *
-	 * 	otherwise,
-	 * 		vecs(A) <= V * ncpu(A) / N <= ncpu(A), given V <= N
-	 *
-	 * 3) prove how vecs(B) <= ncpu(B):
-	 *
-	 * 	if round_down(V * ncpu(A) / N) == 0, vecs(B) won't be
-	 * 	over-allocated, so vecs(B) <= ncpu(B),
-	 *
-	 * 	otherwise:
-	 *
-	 * 	vecs(A) =
-	 * 		round_down(V * ncpu(A) / N) =
-	 * 		round_down((N - delta) * ncpu(A) / N) =
-	 * 		round_down((N * ncpu(A) - delta * ncpu(A)) / N)	 >=
-	 * 		round_down((N * ncpu(A) - delta * N) / N)	 =
-	 * 		cpu(A) - delta
-	 *
-	 * 	then:
-	 *
-	 * 	vecs(A) - V >= ncpu(A) - delta - V
-	 * 	=>
-	 * 	V - vecs(A) <= V + delta - ncpu(A)
-	 * 	=>
-	 * 	vecs(B) <= N - ncpu(A)
-	 * 	=>
-	 * 	vecs(B) <= cpu(B)
-	 *
-	 * For nodes >= 3, it can be thought as one node and another big
-	 * node given that is exactly what this algorithm is implemented,
-	 * and we always re-calculate 'remaining_ncpus' & 'numvecs', and
-	 * finally for each node X: vecs(X) <= ncpu(X).
-	 *
-	 */
 	for (n = 0; n < nr_node_ids; n++) {
 		unsigned nvectors, ncpus;
 
@@ -264,9 +179,6 @@ static int __irq_build_affinity_masks(unsigned int startvec,
 	nodes = get_nodes_in_cpumask(node_to_cpumask, cpu_mask, &nodemsk);
 
 	/*
-	 * If the number of nodes in the mask is greater than or equal the
-	 * number of vectors we just spread the vectors across the nodes.
-	 */
 	if (numvecs <= nodes) {
 		for_each_node_mask(n, nodemsk) {
 			/* Ensure that only CPUs which are in both masks are set */
@@ -317,9 +229,6 @@ static int __irq_build_affinity_masks(unsigned int startvec,
 			}
 
 			/*
-			 * wrapping has to be considered given 'startvec'
-			 * may start anywhere
-			 */
 			if (curvec >= last_affv)
 				curvec = firstvec;
 			irq_spread_init_one(&masks[curvec].mask, nmsk,
@@ -331,11 +240,6 @@ static int __irq_build_affinity_masks(unsigned int startvec,
 	return done;
 }
 
-/*
- * build affinity in two stages:
- *	1) spread present CPU on these vectors
- *	2) spread other possible CPUs on these vectors
- */
 static int irq_build_affinity_masks(unsigned int startvec, unsigned int numvecs,
 				    unsigned int firstvec,
 				    struct irq_affinity_desc *masks)
@@ -368,11 +272,6 @@ static int irq_build_affinity_masks(unsigned int startvec, unsigned int numvecs,
 	nr_present = ret;
 
 	/*
-	 * Spread on non present CPUs starting from the next vector to be
-	 * handled. If the spreading of present CPUs already exhausted the
-	 * vector space, assign the non present CPUs to the already spread
-	 * out vectors.
-	 */
 	if (nr_present >= numvecs)
 		curvec = firstvec;
 	else
@@ -406,13 +305,6 @@ static void default_calc_sets(struct irq_affinity *affd, unsigned int affvecs)
 	affd->set_size[0] = affvecs;
 }
 
-/**
- * irq_create_affinity_masks - Create affinity masks for multiqueue spreading
- * @nvecs:	The total number of vectors
- * @affd:	Description of the affinity requirements
- *
- * Returns the irq_affinity_desc pointer or NULL if allocation failed.
- */
 struct irq_affinity_desc *
 irq_create_affinity_masks(unsigned int nvecs, struct irq_affinity *affd)
 {
@@ -420,20 +312,12 @@ irq_create_affinity_masks(unsigned int nvecs, struct irq_affinity *affd)
 	struct irq_affinity_desc *masks = NULL;
 
 	/*
-	 * Determine the number of vectors which need interrupt affinities
-	 * assigned. If the pre/post request exhausts the available vectors
-	 * then nothing to do here except for invoking the calc_sets()
-	 * callback so the device driver can adjust to the situation.
-	 */
 	if (nvecs > affd->pre_vectors + affd->post_vectors)
 		affvecs = nvecs - affd->pre_vectors - affd->post_vectors;
 	else
 		affvecs = 0;
 
 	/*
-	 * Simple invocations do not provide a calc_sets() callback. Install
-	 * the generic one.
-	 */
 	if (!affd->calc_sets)
 		affd->calc_sets = default_calc_sets;
 
@@ -456,9 +340,6 @@ irq_create_affinity_masks(unsigned int nvecs, struct irq_affinity *affd)
 		cpumask_copy(&masks[curvec].mask, irq_default_affinity);
 
 	/*
-	 * Spread on present CPUs starting from affd->pre_vectors. If we
-	 * have multiple sets, build each sets affinity mask separately.
-	 */
 	for (i = 0, usedvecs = 0; i < affd->nr_sets; i++) {
 		unsigned int this_vecs = affd->set_size[i];
 		int ret;
@@ -488,12 +369,6 @@ irq_create_affinity_masks(unsigned int nvecs, struct irq_affinity *affd)
 	return masks;
 }
 
-/**
- * irq_calc_affinity_vectors - Calculate the optimal number of vectors
- * @minvec:	The minimum number of vectors available
- * @maxvec:	The maximum number of vectors available
- * @affd:	Description of the affinity requirements
- */
 unsigned int irq_calc_affinity_vectors(unsigned int minvec, unsigned int maxvec,
 				       const struct irq_affinity *affd)
 {

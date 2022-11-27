@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * system_state.c - State of the system modified by livepatches
- *
- * Copyright (C) 2019 SUSE
- */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -15,19 +9,6 @@
 #define klp_for_each_state(patch, state)		\
 	for (state = patch->states; state && state->id; state++)
 
-/**
- * klp_get_state() - get information about system state modified by
- *	the given patch
- * @patch:	livepatch that modifies the given system state
- * @id:		custom identifier of the modified system state
- *
- * Checks whether the given patch modifies the given system state.
- *
- * The function can be called either from pre/post (un)patch
- * callbacks or from the kernel code added by the livepatch.
- *
- * Return: pointer to struct klp_state when found, otherwise NULL.
- */
 struct klp_state *klp_get_state(struct klp_patch *patch, unsigned long id)
 {
 	struct klp_state *state;
@@ -41,26 +22,6 @@ struct klp_state *klp_get_state(struct klp_patch *patch, unsigned long id)
 }
 EXPORT_SYMBOL_GPL(klp_get_state);
 
-/**
- * klp_get_prev_state() - get information about system state modified by
- *	the already installed livepatches
- * @id:		custom identifier of the modified system state
- *
- * Checks whether already installed livepatches modify the given
- * system state.
- *
- * The same system state can be modified by more non-cumulative
- * livepatches. It is expected that the latest livepatch has
- * the most up-to-date information.
- *
- * The function can be called only during transition when a new
- * livepatch is being enabled or when such a transition is reverted.
- * It is typically called only from pre/post (un)patch
- * callbacks.
- *
- * Return: pointer to the latest struct klp_state from already
- *	installed livepatches, NULL when not found.
- */
 struct klp_state *klp_get_prev_state(unsigned long id)
 {
 	struct klp_patch *patch;
@@ -83,7 +44,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(klp_get_prev_state);
 
-/* Check if the patch is able to deal with the existing system state. */
 static bool klp_is_state_compatible(struct klp_patch *patch,
 				    struct klp_state *old_state)
 {
@@ -98,11 +58,6 @@ static bool klp_is_state_compatible(struct klp_patch *patch,
 	return state->version >= old_state->version;
 }
 
-/*
- * Check that the new livepatch will not break the existing system states.
- * Cumulative patches must handle all already modified states.
- * Non-cumulative patches can touch already modified states.
- */
 bool klp_is_patch_compatible(struct klp_patch *patch)
 {
 	struct klp_patch *old_patch;

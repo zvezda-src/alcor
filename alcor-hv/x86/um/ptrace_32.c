@@ -1,7 +1,3 @@
-/*
- * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
- */
 
 #include <linux/mm.h>
 #include <linux/sched.h>
@@ -49,8 +45,6 @@ int is_syscall(unsigned long addr)
 	return (instr == 0x80cd) || (instr == 0x340f);
 }
 
-/* determines which flags the user has access to. */
-/* 1 = access 0 = no access */
 #define FLAG_MASK 0x00044dd5
 
 static const int reg_offsets[] = {
@@ -173,7 +167,6 @@ unsigned long getreg(struct task_struct *child, int regno)
 	return mask & child->thread.regs.regs.gp[reg_offsets[regno]];
 }
 
-/* read the word at location addr in the USER area. */
 int peek_user(struct task_struct *child, long addr, long data)
 {
 	unsigned long tmp;

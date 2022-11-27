@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Implement CPU time clocks for the POSIX clock interface.
- */
 
 #include <linux/sched/signal.h>
 #include <linux/sched/cputime.h>
@@ -30,15 +26,6 @@ void posix_cputimers_group_init(struct posix_cputimers *pct, u64 cpu_limit)
 	}
 }
 
-/*
- * Called after updating RLIMIT_CPU to run cpu timer and update
- * tsk->signal->posix_cputimers.bases[clock].nextevt expiration cache if
- * necessary. Needs siglock protection since other code may update the
- * expiration cache as well.
- *
- * Returns 0 on success, -ESRCH on failure.  Can fail if the task is exiting and
- * we cannot lock_task_sighand.  Cannot fail if task is current.
- */
 int update_rlimit_cpu(struct task_struct *task, unsigned long rlim_new)
 {
 	u64 nsecs = rlim_new * NSEC_PER_SEC;
@@ -51,9 +38,6 @@ int update_rlimit_cpu(struct task_struct *task, unsigned long rlim_new)
 	return 0;
 }
 
-/*
- * Functions for validating access to tasks.
- */
 static struct pid *pid_for_clock(const clockid_t clock, bool gettime)
 {
 	const bool thread = !!CPUCLOCK_PERTHREAD(clock);
@@ -64,9 +48,6 @@ static struct pid *pid_for_clock(const clockid_t clock, bool gettime)
 		return NULL;
 
 	/*
-	 * If the encoded PID is 0, then the timer is targeted at current
-	 * or the process to which current belongs.
-	 */
 	if (upid == 0)
 		return thread ? task_pid(current) : task_tgid(current);
 
@@ -80,17 +61,10 @@ static struct pid *pid_for_clock(const clockid_t clock, bool gettime)
 	}
 
 	/*
-	 * For clock_gettime(PROCESS) allow finding the process by
-	 * with the pid of the current task.  The code needs the tgid
-	 * of the process so that pid_task(pid, PIDTYPE_TGID) can be
-	 * used to find the process.
-	 */
 	if (gettime && (pid == task_pid(current)))
 		return task_tgid(current);
 
 	/*
-	 * For processes require that pid identifies a process.
-	 */
 	return pid_has_task(pid, PIDTYPE_TGID) ? pid : NULL;
 }
 
@@ -115,10 +89,6 @@ static inline struct task_struct *cpu_timer_task_rcu(struct k_itimer *timer)
 	return pid_task(timer->it.cpu.pid, clock_pid_type(timer->it_clock));
 }
 
-/*
- * Update expiry time from increment, and increase overrun count,
- * given the current clock sample.
- */
 static u64 bump_cpu_timer(struct k_itimer *timer, u64 now)
 {
 	u64 delta, incr, expires = timer->it.cpu.node.expires;
@@ -148,7 +118,6 @@ static u64 bump_cpu_timer(struct k_itimer *timer, u64 now)
 	return timer->it.cpu.node.expires;
 }
 
-/* Check whether all cache entries contain U64_MAX, i.e. eternal expiry time */
 static inline bool expiry_cache_is_inactive(const struct posix_cputimers *pct)
 {
 	return !(~pct->bases[CPUCLOCK_PROF].nextevt |
@@ -166,10 +135,6 @@ posix_cpu_clock_getres(const clockid_t which_clock, struct timespec64 *tp)
 		tp->tv_nsec = ((NSEC_PER_SEC + HZ - 1) / HZ);
 		if (CPUCLOCK_WHICH(which_clock) == CPUCLOCK_SCHED) {
 			/*
-			 * If sched_clock is using a cycle counter, we
-			 * don't have any idea of its true resolution
-			 * exported, but it is much more than 1s/HZ.
-			 */
 			tp->tv_nsec = 1;
 		}
 	}
@@ -182,15 +147,9 @@ posix_cpu_clock_set(const clockid_t clock, const struct timespec64 *tp)
 	int error = validate_clock_permissions(clock);
 
 	/*
-	 * You can never reset a CPU clock, but we check for other errors
-	 * in the call before failing with EPERM.
-	 */
 	return error ? : -EPERM;
 }
 
-/*
- * Sample a per-thread clock for the given task. clkid is validated.
- */
 static u64 cpu_clock_sample(const clockid_t clkid, struct task_struct *p)
 {
 	u64 utime, stime;
@@ -237,10 +196,6 @@ static void proc_sample_cputime_atomic(struct task_cputime_atomic *at,
 	store_samples(samples, stime, utime, rtime);
 }
 
-/*
- * Set cputime to sum_cputime if sum_cputime > cputime. Use cmpxchg
- * to avoid race conditions with concurrent updates to cputime.
- */
 static inline void __update_gt_cputime(atomic64_t *cputime, u64 sum_cputime)
 {
 	u64 curr_cputime;
@@ -260,17 +215,6 @@ static void update_gt_cputime(struct task_cputime_atomic *cputime_atomic,
 	__update_gt_cputime(&cputime_atomic->sum_exec_runtime, sum->sum_exec_runtime);
 }
 
-/**
- * thread_group_sample_cputime - Sample cputime for a given task
- * @tsk:	Task for which cputime needs to be started
- * @samples:	Storage for time samples
- *
- * Called from sys_getitimer() to calculate the expiry time of an active
- * timer. That means group cputime accounting is already active. Called
- * with task sighand lock held.
- *
- * Updates @times with an uptodate sample of the thread group cputimes.
- */
 void thread_group_sample_cputime(struct task_struct *tsk, u64 *samples)
 {
 	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
@@ -281,18 +225,6 @@ void thread_group_sample_cputime(struct task_struct *tsk, u64 *samples)
 	proc_sample_cputime_atomic(&cputimer->cputime_atomic, samples);
 }
 
-/**
- * thread_group_start_cputime - Start cputime and return a sample
- * @tsk:	Task for which cputime needs to be started
- * @samples:	Storage for time samples
- *
- * The thread group cputime accounting is avoided when there are no posix
- * CPU timers armed. Before starting a timer it's required to check whether
- * the time accounting is active. If not, a full update of the atomic
- * accounting store needs to be done and the accounting enabled.
- *
- * Updates @times with an uptodate sample of the thread group cputimes.
- */
 static void thread_group_start_cputime(struct task_struct *tsk, u64 *samples)
 {
 	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
@@ -305,20 +237,10 @@ static void thread_group_start_cputime(struct task_struct *tsk, u64 *samples)
 		struct task_cputime sum;
 
 		/*
-		 * The POSIX timer interface allows for absolute time expiry
-		 * values through the TIMER_ABSTIME flag, therefore we have
-		 * to synchronize the timer to the clock every time we start it.
-		 */
 		thread_group_cputime(tsk, &sum);
 		update_gt_cputime(&cputimer->cputime_atomic, &sum);
 
 		/*
-		 * We're setting timers_active without a lock. Ensure this
-		 * only gets written to in one operation. We set it after
-		 * update_gt_cputime() as a small optimization, but
-		 * barriers are not required because update_gt_cputime()
-		 * can handle concurrent updates.
-		 */
 		WRITE_ONCE(pct->timers_active, true);
 	}
 	proc_sample_cputime_atomic(&cputimer->cputime_atomic, samples);
@@ -332,11 +254,6 @@ static void __thread_group_cputime(struct task_struct *tsk, u64 *samples)
 	store_samples(samples, ct.stime, ct.utime, ct.sum_exec_runtime);
 }
 
-/*
- * Sample a process (thread group) clock for the given task clkid. If the
- * group's cputime accounting is already enabled, read the atomic
- * store. Otherwise a full update is required.  clkid is already validated.
- */
 static u64 cpu_clock_sample_group(const clockid_t clkid, struct task_struct *p,
 				  bool start)
 {
@@ -375,15 +292,9 @@ static int posix_cpu_clock_get(const clockid_t clock, struct timespec64 *tp)
 		t = cpu_clock_sample_group(clkid, tsk, false);
 	rcu_read_unlock();
 
-	*tp = ns_to_timespec64(t);
 	return 0;
 }
 
-/*
- * Validate the clockid_t for a new CPU-clock timer, and initialize the timer.
- * This is called from sys_timer_create() and do_cpu_nanosleep() with the
- * new timer already all-zeros initialized.
- */
 static int posix_cpu_timer_create(struct k_itimer *new_timer)
 {
 	static struct lock_class_key posix_cpu_timers_key;
@@ -397,13 +308,6 @@ static int posix_cpu_timer_create(struct k_itimer *new_timer)
 	}
 
 	/*
-	 * If posix timer expiry is handled in task work context then
-	 * timer::it_lock can be taken without disabling interrupts as all
-	 * other locking happens in task context. This requires a separate
-	 * lock class key otherwise regular posix timer expiry would record
-	 * the lock class being taken in interrupt context and generate a
-	 * false positive warning.
-	 */
 	if (IS_ENABLED(CONFIG_POSIX_CPU_TIMERS_TASK_WORK))
 		lockdep_set_class(&new_timer->it_lock, &posix_cpu_timers_key);
 
@@ -425,12 +329,6 @@ static struct posix_cputimer_base *timer_base(struct k_itimer *timer,
 		return tsk->signal->posix_cputimers.bases + clkidx;
 }
 
-/*
- * Force recalculating the base earliest expiration on the next tick.
- * This will also re-evaluate the need to keep around the process wide
- * cputime counter and tick dependency and eventually shut these down
- * if necessary.
- */
 static void trigger_base_recalc_expires(struct k_itimer *timer,
 					struct task_struct *tsk)
 {
@@ -439,16 +337,6 @@ static void trigger_base_recalc_expires(struct k_itimer *timer,
 	base->nextevt = 0;
 }
 
-/*
- * Dequeue the timer and reset the base if it was its earliest expiration.
- * It makes sure the next tick recalculates the base next expiration so we
- * don't keep the costly process wide cputime counter around for a random
- * amount of time, along with the tick dependency.
- *
- * If another timer gets queued between this and the next tick, its
- * expiration will update the base next event if necessary on the next
- * tick.
- */
 static void disarm_timer(struct k_itimer *timer, struct task_struct *p)
 {
 	struct cpu_timer *ctmr = &timer->it.cpu;
@@ -463,12 +351,6 @@ static void disarm_timer(struct k_itimer *timer, struct task_struct *p)
 }
 
 
-/*
- * Clean up a CPU-clock timer that is about to be destroyed.
- * This is called from timer deletion with the timer already locked.
- * If we return TIMER_RETRY, it's necessary to release the timer's lock
- * and try again.  (This happens when the timer is in the middle of firing.)
- */
 static int posix_cpu_timer_del(struct k_itimer *timer)
 {
 	struct cpu_timer *ctmr = &timer->it.cpu;
@@ -483,15 +365,9 @@ static int posix_cpu_timer_del(struct k_itimer *timer)
 		goto out;
 
 	/*
-	 * Protect against sighand release/switch in exit/exec and process/
-	 * thread timer list entry concurrent read/writes.
-	 */
 	sighand = lock_task_sighand(p, &flags);
 	if (unlikely(sighand == NULL)) {
 		/*
-		 * This raced with the reaping of the task. The exit cleanup
-		 * should have removed this timer from the timer queue.
-		 */
 		WARN_ON_ONCE(ctmr->head || timerqueue_node_queued(&ctmr->node));
 	} else {
 		if (timer->it.cpu.firing)
@@ -522,13 +398,6 @@ static void cleanup_timerqueue(struct timerqueue_head *head)
 	}
 }
 
-/*
- * Clean out CPU timers which are still armed when a thread exits. The
- * timers are only removed from the list. No other updates are done. The
- * corresponding posix timers are still accessible, but cannot be rearmed.
- *
- * This must be called with the siglock held.
- */
 static void cleanup_timers(struct posix_cputimers *pct)
 {
 	cleanup_timerqueue(&pct->bases[CPUCLOCK_PROF].tqhead);
@@ -536,11 +405,6 @@ static void cleanup_timers(struct posix_cputimers *pct)
 	cleanup_timerqueue(&pct->bases[CPUCLOCK_SCHED].tqhead);
 }
 
-/*
- * These are both called with the siglock held, when the current thread
- * is being reaped.  When the final (leader) thread in the group is reaped,
- * posix_cpu_timers_exit_group will be called after posix_cpu_timers_exit.
- */
 void posix_cpu_timers_exit(struct task_struct *tsk)
 {
 	cleanup_timers(&tsk->posix_cputimers);
@@ -550,10 +414,6 @@ void posix_cpu_timers_exit_group(struct task_struct *tsk)
 	cleanup_timers(&tsk->signal->posix_cputimers);
 }
 
-/*
- * Insert the timer on the appropriate list before any timers that
- * expire later.  This must be called with the sighand lock held.
- */
 static void arm_timer(struct k_itimer *timer, struct task_struct *p)
 {
 	struct posix_cputimer_base *base = timer_base(timer, p);
@@ -564,11 +424,6 @@ static void arm_timer(struct k_itimer *timer, struct task_struct *p)
 		return;
 
 	/*
-	 * We are the new earliest-expiring POSIX 1.b timer, hence
-	 * need to update expiration cache. Take into account that
-	 * for process timers we share expiration cache with itimers
-	 * and RLIMIT_CPU and for thread timers with RLIMIT_RTTIME.
-	 */
 	if (newexp < base->nextevt)
 		base->nextevt = newexp;
 
@@ -578,49 +433,28 @@ static void arm_timer(struct k_itimer *timer, struct task_struct *p)
 		tick_dep_set_signal(p, TICK_DEP_BIT_POSIX_TIMER);
 }
 
-/*
- * The timer is locked, fire it and arrange for its reload.
- */
 static void cpu_timer_fire(struct k_itimer *timer)
 {
 	struct cpu_timer *ctmr = &timer->it.cpu;
 
 	if ((timer->it_sigev_notify & ~SIGEV_THREAD_ID) == SIGEV_NONE) {
 		/*
-		 * User don't want any signal.
-		 */
 		cpu_timer_setexpires(ctmr, 0);
 	} else if (unlikely(timer->sigq == NULL)) {
 		/*
-		 * This a special case for clock_nanosleep,
-		 * not a normal timer from sys_timer_create.
-		 */
 		wake_up_process(timer->it_process);
 		cpu_timer_setexpires(ctmr, 0);
 	} else if (!timer->it_interval) {
 		/*
-		 * One-shot timer.  Clear it as soon as it's fired.
-		 */
 		posix_timer_event(timer, 0);
 		cpu_timer_setexpires(ctmr, 0);
 	} else if (posix_timer_event(timer, ++timer->it_requeue_pending)) {
 		/*
-		 * The signal did not get queued because the signal
-		 * was ignored, so we won't get any callback to
-		 * reload the timer.  But we need to keep it
-		 * ticking in case the signal is deliverable next time.
-		 */
 		posix_cpu_timer_rearm(timer);
 		++timer->it_requeue_pending;
 	}
 }
 
-/*
- * Guts of sys_timer_settime for CPU timers.
- * This is called with the timer locked and interrupts disabled.
- * If we return TIMER_RETRY, it's necessary to release the timer's lock
- * and try again.  (This happens when the timer is in the middle of firing.)
- */
 static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 			       struct itimerspec64 *new, struct itimerspec64 *old)
 {
@@ -636,36 +470,22 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	p = cpu_timer_task_rcu(timer);
 	if (!p) {
 		/*
-		 * If p has just been reaped, we can no
-		 * longer get any information about it at all.
-		 */
 		rcu_read_unlock();
 		return -ESRCH;
 	}
 
 	/*
-	 * Use the to_ktime conversion because that clamps the maximum
-	 * value to KTIME_MAX and avoid multiplication overflows.
-	 */
 	new_expires = ktime_to_ns(timespec64_to_ktime(new->it_value));
 
 	/*
-	 * Protect against sighand release/switch in exit/exec and p->cpu_timers
-	 * and p->signal->cpu_timers read/write in arm_timer()
-	 */
 	sighand = lock_task_sighand(p, &flags);
 	/*
-	 * If p has just been reaped, we can no
-	 * longer get any information about it at all.
-	 */
 	if (unlikely(sighand == NULL)) {
 		rcu_read_unlock();
 		return -ESRCH;
 	}
 
 	/*
-	 * Disarm any old timer after extracting its expiry time.
-	 */
 	old_incr = timer->it_interval;
 	old_expires = cpu_timer_getexpires(ctmr);
 
@@ -677,13 +497,6 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	}
 
 	/*
-	 * We need to sample the current value to convert the new
-	 * value from to relative and absolute, and to convert the
-	 * old value from absolute to relative.  To set a process
-	 * timer, we need a sample to balance the thread expiry
-	 * times (in arm_timer).  With an absolute time, we must
-	 * check if it's already passed.  In short, we need a sample.
-	 */
 	if (CPUCLOCK_PERTHREAD(timer->it_clock))
 		val = cpu_clock_sample(clkid, p);
 	else
@@ -695,12 +508,6 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 			old->it_value.tv_nsec = 0;
 		} else {
 			/*
-			 * Update the timer in case it has overrun already.
-			 * If it has, we'll report it as having overrun and
-			 * with the next reloaded timer already ticking,
-			 * though we are swallowing that pending
-			 * notification here to install the new setting.
-			 */
 			u64 exp = bump_cpu_timer(timer, val);
 
 			if (val < exp) {
@@ -715,11 +522,6 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 
 	if (unlikely(ret)) {
 		/*
-		 * We are colliding with the timer actually firing.
-		 * Punt after filling in the timer's old value, and
-		 * disable this firing since we are already reporting
-		 * it as an overrun (thanks to bump_cpu_timer above).
-		 */
 		unlock_task_sighand(p, &flags);
 		goto out;
 	}
@@ -729,10 +531,6 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	}
 
 	/*
-	 * Install the new expiry time (or zero).
-	 * For a timer with no notification action, we don't actually
-	 * arm the timer (we'll just fake it for timer_gettime).
-	 */
 	cpu_timer_setexpires(ctmr, new_expires);
 	if (new_expires != 0 && val < new_expires) {
 		arm_timer(timer, p);
@@ -740,16 +538,9 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 
 	unlock_task_sighand(p, &flags);
 	/*
-	 * Install the new reload setting, and
-	 * set up the signal and overrun bookkeeping.
-	 */
 	timer->it_interval = timespec64_to_ktime(new->it_interval);
 
 	/*
-	 * This acts as a modification timestamp for the timer,
-	 * so any automatic reload attempt will punt on seeing
-	 * that we have reset the timer manually.
-	 */
 	timer->it_requeue_pending = (timer->it_requeue_pending + 2) &
 		~REQUEUE_PENDING;
 	timer->it_overrun_last = 0;
@@ -758,17 +549,10 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	if (val >= new_expires) {
 		if (new_expires != 0) {
 			/*
-			 * The designated time already passed, so we notify
-			 * immediately, even if the thread never runs to
-			 * accumulate more time on this clock.
-			 */
 			cpu_timer_fire(timer);
 		}
 
 		/*
-		 * Make sure we don't keep around the process wide cputime
-		 * counter or the tick dependency if they are not necessary.
-		 */
 		sighand = lock_task_sighand(p, &flags);
 		if (!sighand)
 			goto out;
@@ -799,16 +583,12 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp
 		goto out;
 
 	/*
-	 * Easy part: convert the reload time.
-	 */
 	itp->it_interval = ktime_to_timespec64(timer->it_interval);
 
 	if (!expires)
 		goto out;
 
 	/*
-	 * Sample the clock to take the difference with the expiry time.
-	 */
 	if (CPUCLOCK_PERTHREAD(timer->it_clock))
 		now = cpu_clock_sample(clkid, p);
 	else
@@ -818,9 +598,6 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp
 		itp->it_value = ns_to_timespec64(expires - now);
 	} else {
 		/*
-		 * The timer should have expired already, but the firing
-		 * hasn't taken place yet.  Say it's just about to expire.
-		 */
 		itp->it_value.tv_nsec = 1;
 		itp->it_value.tv_sec = 0;
 	}
@@ -888,11 +665,6 @@ static bool check_rlimit(u64 time, u64 limit, int signo, bool rt, bool hard)
 	return true;
 }
 
-/*
- * Check for any per-thread CPU timers that have fired and move them off
- * the tsk->cpu_timers[N] list onto the firing list.  Here we update the
- * tsk->it_*_expires values to reflect the remaining thread CPU timers.
- */
 static void check_thread_timers(struct task_struct *tsk,
 				struct list_head *firing)
 {
@@ -910,8 +682,6 @@ static void check_thread_timers(struct task_struct *tsk,
 	collect_posix_cputimers(pct, samples, firing);
 
 	/*
-	 * Check for the special case thread timers.
-	 */
 	soft = task_rlimit(tsk, RLIMIT_RTTIME);
 	if (soft != RLIM_INFINITY) {
 		/* Task RT timeout is accounted in jiffies. RTTIME is usec */
@@ -965,11 +735,6 @@ static void check_cpu_itimer(struct task_struct *tsk, struct cpu_itimer *it,
 		*expires = it->expires;
 }
 
-/*
- * Check for any per-thread CPU timers that have fired and move them
- * off the tsk->*_timers list onto the firing list.  Per-thread timers
- * have already been taken off.
- */
 static void check_process_timers(struct task_struct *tsk,
 				 struct list_head *firing)
 {
@@ -979,29 +744,17 @@ static void check_process_timers(struct task_struct *tsk,
 	unsigned long soft;
 
 	/*
-	 * If there are no active process wide timers (POSIX 1.b, itimers,
-	 * RLIMIT_CPU) nothing to check. Also skip the process wide timer
-	 * processing when there is already another task handling them.
-	 */
 	if (!READ_ONCE(pct->timers_active) || pct->expiry_active)
 		return;
 
 	/*
-	 * Signify that a thread is checking for process timers.
-	 * Write access to this field is protected by the sighand lock.
-	 */
 	pct->expiry_active = true;
 
 	/*
-	 * Collect the current process totals. Group accounting is active
-	 * so the sample can be taken directly.
-	 */
 	proc_sample_cputime_atomic(&sig->cputimer.cputime_atomic, samples);
 	collect_posix_cputimers(pct, samples, firing);
 
 	/*
-	 * Check for the special case process timers.
-	 */
 	check_cpu_itimer(tsk, &sig->it[CPUCLOCK_PROF],
 			 &pct->bases[CPUCLOCK_PROF].nextevt,
 			 samples[CPUCLOCK_PROF], SIGPROF);
@@ -1039,10 +792,6 @@ static void check_process_timers(struct task_struct *tsk,
 	pct->expiry_active = false;
 }
 
-/*
- * This is called from the signal code (via posixtimer_rearm)
- * when the last timer signal was delivered and we have to reload the timer.
- */
 static void posix_cpu_timer_rearm(struct k_itimer *timer)
 {
 	clockid_t clkid = CPUCLOCK_WHICH(timer->it_clock);
@@ -1062,8 +811,6 @@ static void posix_cpu_timer_rearm(struct k_itimer *timer)
 		goto out;
 
 	/*
-	 * Fetch the current sample and update the timer's expiry time.
-	 */
 	if (CPUCLOCK_PERTHREAD(timer->it_clock))
 		now = cpu_clock_sample(clkid, p);
 	else
@@ -1072,23 +819,12 @@ static void posix_cpu_timer_rearm(struct k_itimer *timer)
 	bump_cpu_timer(timer, now);
 
 	/*
-	 * Now re-arm for the new expiry time.
-	 */
 	arm_timer(timer, p);
 	unlock_task_sighand(p, &flags);
 out:
 	rcu_read_unlock();
 }
 
-/**
- * task_cputimers_expired - Check whether posix CPU timers are expired
- *
- * @samples:	Array of current samples for the CPUCLOCK clocks
- * @pct:	Pointer to a posix_cputimers container
- *
- * Returns true if any member of @samples is greater than the corresponding
- * member of @pct->bases[CLK].nextevt. False otherwise
- */
 static inline bool
 task_cputimers_expired(const u64 *samples, struct posix_cputimers *pct)
 {
@@ -1101,16 +837,6 @@ task_cputimers_expired(const u64 *samples, struct posix_cputimers *pct)
 	return false;
 }
 
-/**
- * fastpath_timer_check - POSIX CPU timers fast path.
- *
- * @tsk:	The task (thread) being checked.
- *
- * Check the task and thread group timers.  If both are zero (there are no
- * timers set) return false.  Otherwise snapshot the task and thread group
- * timers and compare them with the corresponding expiration times.  Return
- * true if a timer has expired, else return false.
- */
 static inline bool fastpath_timer_check(struct task_struct *tsk)
 {
 	struct posix_cputimers *pct = &tsk->posix_cputimers;
@@ -1127,20 +853,6 @@ static inline bool fastpath_timer_check(struct task_struct *tsk)
 	sig = tsk->signal;
 	pct = &sig->posix_cputimers;
 	/*
-	 * Check if thread group timers expired when timers are active and
-	 * no other thread in the group is already handling expiry for
-	 * thread group cputimers. These fields are read without the
-	 * sighand lock. However, this is fine because this is meant to be
-	 * a fastpath heuristic to determine whether we should try to
-	 * acquire the sighand lock to handle timer expiry.
-	 *
-	 * In the worst case scenario, if concurrently timers_active is set
-	 * or expiry_active is cleared, but the current thread doesn't see
-	 * the change yet, the timer checks are delayed until the next
-	 * thread in the group gets a scheduler interrupt to handle the
-	 * timer. This isn't an issue in practice because these types of
-	 * delays with signals actually getting sent are expected.
-	 */
 	if (READ_ONCE(pct->timers_active) && !READ_ONCE(pct->expiry_active)) {
 		u64 samples[CPUCLOCK_MAX];
 
@@ -1165,15 +877,9 @@ static void posix_cpu_timers_work(struct callback_head *work)
 	handle_posix_cpu_timers(current);
 }
 
-/*
- * Clear existing posix CPU timers task work.
- */
 void clear_posix_cputimers_work(struct task_struct *p)
 {
 	/*
-	 * A copied work entry from the old task is not meaningful, clear it.
-	 * N.B. init_task_work will not do this.
-	 */
 	memset(&p->posix_cputimers_work.work, 0,
 	       sizeof(p->posix_cputimers_work.work));
 	init_task_work(&p->posix_cputimers_work.work,
@@ -1181,21 +887,11 @@ void clear_posix_cputimers_work(struct task_struct *p)
 	p->posix_cputimers_work.scheduled = false;
 }
 
-/*
- * Initialize posix CPU timers task work in init task. Out of line to
- * keep the callback static and to avoid header recursion hell.
- */
 void __init posix_cputimers_init_work(void)
 {
 	clear_posix_cputimers_work(current);
 }
 
-/*
- * Note: All operations on tsk->posix_cputimer_work.scheduled happen either
- * in hard interrupt context or in task context with interrupts
- * disabled. Aside of that the writer/reader interaction is always in the
- * context of the current task, which means they are strict per CPU.
- */
 static inline bool posix_cpu_timers_work_scheduled(struct task_struct *tsk)
 {
 	return tsk->posix_cputimers_work.scheduled;
@@ -1217,28 +913,12 @@ static inline bool posix_cpu_timers_enable_work(struct task_struct *tsk,
 	bool ret = true;
 
 	/*
-	 * On !RT kernels interrupts are disabled while collecting expired
-	 * timers, so no tick can happen and the fast path check can be
-	 * reenabled without further checks.
-	 */
 	if (!IS_ENABLED(CONFIG_PREEMPT_RT)) {
 		tsk->posix_cputimers_work.scheduled = false;
 		return true;
 	}
 
 	/*
-	 * On RT enabled kernels ticks can happen while the expired timers
-	 * are collected under sighand lock. But any tick which observes
-	 * the CPUTIMERS_WORK_SCHEDULED bit set, does not run the fastpath
-	 * checks. So reenabling the tick work has do be done carefully:
-	 *
-	 * Disable interrupts and run the fast path check if jiffies have
-	 * advanced since the collecting of expired timers started. If
-	 * jiffies have not advanced or the fast path check did not find
-	 * newly expired timers, reenable the fast path check in the timer
-	 * interrupt. If there are newly expired timers, return false and
-	 * let the collection loop repeat.
-	 */
 	local_irq_disable();
 	if (start != jiffies && fastpath_timer_check(tsk))
 		ret = false;
@@ -1279,100 +959,36 @@ static void handle_posix_cpu_timers(struct task_struct *tsk)
 
 	do {
 		/*
-		 * On RT locking sighand lock does not disable interrupts,
-		 * so this needs to be careful vs. ticks. Store the current
-		 * jiffies value.
-		 */
 		start = READ_ONCE(jiffies);
 		barrier();
 
 		/*
-		 * Here we take off tsk->signal->cpu_timers[N] and
-		 * tsk->cpu_timers[N] all the timers that are firing, and
-		 * put them on the firing list.
-		 */
 		check_thread_timers(tsk, &firing);
 
 		check_process_timers(tsk, &firing);
 
 		/*
-		 * The above timer checks have updated the expiry cache and
-		 * because nothing can have queued or modified timers after
-		 * sighand lock was taken above it is guaranteed to be
-		 * consistent. So the next timer interrupt fastpath check
-		 * will find valid data.
-		 *
-		 * If timer expiry runs in the timer interrupt context then
-		 * the loop is not relevant as timers will be directly
-		 * expired in interrupt context. The stub function below
-		 * returns always true which allows the compiler to
-		 * optimize the loop out.
-		 *
-		 * If timer expiry is deferred to task work context then
-		 * the following rules apply:
-		 *
-		 * - On !RT kernels no tick can have happened on this CPU
-		 *   after sighand lock was acquired because interrupts are
-		 *   disabled. So reenabling task work before dropping
-		 *   sighand lock and reenabling interrupts is race free.
-		 *
-		 * - On RT kernels ticks might have happened but the tick
-		 *   work ignored posix CPU timer handling because the
-		 *   CPUTIMERS_WORK_SCHEDULED bit is set. Reenabling work
-		 *   must be done very carefully including a check whether
-		 *   ticks have happened since the start of the timer
-		 *   expiry checks. posix_cpu_timers_enable_work() takes
-		 *   care of that and eventually lets the expiry checks
-		 *   run again.
-		 */
 	} while (!posix_cpu_timers_enable_work(tsk, start));
 
 	/*
-	 * We must release sighand lock before taking any timer's lock.
-	 * There is a potential race with timer deletion here, as the
-	 * siglock now protects our private firing list.  We have set
-	 * the firing flag in each timer, so that a deletion attempt
-	 * that gets the timer lock before we do will give it up and
-	 * spin until we've taken care of that timer below.
-	 */
 	unlock_task_sighand(tsk, &flags);
 
 	/*
-	 * Now that all the timers on our list have the firing flag,
-	 * no one will touch their list entries but us.  We'll take
-	 * each timer's lock before clearing its firing flag, so no
-	 * timer call will interfere.
-	 */
 	list_for_each_entry_safe(timer, next, &firing, it.cpu.elist) {
 		int cpu_firing;
 
 		/*
-		 * spin_lock() is sufficient here even independent of the
-		 * expiry context. If expiry happens in hard interrupt
-		 * context it's obvious. For task work context it's safe
-		 * because all other operations on timer::it_lock happen in
-		 * task context (syscall or exit).
-		 */
 		spin_lock(&timer->it_lock);
 		list_del_init(&timer->it.cpu.elist);
 		cpu_firing = timer->it.cpu.firing;
 		timer->it.cpu.firing = 0;
 		/*
-		 * The firing flag is -1 if we collided with a reset
-		 * of the timer, which already reported this
-		 * almost-firing as an overrun.  So don't generate an event.
-		 */
 		if (likely(cpu_firing >= 0))
 			cpu_timer_fire(timer);
 		spin_unlock(&timer->it_lock);
 	}
 }
 
-/*
- * This is called from the timer interrupt handler.  The irq handler has
- * already updated our counts.  We need to check if any timers fire now.
- * Interrupts are disabled.
- */
 void run_posix_cpu_timers(void)
 {
 	struct task_struct *tsk = current;
@@ -1380,26 +996,16 @@ void run_posix_cpu_timers(void)
 	lockdep_assert_irqs_disabled();
 
 	/*
-	 * If the actual expiry is deferred to task work context and the
-	 * work is already scheduled there is no point to do anything here.
-	 */
 	if (posix_cpu_timers_work_scheduled(tsk))
 		return;
 
 	/*
-	 * The fast path checks that there are no expired thread or thread
-	 * group timers.  If that's so, just return.
-	 */
 	if (!fastpath_timer_check(tsk))
 		return;
 
 	__run_posix_cpu_timers(tsk);
 }
 
-/*
- * Set one of the process-wide special case CPU timers or RLIMIT_CPU.
- * The tsk->sighand->siglock must be held by the caller.
- */
 void set_process_cpu_timer(struct task_struct *tsk, unsigned int clkid,
 			   u64 *newval, u64 *oldval)
 {
@@ -1413,10 +1019,6 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clkid,
 
 	if (oldval) {
 		/*
-		 * We are setting itimer. The *oldval is absolute and we update
-		 * it to be relative, *newval argument is relative and we update
-		 * it to be absolute.
-		 */
 		if (*oldval) {
 			if (*oldval <= now) {
 				/* Just about to fire. */
@@ -1431,9 +1033,6 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clkid,
 	}
 
 	/*
-	 * Update expiration cache if this is the earliest timer. CPUCLOCK_PROF
-	 * expiry cache is also used by RLIMIT_CPU!.
-	 */
 	if (*newval < *nextevt)
 		*nextevt = *newval;
 
@@ -1449,8 +1048,6 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 	int error;
 
 	/*
-	 * Set up a temporary timer and then wait for it to go off.
-	 */
 	memset(&timer, 0, sizeof timer);
 	spin_lock_init(&timer.it_lock);
 	timer.it_clock = which_clock;
@@ -1475,17 +1072,12 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 		while (!signal_pending(current)) {
 			if (!cpu_timer_getexpires(&timer.it.cpu)) {
 				/*
-				 * Our timer fired and was reset, below
-				 * deletion can not fail.
-				 */
 				posix_cpu_timer_del(&timer);
 				spin_unlock_irq(&timer.it_lock);
 				return 0;
 			}
 
 			/*
-			 * Block until cpu_timer_fire (or a signal) wakes us.
-			 */
 			__set_current_state(TASK_INTERRUPTIBLE);
 			spin_unlock_irq(&timer.it_lock);
 			schedule();
@@ -1493,24 +1085,16 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 		}
 
 		/*
-		 * We were interrupted by a signal.
-		 */
 		expires = cpu_timer_getexpires(&timer.it.cpu);
 		error = posix_cpu_timer_set(&timer, 0, &zero_it, &it);
 		if (!error) {
 			/*
-			 * Timer is now unarmed, deletion can not fail.
-			 */
 			posix_cpu_timer_del(&timer);
 		}
 		spin_unlock_irq(&timer.it_lock);
 
 		while (error == TIMER_RETRY) {
 			/*
-			 * We need to handle case when timer was or is in the
-			 * middle of firing. In other cases we already freed
-			 * resources.
-			 */
 			spin_lock_irq(&timer.it_lock);
 			error = posix_cpu_timer_del(&timer);
 			spin_unlock_irq(&timer.it_lock);
@@ -1518,15 +1102,11 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 
 		if ((it.it_value.tv_sec | it.it_value.tv_nsec) == 0) {
 			/*
-			 * It actually did fire already.
-			 */
 			return 0;
 		}
 
 		error = -ERESTART_RESTARTBLOCK;
 		/*
-		 * Report back to the user the time still remaining.
-		 */
 		restart = &current->restart_block;
 		restart->nanosleep.expires = expires;
 		if (restart->nanosleep.type != TT_NONE)
@@ -1545,8 +1125,6 @@ static int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 	int error;
 
 	/*
-	 * Diagnose required errors first.
-	 */
 	if (CPUCLOCK_PERTHREAD(which_clock) &&
 	    (CPUCLOCK_PID(which_clock) == 0 ||
 	     CPUCLOCK_PID(which_clock) == task_pid_vnr(current)))

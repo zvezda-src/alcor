@@ -1,8 +1,3 @@
-/*
- * Copyright (C) 2004 PathScale, Inc
- * Copyright (C) 2004 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
- */
 
 #include <errno.h>
 #include <stdlib.h>

@@ -1,23 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Copyright(c) 2017 Intel Corporation. All rights reserved.
- *
- * This code is based in part on work published here:
- *
- *	https://github.com/IAIK/KAISER
- *
- * The original work was written by and and signed off by for the Linux
- * kernel by:
- *
- *   Signed-off-by: Richard Fellner <richard.fellner@student.tugraz.at>
- *   Signed-off-by: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
- *   Signed-off-by: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
- *   Signed-off-by: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
- *
- * Major changes to the original code by: Dave Hansen <dave.hansen@intel.com>
- * Mostly rewritten by Thomas Gleixner <tglx@linutronix.de> and
- *		       Andy Lutomirsky <luto@amacapital.net>
- */
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
@@ -42,15 +22,10 @@
 #undef pr_fmt
 #define pr_fmt(fmt)     "Kernel/User page tables isolation: " fmt
 
-/* Backporting helper */
 #ifndef __GFP_NOTRACK
 #define __GFP_NOTRACK	0
 #endif
 
-/*
- * Define the page-table levels we clone for user-space on 32
- * and 64 bit.
- */
 #ifdef CONFIG_X86_64
 #define	PTI_LEVEL_KERNEL_IMAGE	PTI_CLONE_PMD
 #else
@@ -124,36 +99,13 @@ enable:
 pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
 {
 	/*
-	 * Changes to the high (kernel) portion of the kernelmode page
-	 * tables are not automatically propagated to the usermode tables.
-	 *
-	 * Users should keep in mind that, unlike the kernelmode tables,
-	 * there is no vmalloc_fault equivalent for the usermode tables.
-	 * Top-level entries added to init_mm's usermode pgd after boot
-	 * will not be automatically propagated to other mms.
-	 */
 	if (!pgdp_maps_userspace(pgdp))
 		return pgd;
 
 	/*
-	 * The user page tables get the full PGD, accessible from
-	 * userspace:
-	 */
 	kernel_to_user_pgdp(pgdp)->pgd = pgd.pgd;
 
 	/*
-	 * If this is normal user memory, make it NX in the kernel
-	 * pagetables so that, if we somehow screw up and return to
-	 * usermode with the kernel CR3 loaded, we'll get a page fault
-	 * instead of allowing user code to execute with the wrong CR3.
-	 *
-	 * As exceptions, we don't set NX if:
-	 *  - _PAGE_USER is not set.  This could be an executable
-	 *     EFI runtime mapping or something similar, and the kernel
-	 *     may execute from it
-	 *  - we don't have NX support
-	 *  - we're clearing the PGD (i.e. the new pgd is not present).
-	 */
 	if ((pgd.pgd & (_PAGE_USER|_PAGE_PRESENT)) == (_PAGE_USER|_PAGE_PRESENT) &&
 	    (__supported_pte_mask & _PAGE_NX))
 		pgd.pgd |= _PAGE_NX;
@@ -162,12 +114,6 @@ pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
 	return pgd;
 }
 
-/*
- * Walk the user copy of the page tables (optionally) trying to allocate
- * page table pages on the way down.
- *
- * Returns a pointer to a P4D on success, or NULL on failure.
- */
 static p4d_t *pti_user_pagetable_walk_p4d(unsigned long address)
 {
 	pgd_t *pgd = kernel_to_user_pgdp(pgd_offset_k(address));
@@ -190,12 +136,6 @@ static p4d_t *pti_user_pagetable_walk_p4d(unsigned long address)
 	return p4d_offset(pgd, address);
 }
 
-/*
- * Walk the user copy of the page tables (optionally) trying to allocate
- * page table pages on the way down.
- *
- * Returns a pointer to a PMD on success, or NULL on failure.
- */
 static pmd_t *pti_user_pagetable_walk_pmd(unsigned long address)
 {
 	gfp_t gfp = (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO);
@@ -232,15 +172,6 @@ static pmd_t *pti_user_pagetable_walk_pmd(unsigned long address)
 	return pmd_offset(pud, address);
 }
 
-/*
- * Walk the shadow copy of the page tables (optionally) trying to allocate
- * page table pages on the way down.  Does not support large pages.
- *
- * Note: this is only used when mapping *new* kernel data into the
- * user/shadow page tables.  It is never used for userspace data.
- *
- * Returns a pointer to a PTE on success, or NULL on failure.
- */
 static pte_t *pti_user_pagetable_walk_pte(unsigned long address)
 {
 	gfp_t gfp = (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO);
@@ -287,7 +218,6 @@ static void __init pti_setup_vsyscall(void)
 	if (WARN_ON(!target_pte))
 		return;
 
-	*target_pte = *pte;
 	set_vsyscall_pgtable_user_bits(kernel_to_user_pgdp(swapper_pg_dir));
 }
 #else
@@ -306,9 +236,6 @@ pti_clone_pgtable(unsigned long start, unsigned long end,
 	unsigned long addr;
 
 	/*
-	 * Clone the populated PMDs which cover start to end. These PMD areas
-	 * can have holes.
-	 */
 	for (addr = start; addr < end;) {
 		pte_t *pte, *target_pte;
 		pmd_t *pmd, *target_pmd;
@@ -347,31 +274,14 @@ pti_clone_pgtable(unsigned long start, unsigned long end,
 				return;
 
 			/*
-			 * Only clone present PMDs.  This ensures only setting
-			 * _PAGE_GLOBAL on present PMDs.  This should only be
-			 * called on well-known addresses anyway, so a non-
-			 * present PMD would be a surprise.
-			 */
 			if (WARN_ON(!(pmd_flags(*pmd) & _PAGE_PRESENT)))
 				return;
 
 			/*
-			 * Setting 'target_pmd' below creates a mapping in both
-			 * the user and kernel page tables.  It is effectively
-			 * global, so set it as global in both copies.  Note:
-			 * the X86_FEATURE_PGE check is not _required_ because
-			 * the CPU ignores _PAGE_GLOBAL when PGE is not
-			 * supported.  The check keeps consistency with
-			 * code that only set this bit when supported.
-			 */
 			if (boot_cpu_has(X86_FEATURE_PGE))
 				*pmd = pmd_set_flags(*pmd, _PAGE_GLOBAL);
 
 			/*
-			 * Copy the PMD.  That is, the kernelmode and usermode
-			 * tables will share the last-level page tables of this
-			 * address range
-			 */
 			*target_pmd = *pmd;
 
 			addr += PMD_SIZE;
@@ -410,10 +320,6 @@ pti_clone_pgtable(unsigned long start, unsigned long end,
 }
 
 #ifdef CONFIG_X86_64
-/*
- * Clone a single p4d (i.e. a top-level entry on 4-level systems and a
- * next-level entry on 5-level systems.
- */
 static void __init pti_clone_p4d(unsigned long addr)
 {
 	p4d_t *kernel_p4d, *user_p4d;
@@ -425,13 +331,8 @@ static void __init pti_clone_p4d(unsigned long addr)
 
 	kernel_pgd = pgd_offset_k(addr);
 	kernel_p4d = p4d_offset(kernel_pgd, addr);
-	*user_p4d = *kernel_p4d;
 }
 
-/*
- * Clone the CPU_ENTRY_AREA and associated data into the user space visible
- * page table.
- */
 static void __init pti_clone_user_shared(void)
 {
 	unsigned int cpu;
@@ -440,13 +341,6 @@ static void __init pti_clone_user_shared(void)
 
 	for_each_possible_cpu(cpu) {
 		/*
-		 * The SYSCALL64 entry code needs one word of scratch space
-		 * in which to spill a register.  It lives in the sp2 slot
-		 * of the CPU's TSS.
-		 *
-		 * This is done for all possible CPUs during boot to ensure
-		 * that it's propagated to all mms.
-		 */
 
 		unsigned long va = (unsigned long)&per_cpu(cpu_tss_rw, cpu);
 		phys_addr_t pa = per_cpu_ptr_to_phys((void *)va);
@@ -462,12 +356,6 @@ static void __init pti_clone_user_shared(void)
 
 #else /* CONFIG_X86_64 */
 
-/*
- * On 32 bit PAE systems with 1GB of Kernel address space there is only
- * one pgd/p4d for the whole kernel. Cloning that would map the whole
- * address space into the user page-tables, making PTI useless. So clone
- * the page-table on the PMD level to prevent that.
- */
 static void __init pti_clone_user_shared(void)
 {
 	unsigned long start, end;
@@ -479,9 +367,6 @@ static void __init pti_clone_user_shared(void)
 }
 #endif /* CONFIG_X86_64 */
 
-/*
- * Clone the ESPFIX P4D into the user space visible page table
- */
 static void __init pti_setup_espfix64(void)
 {
 #ifdef CONFIG_X86_ESPFIX64
@@ -489,9 +374,6 @@ static void __init pti_setup_espfix64(void)
 #endif
 }
 
-/*
- * Clone the populated PMDs of the entry text and force it RO.
- */
 static void pti_clone_entry_text(void)
 {
 	pti_clone_pgtable((unsigned long) __entry_text_start,
@@ -499,64 +381,30 @@ static void pti_clone_entry_text(void)
 			  PTI_CLONE_PMD);
 }
 
-/*
- * Global pages and PCIDs are both ways to make kernel TLB entries
- * live longer, reduce TLB misses and improve kernel performance.
- * But, leaving all kernel text Global makes it potentially accessible
- * to Meltdown-style attacks which make it trivial to find gadgets or
- * defeat KASLR.
- *
- * Only use global pages when it is really worth it.
- */
 static inline bool pti_kernel_image_global_ok(void)
 {
 	/*
-	 * Systems with PCIDs get little benefit from global
-	 * kernel text and are not worth the downsides.
-	 */
 	if (cpu_feature_enabled(X86_FEATURE_PCID))
 		return false;
 
 	/*
-	 * Only do global kernel image for pti=auto.  Do the most
-	 * secure thing (not global) if pti=on specified.
-	 */
 	if (pti_mode != PTI_AUTO)
 		return false;
 
 	/*
-	 * K8 may not tolerate the cleared _PAGE_RW on the userspace
-	 * global kernel image pages.  Do the safe thing (disable
-	 * global kernel image).  This is unlikely to ever be
-	 * noticed because PTI is disabled by default on AMD CPUs.
-	 */
 	if (boot_cpu_has(X86_FEATURE_K8))
 		return false;
 
 	/*
-	 * RANDSTRUCT derives its hardening benefits from the
-	 * attacker's lack of knowledge about the layout of kernel
-	 * data structures.  Keep the kernel image non-global in
-	 * cases where RANDSTRUCT is in use to help keep the layout a
-	 * secret.
-	 */
 	if (IS_ENABLED(CONFIG_RANDSTRUCT))
 		return false;
 
 	return true;
 }
 
-/*
- * For some configurations, map all of kernel text into the user page
- * tables.  This reduces TLB misses, especially on non-PCID systems.
- */
 static void pti_clone_kernel_text(void)
 {
 	/*
-	 * rodata is part of the kernel image and is normally
-	 * readable on the filesystem or on the web.  But, do not
-	 * clone the areas past rodata, they might contain secrets.
-	 */
 	unsigned long start = PFN_ALIGN(_text);
 	unsigned long end_clone  = (unsigned long)__end_rodata_aligned;
 	unsigned long end_global = PFN_ALIGN((unsigned long)_etext);
@@ -567,17 +415,9 @@ static void pti_clone_kernel_text(void)
 	pr_debug("mapping partial kernel image into user address space\n");
 
 	/*
-	 * Note that this will undo _some_ of the work that
-	 * pti_set_kernel_image_nonglobal() did to clear the
-	 * global bit.
-	 */
 	pti_clone_pgtable(start, end_clone, PTI_LEVEL_KERNEL_IMAGE);
 
 	/*
-	 * pti_clone_pgtable() will set the global bit in any PMDs
-	 * that it clones, but we also need to get any PTEs in
-	 * the last level for areas that are not huge-page-aligned.
-	 */
 
 	/* Set the global bit for normal non-__init kernel text: */
 	set_memory_global(start, (end_global - start) >> PAGE_SHIFT);
@@ -586,25 +426,13 @@ static void pti_clone_kernel_text(void)
 static void pti_set_kernel_image_nonglobal(void)
 {
 	/*
-	 * The identity map is created with PMDs, regardless of the
-	 * actual length of the kernel.  We need to clear
-	 * _PAGE_GLOBAL up to a PMD boundary, not just to the end
-	 * of the image.
-	 */
 	unsigned long start = PFN_ALIGN(_text);
 	unsigned long end = ALIGN((unsigned long)_end, PMD_PAGE_SIZE);
 
 	/*
-	 * This clears _PAGE_GLOBAL from the entire kernel image.
-	 * pti_clone_kernel_text() map put _PAGE_GLOBAL back for
-	 * areas that are mapped to userspace.
-	 */
 	set_memory_nonglobal(start, (end - start) >> PAGE_SHIFT);
 }
 
-/*
- * Initialize kernel page table isolation
- */
 void __init pti_init(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_PTI))
@@ -614,11 +442,6 @@ void __init pti_init(void)
 
 #ifdef CONFIG_X86_32
 	/*
-	 * We check for X86_FEATURE_PCID here. But the init-code will
-	 * clear the feature flag on 32 bit because the feature is not
-	 * supported on 32 bit anyway. To print the warning we need to
-	 * check with cpuid directly again.
-	 */
 	if (cpuid_ecx(0x1) & BIT(17)) {
 		/* Use printk to work around pr_fmt() */
 		printk(KERN_WARNING "\n");
@@ -644,21 +467,11 @@ void __init pti_init(void)
 	pti_setup_vsyscall();
 }
 
-/*
- * Finalize the kernel mappings in the userspace page-table. Some of the
- * mappings for the kernel image might have changed since pti_init()
- * cloned them. This is because parts of the kernel image have been
- * mapped RO and/or NX.  These changes need to be cloned again to the
- * userspace page-table.
- */
 void pti_finalize(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_PTI))
 		return;
 	/*
-	 * We need to clone everything (again) that maps parts of the
-	 * kernel image.
-	 */
 	pti_clone_entry_text();
 	pti_clone_kernel_text();
 

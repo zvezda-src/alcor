@@ -1,26 +1,20 @@
 DISTCHECK_CONFIGURE_FLAGS = --enable-haskell-tests
 
-# Automake doesn't export these variables before version 1.10.
 abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
 
-# Helper values for calling builtin functions
 empty :=
 space := $(empty) $(empty)
 comma := ,
 
-# Helper function to strip src/ and test/hs/ from a list
 strip_hsroot = $(patsubst src/%,%,$(patsubst test/hs/%,%,$(1)))
 
-# Use bash in order to be able to use pipefail
 SHELL=/bin/bash
 
 EXTRA_DIST=
 
-# Enable colors in shelltest
 SHELLTESTARGS = "-c"
 
-# Use C.UTF-8 for tests/checks when available, fall back to en_US.UTF-8 else
 UTF8_LOCALE := $(shell locale -a | grep -m 1 -xF "C.UTF-8" || echo "en_US.UTF-8")
 
 ACLOCAL_AMFLAGS = -I autotools
@@ -40,21 +34,6 @@ PRINT_PY_CONSTANTS = $(top_srcdir)/autotools/print-py-constants
 BUILD_RPC = $(top_srcdir)/autotools/build-rpc
 SHELL_ENV_INIT = autotools/shell-env-init
 
-# starting as of Alcor 2.10, all files are stored in two directories,
-# with only symbolic links added at other places.
-#
-# $(versiondir) contains most of Alcor and all architecture-dependent files
-# $(versionedsharedir) contains only architecture-independent files; all python
-# executables need to go directly to $(versionedsharedir), as all alcor python
-# mdules are installed outside the usual python path, i.e., as private modules.
-#
-# $(defaultversiondir) and $(defaultversionedsharedir) are the corresponding
-# directories for "the currently running" version of Alcor. We never install
-# there, but all symbolic links go there, rather than directory to $(versiondir)
-# or $(versionedsharedir). Note that all links to $(default*dir) need to be stable;
-# so, if some currently architecture-independent executable is replaced by an
-# architecture-dependent one (and hence has to go under $(versiondir)), add a link
-# under $(versionedsharedir) but do not change the external links.
 if USE_VERSION_FULL
 DIRVERSION=$(VERSION_FULL)
 else
@@ -65,8 +44,6 @@ defaultversiondir = $(libdir)/alcor/default
 versionedsharedir = $(prefix)/share/alcor/$(DIRVERSION)
 defaultversionedsharedir = $(prefix)/share/alcor/default
 
-# Note: these are automake-specific variables, and must be named after
-# the directory + 'dir' suffix
 pkglibdir = $(versiondir)$(libdir)/alcor
 myexeclibdir = $(pkglibdir)
 bindir = $(versiondir)/$(BINDIR)
@@ -120,7 +97,6 @@ SYMLINK_TARGET_DIRS = \
 	$(MANDIR)/man7 \
 	$(MANDIR)/man8
 
-# Delete output file if an error occurred while building it
 .DELETE_ON_ERROR:
 
 HS_DIRS = \
@@ -176,7 +152,6 @@ HS_DIRS = \
 	test/hs/Test/Alcor/Utils \
 	test/hs/Test/Alcor/WConfd
 
-# Haskell directories without the roots (src, test/hs)
 HS_DIRS_NOROOT = $(filter-out src,$(filter-out test/hs,$(HS_DIRS)))
 
 DIRS = \
@@ -274,7 +249,6 @@ DIRCHECK_EXCLUDE = \
 	tools/shebang \
 	autom4te.cache
 
-# some helper vars
 COVERAGE_DIR = doc/coverage
 COVERAGE_PY_DIR = $(COVERAGE_DIR)/py
 COVERAGE_HS_DIR = $(COVERAGE_DIR)/hs
@@ -390,7 +364,6 @@ built_python_sources = \
 	$(nodist_pkgpython_PYTHON) \
 	$(nodist_pkgpython_rpc_stub_PYTHON)
 
-# these are all built from the underlying %.in sources
 BUILT_EXAMPLES = \
 	doc/examples/alcor-kvm-poweroff.initd \
 	doc/examples/alcor.cron \
@@ -743,20 +716,16 @@ docinput = \
 	doc/virtual-cluster.rst \
 	doc/walkthrough.rst
 
-# Generates file names such as "doc/man-gnt-instance.rst"
 mandocrst = $(addprefix doc/man-,$(notdir $(manrst)))
 
-# Haskell programs to be installed in $PREFIX/bin
 HS_BIN_PROGS=src/htools
 
-# Haskell programs to be installed in the MYEXECLIB dir
 if ENABLE_MOND
 HS_MYEXECLIB_PROGS=src/mon-collector
 else
 HS_MYEXECLIB_PROGS=
 endif
 
-# Haskell programs to be compiled by "make really-all"
 HS_COMPILE_PROGS = \
 	src/alcor-kvmd \
 	src/alcor-wconfd \
@@ -771,14 +740,11 @@ if ENABLE_METADATA
 HS_COMPILE_PROGS += src/alcor-metad
 endif
 
-# All Haskell non-test programs to be compiled but not automatically installed
 HS_PROGS = $(HS_BIN_PROGS) $(HS_MYEXECLIB_PROGS)
 
 HS_BIN_ROLES = harep hbal hscan hspace hinfo hcheck hroller hsqueeze
 HS_HTOOLS_PROGS = $(HS_BIN_ROLES) hail
 
-# Haskell programs that cannot be disabled at configure (e.g., unlike
-# 'mon-collector')
 HS_DEFAULT_PROGS = \
 	$(HS_BIN_PROGS) \
 	test/hs/hpc-htools \
@@ -811,18 +777,9 @@ HFLAGS = \
 HTEST_SUFFIX = hpc
 HPROF_SUFFIX = prof
 
-# GHC >= 7.8 stopped putting underscores into -dep-suffix by itself
-# (https://ghc.haskell.org/trac/ghc/ticket/9749) so we have to put them.
-# It also needs -dep-suffix "" for the .o file.
 DEP_SUFFIXES = -dep-suffix $(HPROF_SUFFIX)_ -dep-suffix $(HTEST_SUFFIX)_ \
 	-dep-suffix ""
 
-# GHC > 7.6 needs -dynamic-too when using Template Haskell since its
-# ghci is switched to loading dynamic libraries by default.
-# It must only be used in non-profiling GHC invocations.
-# We also don't use it in compilations that use HTEST_SUFFIX (which are
-# compiled with -fhpc) because HPC coverage doesn't interact well with
-# GHCI shared lib loading (https://ghc.haskell.org/trac/ghc/ticket/9762).
 HFLAGS_DYNAMIC = -dynamic-too
 
 if HPROFILE
@@ -840,19 +797,11 @@ HTEST_FLAGS = $(HFLAGS) -fhpc -itest/hs \
 	-osuf $(HTEST_SUFFIX)_o \
 	-hisuf $(HTEST_SUFFIX)_hi
 
-# extra flags that can be overriden on the command line (e.g. -Wwarn, etc.)
 HEXTRA =
-# combination of HEXTRA and HEXTRA_CONFIGURE
 HEXTRA_COMBINED = $(HEXTRA) $(HEXTRA_CONFIGURE)
 
-# extra flags used for test/hs/htest
-# Only use the threaded runtime and run tests in parallel for GHC > 7.6. A bug
-# in base that wasn't fixed until 4.7.0.0 in GHC 7.8 causes random file lock
-# errors in the JQueue tests with the threaded runtime.
-# See https://ghc.haskell.org/trac/ghc/ticket/7646
 HEXTRA_TEST = -threaded -with-rtsopts="-N -A32m" -rtsopts
 
-# exclude options for coverage reports
 HPCEXCL = --exclude Main \
 	--exclude Alcor.Constants \
 	--exclude Alcor.HTools.QC \
@@ -1153,11 +1102,6 @@ doc/html/index.html: ENABLE_MANPAGES =
 doc/man-html/index.html: ENABLE_MANPAGES = 1
 doc/man-html/index.html: doc/manpages-enabled.rst $(mandocrst)
 
-# Note: we use here an order-only prerequisite, as the contents of
-# _constants.py are not actually influencing the html build output: it
-# has to exist in order for the sphinx module to be loaded
-# successfully, but we certainly don't want the docs to be rebuilt if
-# it changes
 doc/html/index.html doc/man-html/index.html: $(docinput) doc/conf.py \
 	configure.ac $(RUN_IN_TEMPDIR) lib/build/sphinx_ext.py \
 	lib/build/shell_example_lexer.py lib/ht.py \
@@ -1171,12 +1115,6 @@ if !MANPAGES_IN_DOC
 	  exit 1; \
 	fi
 endif
-## Sphinx provides little control over what content should be included. Some
-## mechanisms exist, but they all have drawbacks or actual issues. Since we
-## build two different versions of the documentation--once without man pages and
-## once, if enabled, with them--some control is necessary. xmpp-wrapper provides
-## us with this, but requires running in a temporary directory. It moves the
-## correct files into place depending on environment variables.
 	dir=$(dir $@) && \
 	@mkdir_p@ $$dir && \
 	PYTHONPATH=. ENABLE_MANPAGES=$(ENABLE_MANPAGES) COPY_DOC=1 \
@@ -1242,8 +1180,6 @@ userspecs = \
 	doc/users/groups \
 	doc/users/groupmemberships
 
-# Things to build but not to install (add it to EXTRA_DIST if it should be
-# distributed)
 noinst_DATA = \
 	$(BUILT_EXAMPLES) \
 	doc/examples/bash_completion \
@@ -1323,7 +1259,6 @@ qa_scripts = \
 bin_SCRIPTS = $(HS_BIN_PROGS)
 install-exec-hook:
 	@mkdir_p@ $(DESTDIR)$(iallocatorsdir)
-# FIXME: this is a hardcoded logic, instead of auto-resolving
 	$(LN_S) -f ../../../bin/htools \
 	  $(DESTDIR)$(iallocatorsdir)/hail
 	for role in $(HS_BIN_ROLES); do \
@@ -1341,36 +1276,12 @@ Makefile.ghc: $(HS_MAKEFILE_GHC_SRCS) Makefile $(HASKELL_PACKAGE_VERSIONS_FILE) 
 	$(GHC) -M -dep-makefile $@ $(DEP_SUFFIXES) $(HFLAGS) $(HFLAGS_DYNAMIC) \
 		-itest/hs \
 		$(HEXTRA_COMBINED) $(HS_MAKEFILE_GHC_SRCS)
-# Since ghc -M does not generate dependency line for object files, dependencies
-# from a target executable seed object (e.g. src/hluxid.o) to objects which
-# finally will be linked to the target object (e.g. src/Alcor/Daemon.o) are
-# missing in Makefile.ghc.
-# see: https://www.haskell.org/ghc/docs/7.6.2/html/users_guide/separate-compilation.html#makefile-dependencies
-# Following substitutions will add dependencies between object files which
-# corresponds to the interface file already there as a dependency for each
-# object listed in Makefile.ghc.
-# e.g. src/hluxid.o : src/Alcor/Daemon.hi
-#        => src/hluxid.o : src/Alcor/Daemon.hi src/Alcor/Daemon.o
 	sed -i -r -e 's/([^ ]+)\.hi$$/\1.hi \1.o/' -e 's/([^ ]+)_hi$$/\1_hi \1_o/' $@
 
 @include_makefile_ghc@
 
-# Contains the package-id flags for the current build: "-package-id" followed
-# by the name and hash of the package, one for each dependency.
-# Obtained from the setup-config using the Cabal API
-# (CabalDependenciesMacros.hs) after `cabal configure`.
-# This file is created along with HASKELL_PACKAGE_VERSIONS_FILE; if you want
-# to depend on it in a rule, depend on HASKELL_PACKAGE_VERSIONS_FILE instead.
 HASKELL_PACKAGE_IDS_FILE = alcor.depsflags
 
-# Defines the MIN_VERSION_* macros for all Haskell packages used in this
-# compilation.
-# The versions are determined using `cabal configure`, which takes them from
-# the ghc-pkg database.
-# At the moment, we don't support cabal sandboxes, so we use cabal configure
-# with the --user flag.
-# Note: `cabal configure` and CabalDependenciesMacros.hs perform no
-# downloading (only `cabal install` can do that).
 HASKELL_PACKAGE_VERSIONS_FILE = cabal_macros.h
 
 $(HASKELL_PACKAGE_VERSIONS_FILE): Makefile alcor.cabal \
@@ -1387,11 +1298,6 @@ $(HASKELL_PACKAGE_VERSIONS_FILE): Makefile alcor.cabal \
 	  $(HASKELL_PACKAGE_IDS_FILE) \
 	  $(HASKELL_PACKAGE_VERSIONS_FILE)
 
-# Like the %.o rule, but allows access to the test/hs directory.
-# This uses HFLAGS instead of HTEST_FLAGS because it's only for generating
-# object files (.o for GHC <= 7.6, .o/.so for newer GHCs) that are loaded
-# in GHCI when evaluating TH. The actual test-with-coverage .hpc_o files
-# are created in the `%.$(HTEST_SUFFIX)_o` rule.
 test/hs/%.o: $(HASKELL_PACKAGE_VERSIONS_FILE)
 	@echo '[GHC|test]: $@ <- test/hs/$^'
 	@set -o pipefail ; \
@@ -1406,9 +1312,6 @@ test/hs/%.o: $(HASKELL_PACKAGE_VERSIONS_FILE)
 		$(HEXTRA_COMBINED) $(@:%.o=%.hs) | \
 		sed '/^Loading package /d'
 
-# For TH+profiling we need to compile twice: Once without profiling,
-# and then once with profiling. See
-# http://www.haskell.org/ghc/docs/7.0.4/html/users_guide/template-haskell.html#id636646
 if HPROFILE
 %.$(HPROF_SUFFIX)_o: %.o
 	@echo '[GHC|prof]: $@ <- $^'
@@ -1420,10 +1323,6 @@ if HPROFILE
 		sed '/^Loading package /d'
 endif
 
-# We depend on the non-test .o file here because we need the corresponding .so
-# file for GHC > 7.6 ghci dynamic loading for TH, and creating the .o file
-# will create the .so file since we use -dynamic-too (using the `test/hs/%.o`
-# rule).
 %.$(HTEST_SUFFIX)_o: %.o
 	@echo '[GHC|test]: $@ <- $^'
 	@set -o pipefail ; \
@@ -1475,7 +1374,6 @@ nodist_sbin_SCRIPTS = \
 src/alcor-luxid: src/hluxid
 	cp -pf $< $@
 
-# strip path prefixes off the sbin scripts
 all_sbin_scripts = \
 	$(patsubst tools/%,%,$(patsubst daemons/%,%,$(patsubst scripts/%,%,\
 	$(patsubst src/%,%,$(dist_sbin_SCRIPTS) $(nodist_sbin_SCRIPTS)))))
@@ -1562,7 +1460,6 @@ myexeclib_SCRIPTS = \
 	tools/net-common \
 	$(HS_MYEXECLIB_PROGS)
 
-# compute the basenames of the myexeclib_scripts
 myexeclib_scripts_basenames = \
 	$(patsubst tools/%,%,$(patsubst daemons/%,%,$(patsubst src/%,%,$(myexeclib_SCRIPTS))))
 
@@ -1675,7 +1572,6 @@ man_MANS = \
 	man/htools.1 \
 	man/mon-collector.7
 
-# Remove extensions from all filenames in man_MANS
 mannoext = $(patsubst %.1,%,$(patsubst %.7,%,$(patsubst %.8,%,$(man_MANS))))
 
 manrst = $(patsubst %,%.rst,$(mannoext))
@@ -2036,7 +1932,6 @@ check_SCRIPTS =
 
 if WANT_HSTESTS
 nodist_TESTS += $(haskell_tests)
-# test dependency
 test/hs/offline-test.sh: test/hs/hpc-htools test/hs/hpc-mon-collector
 dist_TESTS += test/hs/offline-test.sh
 check_SCRIPTS += \
@@ -2047,14 +1942,12 @@ endif
 
 TESTS = $(dist_TESTS) $(nodist_TESTS)
 
-# Environment for all tests
 PLAIN_TESTS_ENVIRONMENT = \
 	PYTHONPATH=.:./test/py \
 	TOP_SRCDIR=$(abs_top_srcdir) TOP_BUILDDIR=$(abs_top_builddir) \
 	PYTHON=$(PYTHON) FAKEROOT=$(FAKEROOT_PATH) \
 	$(RUN_IN_TEMPDIR)
 
-# Environment for tests run by automake
 TESTS_ENVIRONMENT = \
 	$(PLAIN_TESTS_ENVIRONMENT) $(abs_top_srcdir)/autotools/testrunner
 
@@ -2288,14 +2181,6 @@ src/Alcor/Hs2Py/ListConstants.hs: src/Alcor/Hs2Py/ListConstants.hs.in \
 				 | stamp-directories
 	@echo Generating $@
 	@set -e; \
-## Extract constant names from 'Constants.hs' by extracting the left
-## side of all lines containing an equal sign (i.e., '=') and
-## prepending the apostrophe sign (i.e., "'").
-##
-## For example, the constant
-##   adminstDown = ...
-## becomes
-##   'adminstDown
 	NAMES=$$(sed -e "/^--/ d" $(abs_top_srcdir)/src/Alcor/Constants.hs |\
 		 sed -n -e "/=/ s/\(.*\) =.*/    '\1:/g p"); \
 	m4 -DPY_CONSTANT_NAMES="$$NAMES" \
@@ -2426,8 +2311,6 @@ lib/opcodes.py: Makefile src/hs2py lib/opcodes.py.in_before \
 	src/hs2py --opcodes >> $@
 	cat $(abs_top_srcdir)/lib/opcodes.py.in_after >> $@
 
-# Generating the RPC wrappers depends on many things, so make sure
-# it's built at the end of the built sources
 lib/_generated_rpc.py: lib/rpc_defs.py $(BUILD_RPC) | $(built_base_sources) $(built_python_base_sources)
 	PYTHONPATH=. $(RUN_IN_TEMPDIR) $(CURDIR)/$(BUILD_RPC) lib/rpc_defs.py > $@
 
@@ -2452,9 +2335,6 @@ $(SHELL_ENV_INIT): Makefile stamp-directories
 	  echo 'readonly CONF_DIR="$$SYSCONFDIR/alcor"'; \
 	} > $@
 
-## Writes sed script to replace placeholders with build-time values. The
-## additional quotes after the first @ sign are necessary to stop configure
-## from replacing those values as well.
 $(REPLACE_VARS_SED): $(SHELL_ENV_INIT) Makefile stamp-directories
 	set -e; \
 	{ echo 's#@''PREFIX@#$(prefix)#g'; \
@@ -2498,7 +2378,6 @@ $(REPLACE_VARS_SED): $(SHELL_ENV_INIT) Makefile stamp-directories
 	  echo '}'; \
 	} > $@
 
-# Using deferred evaluation
 daemons/alcor-%: MODULE = alcor.server.$(patsubst alcor-%,%,$(notdir $@))
 daemons/alcor-watcher: MODULE = alcor.watcher
 scripts/%: MODULE = alcor.client.$(subst -,_,$(notdir $@))
@@ -2554,8 +2433,6 @@ stamp-directories: Makefile
 	@mkdir_p@ $(DIRS) $(BUILDTIME_DIR_AUTOCREATE)
 	touch $@
 
-# We need to create symlinks because "make distcheck" will not install Python
-# files when building.
 stamp-srclinks: Makefile | stamp-directories
 	set -e; \
 	for i in $(srclink_files); do \
@@ -2674,47 +2551,15 @@ hs-shell: test/hs/hpc-htools test/hs/hpc-mon-collector $(HS_BUILT_TEST_HELPERS)
 .PHONY: hs-check
 hs-check: hs-tests hs-shell
 
-# E111: indentation is not a multiple of four
-# E114: indentation is not a multiple of four (comment)
-# E121: continuation line indentation is not a multiple of four
-#       (since our indent level is not 4)
-# E125: continuation line does not distinguish itself from next logical line
-#       (since our indent level is not 4)
-# E123: closing bracket does not match indentation of opening bracket's line
-# E127: continuation line over-indented for visual indent
-#       (since our indent level is not 4)
-# note: do NOT add E128 here; it's a valid style error in most cases!
-# I've seen real errors, but also some cases were we indent wrongly
-# due to line length; try to rework the cases where it is triggered,
-# instead of silencing it
-# E261: at least two spaces before inline comment
-# E501: line too long (80 characters)
 PEP8_IGNORE = E111,E114,E121,E123,E125,E127,E261,E501
 
-# For excluding pep8 expects filenames only, not whole paths
 PEP8_EXCLUDE = $(subst $(space),$(comma),$(strip $(notdir $(built_python_sources))))
 
-# A space-separated list of pylint warnings to completely ignore:
-# I0013 = disable warnings for ignoring whole files
-# R0912 = disable too many branches warning. It's useful, but alcor requires
-#         a lot of refactoring to fix this.
-# R0204 = disable redefined-variable-type warning. There are a large number of
-#         cases where Alcor assigns multiple types (eg set/list, float/int) to
-#         the same variable, and these are benign.
-# C0325 = disable superfluous-parens. There are a lot of cases where this is
-#         overzealous, eg where we use parens to make it clear that we're
-#         deliberately doing a comparison that should yield bool, or are using
-#         parens clarify precedence or to allow multi-line expressions.
-# C0330 = disable wrong indentation warnings. pylint is much more strict than
-#         pep8, and it would be too invasive to fix all these.
 LINT_DISABLE = I0013 R0912 R0204 C0325 C0330
-# Additional pylint options
 LINT_OPTS =
-# The combined set of pylint options
 LINT_OPTS_ALL = $(LINT_OPTS) \
   $(addprefix --disable=,$(LINT_DISABLE))
 
-# Whitelist loading pycurl C extension for attribute checking
 LINT_OPTS_ALL += --extension-pkg-whitelist=pycurl
 
 LINT_TARGETS = pylint pylint-qa pylint-test
@@ -2739,7 +2584,6 @@ pylint-qa: $(GENERATED_FILES)
 	cd $(top_srcdir)/qa && \
 	  PYTHONPATH=$(abs_top_srcdir) $(PYLINT) $(LINT_OPTS_ALL) \
 		--rcfile  ../pylintrc $(patsubst qa/%.py,%,$(qa_scripts))
-# FIXME: lint all test code, not just the newly added test support
 pylint-test: $(GENERATED_FILES)
 	@test -n "$(PYLINT)" || { echo 'pylint' not found during configure; exit 1; }
 	cd $(top_srcdir) && \
@@ -2771,14 +2615,11 @@ hlint: $(HS_BUILT_SRCS) src/lint-hints.hs
 	  echo "All good" > doc/hs-lint.html; \
 	fi
 
-# a dist hook rule for updating the vcs-version file; this is
-# hardcoded due to where it needs to build the file...
 dist-hook:
 	$(MAKE) $(AM_MAKEFLAGS) regen-vcs-version
 	rm -f $(top_distdir)/vcs-version
 	cp -p $(srcdir)/vcs-version $(top_distdir)
 
-# a distcheck hook rule for catching revision control directories
 distcheck-hook:
 	if find $(top_distdir) -name .svn -or -name .git | grep .; then \
 	  echo "Found revision control files in final archive." 1>&2; \
@@ -2792,9 +2633,6 @@ distcheck-hook:
 	  echo "Found backup files in final archive." 1>&2; \
 	  exit 1; \
 	fi
-# Empty files or directories should not be distributed. They can cause
-# unnecessary warnings for packagers. Directories used by automake during
-# distcheck must be excluded.
 	if find $(top_distdir) -empty -and -not \( \
 	    -regex '$(top_distdir)/_build\(/.*\)?' -or \
 	    -path $(top_distdir)/_inst \) | grep .; then \
@@ -2806,7 +2644,6 @@ distcheck-hook:
 	  exit 1; \
 	fi
 
-# Backwards compatible distcheck-release target
 distcheck-release: distcheck
 
 distrebuildcheck: dist
@@ -2967,8 +2804,6 @@ hs-coverage: $(haskell_tests) test/hs/hpc-htools test/hs/hpc-mon-collector
 	hpc report coverage-hs.tix | tee $(COVERAGE_HS_DIR)/report.txt
 	$(LN_S) -f hpc_index.html $(COVERAGE_HS_DIR)/index.html
 
-# Special "kind-of-QA" target for htools, needs special setup (all
-# tools compiled with -fhpc)
 .PHONY: live-test
 live-test: all
 	set -e ; \
@@ -2998,7 +2833,6 @@ gitignore-check:
 	  exit 1; \
 	fi
 
-# target to rebuild all man pages (both groff and html output)
 .PHONY: man
 man: $(man_MANS) $(manhtml)
 
@@ -3006,14 +2840,12 @@ CABAL_EXECUTABLES = $(HS_DEFAULT_PROGS)
 CABAL_EXECUTABLES_HS = $(patsubst %,%.hs,$(CABAL_EXECUTABLES))
 CABAL_EXECUTABLES_APPS_STAMPS = $(patsubst src/%,apps/%.hs.stamp,$(patsubst test/hs/%,apps/%.hs.stamp,$(CABAL_EXECUTABLES)))
 
-# Executable symlinks
 apps/%.hs.stamp: Makefile
 	mkdir -p apps
 	rm -f $(basename $@)
 	ln -s ../$(filter %/$(basename $(notdir $@)),$(CABAL_EXECUTABLES_HS)) $(basename $@)
 	touch $@
 
-# Builds the cabal file
 alcor.cabal: cabal/alcor.template.cabal Makefile cabal/cabal-from-modules.py $(CABAL_EXECUTABLES_APPS_STAMPS)
 	@echo $(subst /,.,$(patsubst %.hs,%,$(patsubst test/hs/%,%,$(patsubst src/%,%,$(HS_SRCS))))) \
 	  | $(PYTHON) $(abs_top_srcdir)/cabal/cabal-from-modules.py $(abs_top_srcdir)/cabal/alcor.template.cabal > $@
@@ -3035,12 +2867,9 @@ alcor.cabal: cabal/alcor.template.cabal Makefile cabal/cabal-from-modules.py $(C
 	  fi \
 	done
 
-# Target that builds all binaries (including those that are not
-# rebuilt except when running the tests)
 .PHONY: really-all
 really-all: all $(check_SCRIPTS) $(haskell_tests) $(HS_ALL_PROGS)
 
-# we don't need the ancient implicit rules:
 %: %,v
 %: RCS/%,v
 %: RCS/%
@@ -3049,9 +2878,7 @@ really-all: all $(check_SCRIPTS) $(haskell_tests) $(HS_ALL_PROGS)
 
 -include ./Makefile.local
 
-# support inspecting the value of a make variable
 
 print-%:
 	@echo $($*)
 
-# vim: set noet :

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __CGROUP_INTERNAL_H
 #define __CGROUP_INTERNAL_H
 
@@ -14,16 +13,6 @@ extern spinlock_t trace_cgroup_path_lock;
 extern char trace_cgroup_path[TRACE_CGROUP_PATH_LEN];
 extern void __init enable_debug_cgroup(void);
 
-/*
- * cgroup_path() takes a spin lock. It is good practice not to take
- * spin locks within trace point handlers, as they are mostly hidden
- * from normal view. As cgroup_path() can take the kernfs_rename_lock
- * spin lock, it is best to not call that function from the trace event
- * handler.
- *
- * Note: trace_cgroup_##type##_enabled() is a static branch that will only
- *       be set when the trace event is enabled.
- */
 #define TRACE_CGROUP_PATH(type, cgrp, ...)				\
 	do {								\
 		if (trace_cgroup_##type##_enabled()) {			\
@@ -39,9 +28,6 @@ extern void __init enable_debug_cgroup(void);
 		}							\
 	} while (0)
 
-/*
- * The cgroup filesystem superblock creation/mount context.
- */
 struct cgroup_fs_context {
 	struct kernfs_fs_context kfc;
 	struct cgroup_root	*root;
@@ -83,14 +69,6 @@ struct cgroup_file_ctx {
 	} procs1;
 };
 
-/*
- * A cgroup can be associated with multiple css_sets as different tasks may
- * belong to different cgroups on different hierarchies.  In the other
- * direction, a css_set is naturally associated with multiple cgroups.
- * This M:N relationship is represented by the following link structure
- * which exists for each association and allows traversing the associations
- * from both sides.
- */
 struct cgrp_cset_link {
 	/* the cgroup and css_set this link associates */
 	struct cgroup		*cgrp;
@@ -103,7 +81,6 @@ struct cgrp_cset_link {
 	struct list_head	cgrp_link;
 };
 
-/* used to track tasks and csets during migration */
 struct cgroup_taskset {
 	/* the src and dst cset list running through cset->mg_node */
 	struct list_head	src_csets;
@@ -116,27 +93,13 @@ struct cgroup_taskset {
 	int			ssid;
 
 	/*
-	 * Fields for cgroup_taskset_*() iteration.
-	 *
-	 * Before migration is committed, the target migration tasks are on
-	 * ->mg_tasks of the csets on ->src_csets.  After, on ->mg_tasks of
-	 * the csets on ->dst_csets.  ->csets point to either ->src_csets
-	 * or ->dst_csets depending on whether migration is committed.
-	 *
-	 * ->cur_csets and ->cur_task point to the current task position
-	 * during iteration.
-	 */
 	struct list_head	*csets;
 	struct css_set		*cur_cset;
 	struct task_struct	*cur_task;
 };
 
-/* migration context also tracks preloading */
 struct cgroup_mgctx {
 	/*
-	 * Preloaded source and destination csets.  Used to guarantee
-	 * atomic success or failure on actual migration.
-	 */
 	struct list_head	preloaded_src_csets;
 	struct list_head	preloaded_dst_csets;
 
@@ -170,15 +133,9 @@ extern struct cgroup_subsys *cgroup_subsys[];
 extern struct list_head cgroup_roots;
 extern struct file_system_type cgroup_fs_type;
 
-/* iterate across the hierarchies */
 #define for_each_root(root)						\
 	list_for_each_entry((root), &cgroup_roots, root_list)
 
-/**
- * for_each_subsys - iterate all enabled cgroup subsystems
- * @ss: the iteration cursor
- * @ssid: the index of @ss, CGROUP_SUBSYS_COUNT after reaching the end
- */
 #define for_each_subsys(ss, ssid)					\
 	for ((ssid) = 0; (ssid) < CGROUP_SUBSYS_COUNT &&		\
 	     (((ss) = cgroup_subsys[ssid]) || true); (ssid)++)
@@ -200,10 +157,6 @@ static inline void put_css_set(struct css_set *cset)
 	unsigned long flags;
 
 	/*
-	 * Ensure that the refcount doesn't hit zero while any readers
-	 * can see it. Similar to atomic_dec_and_lock(), but for an
-	 * rwlock
-	 */
 	if (refcount_dec_not_one(&cset->refcount))
 		return;
 
@@ -212,9 +165,6 @@ static inline void put_css_set(struct css_set *cset)
 	spin_unlock_irqrestore(&css_set_lock, flags);
 }
 
-/*
- * refcounted get/put for css_set objects
- */
 static inline void get_css_set(struct css_set *cset)
 {
 	refcount_inc(&cset->refcount);
@@ -266,22 +216,13 @@ int cgroup_show_path(struct seq_file *sf, struct kernfs_node *kf_node,
 int __cgroup_task_count(const struct cgroup *cgrp);
 int cgroup_task_count(const struct cgroup *cgrp);
 
-/*
- * rstat.c
- */
 int cgroup_rstat_init(struct cgroup *cgrp);
 void cgroup_rstat_exit(struct cgroup *cgrp);
 void cgroup_rstat_boot(void);
 void cgroup_base_stat_cputime_show(struct seq_file *seq);
 
-/*
- * namespace.c
- */
 extern const struct proc_ns_operations cgroupns_operations;
 
-/*
- * cgroup-v1.c
- */
 extern struct cftype cgroup1_base_files[];
 extern struct kernfs_syscall_ops cgroup1_kf_syscall_ops;
 extern const struct fs_parameter_spec cgroup1_fs_parameters[];

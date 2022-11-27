@@ -1,8 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
 
-/*
- * Copyright (C) 2020 Google LLC.
- */
 
 #include <linux/filter.h>
 #include <linux/bpf.h>
@@ -18,9 +14,6 @@
 #include <linux/ima.h>
 #include <linux/bpf-cgroup.h>
 
-/* For every LSM hook that allows attachment of BPF programs, declare a nop
- * function where a BPF program can be attached.
- */
 #define LSM_HOOK(RET, DEFAULT, NAME, ...)	\
 noinline RET bpf_lsm_##NAME(__VA_ARGS__)	\
 {						\
@@ -36,17 +29,11 @@ BTF_SET_START(bpf_lsm_hooks)
 #undef LSM_HOOK
 BTF_SET_END(bpf_lsm_hooks)
 
-/* List of LSM hooks that should operate on 'current' cgroup regardless
- * of function signature.
- */
 BTF_SET_START(bpf_lsm_current_hooks)
-/* operate on freshly allocated sk without any cgroup association */
 BTF_ID(func, bpf_lsm_sk_alloc_security)
 BTF_ID(func, bpf_lsm_sk_free_security)
 BTF_SET_END(bpf_lsm_current_hooks)
 
-/* List of LSM hooks that trigger while the socket is properly locked.
- */
 BTF_SET_START(bpf_lsm_locked_sockopt_hooks)
 BTF_ID(func, bpf_lsm_socket_sock_rcv_skb)
 BTF_ID(func, bpf_lsm_sock_graft)
@@ -54,10 +41,6 @@ BTF_ID(func, bpf_lsm_inet_csk_clone)
 BTF_ID(func, bpf_lsm_inet_conn_established)
 BTF_SET_END(bpf_lsm_locked_sockopt_hooks)
 
-/* List of LSM hooks that trigger while the socket is _not_ locked,
- * but it's ok to call bpf_{g,s}etsockopt because the socket is still
- * in the early init phase.
- */
 BTF_SET_START(bpf_lsm_unlocked_sockopt_hooks)
 BTF_ID(func, bpf_lsm_socket_post_create)
 BTF_ID(func, bpf_lsm_socket_socketpair)
@@ -107,7 +90,6 @@ int bpf_lsm_verify_prog(struct bpf_verifier_log *vlog,
 	return 0;
 }
 
-/* Mask for all the currently supported BPRM option flags */
 #define BPF_F_BRPM_OPTS_MASK	BPF_F_BPRM_SECUREEXEC
 
 BPF_CALL_2(bpf_bprm_opts_set, struct linux_binprm *, bprm, u64, flags)
@@ -248,9 +230,6 @@ bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	}
 }
 
-/* The set of hooks which are called without pagefaults disabled and are allowed
- * to "sleep" and thus can be used for sleepable BPF programs.
- */
 BTF_SET_START(sleepable_lsm_hooks)
 BTF_ID(func, bpf_lsm_bpf)
 BTF_ID(func, bpf_lsm_bpf_map)

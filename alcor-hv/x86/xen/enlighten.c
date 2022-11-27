@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 
 #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
 #include <linux/memblock.h>
@@ -27,17 +26,9 @@
 
 EXPORT_SYMBOL_GPL(hypercall_page);
 
-/*
- * Pointer to the xen_vcpu_info structure or
- * &HYPERVISOR_shared_info->vcpu_info[cpu]. See xen_hvm_init_shared_info
- * and xen_vcpu_setup for details. By default it points to share_info->vcpu_info
- * but during boot it is switched to point to xen_vcpu_info.
- * The pointer is used in __xen_evtchn_do_upcall to acknowledge pending events.
- */
 DEFINE_PER_CPU(struct vcpu_info *, xen_vcpu);
 DEFINE_PER_CPU(struct vcpu_info, xen_vcpu_info);
 
-/* Linux <-> Xen vCPU id mapping */
 DEFINE_PER_CPU(uint32_t, xen_vcpu_id);
 EXPORT_PER_CPU_SYMBOL(xen_vcpu_id);
 
@@ -54,19 +45,11 @@ struct shared_info xen_dummy_shared_info;
 __read_mostly int xen_have_vector_callback;
 EXPORT_SYMBOL_GPL(xen_have_vector_callback);
 
-/*
- * NB: These need to live in .data or alike because they're used by
- * xen_prepare_pvh() which runs before clearing the bss.
- */
 enum xen_domain_type __ro_after_init xen_domain_type = XEN_NATIVE;
 EXPORT_SYMBOL_GPL(xen_domain_type);
 uint32_t __ro_after_init xen_start_flags;
 EXPORT_SYMBOL(xen_start_flags);
 
-/*
- * Point at some empty memory to start with. We map the real shared_info
- * page as soon as fixmap is up and running.
- */
 struct shared_info *HYPERVISOR_shared_info = &xen_dummy_shared_info;
 
 static int xen_cpu_up_online(unsigned int cpu)
@@ -100,19 +83,11 @@ static void xen_vcpu_setup_restore(int cpu)
 	xen_vcpu_info_reset(cpu);
 
 	/*
-	 * For PVH and PVHVM, setup online VCPUs only. The rest will
-	 * be handled by hotplug.
-	 */
 	if (xen_pv_domain() ||
 	    (xen_hvm_domain() && cpu_online(cpu)))
 		xen_vcpu_setup(cpu);
 }
 
-/*
- * On restore, set the vcpu placement up again.
- * If it fails, then we're in a bad state, since
- * we can't back out from using it...
- */
 void xen_vcpu_restore(void)
 {
 	int cpu;
@@ -163,16 +138,6 @@ void xen_vcpu_setup(int cpu)
 	BUG_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
 
 	/*
-	 * This path is called on PVHVM at bootup (xen_hvm_smp_prepare_boot_cpu)
-	 * and at restore (xen_vcpu_restore). Also called for hotplugged
-	 * VCPUs (cpu_init -> xen_hvm_cpu_prepare_hvm).
-	 * However, the hypercall can only be done once (see below) so if a VCPU
-	 * is offlined and comes back online then let's not redo the hypercall.
-	 *
-	 * For PV it is called during restore (xen_vcpu_restore) and bootup
-	 * (xen_setup_vcpu_info_placement). The hotplug mechanism does not
-	 * use this function.
-	 */
 	if (xen_hvm_domain()) {
 		if (per_cpu(xen_vcpu, cpu) == &per_cpu(xen_vcpu_info, cpu))
 			return;
@@ -183,12 +148,6 @@ void xen_vcpu_setup(int cpu)
 	info.offset = offset_in_page(vcpup);
 
 	/*
-	 * N.B. This hypercall can _only_ be called once per CPU.
-	 * Subsequent calls will error out with -EINVAL. This is due to
-	 * the fact that hypervisor has no unregister variant and this
-	 * hypercall does not allow to over-write info.mfn and
-	 * info.offset.
-	 */
 	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, xen_vcpu_nr(cpu),
 				 &info);
 	if (err)
@@ -211,7 +170,6 @@ void __init xen_banner(void)
 		? " (preserve-AD)" : "");
 }
 
-/* Check if running on Xen version (major, minor) or later */
 bool xen_running_on_version_or_later(unsigned int major, unsigned int minor)
 {
 	unsigned int version;
@@ -265,11 +223,6 @@ xen_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
 		reboot_reason = SHUTDOWN_crash;
 
 		/*
-		 * If panic_timeout==0 then we are supposed to wait forever.
-		 * However, to preserve original dom0 behavior we have to drop
-		 * into hypervisor. (domU behavior is controlled by its
-		 * config file)
-		 */
 		if (panic_timeout == 0)
 			panic_timeout = -1;
 	}

@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- *
- * Copyright (C) IBM Corporation, 2009
- */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -17,13 +12,6 @@
 #include <inat.c>
 #include <insn.c>
 
-/*
- * Test of instruction analysis in general and insn_get_length() in
- * particular.  See if insn_get_length() and the disassembler agree
- * on the length of each instruction in an elf disassembly.
- *
- * Usage: objdump -d a.out | awk -f objdump_reformat.awk | ./insn_decoder_test
- */
 
 const char *prog;
 static int verbose;

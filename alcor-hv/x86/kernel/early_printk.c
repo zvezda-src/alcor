@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/console.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -20,7 +19,6 @@
 #include <linux/usb/xhci-dbgp.h>
 #include <asm/pci_x86.h>
 
-/* Simple VGA output */
 #define VGABASE		(__ISA_IO_base + 0xb8000)
 
 static int max_ypos = 25, max_xpos = 80;
@@ -74,7 +72,6 @@ static struct console early_vga_console = {
 	.index =	-1,
 };
 
-/* Serial functions loosely based on a similar package from Klaus P. Gerlicher */
 
 static unsigned long early_serial_base = 0x3f8;  /* ttyS0 */
 
@@ -206,14 +203,6 @@ static unsigned int mem32_serial_in(unsigned long addr, int offset)
 	return readl(vaddr + offset);
 }
 
-/*
- * early_pci_serial_init()
- *
- * This function is invoked when the early_printk param starts with "pciserial"
- * The rest of the param should be "[force],B:D.F,baud", where B, D & F describe
- * the location of a PCI device that must be a UART device. "force" is optional
- * and overrides the use of an UART device with a wrong PCI class code.
- */
 static __init void early_pci_serial_init(char *s)
 {
 	unsigned divisor;
@@ -237,8 +226,6 @@ static __init void early_pci_serial_init(char *s)
 	}
 
 	/*
-	 * Part the param to get the BDF values
-	 */
 	bus = (u8)simple_strtoul(s, &e, 16);
 	s = e;
 	if (*s != ':')
@@ -257,15 +244,11 @@ static __init void early_pci_serial_init(char *s)
 		s++;
 
 	/*
-	 * Find the device from the BDF
-	 */
 	cmdreg = read_pci_config(bus, slot, func, PCI_COMMAND);
 	classcode = read_pci_config(bus, slot, func, PCI_CLASS_REVISION);
 	bar0 = read_pci_config(bus, slot, func, PCI_BASE_ADDRESS_0);
 
 	/*
-	 * Verify it is a UART type device
-	 */
 	if (((classcode >> 16 != PCI_CLASS_COMMUNICATION_MODEM) &&
 	     (classcode >> 16 != PCI_CLASS_COMMUNICATION_SERIAL)) ||
 	   (((classcode >> 8) & 0xff) != 0x02)) /* 16550 I/F at BAR0 */ {
@@ -274,8 +257,6 @@ static __init void early_pci_serial_init(char *s)
 	}
 
 	/*
-	 * Determine if it is IO or memory mapped
-	 */
 	if (bar0 & 0x01) {
 		/* it is IO mapped */
 		serial_in = io_serial_in;
@@ -295,8 +276,6 @@ static __init void early_pci_serial_init(char *s)
 	}
 
 	/*
-	 * Initialize the hardware
-	 */
 	if (*s) {
 		if (strcmp(s, "nocfg") == 0)
 			/* Sometimes, we want to leave the UART alone

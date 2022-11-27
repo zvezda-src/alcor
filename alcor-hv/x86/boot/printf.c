@@ -1,17 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* -*- linux-c -*- ------------------------------------------------------- *
- *
- *   Copyright (C) 1991, 1992 Linus Torvalds
- *   Copyright 2007 rPath, Inc. - All Rights Reserved
- *
- * ----------------------------------------------------------------------- */
 
-/*
- * Oh, it's a waste of space, but oh-so-yummy for debugging.  This
- * version of printf() does not include 64-bit support.  "Live with
- * it."
- *
- */
 
 #include "boot.h"
 
@@ -276,7 +263,6 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 			num = va_arg(args, unsigned int);
 		str = number(str, num, base, field_width, precision, flags);
 	}
-	*str = '\0';
 	return str - buf;
 }
 

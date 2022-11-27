@@ -1,21 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Copyright 2004 James Cleverdon, IBM.
- *
- * Generic APIC sub-arch probe layer.
- *
- * Hacked for x86-64 by James Cleverdon from i386 architecture code by
- * Martin Bligh, Andi Kleen, James Bottomley, John Stultz, and
- * James Cleverdon.
- */
 #include <linux/thread_info.h>
 #include <asm/apic.h>
 
 #include "local.h"
 
-/*
- * Check the APIC IDs in bios_cpu_apicid and choose the APIC mode.
- */
 void __init default_setup_apic_routing(void)
 {
 	struct apic **drv;

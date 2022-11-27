@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 
 #include "../cpuflags.h"
 #include "../string.h"
@@ -10,7 +9,6 @@
 
 #include <asm/shared/tdx.h>
 
-/* Called from __tdx_hypercall() for unrecoverable failure */
 void __tdx_hypercall_failed(void)
 {
 	error("TDVMCALL failed. TDX module bug?");

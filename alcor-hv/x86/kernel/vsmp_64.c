@@ -1,13 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * vSMPowered(tm) systems specific initialization
- * Copyright (C) 2005 ScaleMP Inc.
- *
- * Ravikiran Thirumalai <kiran@scalemp.com>,
- * Shai Fultheim <shai@scalemp.com>
- * Paravirt ops integration: Glauber de Oliveira Costa <gcosta@redhat.com>,
- *			     Ravikiran Thirumalai <kiran@scalemp.com>
- */
 
 #include <linux/init.h>
 #include <linux/pci_ids.h>
@@ -100,10 +90,6 @@ static void __init vsmp_cap_cpus(void)
 	unsigned int cfg, topology, node_shift, maxcpus;
 
 	/*
-	 * CONFIG_X86_VSMP is not configured, so limit the number CPUs to the
-	 * ones present in the first board, unless explicitly overridden by
-	 * setup_max_cpus
-	 */
 	if (setup_max_cpus != NR_CPUS)
 		return;
 

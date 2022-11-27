@@ -1,9 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * Intel SOC Telemetry Driver Header File
- * Copyright (C) 2015, Intel Corporation.
- * All Rights Reserved.
- */
 #ifndef INTEL_TELEMETRY_H
 #define INTEL_TELEMETRY_H
 

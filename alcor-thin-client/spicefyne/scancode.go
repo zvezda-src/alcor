@@ -5,8 +5,7 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 )
 
-// fyne → AT scancode table
-// see: http://www.philipstorr.id.au/pcbook/book3/scancode.htm
+
 var fyneScancodeMap = map[fyne.KeyName][]byte{
 	fyne.KeyEscape:    []byte{0x01},
 	fyne.KeyTab:       []byte{0x0f},

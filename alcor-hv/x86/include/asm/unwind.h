@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_UNWIND_H
 #define _ASM_X86_UNWIND_H
 
@@ -28,10 +27,6 @@ struct unwind_state {
 	bool got_irq;
 	unsigned long *bp, *orig_sp, ip;
 	/*
-	 * If non-NULL: The current frame is incomplete and doesn't contain a
-	 * valid BP. When looking for the next frame, use this instead of the
-	 * non-existent saved BP.
-	 */
 	unsigned long *next_bp;
 	struct pt_regs *regs;
 #else
@@ -65,9 +60,6 @@ void unwind_start(struct unwind_state *state, struct task_struct *task,
 }
 
 #if defined(CONFIG_UNWINDER_ORC) || defined(CONFIG_UNWINDER_FRAME_POINTER)
-/*
- * If 'partial' returns true, only the iret frame registers are valid.
- */
 static inline struct pt_regs *unwind_get_entry_regs(struct unwind_state *state,
 						    bool *partial)
 {
@@ -115,7 +107,6 @@ unsigned long unwind_recover_rethook(struct unwind_state *state,
 	return addr;
 }
 
-/* Recover the return address modified by rethook and ftrace_graph. */
 static inline
 unsigned long unwind_recover_ret_addr(struct unwind_state *state,
 				     unsigned long addr, unsigned long *addr_p)
@@ -127,11 +118,6 @@ unsigned long unwind_recover_ret_addr(struct unwind_state *state,
 	return unwind_recover_rethook(state, ret, addr_p);
 }
 
-/*
- * This disables KASAN checking when reading a value from another task's stack,
- * since the other task could be running on another CPU and could have poisoned
- * the stack in the meantime.
- */
 #define READ_ONCE_TASK_STACK(task, x)			\
 ({							\
 	unsigned long val;				\

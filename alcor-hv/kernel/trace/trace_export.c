@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * trace_export.c - export basic ftrace utilities to user space
- *
- * Copyright (C) 2009 Steven Rostedt <srostedt@redhat.com>
- */
 #include <linux/stringify.h>
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
@@ -14,7 +8,6 @@
 
 #include "trace_output.h"
 
-/* Stub function for events with triggers */
 static int ftrace_event_register(struct trace_event_call *call,
 				 enum trace_reg type, void *data)
 {
@@ -24,15 +17,10 @@ static int ftrace_event_register(struct trace_event_call *call,
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM	ftrace
 
-/*
- * The FTRACE_ENTRY_REG macro allows ftrace entry to define register
- * function and thus become accessible via perf.
- */
 #undef FTRACE_ENTRY_REG
 #define FTRACE_ENTRY_REG(name, struct_name, id, tstruct, print, regfn) \
 	FTRACE_ENTRY(name, struct_name, id, PARAMS(tstruct), PARAMS(print))
 
-/* not needed for this file */
 #undef __field_struct
 #define __field_struct(type, item)
 

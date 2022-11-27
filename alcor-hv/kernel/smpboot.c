@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Common SMP CPU bringup/teardown functions
- */
 #include <linux/cpu.h>
 #include <linux/err.h>
 #include <linux/smp.h>
@@ -21,10 +17,6 @@
 #ifdef CONFIG_SMP
 
 #ifdef CONFIG_GENERIC_SMP_IDLE_THREAD
-/*
- * For the hotplug case we keep the task structs around and reuse
- * them.
- */
 static DEFINE_PER_CPU(struct task_struct *, idle_threads);
 
 struct task_struct *idle_thread_get(unsigned int cpu)
@@ -41,12 +33,6 @@ void __init idle_thread_set_boot_cpu(void)
 	per_cpu(idle_threads, smp_processor_id()) = current;
 }
 
-/**
- * idle_init - Initialize the idle thread for a cpu
- * @cpu:	The cpu for which the idle thread should be initialized
- *
- * Creates the thread if it does not exist.
- */
 static __always_inline void idle_init(unsigned int cpu)
 {
 	struct task_struct *tsk = per_cpu(idle_threads, cpu);
@@ -60,9 +46,6 @@ static __always_inline void idle_init(unsigned int cpu)
 	}
 }
 
-/**
- * idle_threads_init - Initialize idle threads for all cpus
- */
 void __init idle_threads_init(void)
 {
 	unsigned int cpu, boot_cpu;
@@ -93,16 +76,6 @@ enum {
 	HP_THREAD_PARKED,
 };
 
-/**
- * smpboot_thread_fn - percpu hotplug thread loop function
- * @data:	thread data pointer
- *
- * Checks for thread stop and park conditions. Calls the necessary
- * setup, cleanup, park and unpark functions for the registered
- * thread.
- *
- * Returns 1 when the thread should exit, 0 otherwise.
- */
 static int smpboot_thread_fn(void *data)
 {
 	struct smpboot_thread_data *td = data;
@@ -189,19 +162,10 @@ __smpboot_create_thread(struct smp_hotplug_thread *ht, unsigned int cpu)
 	}
 	kthread_set_per_cpu(tsk, cpu);
 	/*
-	 * Park the thread so that it could start right on the CPU
-	 * when it is available.
-	 */
 	kthread_park(tsk);
 	get_task_struct(tsk);
-	*per_cpu_ptr(ht->store, cpu) = tsk;
 	if (ht->create) {
 		/*
-		 * Make sure that the task has actually scheduled out
-		 * into park position, before calling the create
-		 * callback. At least the migration thread callback
-		 * requires that the task is off the runqueue.
-		 */
 		if (!wait_task_inactive(tsk, TASK_PARKED))
 			WARN_ON(1);
 		else
@@ -279,13 +243,6 @@ static void smpboot_destroy_threads(struct smp_hotplug_thread *ht)
 	}
 }
 
-/**
- * smpboot_register_percpu_thread - Register a per_cpu thread related
- * 					    to hotplug
- * @plug_thread:	Hotplug thread descriptor
- *
- * Creates and starts the threads on all online cpus.
- */
 int smpboot_register_percpu_thread(struct smp_hotplug_thread *plug_thread)
 {
 	unsigned int cpu;
@@ -309,12 +266,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(smpboot_register_percpu_thread);
 
-/**
- * smpboot_unregister_percpu_thread - Unregister a per_cpu thread related to hotplug
- * @plug_thread:	Hotplug thread descriptor
- *
- * Stops all threads on all possible cpus.
- */
 void smpboot_unregister_percpu_thread(struct smp_hotplug_thread *plug_thread)
 {
 	cpus_read_lock();
@@ -328,27 +279,11 @@ EXPORT_SYMBOL_GPL(smpboot_unregister_percpu_thread);
 
 static DEFINE_PER_CPU(atomic_t, cpu_hotplug_state) = ATOMIC_INIT(CPU_POST_DEAD);
 
-/*
- * Called to poll specified CPU's state, for example, when waiting for
- * a CPU to come online.
- */
 int cpu_report_state(int cpu)
 {
 	return atomic_read(&per_cpu(cpu_hotplug_state, cpu));
 }
 
-/*
- * If CPU has died properly, set its state to CPU_UP_PREPARE and
- * return success.  Otherwise, return -EBUSY if the CPU died after
- * cpu_wait_death() timed out.  And yet otherwise again, return -EAGAIN
- * if cpu_wait_death() timed out and the CPU still hasn't gotten around
- * to dying.  In the latter two cases, the CPU might not be set up
- * properly, but it is up to the arch-specific code to decide.
- * Finally, -EIO indicates an unanticipated problem.
- *
- * Note that it is permissible to omit this call entirely, as is
- * done in architectures that do no CPU-hotplug error checking.
- */
 int cpu_check_up_prepare(int cpu)
 {
 	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU)) {
@@ -367,36 +302,15 @@ int cpu_check_up_prepare(int cpu)
 	case CPU_DEAD_FROZEN:
 
 		/*
-		 * Timeout during CPU death, so let caller know.
-		 * The outgoing CPU completed its processing, but after
-		 * cpu_wait_death() timed out and reported the error. The
-		 * caller is free to proceed, in which case the state
-		 * will be reset properly by cpu_set_state_online().
-		 * Proceeding despite this -EBUSY return makes sense
-		 * for systems where the outgoing CPUs take themselves
-		 * offline, with no post-death manipulation required from
-		 * a surviving CPU.
-		 */
 		return -EBUSY;
 
 	case CPU_BROKEN:
 
 		/*
-		 * The most likely reason we got here is that there was
-		 * a timeout during CPU death, and the outgoing CPU never
-		 * did complete its processing.  This could happen on
-		 * a virtualized system if the outgoing VCPU gets preempted
-		 * for more than five seconds, and the user attempts to
-		 * immediately online that same CPU.  Trying again later
-		 * might return -EBUSY above, hence -EAGAIN.
-		 */
 		return -EAGAIN;
 
 	case CPU_UP_PREPARE:
 		/*
-		 * Timeout while waiting for the CPU to show up. Allow to try
-		 * again later.
-		 */
 		return 0;
 
 	default:
@@ -406,12 +320,6 @@ int cpu_check_up_prepare(int cpu)
 	}
 }
 
-/*
- * Mark the specified CPU online.
- *
- * Note that it is permissible to omit this call entirely, as is
- * done in architectures that do no CPU-hotplug error checking.
- */
 void cpu_set_state_online(int cpu)
 {
 	(void)atomic_xchg(&per_cpu(cpu_hotplug_state, cpu), CPU_ONLINE);
@@ -419,9 +327,6 @@ void cpu_set_state_online(int cpu)
 
 #ifdef CONFIG_HOTPLUG_CPU
 
-/*
- * Wait for the specified CPU to exit the idle loop and die.
- */
 bool cpu_wait_death(unsigned int cpu, int seconds)
 {
 	int jf_left = seconds * HZ;
@@ -460,15 +365,6 @@ update_state:
 	return ret;
 }
 
-/*
- * Called by the outgoing CPU to report its successful death.  Return
- * false if this report follows the surviving CPU's timing out.
- *
- * A separate "CPU_DEAD_FROZEN" is used when the surviving CPU
- * timed out.  This approach allows architectures to omit calls to
- * cpu_check_up_prepare() and cpu_set_state_online() without defeating
- * the next cpu_wait_death()'s polling loop.
- */
 bool cpu_report_death(void)
 {
 	int oldstate;

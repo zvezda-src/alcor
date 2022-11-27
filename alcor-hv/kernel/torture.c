@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
-/*
- * Common functions for in-kernel torture tests.
- *
- * Copyright (C) IBM Corporation, 2014
- *
- * Author: Paul E. McKenney <paulmck@linux.ibm.com>
- *	Based on kernel/rcu/torture.c.
- */
 
 #define pr_fmt(fmt) fmt
 
@@ -57,7 +48,6 @@ module_param(verbose_sleep_duration, int, 0444);
 static char *torture_type;
 static int verbose;
 
-/* Mediate rmmod and system shutdown.  Concurrent rmmod & shutdown illegal! */
 #define FULLSTOP_DONTSTOP 0	/* Normal operation. */
 #define FULLSTOP_SHUTDOWN 1	/* System shutdown with torture running. */
 #define FULLSTOP_RMMOD    2	/* Normal rmmod of torture. */
@@ -66,9 +56,6 @@ static DEFINE_MUTEX(fullstop_mutex);
 
 static atomic_t verbose_sleep_counter;
 
-/*
- * Sleep if needed from VERBOSE_TOROUT*().
- */
 void verbose_torout_sleep(void)
 {
 	if (verbose_sleep_frequency > 0 &&
@@ -78,11 +65,6 @@ void verbose_torout_sleep(void)
 }
 EXPORT_SYMBOL_GPL(verbose_torout_sleep);
 
-/*
- * Schedule a high-resolution-timer sleep in nanoseconds, with a 32-bit
- * nanosecond random fuzz.  This function and its friends desynchronize
- * testing from the timer wheel.
- */
 int torture_hrtimeout_ns(ktime_t baset_ns, u32 fuzzt_ns, struct torture_random_state *trsp)
 {
 	ktime_t hto = baset_ns;
@@ -94,10 +76,6 @@ int torture_hrtimeout_ns(ktime_t baset_ns, u32 fuzzt_ns, struct torture_random_s
 }
 EXPORT_SYMBOL_GPL(torture_hrtimeout_ns);
 
-/*
- * Schedule a high-resolution-timer sleep in microseconds, with a 32-bit
- * nanosecond (not microsecond!) random fuzz.
- */
 int torture_hrtimeout_us(u32 baset_us, u32 fuzzt_ns, struct torture_random_state *trsp)
 {
 	ktime_t baset_ns = baset_us * NSEC_PER_USEC;
@@ -106,10 +84,6 @@ int torture_hrtimeout_us(u32 baset_us, u32 fuzzt_ns, struct torture_random_state
 }
 EXPORT_SYMBOL_GPL(torture_hrtimeout_us);
 
-/*
- * Schedule a high-resolution-timer sleep in milliseconds, with a 32-bit
- * microsecond (not millisecond!) random fuzz.
- */
 int torture_hrtimeout_ms(u32 baset_ms, u32 fuzzt_us, struct torture_random_state *trsp)
 {
 	ktime_t baset_ns = baset_ms * NSEC_PER_MSEC;
@@ -123,11 +97,6 @@ int torture_hrtimeout_ms(u32 baset_ms, u32 fuzzt_us, struct torture_random_state
 }
 EXPORT_SYMBOL_GPL(torture_hrtimeout_ms);
 
-/*
- * Schedule a high-resolution-timer sleep in jiffies, with an
- * implied one-jiffy random fuzz.  This is intended to replace calls to
- * schedule_timeout_interruptible() and friends.
- */
 int torture_hrtimeout_jiffies(u32 baset_j, struct torture_random_state *trsp)
 {
 	ktime_t baset_ns = jiffies_to_nsecs(baset_j);
@@ -136,10 +105,6 @@ int torture_hrtimeout_jiffies(u32 baset_j, struct torture_random_state *trsp)
 }
 EXPORT_SYMBOL_GPL(torture_hrtimeout_jiffies);
 
-/*
- * Schedule a high-resolution-timer sleep in milliseconds, with a 32-bit
- * millisecond (not second!) random fuzz.
- */
 int torture_hrtimeout_s(u32 baset_s, u32 fuzzt_ms, struct torture_random_state *trsp)
 {
 	ktime_t baset_ns = baset_s * NSEC_PER_SEC;
@@ -155,10 +120,6 @@ EXPORT_SYMBOL_GPL(torture_hrtimeout_s);
 
 #ifdef CONFIG_HOTPLUG_CPU
 
-/*
- * Variables for online-offline handling.  Only present if CPU hotplug
- * is enabled, otherwise does nothing.
- */
 
 static struct task_struct *onoff_task;
 static long onoff_holdoff;
@@ -177,22 +138,12 @@ static int max_online;
 
 static int torture_online_cpus = NR_CPUS;
 
-/*
- * Some torture testing leverages confusion as to the number of online
- * CPUs.  This function returns the torture-testing view of this number,
- * which allows torture tests to load-balance appropriately.
- */
 int torture_num_online_cpus(void)
 {
 	return READ_ONCE(torture_online_cpus);
 }
 EXPORT_SYMBOL_GPL(torture_num_online_cpus);
 
-/*
- * Attempt to take a CPU offline.  Return false if the CPU is already
- * offline or if it is not subject to CPU-hotplug operations.  The
- * caller can detect other failures by looking at the statistics.
- */
 bool torture_offline(int cpu, long *n_offl_attempts, long *n_offl_successes,
 		     unsigned long *sum_offl, int *min_offl, int *max_offl)
 {
@@ -250,11 +201,6 @@ bool torture_offline(int cpu, long *n_offl_attempts, long *n_offl_successes,
 }
 EXPORT_SYMBOL_GPL(torture_offline);
 
-/*
- * Attempt to bring a CPU online.  Return false if the CPU is already
- * online or if it is not subject to CPU-hotplug operations.  The
- * caller can detect other failures by looking at the statistics.
- */
 bool torture_online(int cpu, long *n_onl_attempts, long *n_onl_successes,
 		    unsigned long *sum_onl, int *min_onl, int *max_onl)
 {
@@ -307,9 +253,6 @@ bool torture_online(int cpu, long *n_onl_attempts, long *n_onl_successes,
 }
 EXPORT_SYMBOL_GPL(torture_online);
 
-/*
- * Get everything online at the beginning and ends of tests.
- */
 static void torture_online_all(char *phase)
 {
 	int cpu;
@@ -327,10 +270,6 @@ static void torture_online_all(char *phase)
 	}
 }
 
-/*
- * Execute random CPU-hotplug operations at the interval specified
- * by the onoff_interval.
- */
 static int
 torture_onoff(void *arg)
 {
@@ -376,9 +315,6 @@ stop:
 
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
-/*
- * Initiate online-offline handling.
- */
 int torture_onoff_init(long ooholdoff, long oointerval, torture_ofl_func *f)
 {
 #ifdef CONFIG_HOTPLUG_CPU
@@ -394,9 +330,6 @@ int torture_onoff_init(long ooholdoff, long oointerval, torture_ofl_func *f)
 }
 EXPORT_SYMBOL_GPL(torture_onoff_init);
 
-/*
- * Clean up after online/offline testing.
- */
 static void torture_onoff_cleanup(void)
 {
 #ifdef CONFIG_HOTPLUG_CPU
@@ -408,9 +341,6 @@ static void torture_onoff_cleanup(void)
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 }
 
-/*
- * Print online/offline testing statistics.
- */
 void torture_onoff_stats(void)
 {
 #ifdef CONFIG_HOTPLUG_CPU
@@ -424,9 +354,6 @@ void torture_onoff_stats(void)
 }
 EXPORT_SYMBOL_GPL(torture_onoff_stats);
 
-/*
- * Were all the online/offline operations successful?
- */
 bool torture_onoff_failures(void)
 {
 #ifdef CONFIG_HOTPLUG_CPU
@@ -442,10 +369,6 @@ EXPORT_SYMBOL_GPL(torture_onoff_failures);
 #define TORTURE_RANDOM_ADD	479001701 /* prime */
 #define TORTURE_RANDOM_REFRESH	10000
 
-/*
- * Crude but fast random-number generator.  Uses a linear congruential
- * generator, with occasional help from cpu_clock().
- */
 unsigned long
 torture_random(struct torture_random_state *trsp)
 {
@@ -459,11 +382,6 @@ torture_random(struct torture_random_state *trsp)
 }
 EXPORT_SYMBOL_GPL(torture_random);
 
-/*
- * Variables for shuffling.  The idea is to ensure that each CPU stays
- * idle for an extended period to test interactions with dyntick idle,
- * as well as interactions with any per-CPU variables.
- */
 struct shuffle_task {
 	struct list_head st_l;
 	struct task_struct *st_t;
@@ -476,10 +394,6 @@ static int shuffle_idle_cpu;	/* Force all torture tasks off this CPU */
 static struct list_head shuffle_task_list = LIST_HEAD_INIT(shuffle_task_list);
 static DEFINE_MUTEX(shuffle_task_mutex);
 
-/*
- * Register a task to be shuffled.  If there is no memory, just splat
- * and don't bother registering.
- */
 void torture_shuffle_task_register(struct task_struct *tp)
 {
 	struct shuffle_task *stp;
@@ -496,9 +410,6 @@ void torture_shuffle_task_register(struct task_struct *tp)
 }
 EXPORT_SYMBOL_GPL(torture_shuffle_task_register);
 
-/*
- * Unregister all tasks, for example, at the end of the torture run.
- */
 static void torture_shuffle_task_unregister_all(void)
 {
 	struct shuffle_task *stp;
@@ -512,10 +423,6 @@ static void torture_shuffle_task_unregister_all(void)
 	mutex_unlock(&shuffle_task_mutex);
 }
 
-/* Shuffle tasks such that we allow shuffle_idle_cpu to become idle.
- * A special case is when shuffle_idle_cpu = -1, in which case we allow
- * the tasks to run on all CPUs.
- */
 static void torture_shuffle_tasks(void)
 {
 	struct shuffle_task *stp;
@@ -544,10 +451,6 @@ static void torture_shuffle_tasks(void)
 	cpus_read_unlock();
 }
 
-/* Shuffle tasks across CPUs, with the intent of allowing each CPU in the
- * system to become idle at a time and cut off its timer ticks. This is meant
- * to test the support for such tickless idle CPU in RCU.
- */
 static int torture_shuffle(void *arg)
 {
 	VERBOSE_TOROUT_STRING("torture_shuffle task started");
@@ -560,9 +463,6 @@ static int torture_shuffle(void *arg)
 	return 0;
 }
 
-/*
- * Start the shuffler, with shuffint in jiffies.
- */
 int torture_shuffle_init(long shuffint)
 {
 	shuffle_interval = shuffint;
@@ -579,9 +479,6 @@ int torture_shuffle_init(long shuffint)
 }
 EXPORT_SYMBOL_GPL(torture_shuffle_init);
 
-/*
- * Stop the shuffling.
- */
 static void torture_shuffle_cleanup(void)
 {
 	torture_shuffle_task_unregister_all();
@@ -593,18 +490,10 @@ static void torture_shuffle_cleanup(void)
 	shuffler_task = NULL;
 }
 
-/*
- * Variables for auto-shutdown.  This allows "lights out" torture runs
- * to be fully scripted.
- */
 static struct task_struct *shutdown_task;
 static ktime_t shutdown_time;		/* time to system shutdown. */
 static void (*torture_shutdown_hook)(void);
 
-/*
- * Absorb kthreads into a kernel function that won't return, so that
- * they won't ever access module text or data again.
- */
 void torture_shutdown_absorb(const char *title)
 {
 	while (READ_ONCE(fullstop) == FULLSTOP_SHUTDOWN) {
@@ -615,10 +504,6 @@ void torture_shutdown_absorb(const char *title)
 }
 EXPORT_SYMBOL_GPL(torture_shutdown_absorb);
 
-/*
- * Cause the torture test to shutdown the system after the test has
- * run for the time specified by the shutdown_secs parameter.
- */
 static int torture_shutdown(void *arg)
 {
 	ktime_t ktime_snap;
@@ -655,9 +540,6 @@ static int torture_shutdown(void *arg)
 	return 0;
 }
 
-/*
- * Start up the shutdown task.
- */
 int torture_shutdown_init(int ssecs, void (*cleanup)(void))
 {
 	torture_shutdown_hook = cleanup;
@@ -670,9 +552,6 @@ int torture_shutdown_init(int ssecs, void (*cleanup)(void))
 }
 EXPORT_SYMBOL_GPL(torture_shutdown_init);
 
-/*
- * Detect and respond to a system shutdown.
- */
 static int torture_shutdown_notify(struct notifier_block *unused1,
 				   unsigned long unused2, void *unused3)
 {
@@ -691,10 +570,6 @@ static struct notifier_block torture_shutdown_nb = {
 	.notifier_call = torture_shutdown_notify,
 };
 
-/*
- * Shut down the shutdown task.  Say what???  Heh!  This can happen if
- * the torture module gets an rmmod before the shutdown time arrives.  ;-)
- */
 static void torture_shutdown_cleanup(void)
 {
 	unregister_reboot_notifier(&torture_shutdown_nb);
@@ -705,20 +580,11 @@ static void torture_shutdown_cleanup(void)
 	shutdown_task = NULL;
 }
 
-/*
- * Variables for stuttering, which means to periodically pause and
- * restart testing in order to catch bugs that appear when load is
- * suddenly applied to or removed from the system.
- */
 static struct task_struct *stutter_task;
 static int stutter_pause_test;
 static int stutter;
 static int stutter_gap;
 
-/*
- * Block until the stutter interval ends.  This must be called periodically
- * by all running kthreads that need to be subject to stuttering.
- */
 bool stutter_wait(const char *title)
 {
 	unsigned int i = 0;
@@ -749,10 +615,6 @@ bool stutter_wait(const char *title)
 }
 EXPORT_SYMBOL_GPL(stutter_wait);
 
-/*
- * Cause the torture test to "stutter", starting and stopping all
- * threads periodically.
- */
 static int torture_stutter(void *arg)
 {
 	DEFINE_TORTURE_RANDOM(rand);
@@ -780,9 +642,6 @@ static int torture_stutter(void *arg)
 	return 0;
 }
 
-/*
- * Initialize and kick off the torture_stutter kthread.
- */
 int torture_stutter_init(const int s, const int sgap)
 {
 	stutter = s;
@@ -791,9 +650,6 @@ int torture_stutter_init(const int s, const int sgap)
 }
 EXPORT_SYMBOL_GPL(torture_stutter_init);
 
-/*
- * Cleanup after the torture_stutter kthread.
- */
 static void torture_stutter_cleanup(void)
 {
 	if (!stutter_task)
@@ -803,15 +659,6 @@ static void torture_stutter_cleanup(void)
 	stutter_task = NULL;
 }
 
-/*
- * Initialize torture module.  Please note that this is -not- invoked via
- * the usual module_init() mechanism, but rather by an explicit call from
- * the client torture module.  This call must be paired with a later
- * torture_init_end().
- *
- * The runnable parameter points to a flag that controls whether or not
- * the test is currently runnable.  If there is no such flag, pass in NULL.
- */
 bool torture_init_begin(char *ttype, int v)
 {
 	mutex_lock(&fullstop_mutex);
@@ -829,9 +676,6 @@ bool torture_init_begin(char *ttype, int v)
 }
 EXPORT_SYMBOL_GPL(torture_init_begin);
 
-/*
- * Tell the torture module that initialization is complete.
- */
 void torture_init_end(void)
 {
 	mutex_unlock(&fullstop_mutex);
@@ -839,21 +683,6 @@ void torture_init_end(void)
 }
 EXPORT_SYMBOL_GPL(torture_init_end);
 
-/*
- * Clean up torture module.  Please note that this is -not- invoked via
- * the usual module_exit() mechanism, but rather by an explicit call from
- * the client torture module.  Returns true if a race with system shutdown
- * is detected, otherwise, all kthreads started by functions in this file
- * will be shut down.
- *
- * This must be called before the caller starts shutting down its own
- * kthreads.
- *
- * Both torture_cleanup_begin() and torture_cleanup_end() must be paired,
- * in order to correctly perform the cleanup. They are separated because
- * threads can still need to reference the torture_type type, thus nullify
- * only after completing all other relevant calls.
- */
 bool torture_cleanup_begin(void)
 {
 	mutex_lock(&fullstop_mutex);
@@ -881,32 +710,18 @@ void torture_cleanup_end(void)
 }
 EXPORT_SYMBOL_GPL(torture_cleanup_end);
 
-/*
- * Is it time for the current torture test to stop?
- */
 bool torture_must_stop(void)
 {
 	return torture_must_stop_irq() || kthread_should_stop();
 }
 EXPORT_SYMBOL_GPL(torture_must_stop);
 
-/*
- * Is it time for the current torture test to stop?  This is the irq-safe
- * version, hence no check for kthread_should_stop().
- */
 bool torture_must_stop_irq(void)
 {
 	return READ_ONCE(fullstop) != FULLSTOP_DONTSTOP;
 }
 EXPORT_SYMBOL_GPL(torture_must_stop_irq);
 
-/*
- * Each kthread must wait for kthread_should_stop() before returning from
- * its top-level function, otherwise segfaults ensue.  This function
- * prints a "stopping" message and waits for kthread_should_stop(), and
- * should be called from all torture kthreads immediately prior to
- * returning.
- */
 void torture_kthread_stopping(char *title)
 {
 	char buf[128];
@@ -920,18 +735,12 @@ void torture_kthread_stopping(char *title)
 }
 EXPORT_SYMBOL_GPL(torture_kthread_stopping);
 
-/*
- * Create a generic torture kthread that is immediately runnable.  If you
- * need the kthread to be stopped so that you can do something to it before
- * it starts, you will need to open-code your own.
- */
 int _torture_create_kthread(int (*fn)(void *arg), void *arg, char *s, char *m,
 			    char *f, struct task_struct **tp)
 {
 	int ret = 0;
 
 	VERBOSE_TOROUT_STRING(m);
-	*tp = kthread_create(fn, arg, "%s", s);
 	if (IS_ERR(*tp)) {
 		ret = PTR_ERR(*tp);
 		TOROUT_ERRSTRING(f);
@@ -944,15 +753,11 @@ int _torture_create_kthread(int (*fn)(void *arg), void *arg, char *s, char *m,
 }
 EXPORT_SYMBOL_GPL(_torture_create_kthread);
 
-/*
- * Stop a generic kthread, emitting a message.
- */
 void _torture_stop_kthread(char *m, struct task_struct **tp)
 {
 	if (*tp == NULL)
 		return;
 	VERBOSE_TOROUT_STRING(m);
 	kthread_stop(*tp);
-	*tp = NULL;
 }
 EXPORT_SYMBOL_GPL(_torture_stop_kthread);

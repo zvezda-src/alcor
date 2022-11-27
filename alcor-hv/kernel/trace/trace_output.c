@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * trace_output.c
- *
- * Copyright (C) 2008 Red Hat Inc, Steven Rostedt <srostedt@redhat.com>
- *
- */
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/ftrace.h>
@@ -14,7 +7,6 @@
 
 #include "trace_output.h"
 
-/* must be a power of 2 */
 #define EVENT_HASHSIZE	128
 
 DECLARE_RWSEM(trace_event_sem);
@@ -203,17 +195,6 @@ trace_print_bitmask_seq(struct trace_seq *p, void *bitmask_ptr,
 }
 EXPORT_SYMBOL_GPL(trace_print_bitmask_seq);
 
-/**
- * trace_print_hex_seq - print buffer as hex sequence
- * @p: trace seq struct to write to
- * @buf: The buffer to print
- * @buf_len: Length of @buf in bytes
- * @concatenate: Print @buf as single hex string or with spacing
- *
- * Prints the passed buffer as a hex sequence either as a whole,
- * single hex string if @concatenate is true or with spacing after
- * each byte in case @concatenate is false.
- */
 const char *
 trace_print_hex_seq(struct trace_seq *p, const unsigned char *buf, int buf_len,
 		    bool concatenate)
@@ -430,14 +411,6 @@ seq_print_ip_sym(struct trace_seq *s, unsigned long ip, unsigned long sym_flags)
 	return !trace_seq_has_overflowed(s);
 }
 
-/**
- * trace_print_lat_fmt - print the irq, preempt and lockdep fields
- * @s: trace seq struct to write to
- * @entry: The trace entry field from the ring buffer
- *
- * Prints the generic fields of irqs off, in hard or softirq, preempt
- * count.
- */
 int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
 {
 	char hardsoft_irq;
@@ -515,7 +488,6 @@ lat_print_generic(struct trace_seq *s, struct trace_entry *entry, int cpu)
 
 #undef MARK
 #define MARK(v, s) {.val = v, .sym = s}
-/* trace overhead mark */
 static const struct trace_mark {
 	unsigned long long	val; /* unit: nsec */
 	char			sym;
@@ -666,13 +638,6 @@ int trace_print_lat_context(struct trace_iterator *iter)
 	return !trace_seq_has_overflowed(s);
 }
 
-/**
- * ftrace_find_event - find a registered event
- * @type: the type of event to look for
- *
- * Returns an event of type @type otherwise NULL
- * Called with trace_event_read_lock() held.
- */
 struct trace_event *ftrace_find_event(int type)
 {
 	struct trace_event *event;
@@ -701,9 +666,6 @@ static int trace_search_list(struct list_head **list)
 	}
 
 	/*
-	 * We used up all possible max events,
-	 * lets see if somebody freed one.
-	 */
 	list_for_each_entry(iter, &ftrace_event_list, list) {
 		if (iter->type != next) {
 			e = iter;
@@ -733,21 +695,6 @@ void trace_event_read_unlock(void)
 	up_read(&trace_event_sem);
 }
 
-/**
- * register_trace_event - register output for an event type
- * @event: the event type to register
- *
- * Event types are stored in a hash and this hash is used to
- * find a way to print an event. If the @event->type is set
- * then it will use that type, otherwise it will assign a
- * type to use.
- *
- * If you assign your own type, please make sure it is added
- * to the trace_type enum in trace.h, to avoid collisions
- * with the dynamic types.
- *
- * Returns the event type number or zero on error.
- */
 int register_trace_event(struct trace_event *event)
 {
 	unsigned key;
@@ -813,9 +760,6 @@ int register_trace_event(struct trace_event *event)
 }
 EXPORT_SYMBOL_GPL(register_trace_event);
 
-/*
- * Used by module code with the trace_event_sem held for write.
- */
 int __unregister_trace_event(struct trace_event *event)
 {
 	hlist_del(&event->node);
@@ -823,10 +767,6 @@ int __unregister_trace_event(struct trace_event *event)
 	return 0;
 }
 
-/**
- * unregister_trace_event - remove a no longer used event
- * @event: the event to remove
- */
 int unregister_trace_event(struct trace_event *event)
 {
 	down_write(&trace_event_sem);
@@ -837,9 +777,6 @@ int unregister_trace_event(struct trace_event *event)
 }
 EXPORT_SYMBOL_GPL(unregister_trace_event);
 
-/*
- * Standard events
- */
 
 enum print_line_t trace_nop_print(struct trace_iterator *iter, int flags,
 				  struct trace_event *event)
@@ -860,7 +797,6 @@ static void print_fn_trace(struct trace_seq *s, unsigned long ip,
 	}
 }
 
-/* TRACE_FN */
 static enum print_line_t trace_fn_trace(struct trace_iterator *iter, int flags,
 					struct trace_event *event)
 {
@@ -929,7 +865,6 @@ static struct trace_event trace_fn_event = {
 	.funcs		= &trace_fn_funcs,
 };
 
-/* TRACE_CTX an TRACE_WAKE */
 static enum print_line_t trace_ctxwake_print(struct trace_iterator *iter,
 					     char *delim)
 {
@@ -1081,7 +1016,6 @@ static struct trace_event trace_wake_event = {
 	.funcs		= &trace_wake_funcs,
 };
 
-/* TRACE_STACK */
 
 static enum print_line_t trace_stack_print(struct trace_iterator *iter,
 					   int flags, struct trace_event *event)
@@ -1118,7 +1052,6 @@ static struct trace_event trace_stack_event = {
 	.funcs		= &trace_stack_funcs,
 };
 
-/* TRACE_USER_STACK */
 static enum print_line_t trace_user_stack_print(struct trace_iterator *iter,
 						int flags, struct trace_event *event)
 {
@@ -1135,9 +1068,6 @@ static enum print_line_t trace_user_stack_print(struct trace_iterator *iter,
 	if (tr->trace_flags & TRACE_ITER_SYM_USEROBJ) {
 		struct task_struct *task;
 		/*
-		 * we do the lookup on the thread group leader,
-		 * since individual threads might have already quit!
-		 */
 		rcu_read_lock();
 		task = find_task_by_vpid(field->tgid);
 		if (task)
@@ -1171,7 +1101,6 @@ static struct trace_event trace_user_stack_event = {
 	.funcs		= &trace_user_stack_funcs,
 };
 
-/* TRACE_HWLAT */
 static enum print_line_t
 trace_hwlat_print(struct trace_iterator *iter, int flags,
 		  struct trace_event *event)
@@ -1191,9 +1120,6 @@ trace_hwlat_print(struct trace_iterator *iter, int flags,
 
 	if (field->nmi_count) {
 		/*
-		 * The generic sched_clock() is not NMI safe, thus
-		 * we only record the count and not the time.
-		 */
 		if (!IS_ENABLED(CONFIG_GENERIC_SCHED_CLOCK))
 			trace_seq_printf(s, " nmi-total:%llu",
 					 field->nmi_total_ts);
@@ -1235,7 +1161,6 @@ static struct trace_event trace_hwlat_event = {
 	.funcs		= &trace_hwlat_funcs,
 };
 
-/* TRACE_OSNOISE */
 static enum print_line_t
 trace_osnoise_print(struct trace_iterator *iter, int flags,
 		    struct trace_event *event)
@@ -1249,8 +1174,6 @@ trace_osnoise_print(struct trace_iterator *iter, int flags,
 	trace_assign_type(field, entry);
 
 	/*
-	 * compute the available % of cpu time.
-	 */
 	net_runtime = field->runtime - field->noise;
 	ratio = net_runtime * 10000000;
 	do_div(ratio, field->runtime);
@@ -1305,7 +1228,6 @@ static struct trace_event trace_osnoise_event = {
 	.funcs		= &trace_osnoise_funcs,
 };
 
-/* TRACE_TIMERLAT */
 static enum print_line_t
 trace_timerlat_print(struct trace_iterator *iter, int flags,
 		     struct trace_event *event)
@@ -1351,7 +1273,6 @@ static struct trace_event trace_timerlat_event = {
 	.funcs		= &trace_timerlat_funcs,
 };
 
-/* TRACE_BPUTS */
 static enum print_line_t
 trace_bputs_print(struct trace_iterator *iter, int flags,
 		   struct trace_event *event)
@@ -1395,7 +1316,6 @@ static struct trace_event trace_bputs_event = {
 	.funcs		= &trace_bputs_funcs,
 };
 
-/* TRACE_BPRINT */
 static enum print_line_t
 trace_bprint_print(struct trace_iterator *iter, int flags,
 		   struct trace_event *event)
@@ -1439,7 +1359,6 @@ static struct trace_event trace_bprint_event = {
 	.funcs		= &trace_bprint_funcs,
 };
 
-/* TRACE_PRINT */
 static enum print_line_t trace_print_print(struct trace_iterator *iter,
 					   int flags, struct trace_event *event)
 {

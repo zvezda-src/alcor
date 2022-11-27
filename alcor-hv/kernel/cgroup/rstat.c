@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
 #include "cgroup-internal.h"
 
 #include <linux/sched/cputime.h>
@@ -13,28 +12,12 @@ static struct cgroup_rstat_cpu *cgroup_rstat_cpu(struct cgroup *cgrp, int cpu)
 	return per_cpu_ptr(cgrp->rstat_cpu, cpu);
 }
 
-/**
- * cgroup_rstat_updated - keep track of updated rstat_cpu
- * @cgrp: target cgroup
- * @cpu: cpu on which rstat_cpu was updated
- *
- * @cgrp's rstat_cpu on @cpu was updated.  Put it on the parent's matching
- * rstat_cpu->updated_children list.  See the comment on top of
- * cgroup_rstat_cpu definition for details.
- */
 void cgroup_rstat_updated(struct cgroup *cgrp, int cpu)
 {
 	raw_spinlock_t *cpu_lock = per_cpu_ptr(&cgroup_rstat_cpu_lock, cpu);
 	unsigned long flags;
 
 	/*
-	 * Speculative already-on-list test. This may race leading to
-	 * temporary inaccuracies, which is fine.
-	 *
-	 * Because @parent's updated_children is terminated with @parent
-	 * instead of NULL, we can tell whether @cgrp is on the list by
-	 * testing the next pointer for NULL.
-	 */
 	if (data_race(cgroup_rstat_cpu(cgrp, cpu)->updated_next))
 		return;
 
@@ -47,9 +30,6 @@ void cgroup_rstat_updated(struct cgroup *cgrp, int cpu)
 		struct cgroup_rstat_cpu *prstatc;
 
 		/*
-		 * Both additions and removals are bottom-up.  If a cgroup
-		 * is already in the tree, all ancestors are.
-		 */
 		if (rstatc->updated_next)
 			break;
 
@@ -69,21 +49,6 @@ void cgroup_rstat_updated(struct cgroup *cgrp, int cpu)
 	raw_spin_unlock_irqrestore(cpu_lock, flags);
 }
 
-/**
- * cgroup_rstat_cpu_pop_updated - iterate and dismantle rstat_cpu updated tree
- * @pos: current position
- * @root: root of the tree to traversal
- * @cpu: target cpu
- *
- * Walks the updated rstat_cpu tree on @cpu from @root.  %NULL @pos starts
- * the traversal and %NULL return indicates the end.  During traversal,
- * each returned cgroup is unlinked from the tree.  Must be called with the
- * matching cgroup_rstat_cpu_lock held.
- *
- * The only ordering guarantee is that, for a parent and a child pair
- * covered by a given traversal, if a child is visited, its parent is
- * guaranteed to be visited afterwards.
- */
 static struct cgroup *cgroup_rstat_cpu_pop_updated(struct cgroup *pos,
 						   struct cgroup *root, int cpu)
 {
@@ -94,9 +59,6 @@ static struct cgroup *cgroup_rstat_cpu_pop_updated(struct cgroup *pos,
 		return NULL;
 
 	/*
-	 * We're gonna walk down to the first leaf and visit/remove it.  We
-	 * can pick whatever unvisited node as the starting point.
-	 */
 	if (!pos) {
 		pos = root;
 		/* return NULL if this subtree is not on-list */
@@ -115,11 +77,6 @@ static struct cgroup *cgroup_rstat_cpu_pop_updated(struct cgroup *pos,
 	}
 
 	/*
-	 * Unlink @pos from the tree.  As the updated_children list is
-	 * singly linked, we have to walk it to find the removal point.
-	 * However, due to the way we traverse, @pos will be the first
-	 * child in most cases. The only exception is @root.
-	 */
 	parent = cgroup_parent(pos);
 	if (parent) {
 		struct cgroup_rstat_cpu *prstatc;
@@ -141,7 +98,6 @@ static struct cgroup *cgroup_rstat_cpu_pop_updated(struct cgroup *pos,
 	return pos;
 }
 
-/* see cgroup_rstat_flush() */
 static void cgroup_rstat_flush_locked(struct cgroup *cgrp, bool may_sleep)
 	__releases(&cgroup_rstat_lock) __acquires(&cgroup_rstat_lock)
 {
@@ -156,13 +112,6 @@ static void cgroup_rstat_flush_locked(struct cgroup *cgrp, bool may_sleep)
 		unsigned long flags;
 
 		/*
-		 * The _irqsave() is needed because cgroup_rstat_lock is
-		 * spinlock_t which is a sleeping lock on PREEMPT_RT. Acquiring
-		 * this lock with the _irq() suffix only disables interrupts on
-		 * a non-PREEMPT_RT kernel. The raw_spinlock_t below disables
-		 * interrupts on both configurations. The _irqsave() ensures
-		 * that interrupts are always disabled and later restored.
-		 */
 		raw_spin_lock_irqsave(cpu_lock, flags);
 		while ((pos = cgroup_rstat_cpu_pop_updated(pos, cgrp, cpu))) {
 			struct cgroup_subsys_state *css;
@@ -188,19 +137,6 @@ static void cgroup_rstat_flush_locked(struct cgroup *cgrp, bool may_sleep)
 	}
 }
 
-/**
- * cgroup_rstat_flush - flush stats in @cgrp's subtree
- * @cgrp: target cgroup
- *
- * Collect all per-cpu stats in @cgrp's subtree into the global counters
- * and propagate them upwards.  After this function returns, all cgroups in
- * the subtree have up-to-date ->stat.
- *
- * This also gets all cgroups in the subtree including @cgrp off the
- * ->updated_children lists.
- *
- * This function may block.
- */
 void cgroup_rstat_flush(struct cgroup *cgrp)
 {
 	might_sleep();
@@ -210,12 +146,6 @@ void cgroup_rstat_flush(struct cgroup *cgrp)
 	spin_unlock_irq(&cgroup_rstat_lock);
 }
 
-/**
- * cgroup_rstat_flush_irqsafe - irqsafe version of cgroup_rstat_flush()
- * @cgrp: target cgroup
- *
- * This function can be called from any context.
- */
 void cgroup_rstat_flush_irqsafe(struct cgroup *cgrp)
 {
 	unsigned long flags;
@@ -225,15 +155,6 @@ void cgroup_rstat_flush_irqsafe(struct cgroup *cgrp)
 	spin_unlock_irqrestore(&cgroup_rstat_lock, flags);
 }
 
-/**
- * cgroup_rstat_flush_hold - flush stats in @cgrp's subtree and hold
- * @cgrp: target cgroup
- *
- * Flush stats in @cgrp's subtree and prevent further flushes.  Must be
- * paired with cgroup_rstat_flush_release().
- *
- * This function may block.
- */
 void cgroup_rstat_flush_hold(struct cgroup *cgrp)
 	__acquires(&cgroup_rstat_lock)
 {
@@ -242,9 +163,6 @@ void cgroup_rstat_flush_hold(struct cgroup *cgrp)
 	cgroup_rstat_flush_locked(cgrp, true);
 }
 
-/**
- * cgroup_rstat_flush_release - release cgroup_rstat_flush_hold()
- */
 void cgroup_rstat_flush_release(void)
 	__releases(&cgroup_rstat_lock)
 {
@@ -300,10 +218,6 @@ void __init cgroup_rstat_boot(void)
 		raw_spin_lock_init(per_cpu_ptr(&cgroup_rstat_cpu_lock, cpu));
 }
 
-/*
- * Functions for cgroup basic resource statistics implemented on top of
- * rstat.
- */
 static void cgroup_base_stat_add(struct cgroup_base_stat *dst_bstat,
 				 struct cgroup_base_stat *src_bstat)
 {
@@ -363,7 +277,6 @@ cgroup_base_stat_cputime_account_begin(struct cgroup *cgrp, unsigned long *flags
 	struct cgroup_rstat_cpu *rstatc;
 
 	rstatc = get_cpu_ptr(cgrp->rstat_cpu);
-	*flags = u64_stats_update_begin_irqsave(&rstatc->bsync);
 	return rstatc;
 }
 
@@ -416,12 +329,6 @@ void __cgroup_account_cputime_field(struct cgroup *cgrp,
 	cgroup_base_stat_cputime_account_end(cgrp, rstatc, flags);
 }
 
-/*
- * compute the cputime for the root cgroup by getting the per cpu data
- * at a global level, then categorizing the fields in a manner consistent
- * with how it is done by __cgroup_account_cputime_field for each bit of
- * cpu time attributed to a cgroup.
- */
 static void root_cgroup_cputime(struct cgroup_base_stat *bstat)
 {
 	struct task_cputime *cputime = &bstat->cputime;

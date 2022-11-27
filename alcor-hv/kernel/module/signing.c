@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/* Module signature checker
- *
- * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
- * Written by David Howells (dhowells@redhat.com)
- */
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -22,10 +16,6 @@
 static bool sig_enforce = IS_ENABLED(CONFIG_MODULE_SIG_FORCE);
 module_param(sig_enforce, bool_enable_only, 0644);
 
-/*
- * Export sig_enforce kernel cmdline parameter to allow other subsystems rely
- * on that instead of directly to CONFIG_MODULE_SIG_FORCE config.
- */
 bool is_module_sig_enforced(void)
 {
 	return sig_enforce;
@@ -37,9 +27,6 @@ void set_module_sig_enforced(void)
 	sig_enforce = true;
 }
 
-/*
- * Verify the signature on a module.
- */
 int mod_verify_sig(const void *mod, struct load_info *info)
 {
 	struct module_signature ms;
@@ -76,9 +63,6 @@ int module_sig_check(struct load_info *info, int flags)
 	bool mangled_module = flags & (MODULE_INIT_IGNORE_MODVERSIONS |
 				       MODULE_INIT_IGNORE_VERMAGIC);
 	/*
-	 * Do not allow mangled modules as a module with version information
-	 * removed is no longer the module that was signed.
-	 */
 	if (!mangled_module &&
 	    info->len > markerlen &&
 	    memcmp(mod + info->len - markerlen, MODULE_SIG_STRING, markerlen) == 0) {
@@ -92,10 +76,6 @@ int module_sig_check(struct load_info *info, int flags)
 	}
 
 	/*
-	 * We don't permit modules to be loaded into the trusted kernels
-	 * without a valid signature on them, but if we're not enforcing,
-	 * certain errors are non-fatal.
-	 */
 	switch (err) {
 	case -ENODATA:
 		reason = "unsigned module";
@@ -109,10 +89,6 @@ int module_sig_check(struct load_info *info, int flags)
 
 	default:
 		/*
-		 * All other errors are fatal, including lack of memory,
-		 * unparseable signatures, and signature check failures --
-		 * even if signatures aren't required.
-		 */
 		return err;
 	}
 

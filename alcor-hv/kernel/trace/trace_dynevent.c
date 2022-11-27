@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Generic dynamic event control interface
- *
- * Copyright (C) 2018 Masami Hiramatsu <mhiramat@kernel.org>
- */
 
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
@@ -145,7 +139,6 @@ static int create_dyn_event(const char *raw_command)
 	return ret;
 }
 
-/* Protected by event_mutex */
 LIST_HEAD(dyn_event_list);
 
 void *dyn_event_seq_start(struct seq_file *m, loff_t *pos)
@@ -181,17 +174,6 @@ static const struct seq_operations dyn_event_seq_op = {
 	.show	= dyn_event_seq_show
 };
 
-/*
- * dyn_events_release_all - Release all specific events
- * @type:	the dyn_event_operations * which filters releasing events
- *
- * This releases all events which ->ops matches @type. If @type is NULL,
- * all events are released.
- * Return -EBUSY if any of them are in use, and return other errors when
- * it failed to free the given event. Except for -EBUSY, event releasing
- * process will be aborted at that point and there may be some other
- * releasable events on the list.
- */
 int dyn_events_release_all(struct dyn_event_operations *type)
 {
 	struct dyn_event *ev, *tmp;
@@ -252,7 +234,6 @@ static const struct file_operations dynamic_events_ops = {
 	.write		= dyn_event_write,
 };
 
-/* Make a tracefs interface for controlling dynamic events */
 static __init int init_dynamic_event(void)
 {
 	int ret;
@@ -268,24 +249,6 @@ static __init int init_dynamic_event(void)
 }
 fs_initcall(init_dynamic_event);
 
-/**
- * dynevent_arg_add - Add an arg to a dynevent_cmd
- * @cmd: A pointer to the dynevent_cmd struct representing the new event cmd
- * @arg: The argument to append to the current cmd
- * @check_arg: An (optional) pointer to a function checking arg sanity
- *
- * Append an argument to a dynevent_cmd.  The argument string will be
- * appended to the current cmd string, followed by a separator, if
- * applicable.  Before the argument is added, the @check_arg function,
- * if present, will be used to check the sanity of the current arg
- * string.
- *
- * The cmd string and separator should be set using the
- * dynevent_arg_init() before any arguments are added using this
- * function.
- *
- * Return: 0 if successful, error otherwise.
- */
 int dynevent_arg_add(struct dynevent_cmd *cmd,
 		     struct dynevent_arg *arg,
 		     dynevent_check_arg_fn_t check_arg)
@@ -307,30 +270,6 @@ int dynevent_arg_add(struct dynevent_cmd *cmd,
 	return ret;
 }
 
-/**
- * dynevent_arg_pair_add - Add an arg pair to a dynevent_cmd
- * @cmd: A pointer to the dynevent_cmd struct representing the new event cmd
- * @arg_pair: The argument pair to append to the current cmd
- * @check_arg: An (optional) pointer to a function checking arg sanity
- *
- * Append an argument pair to a dynevent_cmd.  An argument pair
- * consists of a left-hand-side argument and a right-hand-side
- * argument separated by an operator, which can be whitespace, all
- * followed by a separator, if applicable.  This can be used to add
- * arguments of the form 'type variable_name;' or 'x+y'.
- *
- * The lhs argument string will be appended to the current cmd string,
- * followed by an operator, if applicable, followed by the rhs string,
- * followed finally by a separator, if applicable.  Before the
- * argument is added, the @check_arg function, if present, will be
- * used to check the sanity of the current arg strings.
- *
- * The cmd strings, operator, and separator should be set using the
- * dynevent_arg_pair_init() before any arguments are added using this
- * function.
- *
- * Return: 0 if successful, error otherwise.
- */
 int dynevent_arg_pair_add(struct dynevent_cmd *cmd,
 			  struct dynevent_arg_pair *arg_pair,
 			  dynevent_check_arg_fn_t check_arg)
@@ -356,16 +295,6 @@ int dynevent_arg_pair_add(struct dynevent_cmd *cmd,
 	return ret;
 }
 
-/**
- * dynevent_str_add - Add a string to a dynevent_cmd
- * @cmd: A pointer to the dynevent_cmd struct representing the new event cmd
- * @str: The string to append to the current cmd
- *
- * Append a string to a dynevent_cmd.  The string will be appended to
- * the current cmd string as-is, with nothing prepended or appended.
- *
- * Return: 0 if successful, error otherwise.
- */
 int dynevent_str_add(struct dynevent_cmd *cmd, const char *str)
 {
 	int ret = 0;
@@ -379,26 +308,6 @@ int dynevent_str_add(struct dynevent_cmd *cmd, const char *str)
 	return ret;
 }
 
-/**
- * dynevent_cmd_init - Initialize a dynevent_cmd object
- * @cmd: A pointer to the dynevent_cmd struct representing the cmd
- * @buf: A pointer to the buffer to generate the command into
- * @maxlen: The length of the buffer the command will be generated into
- * @type: The type of the cmd, checked against further operations
- * @run_command: The type-specific function that will actually run the command
- *
- * Initialize a dynevent_cmd.  A dynevent_cmd is used to build up and
- * run dynamic event creation commands, such as commands for creating
- * synthetic and kprobe events.  Before calling any of the functions
- * used to build the command, a dynevent_cmd object should be
- * instantiated and initialized using this function.
- *
- * The initialization sets things up by saving a pointer to the
- * user-supplied buffer and its length via the @buf and @maxlen
- * params, and by saving the cmd-specific @type and @run_command
- * params which are used to check subsequent dynevent_cmd operations
- * and actually run the command when complete.
- */
 void dynevent_cmd_init(struct dynevent_cmd *cmd, char *buf, int maxlen,
 		       enum dynevent_type type,
 		       dynevent_create_fn_t run_command)
@@ -410,18 +319,6 @@ void dynevent_cmd_init(struct dynevent_cmd *cmd, char *buf, int maxlen,
 	cmd->run_command = run_command;
 }
 
-/**
- * dynevent_arg_init - Initialize a dynevent_arg object
- * @arg: A pointer to the dynevent_arg struct representing the arg
- * @separator: An (optional) separator, appended after adding the arg
- *
- * Initialize a dynevent_arg object.  A dynevent_arg represents an
- * object used to append single arguments to the current command
- * string.  After the arg string is successfully appended to the
- * command string, the optional @separator is appended.  If no
- * separator was specified when initializing the arg, a space will be
- * appended.
- */
 void dynevent_arg_init(struct dynevent_arg *arg,
 		       char separator)
 {
@@ -432,23 +329,6 @@ void dynevent_arg_init(struct dynevent_arg *arg,
 	arg->separator = separator;
 }
 
-/**
- * dynevent_arg_pair_init - Initialize a dynevent_arg_pair object
- * @arg_pair: A pointer to the dynevent_arg_pair struct representing the arg
- * @operator: An (optional) operator, appended after adding the first arg
- * @separator: An (optional) separator, appended after adding the second arg
- *
- * Initialize a dynevent_arg_pair object.  A dynevent_arg_pair
- * represents an object used to append argument pairs such as 'type
- * variable_name;' or 'x+y' to the current command string.  An
- * argument pair consists of a left-hand-side argument and a
- * right-hand-side argument separated by an operator, which can be
- * whitespace, all followed by a separator, if applicable.  After the
- * first arg string is successfully appended to the command string,
- * the optional @operator is appended, followed by the second arg and
- * optional @separator.  If no separator was specified when
- * initializing the arg, a space will be appended.
- */
 void dynevent_arg_pair_init(struct dynevent_arg_pair *arg_pair,
 			    char operator, char separator)
 {
@@ -463,17 +343,6 @@ void dynevent_arg_pair_init(struct dynevent_arg_pair *arg_pair,
 	arg_pair->separator = separator;
 }
 
-/**
- * dynevent_create - Create the dynamic event contained in dynevent_cmd
- * @cmd: The dynevent_cmd object containing the dynamic event creation command
- *
- * Once a dynevent_cmd object has been successfully built up via the
- * dynevent_cmd_init(), dynevent_arg_add() and dynevent_arg_pair_add()
- * functions, this function runs the final command to actually create
- * the event.
- *
- * Return: 0 if the event was successfully created, error otherwise.
- */
 int dynevent_create(struct dynevent_cmd *cmd)
 {
 	return cmd->run_command(cmd);

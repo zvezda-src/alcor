@@ -1,19 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Module kdb support
- *
- * Copyright (C) 2010 Jason Wessel
- */
 
 #include <linux/module.h>
 #include <linux/kdb.h>
 #include "internal.h"
 
-/*
- * kdb_lsmod - This function implements the 'lsmod' command.  Lists
- *	currently loaded kernel modules.
- *	Mostly taken from userland lsmod.
- */
 int kdb_lsmod(int argc, const char **argv)
 {
 	struct module *mod;

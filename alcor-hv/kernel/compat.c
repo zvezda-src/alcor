@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- *  linux/kernel/compat.c
- *
- *  Kernel compatibililty routines for e.g. 32 bit syscall support
- *  on 64 bit kernels.
- *
- *  Copyright (C) 2002-2003 Stephen Rothwell, IBM Corporation
- */
 
 #include <linux/linkage.h>
 #include <linux/compat.h>
@@ -28,10 +19,6 @@
 
 #ifdef __ARCH_WANT_SYS_SIGPROCMASK
 
-/*
- * sys_sigprocmask SIG_SETMASK sets the first (compat) word of the
- * blocked set of signals to the supplied signal set
- */
 static inline void compat_sig_setmask(sigset_t *blocked, compat_sigset_word set)
 {
 	memcpy(blocked->sig, &set, sizeof(set));
@@ -169,13 +156,6 @@ COMPAT_SYSCALL_DEFINE3(sched_getaffinity, compat_pid_t,  pid, unsigned int, len,
 	return ret;
 }
 
-/*
- * We currently only need the following fields from the sigevent
- * structure: sigev_value, sigev_signo, sig_notify and (sometimes
- * sigev_notify_thread_id).  The others are handled in user mode.
- * We also assume that copying sigev_value.sival_int is sufficient
- * to keep all the bits of sigev_value.sival_ptr intact.
- */
 int get_compat_sigevent(struct sigevent *event,
 		const struct compat_sigevent __user *u_event)
 {

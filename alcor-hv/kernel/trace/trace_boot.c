@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * trace_boot.c
- * Tracing kernel boot-time
- */
 
 #define pr_fmt(fmt)	"trace_boot: " fmt
 
@@ -205,13 +200,11 @@ append_str_nospace(char **bufp, char *end, const char *str)
 			*(p++) = *str;
 		str++;
 	}
-	*p = '\0';
 	if (p == end - 1) {
 		*bufp = end;
 		return -ENOSPC;
 	}
 	len = p - *bufp;
-	*bufp = p;
 	return (int)len;
 }
 
@@ -320,28 +313,6 @@ trace_boot_hist_add_handlers(struct xbc_node *hnode, char **bufp,
 	return ret;
 }
 
-/*
- * Histogram boottime tracing syntax.
- *
- * ftrace.[instance.INSTANCE.]event.GROUP.EVENT.hist[.N] {
- *	keys = <KEY>[,...]
- *	values = <VAL>[,...]
- *	sort = <SORT-KEY>[,...]
- *	size = <ENTRIES>
- *	name = <HISTNAME>
- *	var { <VAR> = <EXPR> ... }
- *	pause|continue|clear
- *	onmax|onchange[.N] { var = <VAR>; <ACTION> [= <PARAM>] }
- *	onmatch[.N] { event = <EVENT>; <ACTION> [= <PARAM>] }
- *	filter = <FILTER>
- * }
- *
- * Where <ACTION> are;
- *
- *	trace = <EVENT>, <ARG1>[, ...]
- *	save = <ARG1>[, ...]
- *	snapshot
- */
 static int __init
 trace_boot_compose_hist_cmd(struct xbc_node *hnode, char *buf, size_t size)
 {
@@ -664,8 +635,4 @@ static int __init trace_boot_init(void)
 
 	return 0;
 }
-/*
- * Start tracing at the end of core-initcall, so that it starts tracing
- * from the beginning of postcore_initcall.
- */
 core_initcall_sync(trace_boot_init);

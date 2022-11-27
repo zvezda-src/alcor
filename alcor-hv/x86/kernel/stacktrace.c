@@ -1,8 +1,3 @@
-/*
- * Stack trace management functions
- *
- *  Copyright (C) 2006-2009 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
- */
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/task_stack.h>
@@ -47,11 +42,6 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 				return 0;
 
 			/*
-			 * Kernel mode registers on the stack indicate an
-			 * in-kernel interrupt or exception (e.g., preemption
-			 * or a page fault), which can make frame pointers
-			 * unreliable.
-			 */
 			if (IS_ENABLED(CONFIG_FRAME_POINTER))
 				return -EINVAL;
 		}
@@ -59,10 +49,6 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 		addr = unwind_get_return_address(&state);
 
 		/*
-		 * A NULL or invalid return address probably means there's some
-		 * generated code which __kernel_text_address() doesn't know
-		 * about.
-		 */
 		if (!addr)
 			return -EINVAL;
 
@@ -77,7 +63,6 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 	return 0;
 }
 
-/* Userspace stacktrace - based on kernel/trace/trace_sysprof.c */
 
 struct stack_frame_user {
 	const void __user	*next_fp;

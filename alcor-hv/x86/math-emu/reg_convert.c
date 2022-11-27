@@ -1,10 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  reg_convert.c                                                            |
  |                                                                           |
  |  Convert register representation.                                         |
  |                                                                           |
- | Copyright (C) 1992,1993,1994,1996,1997                                    |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
  |                  E-mail   billm@suburbia.net                              |
  |                                                                           |
@@ -18,7 +15,6 @@ int FPU_to_exp16(FPU_REG const *a, FPU_REG *x)
 {
 	int sign = getsign(a);
 
-	*(long long *)&(x->sigl) = *(const long long *)&(a->sigl);
 
 	/* Set up the exponent as a 16 bit quantity. */
 	setexponent16(x, exponent(a));

@@ -1,17 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  get_address.c                                                            |
  |                                                                           |
  | Get the effective address from an FPU instruction.                        |
  |                                                                           |
- | Copyright (C) 1992,1993,1994,1997                                         |
  |                       W. Metzenthen, 22 Parker St, Ormond, Vic 3163,      |
  |                       Australia.  E-mail   billm@suburbia.net             |
  |                                                                           |
  |                                                                           |
  +---------------------------------------------------------------------------*/
 
-/*---------------------------------------------------------------------------+
  | Note:                                                                     |
  |    The file contains code which accesses user memory.                     |
  |    Emulator static data may change when user memory is accessed, due to   |
@@ -68,7 +64,6 @@ static int reg_offset_pm[] = {
 #define PM_REG_(x) (*(unsigned short *) \
 		(reg_offset_pm[((unsigned)x)] + (u_char *)FPU_info->regs))
 
-/* Decode the SIB byte. This function assumes mod != 0 */
 static int sib(int mod, unsigned long *fpu_eip)
 {
 	u_char ss, index, base;
@@ -133,7 +128,6 @@ static unsigned long vm86_segment(u_char segment, struct address *addr)
 	return (unsigned long)VM86_REG_(segment) << 4;
 }
 
-/* This should work for 16 and 32 bit protected mode. */
 static long pm_address(u_char FPU_modrm, u_char segment,
 		       struct address *addr, long offset)
 {
@@ -191,21 +185,6 @@ static long pm_address(u_char FPU_modrm, u_char segment,
 	return address;
 }
 
-/*
-       MOD R/M byte:  MOD == 3 has a special use for the FPU
-                      SIB byte used iff R/M = 100b
-
-       7   6   5   4   3   2   1   0
-       .....   .........   .........
-        MOD    OPCODE(2)     R/M
-
-       SIB byte
-
-       7   6   5   4   3   2   1   0
-       .....   .........   .........
-        SS      INDEX        BASE
-
-*/
 
 void __user *FPU_get_address(u_char FPU_modrm, unsigned long *fpu_eip,
 			     struct address *addr, fpu_addr_modes addr_modes)

@@ -1,19 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- *  Copyright (C) 1995  Linus Torvalds
- *
- *  Pentium III FXSR, SSE support
- *	Gareth Hughes <gareth@valinux.com>, May 2000
- *
- *  X86-64 port
- *	Andi Kleen.
- *
- *	CPU hotplug support - ashok.raj@intel.com
- */
 
-/*
- * This file handles the architecture-dependent parts of process handling..
- */
 
 #include <linux/cpu.h>
 #include <linux/errno.h>
@@ -56,13 +41,11 @@
 #include <asm/unistd.h>
 #include <asm/fsgsbase.h>
 #ifdef CONFIG_IA32_EMULATION
-/* Not included via unistd.h */
 #include <asm/unistd_32_ia32.h>
 #endif
 
 #include "process.h"
 
-/* Prints also some state that isn't saved in the pt_regs */
 void __show_regs(struct pt_regs *regs, enum show_regs_mode mode,
 		 const char *log_lvl)
 {
@@ -151,14 +134,6 @@ enum which_selector {
 	GS
 };
 
-/*
- * Out of line to be protected from kprobes and tracing. If this would be
- * traced or probed than any access to a per CPU variable happens with
- * the wrong GS.
- *
- * It is not used on Xen paravirt. When paravirt support is needed, it
- * needs to be renamed with native_ prefix.
- */
 static noinstr unsigned long __rdgsbase_inactive(void)
 {
 	unsigned long gsbase;
@@ -178,14 +153,6 @@ static noinstr unsigned long __rdgsbase_inactive(void)
 	return gsbase;
 }
 
-/*
- * Out of line to be protected from kprobes and tracing. If this would be
- * traced or probed than any access to a per CPU variable happens with
- * the wrong GS.
- *
- * It is not used on Xen paravirt. When paravirt support is needed, it
- * needs to be renamed with native_ prefix.
- */
 static noinstr void __wrgsbase_inactive(unsigned long gsbase)
 {
 	lockdep_assert_irqs_disabled();
@@ -201,44 +168,14 @@ static noinstr void __wrgsbase_inactive(unsigned long gsbase)
 	}
 }
 
-/*
- * Saves the FS or GS base for an outgoing thread if FSGSBASE extensions are
- * not available.  The goal is to be reasonably fast on non-FSGSBASE systems.
- * It's forcibly inlined because it'll generate better code and this function
- * is hot.
- */
 static __always_inline void save_base_legacy(struct task_struct *prev_p,
 					     unsigned short selector,
 					     enum which_selector which)
 {
 	if (likely(selector == 0)) {
 		/*
-		 * On Intel (without X86_BUG_NULL_SEG), the segment base could
-		 * be the pre-existing saved base or it could be zero.  On AMD
-		 * (with X86_BUG_NULL_SEG), the segment base could be almost
-		 * anything.
-		 *
-		 * This branch is very hot (it's hit twice on almost every
-		 * context switch between 64-bit programs), and avoiding
-		 * the RDMSR helps a lot, so we just assume that whatever
-		 * value is already saved is correct.  This matches historical
-		 * Linux behavior, so it won't break existing applications.
-		 *
-		 * To avoid leaking state, on non-X86_BUG_NULL_SEG CPUs, if we
-		 * report that the base is zero, it needs to actually be zero:
-		 * see the corresponding logic in load_seg_legacy.
-		 */
 	} else {
 		/*
-		 * If the selector is 1, 2, or 3, then the base is zero on
-		 * !X86_BUG_NULL_SEG CPUs and could be anything on
-		 * X86_BUG_NULL_SEG CPUs.  In the latter case, Linux
-		 * has never attempted to preserve the base across context
-		 * switches.
-		 *
-		 * If selector > 3, then it refers to a real segment, and
-		 * saving the base isn't necessary.
-		 */
 		if (which == FS)
 			prev_p->thread.fsbase = 0;
 		else
@@ -252,10 +189,6 @@ static __always_inline void save_fsgs(struct task_struct *task)
 	savesegment(gs, task->thread.gsindex);
 	if (static_cpu_has(X86_FEATURE_FSGSBASE)) {
 		/*
-		 * If FSGSBASE is enabled, we can't make any useful guesses
-		 * about the base, and user code expects us to save the current
-		 * value.  Fortunately, reading the base directly is efficient.
-		 */
 		task->thread.fsbase = rdfsbase();
 		task->thread.gsbase = __rdgsbase_inactive();
 	} else {
@@ -264,10 +197,6 @@ static __always_inline void save_fsgs(struct task_struct *task)
 	}
 }
 
-/*
- * While a process is running,current->thread.fsbase and current->thread.gsbase
- * may not match the corresponding CPU registers (see save_base_legacy()).
- */
 void current_save_fsgs(void)
 {
 	unsigned long flags;
@@ -298,30 +227,13 @@ static __always_inline void load_seg_legacy(unsigned short prev_index,
 {
 	if (likely(next_index <= 3)) {
 		/*
-		 * The next task is using 64-bit TLS, is not using this
-		 * segment at all, or is having fun with arcane CPU features.
-		 */
 		if (next_base == 0) {
 			/*
-			 * Nasty case: on AMD CPUs, we need to forcibly zero
-			 * the base.
-			 */
 			if (static_cpu_has_bug(X86_BUG_NULL_SEG)) {
 				loadseg(which, __USER_DS);
 				loadseg(which, next_index);
 			} else {
 				/*
-				 * We could try to exhaustively detect cases
-				 * under which we can skip the segment load,
-				 * but there's really only one case that matters
-				 * for performance: if both the previous and
-				 * next states are fully zeroed, we can skip
-				 * the load.
-				 *
-				 * (This assumes that prev_base == 0 has no
-				 * false positives.  This is the case on
-				 * Intel-style CPUs.)
-				 */
 				if (likely(prev_index | next_index | prev_base))
 					loadseg(which, next_index);
 			}
@@ -333,19 +245,10 @@ static __always_inline void load_seg_legacy(unsigned short prev_index,
 		}
 	} else {
 		/*
-		 * The next task is using a real segment.  Loading the selector
-		 * is sufficient.
-		 */
 		loadseg(which, next_index);
 	}
 }
 
-/*
- * Store prev's PKRU value and load next's PKRU value if they differ. PKRU
- * is not XSTATE managed on context switch because that would require a
- * lookup in the task's FPU xsave buffer and require to keep that updated
- * in various places.
- */
 static __always_inline void x86_pkru_load(struct thread_struct *prev,
 					  struct thread_struct *next)
 {
@@ -356,9 +259,6 @@ static __always_inline void x86_pkru_load(struct thread_struct *prev,
 	prev->pkru = rdpkru();
 
 	/*
-	 * PKRU writes are slightly expensive.  Avoid them when not
-	 * strictly necessary:
-	 */
 	if (prev->pkru != next->pkru)
 		wrpkru(next->pkru);
 }
@@ -395,9 +295,6 @@ unsigned long x86_fsgsbase_read_task(struct task_struct *task,
 			return 0;
 
 		/*
-		 * There are no user segments in the GDT with nonzero bases
-		 * other than the TLS segments.
-		 */
 		if (idx < GDT_ENTRY_TLS_MIN || idx > GDT_ENTRY_TLS_MAX)
 			return 0;
 
@@ -408,10 +305,6 @@ unsigned long x86_fsgsbase_read_task(struct task_struct *task,
 		struct ldt_struct *ldt;
 
 		/*
-		 * If performance here mattered, we could protect the LDT
-		 * with RCU.  This is a slow path, though, so we can just
-		 * take the mutex.
-		 */
 		mutex_lock(&task->mm->context.lock);
 		ldt = task->mm->context.ldt;
 		if (unlikely(!ldt || idx >= ldt->nr_entries))
@@ -543,16 +436,6 @@ void compat_start_thread(struct pt_regs *regs, u32 new_ip, u32 new_sp, bool x32)
 }
 #endif
 
-/*
- *	switch_to(x,y) should switch tasks from x to y.
- *
- * This could still be optimized:
- * - fold all the options into a flag word and test it with a single test.
- * - could test fs/gs bitsliced
- *
- * Kprobes not supported here. Set the probe on schedule instead.
- * Function graph tracer not supported too.
- */
 __visible __notrace_funcgraph struct task_struct *
 __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
@@ -575,16 +458,9 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	save_fsgs(prev_p);
 
 	/*
-	 * Load TLS before restoring any segments so that segment loads
-	 * reference the correct GDT entries.
-	 */
 	load_TLS(next, cpu);
 
 	/*
-	 * Leave lazy mode, flushing any hypercalls made here.  This
-	 * must be done after loading TLS entries in the GDT but before
-	 * loading segments that might reference them.
-	 */
 	arch_end_context_switch(next_p);
 
 	/* Switch DS and ES.
@@ -614,8 +490,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	x86_pkru_load(prev, next);
 
 	/*
-	 * Switch the PDA and FPU contexts.
-	 */
 	this_cpu_write(current_task, next_p);
 	this_cpu_write(cpu_current_top_of_stack, task_top_of_stack(next_p));
 
@@ -628,26 +502,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 
 	if (static_cpu_has_bug(X86_BUG_SYSRET_SS_ATTRS)) {
 		/*
-		 * AMD CPUs have a misfeature: SYSRET sets the SS selector but
-		 * does not update the cached descriptor.  As a result, if we
-		 * do SYSRET while SS is NULL, we'll end up in user mode with
-		 * SS apparently equal to __USER_DS but actually unusable.
-		 *
-		 * The straightforward workaround would be to fix it up just
-		 * before SYSRET, but that would slow down the system call
-		 * fast paths.  Instead, we ensure that SS is never NULL in
-		 * system call context.  We do this by replacing NULL SS
-		 * selectors at every context switch.  SYSCALL sets up a valid
-		 * SS, so the only way to get NULL is to re-enter the kernel
-		 * from CPL 3 through an interrupt.  Since that can't happen
-		 * in the same task as a running syscall, we are guaranteed to
-		 * context switch between every interrupt vector entry and a
-		 * subsequent SYSRET.
-		 *
-		 * We read SS first because SS reads are much faster than
-		 * writes.  Out of caution, we force SS to __KERNEL_DS even if
-		 * it previously had a different non-NULL value.
-		 */
 		unsigned short ss_sel;
 		savesegment(ss, ss_sel);
 		if (ss_sel != __KERNEL_DS)
@@ -687,13 +541,6 @@ static void __set_personality_x32(void)
 
 	current->personality &= ~READ_IMPLIES_EXEC;
 	/*
-	 * in_32bit_syscall() uses the presence of the x32 syscall bit
-	 * flag to determine compat status.  The x86 mmap() code relies on
-	 * the syscall bitness so set x32 syscall bit right here to make
-	 * in_32bit_syscall() work during exec().
-	 *
-	 * Pretend to come from a x32 execve.
-	 */
 	task_pt_regs(current)->orig_ax = __NR_x32_execve | __X32_SYSCALL_BIT;
 	current_thread_info()->status &= ~TS_COMPAT;
 #endif
@@ -704,9 +551,6 @@ static void __set_personality_ia32(void)
 #ifdef CONFIG_IA32_EMULATION
 	if (current->mm) {
 		/*
-		 * uprobes applied to this MM need to know this and
-		 * cannot use user_64bit_mode() at that time.
-		 */
 		current->mm->context.flags = MM_CONTEXT_UPROBE_IA32;
 	}
 
@@ -753,19 +597,11 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
 
 		preempt_disable();
 		/*
-		 * ARCH_SET_GS has always overwritten the index
-		 * and the base. Zero is the most sensible value
-		 * to put in the index, and is the only value that
-		 * makes any sense if FSGSBASE is unavailable.
-		 */
 		if (task == current) {
 			loadseg(GS, 0);
 			x86_gsbase_write_cpu_inactive(arg2);
 
 			/*
-			 * On non-FSGSBASE systems, save_base_legacy() expects
-			 * that we also fill in thread.gsbase.
-			 */
 			task->thread.gsbase = arg2;
 
 		} else {
@@ -777,25 +613,16 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
 	}
 	case ARCH_SET_FS: {
 		/*
-		 * Not strictly needed for %fs, but do it for symmetry
-		 * with %gs
-		 */
 		if (unlikely(arg2 >= TASK_SIZE_MAX))
 			return -EPERM;
 
 		preempt_disable();
 		/*
-		 * Set the selector to 0 for the same reason
-		 * as %gs above.
-		 */
 		if (task == current) {
 			loadseg(FS, 0);
 			x86_fsbase_write_cpu(arg2);
 
 			/*
-			 * On non-FSGSBASE systems, save_base_legacy() expects
-			 * that we also fill in thread.fsbase.
-			 */
 			task->thread.fsbase = arg2;
 		} else {
 			task->thread.fsindex = 0;

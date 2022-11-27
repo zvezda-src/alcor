@@ -1,7 +1,3 @@
-/*
- * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
- */
 #ifndef __UM_ELF_X86_H
 #define __UM_ELF_X86_H
 
@@ -23,9 +19,6 @@
 #define R_386_GOTPC	10
 #define R_386_NUM	11
 
-/*
- * This is used to ensure we don't load something for the wrong architecture.
- */
 #define elf_check_arch(x) \
 	(((x)->e_machine == EM_386) || ((x)->e_machine == EM_486))
 
@@ -43,7 +36,6 @@
 	PT_REGS_AX(regs) = 0; \
 } while (0)
 
-/* Shamelessly stolen from include/asm-i386/elf.h */
 
 #define ELF_CORE_COPY_REGS(pr_reg, regs) do {	\
 	pr_reg[0] = PT_REGS_BX(regs);		\
@@ -73,18 +65,10 @@ extern unsigned long vsyscall_ehdr;
 extern unsigned long vsyscall_end;
 extern unsigned long __kernel_vsyscall;
 
-/*
- * This is the range that is readable by user mode, and things
- * acting like user mode such as get_user_pages.
- */
 #define FIXADDR_USER_START      vsyscall_ehdr
 #define FIXADDR_USER_END        vsyscall_end
 
 
-/*
- * Architecture-neutral AT_ values in 0-17, leave some room
- * for more of them, start the x86-specific ones at 32.
- */
 #define AT_SYSINFO		32
 #define AT_SYSINFO_EHDR		33
 
@@ -98,7 +82,6 @@ do {								\
 
 #else
 
-/* x86-64 relocation types, taken from asm-x86_64/elf.h */
 #define R_X86_64_NONE		0	/* No reloc */
 #define R_X86_64_64		1	/* Direct 64 bit  */
 #define R_X86_64_PC32		2	/* PC relative 32 bit signed */
@@ -118,9 +101,6 @@ do {								\
 #define R_X86_64_PC8		15	/* 8 bit sign extended pc relative */
 #define R_X86_64_PC64		24	/* Place relative 64-bit signed */
 
-/*
- * This is used to ensure we don't load something for the wrong architecture.
- */
 #define elf_check_arch(x) \
 	((x)->e_machine == EM_X86_64)
 
@@ -177,7 +157,6 @@ do {								\
 
 #define ELF_PLATFORM "x86_64"
 
-/* No user-accessible fixmap addresses, i.e. vsyscall */
 #define FIXADDR_USER_START      0
 #define FIXADDR_USER_END        0
 

@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Support for power management features of the OLPC XO-1 laptop
- *
- * Copyright (C) 2010 Andres Salomon <dilinger@queued.net>
- * Copyright (C) 2010 One Laptop per Child
- * Copyright (C) 2006 Red Hat, Inc.
- * Copyright (C) 2006 Advanced Micro Devices, Inc.
- */
 
 #include <linux/cs5535.h>
 #include <linux/platform_device.h>
@@ -30,14 +21,12 @@ static struct {
 	unsigned short segment;
 } ofw_bios_entry = { 0xF0000 + PAGE_OFFSET, __KERNEL_CS };
 
-/* Set bits in the wakeup mask */
 void olpc_xo1_pm_wakeup_set(u16 value)
 {
 	wakeup_mask |= value;
 }
 EXPORT_SYMBOL_GPL(olpc_xo1_pm_wakeup_set);
 
-/* Clear bits in the wakeup mask */
 void olpc_xo1_pm_wakeup_clear(u16 value)
 {
 	wakeup_mask &= ~value;
@@ -53,9 +42,6 @@ static int xo1_power_state_enter(suspend_state_t pm_state)
 		return -EINVAL;
 
 	/*
-	 * Save SCI mask (this gets lost since PM1_EN is used as a mask for
-	 * wakeup events, which is not necessarily the same event set)
-	 */
 	saved_sci_mask = inl(acpi_base + CS5536_PM1_STS);
 	saved_sci_mask &= 0xffff0000;
 

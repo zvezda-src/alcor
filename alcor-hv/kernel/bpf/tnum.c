@@ -1,16 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* tnum: tracked (or tristate) numbers
- *
- * A tnum tracks knowledge about the bits of a value.  Each bit can be either
- * known (0 or 1), or unknown (x).  Arithmetic operations on tnums will
- * propagate the unknown bits such that the tnum result represents all the
- * possible results for possible values of the operands.
- */
 #include <linux/kernel.h>
 #include <linux/tnum.h>
 
 #define TNUM(_v, _m)	(struct tnum){.value = _v, .mask = _m}
-/* A completely unknown value */
 const struct tnum tnum_unknown = { .value = 0, .mask = -1 };
 
 struct tnum tnum_const(u64 value)
@@ -111,14 +102,6 @@ struct tnum tnum_xor(struct tnum a, struct tnum b)
 	return TNUM(v & ~mu, mu);
 }
 
-/* Generate partial products by multiplying each bit in the multiplier (tnum a)
- * with the multiplicand (tnum b), and add the partial products after
- * appropriately bit-shifting them. Instead of directly performing tnum addition
- * on the generated partial products, equivalenty, decompose each partial
- * product into two tnums, consisting of the value-sum (acc_v) and the
- * mask-sum (acc_m) and then perform tnum addition on them. The following paper
- * explains the algorithm in more detail: https://arxiv.org/abs/2105.05398.
- */
 struct tnum tnum_mul(struct tnum a, struct tnum b)
 {
 	u64 acc_v = a.value * b.value;
@@ -138,9 +121,6 @@ struct tnum tnum_mul(struct tnum a, struct tnum b)
 	return tnum_add(TNUM(acc_v, 0), acc_m);
 }
 
-/* Note that if a and b disagree - i.e. one has a 'known 1' where the other has
- * a 'known 0' - this will return a 'known 1' for that bit.
- */
 struct tnum tnum_intersect(struct tnum a, struct tnum b)
 {
 	u64 v, mu;

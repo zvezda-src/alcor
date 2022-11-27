@@ -1,18 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Xen SMP support
- *
- * This file implements the Xen versions of smp_ops.  SMP under Xen is
- * very straightforward.  Bringing a CPU up is simply a matter of
- * loading its initial context and setting it running.
- *
- * IPIs are handled through the Xen event mechanism.
- *
- * Because virtual CPUs can be scheduled onto any real CPU, there's no
- * useful topology information for the kernel to make use of.  As a
- * result, all CPUs are treated as if they're single-core and
- * single-threaded.
- */
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/err.h>
@@ -197,11 +182,6 @@ static void __init xen_pv_smp_prepare_boot_cpu(void)
 	xen_setup_vcpu_info_placement();
 
 	/*
-	 * The alternative logic (which patches the unlock/lock) runs before
-	 * the smp bootup up code is activated. Hence we need to set this up
-	 * the core kernel is being patched. Otherwise we will have only
-	 * modules patched but not core code.
-	 */
 	xen_init_spinlocks();
 }
 
@@ -269,10 +249,6 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	gdt = get_cpu_gdt_rw(cpu);
 
 	/*
-	 * Bring up the CPU in cpu_bringup_and_idle() with the stack
-	 * pointing just below where pt_regs would be if it were a normal
-	 * kernel entry.
-	 */
 	ctxt->user_regs.eip = (unsigned long)asm_cpu_bringup_and_idle;
 	ctxt->flags = VGCF_IN_KERNEL;
 	ctxt->user_regs.eflags = 0x1000; /* IOPL_RING1 */
@@ -294,10 +270,6 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	ctxt->gdt_ents      = GDT_ENTRIES;
 
 	/*
-	 * Set SS:SP that Xen will use when entering guest kernel mode
-	 * from guest user mode.  Subsequent calls to load_sp0() can
-	 * change this value.
-	 */
 	ctxt->kernel_ss = __KERNEL_DS;
 	ctxt->kernel_sp = task_top_of_stack(idle);
 
@@ -327,9 +299,6 @@ static int xen_pv_cpu_up(unsigned int cpu, struct task_struct *idle)
 	xen_setup_runstate_info(cpu);
 
 	/*
-	 * PV VCPUs are always successfully taken down (see 'while' loop
-	 * in xen_cpu_die()), so -EBUSY is an error.
-	 */
 	rc = cpu_check_up_prepare(cpu);
 	if (rc)
 		return rc;
@@ -387,11 +356,6 @@ static void xen_pv_play_dead(void) /* used only with HOTPLUG_CPU */
 	HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(smp_processor_id()), NULL);
 	cpu_bringup();
 	/*
-	 * commit 4b0c0f294 (tick: Cleanup NOHZ per cpu data on cpu down)
-	 * clears certain data that the cpu_idle loop (which called us
-	 * and that we return from) expects. The only way to get that
-	 * data back is to call:
-	 */
 	tick_nohz_idle_enter();
 	tick_nohz_idle_stop_tick_protected();
 

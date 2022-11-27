@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Module strict rwx
- *
- * Copyright (C) 2015 Rusty Russell
- */
 
 #include <linux/module.h>
 #include <linux/mm.h>
@@ -11,27 +5,7 @@
 #include <linux/set_memory.h>
 #include "internal.h"
 
-/*
- * LKM RO/NX protection: protect module's text/ro-data
- * from modification and any data from execution.
- *
- * General layout of module is:
- *          [text] [read-only-data] [ro-after-init] [writable data]
- * text_size -----^                ^               ^               ^
- * ro_size ------------------------|               |               |
- * ro_after_init_size -----------------------------|               |
- * size -----------------------------------------------------------|
- *
- * These values are always page-aligned (as is base) when
- * CONFIG_STRICT_MODULE_RWX is set.
- */
 
-/*
- * Since some arches are moving towards PAGE_KERNEL module allocations instead
- * of PAGE_KERNEL_EXEC, keep frob_text() and module_enable_x() independent of
- * CONFIG_STRICT_MODULE_RWX because they are needed regardless of whether we
- * are strict.
- */
 static void frob_text(const struct module_layout *layout,
 		      int (*set_memory)(unsigned long start, int num_pages))
 {

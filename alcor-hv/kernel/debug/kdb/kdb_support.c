@@ -1,14 +1,3 @@
-/*
- * Kernel Debugger Architecture Independent Support Functions
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * Copyright (c) 1999-2004 Silicon Graphics, Inc.  All Rights Reserved.
- * Copyright (c) 2009 Wind River Systems, Inc.  All Rights Reserved.
- * 03/02/13    added new 2.5 kallsyms <xavier.bru@bull.net>
- */
 
 #include <linux/types.h>
 #include <linux/sched.h>
@@ -26,16 +15,6 @@
 #include <linux/ctype.h>
 #include "kdb_private.h"
 
-/*
- * kdbgetsymval - Return the address of the given symbol.
- *
- * Parameters:
- *	symname	Character string containing symbol name
- *      symtab  Structure to receive results
- * Returns:
- *	0	Symbol not found, symtab zero filled
- *	1	Symbol mapped to module/symbol/section, data in symtab
- */
 int kdbgetsymval(const char *symname, kdb_symtab_t *symtab)
 {
 	kdb_dbg_printf(AR, "symname=%s, symtab=%px\n", symname, symtab);
@@ -51,33 +30,6 @@ int kdbgetsymval(const char *symname, kdb_symtab_t *symtab)
 }
 EXPORT_SYMBOL(kdbgetsymval);
 
-/**
- * kdbnearsym() - Return the name of the symbol with the nearest address
- *                less than @addr.
- * @addr: Address to check for near symbol
- * @symtab: Structure to receive results
- *
- * WARNING: This function may return a pointer to a single statically
- * allocated buffer (namebuf). kdb's unusual calling context (single
- * threaded, all other CPUs halted) provides us sufficient locking for
- * this to be safe. The only constraint imposed by the static buffer is
- * that the caller must consume any previous reply prior to another call
- * to lookup a new symbol.
- *
- * Note that, strictly speaking, some architectures may re-enter the kdb
- * trap if the system turns out to be very badly damaged and this breaks
- * the single-threaded assumption above. In these circumstances successful
- * continuation and exit from the inner trap is unlikely to work and any
- * user attempting this receives a prominent warning before being allowed
- * to progress. In these circumstances we remain memory safe because
- * namebuf[KSYM_NAME_LEN-1] will never change from '\0' although we do
- * tolerate the possibility of garbled symbol display from the outer kdb
- * trap.
- *
- * Return:
- * * 0 - No sections contain this address, symtab zero filled
- * * 1 - Address mapped to module/symbol/section, data in symtab
- */
 int kdbnearsym(unsigned long addr, kdb_symtab_t *symtab)
 {
 	int ret = 0;
@@ -111,18 +63,6 @@ out:
 
 static char ks_namebuf[KSYM_NAME_LEN+1], ks_namebuf_prev[KSYM_NAME_LEN+1];
 
-/*
- * kallsyms_symbol_complete
- *
- * Parameters:
- *	prefix_name	prefix of a symbol name to lookup
- *	max_len		maximum length that can be returned
- * Returns:
- *	Number of symbols which match the given prefix.
- * Notes:
- *	prefix_name is changed to contain the longest unique prefix that
- *	starts with this prefix (tab completion).
- */
 int kallsyms_symbol_complete(char *prefix_name, int max_len)
 {
 	loff_t pos = 0;
@@ -155,18 +95,6 @@ int kallsyms_symbol_complete(char *prefix_name, int max_len)
 	return number;
 }
 
-/*
- * kallsyms_symbol_next
- *
- * Parameters:
- *	prefix_name	prefix of a symbol name to lookup
- *	flag	0 means search from the head, 1 means continue search.
- *	buf_size	maximum length that can be written to prefix_name
- *			buffer
- * Returns:
- *	1 if a symbol matches the given prefix.
- *	0 if no string found
- */
 int kallsyms_symbol_next(char *prefix_name, int flag, int buf_size)
 {
 	int prefix_len = strlen(prefix_name);
@@ -183,18 +111,6 @@ int kallsyms_symbol_next(char *prefix_name, int flag, int buf_size)
 	return 0;
 }
 
-/*
- * kdb_symbol_print - Standard method for printing a symbol name and offset.
- * Inputs:
- *	addr	Address to be printed.
- *	symtab	Address of symbol data, if NULL this routine does its
- *		own lookup.
- *	punc	Punctuation for string, bit field.
- * Remarks:
- *	The string and its punctuation is only printed if the address
- *	is inside the kernel, except that the value is always printed
- *	when requested.
- */
 void kdb_symbol_print(unsigned long addr, const kdb_symtab_t *symtab_p,
 		      unsigned int punc)
 {
@@ -233,17 +149,6 @@ void kdb_symbol_print(unsigned long addr, const kdb_symtab_t *symtab_p,
 		kdb_printf("\n");
 }
 
-/*
- * kdb_strdup - kdb equivalent of strdup, for disasm code.
- * Inputs:
- *	str	The string to duplicate.
- *	type	Flags to kmalloc for the new string.
- * Returns:
- *	Address of the new string, NULL if storage could not be allocated.
- * Remarks:
- *	This is not in lib/string.c because it uses kmalloc which is not
- *	available when string.o is used in boot loaders.
- */
 char *kdb_strdup(const char *str, gfp_t type)
 {
 	int n = strlen(str)+1;
@@ -253,16 +158,6 @@ char *kdb_strdup(const char *str, gfp_t type)
 	return strcpy(s, str);
 }
 
-/*
- * kdb_getarea_size - Read an area of data.  The kdb equivalent of
- *	copy_from_user, with kdb messages for invalid addresses.
- * Inputs:
- *	res	Pointer to the area to receive the result.
- *	addr	Address of the area to copy.
- *	size	Size of the area.
- * Returns:
- *	0 for success, < 0 for error.
- */
 int kdb_getarea_size(void *res, unsigned long addr, size_t size)
 {
 	int ret = copy_from_kernel_nofault((char *)res, (char *)addr, size);
@@ -278,16 +173,6 @@ int kdb_getarea_size(void *res, unsigned long addr, size_t size)
 	return ret;
 }
 
-/*
- * kdb_putarea_size - Write an area of data.  The kdb equivalent of
- *	copy_to_user, with kdb messages for invalid addresses.
- * Inputs:
- *	addr	Address of the area to write to.
- *	res	Pointer to the area holding the data.
- *	size	Size of the area.
- * Returns:
- *	0 for success, < 0 for error.
- */
 int kdb_putarea_size(unsigned long addr, void *res, size_t size)
 {
 	int ret = copy_to_kernel_nofault((char *)addr, (char *)res, size);
@@ -303,17 +188,6 @@ int kdb_putarea_size(unsigned long addr, void *res, size_t size)
 	return ret;
 }
 
-/*
- * kdb_getphys - Read data from a physical address. Validate the
- * 	address is in range, use kmap_atomic() to get data
- * 	similar to kdb_getarea() - but for phys addresses
- * Inputs:
- * 	res	Pointer to the word to receive the result
- * 	addr	Physical address of the area to copy
- * 	size	Size of the area
- * Returns:
- *	0 for success, < 0 for error.
- */
 static int kdb_getphys(void *res, unsigned long addr, size_t size)
 {
 	unsigned long pfn;
@@ -331,15 +205,6 @@ static int kdb_getphys(void *res, unsigned long addr, size_t size)
 	return 0;
 }
 
-/*
- * kdb_getphysword
- * Inputs:
- *	word	Pointer to the word to receive the result.
- *	addr	Address of the area to copy.
- *	size	Size of the area.
- * Returns:
- *	0 for success, < 0 for error.
- */
 int kdb_getphysword(unsigned long *word, unsigned long addr, size_t size)
 {
 	int diag;
@@ -347,7 +212,6 @@ int kdb_getphysword(unsigned long *word, unsigned long addr, size_t size)
 	__u16 w2;
 	__u32 w4;
 	__u64 w8;
-	*word = 0;	/* Default value if addr or size is invalid */
 
 	switch (size) {
 	case 1:
@@ -380,16 +244,6 @@ int kdb_getphysword(unsigned long *word, unsigned long addr, size_t size)
 	return diag;
 }
 
-/*
- * kdb_getword - Read a binary value.  Unlike kdb_getarea, this treats
- *	data as numbers.
- * Inputs:
- *	word	Pointer to the word to receive the result.
- *	addr	Address of the area to copy.
- *	size	Size of the area.
- * Returns:
- *	0 for success, < 0 for error.
- */
 int kdb_getword(unsigned long *word, unsigned long addr, size_t size)
 {
 	int diag;
@@ -397,7 +251,6 @@ int kdb_getword(unsigned long *word, unsigned long addr, size_t size)
 	__u16 w2;
 	__u32 w4;
 	__u64 w8;
-	*word = 0;	/* Default value if addr or size is invalid */
 	switch (size) {
 	case 1:
 		diag = kdb_getarea(w1, addr);
@@ -429,16 +282,6 @@ int kdb_getword(unsigned long *word, unsigned long addr, size_t size)
 	return diag;
 }
 
-/*
- * kdb_putword - Write a binary value.  Unlike kdb_putarea, this
- *	treats data as numbers.
- * Inputs:
- *	addr	Address of the area to write to..
- *	word	The value to set.
- *	size	Size of the area.
- * Returns:
- *	0 for success, < 0 for error.
- */
 int kdb_putword(unsigned long addr, unsigned long word, size_t size)
 {
 	int diag;
@@ -475,13 +318,6 @@ int kdb_putword(unsigned long addr, unsigned long word, size_t size)
 
 
 
-/*
- * kdb_task_state_char - Return the character that represents the task state.
- * Inputs:
- *	p	struct task for the process
- * Returns:
- *	One character to represent the task state.
- */
 char kdb_task_state_char (const struct task_struct *p)
 {
 	unsigned long tmp;
@@ -508,17 +344,6 @@ char kdb_task_state_char (const struct task_struct *p)
 	return state;
 }
 
-/*
- * kdb_task_state - Return true if a process has the desired state
- *	given by the mask.
- * Inputs:
- *	p	struct task for the process
- *	mask	set of characters used to select processes; both NULL
- *	        and the empty string mean adopt a default filter, which
- *	        is to suppress sleeping system daemons and the idle tasks
- * Returns:
- *	True if the process matches at least one criteria defined by the mask.
- */
 bool kdb_task_state(const struct task_struct *p, const char *mask)
 {
 	char state = kdb_task_state_char(p);
@@ -537,9 +362,6 @@ bool kdb_task_state(const struct task_struct *p, const char *mask)
 	return strchr(mask, state);
 }
 
-/* Maintain a small stack of kdb_flags to allow recursion without disturbing
- * the global kdb state.
- */
 
 static int kdb_flags_stack[4], kdb_flags_index;
 

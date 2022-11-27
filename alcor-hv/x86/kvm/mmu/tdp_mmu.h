@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 
 #ifndef __KVM_X86_MMU_TDP_MMU_H
 #define __KVM_X86_MMU_TDP_MMU_H
@@ -79,10 +78,6 @@ static inline bool is_tdp_mmu(struct kvm_mmu *mmu)
 		return false;
 
 	/*
-	 * A NULL shadow page is legal when shadowing a non-paging guest with
-	 * PAE paging, as the MMU will be direct with root_hpa pointing at the
-	 * pae_root page, not a shadow page.
-	 */
 	sp = to_shadow_page(hpa);
 	return sp && is_tdp_mmu_page(sp) && sp->root_count;
 }

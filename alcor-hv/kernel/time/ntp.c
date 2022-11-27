@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * NTP state machine interfaces and logic.
- *
- * This code was mainly moved from kernel/timer.c and kernel/time.c
- * Please see those files for relevant copyright info and historical
- * changelogs.
- */
 #include <linux/capability.h>
 #include <linux/clocksource.h>
 #include <linux/workqueue.h>
@@ -23,17 +15,10 @@
 #include "timekeeping_internal.h"
 
 
-/*
- * NTP timekeeping variables:
- *
- * Note: All of the NTP state is protected by the timekeeping locks.
- */
 
 
-/* USER_HZ period (usecs): */
 unsigned long			tick_usec = USER_TICK_USEC;
 
-/* SHIFTED_HZ period (nsecs): */
 unsigned long			tick_nsec;
 
 static u64			tick_length;
@@ -45,53 +30,31 @@ static u64			tick_length_base;
 	(((MAX_TICKADJ * NSEC_PER_USEC) << NTP_SCALE_SHIFT) / NTP_INTERVAL_FREQ)
 #define MAX_TAI_OFFSET		100000
 
-/*
- * phase-lock loop variables
- */
 
-/*
- * clock synchronization status
- *
- * (TIME_ERROR prevents overwriting the CMOS clock)
- */
 static int			time_state = TIME_OK;
 
-/* clock status bits:							*/
 static int			time_status = STA_UNSYNC;
 
-/* time adjustment (nsecs):						*/
 static s64			time_offset;
 
-/* pll time constant:							*/
 static long			time_constant = 2;
 
-/* maximum error (usecs):						*/
 static long			time_maxerror = NTP_PHASE_LIMIT;
 
-/* estimated error (usecs):						*/
 static long			time_esterror = NTP_PHASE_LIMIT;
 
-/* frequency offset (scaled nsecs/secs):				*/
 static s64			time_freq;
 
-/* time at last adjustment (secs):					*/
 static time64_t		time_reftime;
 
 static long			time_adjust;
 
-/* constant (boot-param configurable) NTP tick adjustment (upscaled)	*/
 static s64			ntp_tick_adj;
 
-/* second value of the next pending leapsecond, or TIME64_MAX if no leap */
 static time64_t			ntp_next_leap_sec = TIME64_MAX;
 
 #ifdef CONFIG_NTP_PPS
 
-/*
- * The following variables are used when a pulse-per-second (PPS) signal
- * is available. They establish the engineering parameters of the clock
- * discipline loop when controlled by the PPS signal.
- */
 #define PPS_VALID	10	/* PPS signal watchdog max (s) */
 #define PPS_POPCORN	4	/* popcorn spike threshold (shift) */
 #define PPS_INTMIN	2	/* min freq interval (s) (shift) */
@@ -110,18 +73,12 @@ static int pps_intcnt;		/* interval counter */
 static s64 pps_freq;		/* frequency offset (scaled ns/s) */
 static long pps_stabil;		/* current stability (scaled ns/s) */
 
-/*
- * PPS signal quality monitors
- */
 static long pps_calcnt;		/* calibration intervals */
 static long pps_jitcnt;		/* jitter limit exceeded */
 static long pps_stbcnt;		/* stability limit exceeded */
 static long pps_errcnt;		/* calibration errors */
 
 
-/* PPS kernel consumer compensates the whole phase error immediately.
- * Otherwise, reduce the offset by a fixed factor times the time constant.
- */
 static inline s64 ntp_offset_chunk(s64 offset)
 {
 	if (time_status & STA_PPSTIME && time_status & STA_PPSSIGNAL)
@@ -138,9 +95,6 @@ static inline void pps_reset_freq_interval(void)
 	pps_intcnt = 0;
 }
 
-/**
- * pps_clear - Clears the PPS state variables
- */
 static inline void pps_clear(void)
 {
 	pps_reset_freq_interval();
@@ -151,10 +105,6 @@ static inline void pps_clear(void)
 	pps_freq = 0;
 }
 
-/* Decrease pps_valid to indicate that another second has passed since
- * the last PPS signal. When it reaches 0, indicate that PPS signal is
- * missing.
- */
 static inline void pps_dec_valid(void)
 {
 	if (pps_valid > 0)
@@ -238,24 +188,13 @@ static inline void pps_fill_timex(struct __kernel_timex *txc)
 #endif /* CONFIG_NTP_PPS */
 
 
-/**
- * ntp_synced - Returns 1 if the NTP status is not UNSYNC
- *
- */
 static inline int ntp_synced(void)
 {
 	return !(time_status & STA_UNSYNC);
 }
 
 
-/*
- * NTP methods:
- */
 
-/*
- * Update (tick_length, tick_length_base, tick_nsec), based
- * on (tick_usec, ntp_tick_adj, time_freq):
- */
 static void ntp_update_frequency(void)
 {
 	u64 second_length;
@@ -271,9 +210,6 @@ static void ntp_update_frequency(void)
 	new_base		 = div_u64(second_length, NTP_INTERVAL_FREQ);
 
 	/*
-	 * Don't wait for the next second_overflow, apply
-	 * the change to the tick length immediately:
-	 */
 	tick_length		+= new_base - tick_length_base;
 	tick_length_base	 = new_base;
 }
@@ -309,15 +245,9 @@ static void ntp_update_offset(long offset)
 	}
 
 	/*
-	 * Scale the phase adjustment and
-	 * clamp to the operating range.
-	 */
 	offset = clamp(offset, -MAXPHASE, MAXPHASE);
 
 	/*
-	 * Select how the frequency is to be controlled
-	 * and in which mode (PLL or FLL).
-	 */
 	secs = (long)(__ktime_get_real_seconds() - time_reftime);
 	if (unlikely(time_status & STA_FREQHOLD))
 		secs = 0;
@@ -328,10 +258,6 @@ static void ntp_update_offset(long offset)
 	freq_adj    = ntp_update_offset_fll(offset64, secs);
 
 	/*
-	 * Clamp update interval to reduce PLL gain with low
-	 * sampling rate (e.g. intermittent network connection)
-	 * to avoid instability.
-	 */
 	if (unlikely(secs > 1 << (SHIFT_PLL + 1 + time_constant)))
 		secs = 1 << (SHIFT_PLL + 1 + time_constant);
 
@@ -345,9 +271,6 @@ static void ntp_update_offset(long offset)
 	time_offset = div_s64(offset64 << NTP_SCALE_SHIFT, NTP_INTERVAL_FREQ);
 }
 
-/**
- * ntp_clear - Clears the NTP state variables
- */
 void ntp_clear(void)
 {
 	time_adjust	= 0;		/* stop active adjtime() */
@@ -371,12 +294,6 @@ u64 ntp_tick_length(void)
 	return tick_length;
 }
 
-/**
- * ntp_get_next_leap - Returns the next leapsecond in CLOCK_REALTIME ktime_t
- *
- * Provides the time of the next leapsecond against CLOCK_REALTIME in
- * a ktime_t format. Returns KTIME_MAX if no leapsecond is pending.
- */
 ktime_t ntp_get_next_leap(void)
 {
 	ktime_t ret;
@@ -387,16 +304,6 @@ ktime_t ntp_get_next_leap(void)
 	return ret;
 }
 
-/*
- * this routine handles the overflow of the microsecond field
- *
- * The tricky bits of code to handle the accurate clock support
- * were provided by Dave Mills (Mills@UDEL.EDU) of NTP fame.
- * They were originally developed for SUN and DEC kernels.
- * All the kudos should go to Dave for this stuff.
- *
- * Also handles leap second processing, and returns leap offset
- */
 int second_overflow(time64_t secs)
 {
 	s64 delta;
@@ -404,10 +311,6 @@ int second_overflow(time64_t secs)
 	s32 rem;
 
 	/*
-	 * Leap second processing. If in leap-insert state at the end of the
-	 * day, the system clock is set back one second; if in leap-delete
-	 * state, the system clock is set ahead one second.
-	 */
 	switch (time_state) {
 	case TIME_OK:
 		if (time_status & STA_INS) {
@@ -519,27 +422,6 @@ static void sched_sync_hw_clock(unsigned long offset_nsec, bool retry)
 	hrtimer_start(&sync_hrtimer, exp, HRTIMER_MODE_ABS);
 }
 
-/*
- * Check whether @now is correct versus the required time to update the RTC
- * and calculate the value which needs to be written to the RTC so that the
- * next seconds increment of the RTC after the write is aligned with the next
- * seconds increment of clock REALTIME.
- *
- * tsched     t1 write(t2.tv_sec - 1sec))	t2 RTC increments seconds
- *
- * t2.tv_nsec == 0
- * tsched = t2 - set_offset_nsec
- * newval = t2 - NSEC_PER_SEC
- *
- * ==> neval = tsched + set_offset_nsec - NSEC_PER_SEC
- *
- * As the execution of this code is not guaranteed to happen exactly at
- * tsched this allows it to happen within a fuzzy region:
- *
- *	abs(now - tsched) < FUZZ
- *
- * If @now is not inside the allowed window the function returns false.
- */
 static inline bool rtc_tv_nsec_ok(unsigned long set_offset_nsec,
 				  struct timespec64 *to_set,
 				  const struct timespec64 *now)
@@ -549,7 +431,6 @@ static inline bool rtc_tv_nsec_ok(unsigned long set_offset_nsec,
 	struct timespec64 delay = {.tv_sec = -1,
 				   .tv_nsec = set_offset_nsec};
 
-	*to_set = timespec64_add(*now, delay);
 
 	if (to_set->tv_nsec < TIME_SET_NSEC_FUZZ) {
 		to_set->tv_nsec = 0;
@@ -577,7 +458,6 @@ static inline int update_persistent_clock64(struct timespec64 now64)
 #endif
 
 #ifdef CONFIG_RTC_SYSTOHC
-/* Save NTP synchronized time to the RTC */
 static int update_rtc(struct timespec64 *to_set, unsigned long *offset_nsec)
 {
 	struct rtc_device *rtc;
@@ -611,30 +491,14 @@ static inline int update_rtc(struct timespec64 *to_set, unsigned long *offset_ns
 }
 #endif
 
-/*
- * If we have an externally synchronized Linux clock, then update RTC clock
- * accordingly every ~11 minutes. Generally RTCs can only store second
- * precision, but many RTCs will adjust the phase of their second tick to
- * match the moment of update. This infrastructure arranges to call to the RTC
- * set at the correct moment to phase synchronize the RTC second tick over
- * with the kernel clock.
- */
 static void sync_hw_clock(struct work_struct *work)
 {
 	/*
-	 * The default synchronization offset is 500ms for the deprecated
-	 * update_persistent_clock64() under the assumption that it uses
-	 * the infamous CMOS clock (MC146818).
-	 */
 	static unsigned long offset_nsec = NSEC_PER_SEC / 2;
 	struct timespec64 now, to_set;
 	int res = -EAGAIN;
 
 	/*
-	 * Don't update if STA_UNSYNC is set and if ntp_notify_cmos_timer()
-	 * managed to schedule the work between the timer firing and the
-	 * work being able to rearm the timer. Wait for the timer to expire.
-	 */
 	if (!ntp_synced() || hrtimer_is_queued(&sync_hrtimer))
 		return;
 
@@ -663,10 +527,6 @@ rearm:
 void ntp_notify_cmos_timer(void)
 {
 	/*
-	 * When the work is currently executed but has not yet the timer
-	 * rearmed this queues the work immediately again. No big issue,
-	 * just a pointless work scheduled.
-	 */
 	if (ntp_synced() && !hrtimer_is_queued(&sync_hrtimer))
 		queue_work(system_freezable_power_efficient_wq, &sync_work);
 }
@@ -680,9 +540,6 @@ static void __init ntp_init_cmos_sync(void)
 static inline void __init ntp_init_cmos_sync(void) { }
 #endif /* !CONFIG_GENERIC_CMOS_UPDATE) || defined(CONFIG_RTC_SYSTOHC) */
 
-/*
- * Propagate a new txc->status value into the NTP state:
- */
 static inline void process_adj_status(const struct __kernel_timex *txc)
 {
 	if ((time_status & STA_PLL) && !(txc->status & STA_PLL)) {
@@ -694,9 +551,6 @@ static inline void process_adj_status(const struct __kernel_timex *txc)
 	}
 
 	/*
-	 * If we turn on PLL adjustments then reset the
-	 * reference time to current time.
-	 */
 	if (!(time_status & STA_PLL) && (txc->status & STA_PLL))
 		time_reftime = __ktime_get_real_seconds();
 
@@ -755,10 +609,6 @@ static inline void process_adjtimex_modes(const struct __kernel_timex *txc,
 }
 
 
-/*
- * adjtimex mainly allows reading (and writing, if superuser) of
- * kernel time-keeping variables. used by xntpd.
- */
 int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 		  s32 *time_tai, struct audit_ntp_data *ad)
 {
@@ -847,16 +697,11 @@ int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 
 #ifdef	CONFIG_NTP_PPS
 
-/* actually struct pps_normtime is good old struct timespec, but it is
- * semantically different (and it is the reason why it was invented):
- * pps_normtime.nsec has a range of ( -NSEC_PER_SEC / 2, NSEC_PER_SEC / 2 ]
- * while timespec.tv_nsec has a range of [0, NSEC_PER_SEC) */
 struct pps_normtime {
 	s64		sec;	/* seconds */
 	long		nsec;	/* nanoseconds */
 };
 
-/* normalize the timestamp so that nsec is in the
    ( -NSEC_PER_SEC / 2, NSEC_PER_SEC / 2 ] interval */
 static inline struct pps_normtime pps_normalize_ts(struct timespec64 ts)
 {
@@ -873,10 +718,8 @@ static inline struct pps_normtime pps_normalize_ts(struct timespec64 ts)
 	return norm;
 }
 
-/* get current phase correction and jitter */
 static inline long pps_phase_filter_get(long *jitter)
 {
-	*jitter = pps_tf[0] - pps_tf[1];
 	if (*jitter < 0)
 		*jitter = -*jitter;
 
@@ -884,7 +727,6 @@ static inline long pps_phase_filter_get(long *jitter)
 	return pps_tf[0];
 }
 
-/* add the sample to the phase filter */
 static inline void pps_phase_filter_add(long err)
 {
 	pps_tf[2] = pps_tf[1];
@@ -892,9 +734,6 @@ static inline void pps_phase_filter_add(long err)
 	pps_tf[0] = err;
 }
 
-/* decrease frequency calibration interval length.
- * It is halved after four consecutive unstable intervals.
- */
 static inline void pps_dec_freq_interval(void)
 {
 	if (--pps_intcnt <= -PPS_INTCOUNT) {
@@ -906,9 +745,6 @@ static inline void pps_dec_freq_interval(void)
 	}
 }
 
-/* increase frequency calibration interval length.
- * It is doubled after four consecutive stable intervals.
- */
 static inline void pps_inc_freq_interval(void)
 {
 	if (++pps_intcnt >= PPS_INTCOUNT) {
@@ -920,15 +756,6 @@ static inline void pps_inc_freq_interval(void)
 	}
 }
 
-/* update clock frequency based on MONOTONIC_RAW clock PPS signal
- * timestamps
- *
- * At the end of the calibration interval the difference between the
- * first and last MONOTONIC_RAW clock timestamps divided by the length
- * of the interval becomes the frequency update. If the interval was
- * too long, the data are discarded.
- * Returns the difference between old and new frequency values.
- */
 static long hardpps_update_freq(struct pps_normtime freq_norm)
 {
 	long delta, delta_mod;
@@ -984,7 +811,6 @@ static long hardpps_update_freq(struct pps_normtime freq_norm)
 	return delta;
 }
 
-/* correct REALTIME clock phase error against PPS signal */
 static void hardpps_update_phase(long error)
 {
 	long correction = -error;
@@ -1015,18 +841,6 @@ static void hardpps_update_phase(long error)
 	pps_jitter += (jitter - pps_jitter) >> PPS_INTMIN;
 }
 
-/*
- * __hardpps() - discipline CPU clock oscillator to external PPS signal
- *
- * This routine is called at each PPS signal arrival in order to
- * discipline the CPU clock oscillator to the PPS signal. It takes two
- * parameters: REALTIME and MONOTONIC_RAW clock timestamps. The former
- * is used to correct clock phase error and the latter is used to
- * correct the frequency.
- *
- * This code is based on David Mills's reference nanokernel
- * implementation. It was mostly rewritten but keeps the same idea.
- */
 void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_ts)
 {
 	struct pps_normtime pts_norm, freq_norm;

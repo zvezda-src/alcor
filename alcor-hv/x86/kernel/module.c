@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*  Kernel module help for x86.
-    Copyright (C) 2001 Rusty Russell.
 
 */
 
@@ -39,7 +36,6 @@ do {							\
 #ifdef CONFIG_RANDOMIZE_BASE
 static unsigned long module_load_offset;
 
-/* Mutex protects the module_load_offset. */
 static DEFINE_MUTEX(module_kaslr_mutex);
 
 static unsigned long int get_module_load_offset(void)
@@ -47,10 +43,6 @@ static unsigned long int get_module_load_offset(void)
 	if (kaslr_enabled()) {
 		mutex_lock(&module_kaslr_mutex);
 		/*
-		 * Calculate the module_load_offset the first time this
-		 * code is called. Once calculated it stays the same until
-		 * reboot.
-		 */
 		if (module_load_offset == 0)
 			module_load_offset =
 				(get_random_int() % 1024 + 1) * PAGE_SIZE;
@@ -278,9 +270,6 @@ int module_finalize(const Elf_Ehdr *hdr,
 	}
 
 	/*
-	 * See alternative_instructions() for the ordering rules between the
-	 * various patching types.
-	 */
 	if (para) {
 		void *pseg = (void *)para->sh_addr;
 		apply_paravirt(pseg, pseg + para->sh_size);

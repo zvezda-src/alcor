@@ -1,4 +1,3 @@
-# Configure script
 m4_define([gnt_version_major], [3])
 m4_define([gnt_version_minor], [1])
 m4_define([gnt_version_revision], [0])
@@ -29,7 +28,6 @@ AC_SUBST([BINDIR], $bindir)
 AC_SUBST([SBINDIR], $sbindir)
 AC_SUBST([MANDIR], $mandir)
 
-# --enable-versionfull
 AC_ARG_ENABLE([versionfull],
   [AS_HELP_STRING([--enable-versionfull],
                   m4_normalize([use the full version string rather
@@ -45,7 +43,6 @@ AC_ARG_ENABLE([versionfull],
 AC_SUBST(USE_VERSION_FULL, $USE_VERSION_FULL)
 AM_CONDITIONAL([USE_VERSION_FULL], [test "$USE_VERSION_FULL" = yes])
 
-# --enable-symlinks
 AC_ARG_ENABLE([symlinks],
   [AS_HELP_STRING([--enable-symlinks],
                   m4_normalize([also install version-dependent symlinks under
@@ -61,7 +58,6 @@ AC_ARG_ENABLE([symlinks],
 AC_SUBST(INSTALL_SYMLINKS, $INSTALL_SYMLINKS)
 AM_CONDITIONAL([INSTALL_SYMLINKS], [test "$INSTALL_SYMLINKS" = yes])
 
-# --enable-haskell-profiling
 AC_ARG_ENABLE([haskell-profiling],
   [AS_HELP_STRING([--enable-haskell-profiling],
                   m4_normalize([enable profiling for Haskell binaries
@@ -77,7 +73,6 @@ AC_ARG_ENABLE([haskell-profiling],
 AC_SUBST(HPROFILE, $HPROFILE)
 AM_CONDITIONAL([HPROFILE], [test "$HPROFILE" = yes])
 
-# --enable-haskell-coverage
 AC_ARG_ENABLE([haskell-coverage],
   [AS_HELP_STRING([--enable-haskell-coverage],
                   m4_normalize([enable coverage for Haskell binaries
@@ -93,7 +88,6 @@ AC_ARG_ENABLE([haskell-coverage],
 AC_SUBST(HCOVERAGE, $HCOVERAGE)
 AM_CONDITIONAL([HCOVERAGE], [test "$HCOVERAGE" = yes])
 
-# --enable-haskell-tests
 AC_ARG_ENABLE([haskell-tests],
   [AS_HELP_STRING([--enable-haskell-tests],
                   m4_normalize([enable additional Haskell development test code
@@ -109,7 +103,6 @@ AC_ARG_ENABLE([haskell-tests],
 AC_SUBST(HTEST, $HTEST)
 AM_CONDITIONAL([HTEST], [test "$HTEST" = yes])
 
-# --enable-developer-mode
 AC_ARG_ENABLE([developer-mode],
   [AS_HELP_STRING([--enable-developer-mode],
                   m4_normalize([do a developer build with additional
@@ -127,7 +120,6 @@ AC_SUBST(DEVELOPER_MODE, $DEVELOPER_MODE)
 AM_CONDITIONAL([DEVELOPER_MODE],
                [test "$DEVELOPER_MODE" = yes -o "$HTEST" = yes])
 
-# --with-haskell-flags=
 AC_ARG_WITH([haskell-flags],
   [AS_HELP_STRING([--with-haskell-flags=FLAGS],
     [Extra flags to pass to GHC]
@@ -136,7 +128,6 @@ AC_ARG_WITH([haskell-flags],
   [hextra_configure=""])
 AC_SUBST(HEXTRA_CONFIGURE, $hextra_configure)
 
-# --with-sshd-restart-command=...
 AC_ARG_WITH([sshd-restart-command],
   [AS_HELP_STRING([--with-sshd-restart-command=SCRIPT],
     [SSH restart command to use (default is /usr/sbin/service ssh restart)]
@@ -145,7 +136,6 @@ AC_ARG_WITH([sshd-restart-command],
   [sshd_restart_command="/usr/sbin/service ssh restart"])
 AC_SUBST(SSHD_RESTART_COMMAND, $sshd_restart_command)
 
-# --with-export-dir=...
 AC_ARG_WITH([export-dir],
   [AS_HELP_STRING([--with-export-dir=DIR],
     [directory to use by default for instance image]
@@ -155,7 +145,6 @@ AC_ARG_WITH([export-dir],
   [export_dir="/srv/alcor/export"])
 AC_SUBST(EXPORT_DIR, $export_dir)
 
-# --with-backup-dir=...
 AC_ARG_WITH([backup-dir],
   [AS_HELP_STRING([--with-backup-dir=DIR],
     [directory to use for configuration backups]
@@ -170,7 +159,6 @@ AC_ARG_WITH([backup-dir],
 AC_SUBST(BACKUP_DIR, $backup_dir)
 AM_CONDITIONAL([USE_BACKUP_DIR], [test "$USE_BACKUP_DIR" = yes])
 
-# --with-ssh-config-dir=...
 AC_ARG_WITH([ssh-config-dir],
   [AS_HELP_STRING([--with-ssh-config-dir=DIR],
     [ directory with ssh host keys ]
@@ -180,7 +168,6 @@ AC_ARG_WITH([ssh-config-dir],
   [ssh_config_dir="/etc/ssh"])
 AC_SUBST(SSH_CONFIG_DIR, $ssh_config_dir)
 
-# --with-xen-config-dir=...
 AC_ARG_WITH([xen-config-dir],
   [AS_HELP_STRING([--with-xen-config-dir=DIR],
                   m4_normalize([Xen configuration directory
@@ -189,7 +176,6 @@ AC_ARG_WITH([xen-config-dir],
   [xen_config_dir=/etc/xen])
 AC_SUBST(XEN_CONFIG_DIR, $xen_config_dir)
 
-# --with-os-search-path=...
 AC_ARG_WITH([os-search-path],
   [AS_HELP_STRING([--with-os-search-path=LIST],
     [comma separated list of directories to]
@@ -199,7 +185,6 @@ AC_ARG_WITH([os-search-path],
   [os_search_path="/srv/alcor/os"])
 AC_SUBST(OS_SEARCH_PATH, $os_search_path)
 
-# --with-extstorage-search-path=...
 AC_ARG_WITH([extstorage-search-path],
   [AS_HELP_STRING([--with-extstorage-search-path=LIST],
     [comma separated list of directories to]
@@ -210,7 +195,6 @@ AC_ARG_WITH([extstorage-search-path],
   [es_search_path="/srv/alcor/extstorage"])
 AC_SUBST(ES_SEARCH_PATH, $es_search_path)
 
-# --with-iallocator-search-path=...
 AC_ARG_WITH([iallocator-search-path],
   [AS_HELP_STRING([--with-iallocator-search-path=LIST],
     [comma separated list of directories to]
@@ -220,7 +204,6 @@ AC_ARG_WITH([iallocator-search-path],
   [iallocator_search_path="$libdir/$PACKAGE_NAME/iallocators"])
 AC_SUBST(IALLOCATOR_SEARCH_PATH, $iallocator_search_path)
 
-# --with-default-vg=...
 AC_ARG_WITH([default-vg],
   [AS_HELP_STRING([--with-default-vg=VOLUMEGROUP],
     [default volume group (default is xenvg)]
@@ -229,7 +212,6 @@ AC_ARG_WITH([default-vg],
   [default_vg="xenvg"])
 AC_SUBST(DEFAULT_VG, $default_vg)
 
-# --with-default-bridge=...
 AC_ARG_WITH([default-bridge],
   [AS_HELP_STRING([--with-default-bridge=BRIDGE],
     [default bridge (default is xen-br0)]
@@ -238,7 +220,6 @@ AC_ARG_WITH([default-bridge],
   [default_bridge="xen-br0"])
 AC_SUBST(DEFAULT_BRIDGE, $default_bridge)
 
-# --with-xen-bootloader=...
 AC_ARG_WITH([xen-bootloader],
   [AS_HELP_STRING([--with-xen-bootloader=PATH],
     [bootloader for Xen hypervisor (default is empty)]
@@ -247,7 +228,6 @@ AC_ARG_WITH([xen-bootloader],
   [xen_bootloader=])
 AC_SUBST(XEN_BOOTLOADER, $xen_bootloader)
 
-# --with-xen-kernel=...
 AC_ARG_WITH([xen-kernel],
   [AS_HELP_STRING([--with-xen-kernel=PATH],
     [DomU kernel image for Xen hypervisor (default is /boot/vmlinuz-3-xenU)]
@@ -256,7 +236,6 @@ AC_ARG_WITH([xen-kernel],
   [xen_kernel="/boot/vmlinuz-3-xenU"])
 AC_SUBST(XEN_KERNEL, $xen_kernel)
 
-# --with-xen-initrd=...
 AC_ARG_WITH([xen-initrd],
   [AS_HELP_STRING([--with-xen-initrd=PATH],
     [DomU initrd image for Xen hypervisor (default is /boot/initrd-3-xenU)]
@@ -265,7 +244,6 @@ AC_ARG_WITH([xen-initrd],
   [xen_initrd="/boot/initrd-3-xenU"])
 AC_SUBST(XEN_INITRD, $xen_initrd)
 
-# --with-kvm-kernel=...
 AC_ARG_WITH([kvm-kernel],
   [AS_HELP_STRING([--with-kvm-kernel=PATH],
     [Guest kernel image for KVM hypervisor (default is /boot/vmlinuz-3-kvmU)]
@@ -274,7 +252,6 @@ AC_ARG_WITH([kvm-kernel],
   [kvm_kernel="/boot/vmlinuz-3-kvmU"])
 AC_SUBST(KVM_KERNEL, $kvm_kernel)
 
-# --with-kvm-path=...
 AC_ARG_WITH([kvm-path],
   [AS_HELP_STRING([--with-kvm-path=PATH],
     [absolute path to the kvm binary]
@@ -284,7 +261,6 @@ AC_ARG_WITH([kvm-path],
   [kvm_path="/usr/bin/kvm"])
 AC_SUBST(KVM_PATH, $kvm_path)
 
-# --with-lvm-stripecount=...
 AC_ARG_WITH([lvm-stripecount],
   [AS_HELP_STRING([--with-lvm-stripecount=NUM],
     [the default number of stripes to use for LVM volumes]
@@ -294,7 +270,6 @@ AC_ARG_WITH([lvm-stripecount],
   [lvm_stripecount=1])
 AC_SUBST(LVM_STRIPECOUNT, $lvm_stripecount)
 
-# --with-ssh-login-user=...
 AC_ARG_WITH([ssh-login-user],
   [AS_HELP_STRING([--with-ssh-login-user=USERNAME],
     [user to use for SSH logins within the cluster (default is root)]
@@ -303,7 +278,6 @@ AC_ARG_WITH([ssh-login-user],
   [ssh_login_user=root])
 AC_SUBST(SSH_LOGIN_USER, $ssh_login_user)
 
-# --with-ssh-console-user=...
 AC_ARG_WITH([ssh-console-user],
   [AS_HELP_STRING([--with-ssh-console-user=USERNAME],
     [user to use for SSH logins to access instance consoles (default is root)]
@@ -312,7 +286,6 @@ AC_ARG_WITH([ssh-console-user],
   [ssh_console_user=root])
 AC_SUBST(SSH_CONSOLE_USER, $ssh_console_user)
 
-# --with-default-user=...
 AC_ARG_WITH([default-user],
   [AS_HELP_STRING([--with-default-user=USERNAME],
     [default user for daemons]
@@ -321,7 +294,6 @@ AC_ARG_WITH([default-user],
   [user_default="$withval"],
   [user_default=root])
 
-# --with-default-group=...
 AC_ARG_WITH([default-group],
   [AS_HELP_STRING([--with-default-group=GROUPNAME],
     [default group for daemons]
@@ -330,7 +302,6 @@ AC_ARG_WITH([default-group],
   [group_default="$withval"],
   [group_default=root])
 
-# --with-user-prefix=...
 AC_ARG_WITH([user-prefix],
   [AS_HELP_STRING([--with-user-prefix=PREFIX],
     [prefix for daemon users]
@@ -366,7 +337,6 @@ AC_SUBST(NODED_USER, $user_noded)
 AC_SUBST(MOND_USER, $user_mond)
 AC_SUBST(METAD_USER, $user_metad)
 
-# --with-group-prefix=...
 AC_ARG_WITH([group-prefix],
   [AS_HELP_STRING([--with-group-prefix=PREFIX],
     [prefix for daemon POSIX groups]
@@ -408,7 +378,6 @@ AC_SUBST(DAEMONS_GROUP, $group_daemons)
 AC_SUBST(MOND_GROUP, $group_mond)
 AC_SUBST(METAD_GROUP, $group_metad)
 
-# Print the config to the user
 AC_MSG_NOTICE([Running alcor-masterd as $group_masterd:$group_masterd])
 AC_MSG_NOTICE([Running alcor-metad as $group_metad:$group_metad])
 AC_MSG_NOTICE([Running alcor-rapi as $user_rapi:$group_rapi])
@@ -418,7 +387,6 @@ AC_MSG_NOTICE([Running alcor-luxid as $user_luxid:$group_luxid])
 AC_MSG_NOTICE([Group for daemons is $group_daemons])
 AC_MSG_NOTICE([Group for clients is $group_admin])
 
-# --enable-drbd-barriers
 AC_ARG_ENABLE([drbd-barriers],
   [AS_HELP_STRING([--enable-drbd-barriers],
                   m4_normalize([enable the DRBD barriers functionality by
@@ -437,7 +405,6 @@ AC_ARG_ENABLE([drbd-barriers],
 AC_SUBST(DRBD_BARRIERS, $DRBD_BARRIERS)
 AC_SUBST(DRBD_NO_META_FLUSH, $DRBD_NO_META_FLUSH)
 
-# --enable-syslog[=no/yes/only]
 AC_ARG_ENABLE([syslog],
   [AS_HELP_STRING([--enable-syslog],
     [enable use of syslog (default: disabled), one of no/yes/only])],
@@ -464,7 +431,6 @@ then
 fi
 AC_SUBST(SYSLOG_USAGE, $SYSLOG)
 
-# --enable-restricted-commands[=no/yes]
 AC_ARG_ENABLE([restricted-commands],
   [AS_HELP_STRING([--enable-restricted-commands],
                   m4_normalize([enable restricted commands in the node daemon
@@ -478,7 +444,6 @@ AC_ARG_ENABLE([restricted-commands],
   [enable_restricted_commands=False])
 AC_SUBST(ENABLE_RESTRICTED_COMMANDS, $enable_restricted_commands)
 
-# --with-disk-separator=...
 AC_ARG_WITH([disk-separator],
   [AS_HELP_STRING([--with-disk-separator=STRING],
     [Disk index separator, useful if the default of ':' is handled]
@@ -488,11 +453,9 @@ AC_ARG_WITH([disk-separator],
   [disk_separator=":"])
 AC_SUBST(DISK_SEPARATOR, $disk_separator)
 
-# Check common programs
 AC_PROG_INSTALL
 AC_PROG_LN_S
 
-# check if ln is the GNU version of ln (and hence supports -T)
 if ln --version 2> /dev/null | head -1 | grep -q GNU
 then
   AC_SUBST(HAS_GNU_LN, True)
@@ -500,7 +463,6 @@ else
   AC_SUBST(HAS_GNU_LN, False)
 fi
 
-# Check for the ip command
 AC_ARG_VAR(IP_PATH, [ip path])
 AC_PATH_PROG(IP_PATH, [ip], [])
 if test -z "$IP_PATH"
@@ -508,7 +470,6 @@ then
   AC_MSG_ERROR([ip command not found])
 fi
 
-# Check for pandoc
 AC_ARG_VAR(PANDOC, [pandoc path])
 AC_PATH_PROG(PANDOC, [pandoc], [])
 if test -z "$PANDOC"
@@ -516,7 +477,6 @@ then
   AC_MSG_WARN([pandoc not found, man pages rebuild will not be possible])
 fi
 
-# Check for python-sphinx
 AC_ARG_VAR(SPHINX, [sphinx-build path])
 AC_PATH_PROG(SPHINX, [sphinx-build], [])
 if test -z "$SPHINX"
@@ -559,7 +519,6 @@ if test -z "$SPHINX" -a -n "$manpages_in_doc"; then
   AC_MSG_ERROR([Including man pages in HTML documentation requires sphinx])
 fi
 
-# Check for graphviz (dot)
 AC_ARG_VAR(DOT, [dot path])
 AC_PATH_PROG(DOT, [dot], [])
 if test -z "$DOT"
@@ -568,7 +527,6 @@ then
                             documentation rebuild not possible]))
 fi
 
-# Check for pylint
 AC_ARG_VAR(PYLINT, [pylint path])
 AC_PATH_PROG(PYLINT, [pylint3], [])
 if test -z "$PYLINT"
@@ -588,7 +546,6 @@ then
   fi
 fi
 
-# Check for pycodestyle, formerly pep8
 AC_ARG_VAR(PYCODESTYLE, [pycodestyle path])
 AC_PATH_PROG(PYCODESTYLE, [pycodestyle], [])
 if test -z "$PYCODESTYLE"
@@ -597,7 +554,6 @@ then
 fi
 AM_CONDITIONAL([HAS_PYCODESTYLE], [test -n "$PYCODESTYLE"])
 
-# Check for python3-coverage
 AC_ARG_VAR(PYCOVERAGE, [python3-coverage path])
 AC_PATH_PROGS(PYCOVERAGE, [python3-coverage coverage], [])
 if test -z "$PYCOVERAGE"
@@ -606,7 +562,6 @@ then
                             Python test coverage will not be possible]))
 fi
 
-# Check for socat
 AC_ARG_VAR(SOCAT, [socat path])
 AC_PATH_PROG(SOCAT, [socat], [])
 if test -z "$SOCAT"
@@ -614,7 +569,6 @@ then
   AC_MSG_ERROR([socat not found])
 fi
 
-# Check for qemu-img
 AC_ARG_VAR(QEMUIMG_PATH, [qemu-img path])
 AC_PATH_PROG(QEMUIMG_PATH, [qemu-img], [])
 if test -z "$QEMUIMG_PATH"
@@ -629,7 +583,6 @@ AC_ARG_ENABLE([monitoring],
   [],
   [enable_monitoring=check])
 
-# --enable-metadata
 ENABLE_METADATA=
 AC_ARG_ENABLE([metadata],
   [AS_HELP_STRING([--enable-metadata],
@@ -637,7 +590,6 @@ AC_ARG_ENABLE([metadata],
   [],
   [enable_metadata=check])
 
-# Check for ghc
 AC_ARG_VAR(GHC, [ghc path])
 AC_PATH_PROG(GHC, [ghc], [])
 if test -z "$GHC"; then
@@ -646,7 +598,6 @@ fi
 
 AC_MSG_CHECKING([checking for extra GHC flags])
 GHC_BYVERSION_FLAGS=
-# check for GHC supported flags that vary across versions
 for flag in -fwarn-incomplete-uni-patterns; do
   if $GHC -e '0' $flag >/dev/null 2>/dev/null; then
    GHC_BYVERSION_FLAGS="$GHC_BYVERSION_FLAGS $flag"
@@ -655,14 +606,12 @@ done
 AC_MSG_RESULT($GHC_BYVERSION_FLAGS)
 AC_SUBST(GHC_BYVERSION_FLAGS)
 
-# Check for ghc-pkg
 AC_ARG_VAR(GHC_PKG, [ghc-pkg path])
 AC_PATH_PROG(GHC_PKG, [ghc-pkg], [])
 if test -z "$GHC_PKG"; then
   AC_MSG_FAILURE([ghc-pkg not found, compilation will not be possible])
 fi
 
-# Check for cabal
 AC_ARG_VAR(CABAL, [cabal path])
 AC_PATH_PROG(CABAL, [cabal], [])
 if test -z "$CABAL"; then
@@ -678,7 +627,6 @@ fi
 AC_MSG_RESULT($CABAL_CONFIGURE_CMD)
 AC_SUBST(CABAL_CONFIGURE_CMD)
 
-# check for standard modules
 AC_GHC_PKG_REQUIRE(Cabal)
 AC_GHC_PKG_REQUIRE(curl)
 AC_GHC_PKG_REQUIRE(json)
@@ -701,7 +649,6 @@ AC_GHC_PKG_REQUIRE(regex-pcre)
 AC_GHC_PKG_REQUIRE(old-time)
 AC_GHC_PKG_REQUIRE(temporary)
 
-#extra modules for monitoring daemon functionality; also needed for tests
 MONITORING_PKG=
 AC_GHC_PKG_CHECK([snap-server], [],
                  [NS_NODEV=1; MONITORING_PKG="$MONITORING_PKG snap-server"])
@@ -744,7 +691,6 @@ fi
 AC_SUBST(ENABLE_MOND, $has_monitoring)
 AM_CONDITIONAL([ENABLE_MOND], [test "$has_monitoring" = True])
 
-# extra modules for metad functionality; also needed for tests
 METAD_PKG=
 AC_GHC_PKG_CHECK([snap-server], [],
                  [NS_NODEV=1; METAD_PKG="$METAD_PKG snap-server"])
@@ -767,13 +713,11 @@ fi
 AC_SUBST(ENABLE_METADATA, $has_metad)
 AM_CONDITIONAL([ENABLE_METADATA], [test x$has_metad = xTrue])
 
-# network socket split package
 AC_GHC_PKG_CHECK([network-bsd],
 		 [HS_NETWORK_BSD=True], [HS_NETWORK_BSD=False], t)
 AC_SUBST(ENABLE_NETWORK_BSD, $HS_NETWORK_BSD)
 AM_CONDITIONAL([ENABLE_NETWORK_BSD], [test x$HS_NETWORK_BSD=xTrue])
 
-# development modules
 AC_GHC_PKG_CHECK([QuickCheck-2.*], [], [HS_NODEV=1], t)
 AC_GHC_PKG_CHECK([test-framework-0.6*], [], [
   AC_GHC_PKG_CHECK([test-framework-0.7*], [], [
@@ -792,7 +736,6 @@ fi
 AC_SUBST(HS_NODEV)
 AM_CONDITIONAL([HS_UNIT], [test -n $HS_NODEV])
 
-# Check for HsColour
 HS_APIDOC=no
 AC_ARG_VAR(HSCOLOUR, [HsColour path])
 AC_PATH_PROG(HSCOLOUR, [HsColour], [])
@@ -801,7 +744,6 @@ if test -z "$HSCOLOUR"; then
                             not be generated]))
 fi
 
-# Check for haddock
 AC_ARG_VAR(HADDOCK, [haddock path])
 AC_PATH_PROG(HADDOCK, [haddock], [])
 if test -z "$HADDOCK"; then
@@ -813,7 +755,6 @@ if test -n "$HADDOCK" && test -n "$HSCOLOUR"; then
 fi
 AC_SUBST(HS_APIDOC)
 
-# Check for hlint
 AC_ARG_VAR(HLINT, [hlint path])
 AC_PATH_PROG(HLINT, [hlint], [])
 if test -z "$HLINT"; then
@@ -824,7 +765,6 @@ AM_CONDITIONAL([WANT_HSTESTS], [test "x$HS_NODEV" = x])
 AM_CONDITIONAL([WANT_HSAPIDOC], [test "$HS_APIDOC" = yes])
 AM_CONDITIONAL([HAS_HLINT], [test "$HLINT"])
 
-# Check for fakeroot
 AC_ARG_VAR(FAKEROOT_PATH, [fakeroot path])
 AC_PATH_PROG(FAKEROOT_PATH, [fakeroot], [])
 if test -z "$FAKEROOT_PATH"; then
@@ -890,10 +830,6 @@ fi
 
 AC_SUBST(MAN_HAS_WARNINGS)
 
-# Check for Python
-# We need a Python3 interpreter, version at least 3.6.
-# We  tune _AM_PYTHON_INTERPRETER_LIST to first check interpreters that are
-# likely interpreters for Python 3.
 m4_define_default([_AM_PYTHON_INTERPRETER_LIST],
                   [python3 python3.8 python3.7 python3.6 python])
 AM_PATH_PYTHON([3.6])
@@ -906,7 +842,6 @@ AC_PYTHON_MODULE(bitarray, t)
 AC_PYTHON_MODULE(psutil)
 AC_PYTHON_MODULE(paramiko)
 
-# Development-only Python modules
 PY_NODEV=
 AC_PYTHON_MODULE(yaml)
 if test $HAVE_PYMOD_YAML == "no"; then

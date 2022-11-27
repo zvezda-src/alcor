@@ -1,11 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ARCH_X86_REALMODE_H
 #define _ARCH_X86_REALMODE_H
 
-/*
- * Flag bit definitions for use with the flags field of the trampoline header
- * in the CONFIG_X86_64 variant.
- */
 #define TH_FLAGS_SME_ACTIVE_BIT		0
 #define TH_FLAGS_SME_ACTIVE		BIT(TH_FLAGS_SME_ACTIVE_BIT)
 
@@ -14,7 +9,6 @@
 #include <linux/types.h>
 #include <asm/io.h>
 
-/* This must match data at realmode/rm/header.S */
 struct real_mode_header {
 	u32	text_start;
 	u32	ro_end;
@@ -40,7 +34,6 @@ struct real_mode_header {
 #endif
 };
 
-/* This must match data at realmode/rm/trampoline_{32,64}.S */
 struct trampoline_header {
 #ifdef CONFIG_X86_32
 	u32 start;

@@ -1,33 +1,4 @@
-// SPDX-License-Identifier: LGPL-2.0+
-/*
- * Copyright (C) 1993, 1994, 1995, 1996, 1997 Free Software Foundation, Inc.
- * This file is part of the GNU C Library.
- * Contributed by Paul Eggert (eggert@twinsun.com).
- *
- * The GNU C Library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Library General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * The GNU C Library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Library General Public License for more details.
- *
- * You should have received a copy of the GNU Library General Public
- * License along with the GNU C Library; see the file COPYING.LIB.  If not,
- * write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
- */
 
-/*
- * Converts the calendar time to broken-down time representation
- *
- * 2009-7-14:
- *   Moved from glibc-2.6 to kernel by Zhaolei<zhaolei@cn.fujitsu.com>
- * 2021-06-02:
- *   Reimplemented by Cassio Neri <cassio.neri@gmail.com>
- */
 
 #include <linux/time.h>
 #include <linux/module.h>
@@ -36,14 +7,6 @@
 #define SECS_PER_HOUR	(60 * 60)
 #define SECS_PER_DAY	(SECS_PER_HOUR * 24)
 
-/**
- * time64_to_tm - converts the calendar time to local broken-down time
- *
- * @totalsecs:	the number of seconds elapsed since 00:00:00 on January 1, 1970,
- *		Coordinated Universal Time (UTC).
- * @offset:	offset seconds adding to totalsecs.
- * @result:	pointer to struct tm variable to receive broken-down time
- */
 void time64_to_tm(time64_t totalsecs, int offset, struct tm *result)
 {
 	u32 u32tmp, day_of_century, year_of_century, day_of_year, month, day;
@@ -75,32 +38,6 @@ void time64_to_tm(time64_t totalsecs, int offset, struct tm *result)
 		result->tm_wday += 7;
 
 	/*
-	 * The following algorithm is, basically, Proposition 6.3 of Neri
-	 * and Schneider [1]. In a few words: it works on the computational
-	 * (fictitious) calendar where the year starts in March, month = 2
-	 * (*), and finishes in February, month = 13. This calendar is
-	 * mathematically convenient because the day of the year does not
-	 * depend on whether the year is leap or not. For instance:
-	 *
-	 * March 1st		0-th day of the year;
-	 * ...
-	 * April 1st		31-st day of the year;
-	 * ...
-	 * January 1st		306-th day of the year; (Important!)
-	 * ...
-	 * February 28th	364-th day of the year;
-	 * February 29th	365-th day of the year (if it exists).
-	 *
-	 * After having worked out the date in the computational calendar
-	 * (using just arithmetics) it's easy to convert it to the
-	 * corresponding date in the Gregorian calendar.
-	 *
-	 * [1] "Euclidean Affine Functions and Applications to Calendar
-	 * Algorithms". https://arxiv.org/abs/2102.06959
-	 *
-	 * (*) The numbering of months follows tm more closely and thus,
-	 * is slightly different from [1].
-	 */
 
 	udays	= ((u64) days) + 2305843009213814918ULL;
 
@@ -121,9 +58,6 @@ void time64_to_tm(time64_t totalsecs, int offset, struct tm *result)
 	day		= ((u16) u32tmp) / 2141;
 
 	/*
-	 * Recall that January 1st is the 306-th day of the year in the
-	 * computational (not Gregorian) calendar.
-	 */
 	is_Jan_or_Feb	= day_of_year >= 306;
 
 	/* Convert to the Gregorian calendar and adjust to Unix time. */

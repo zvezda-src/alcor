@@ -1,19 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #if !defined(KVM_X86_OP) || !defined(KVM_X86_OP_OPTIONAL)
 BUILD_BUG_ON(1)
 #endif
 
-/*
- * KVM_X86_OP() and KVM_X86_OP_OPTIONAL() are used to help generate
- * both DECLARE/DEFINE_STATIC_CALL() invocations and
- * "static_call_update()" calls.
- *
- * KVM_X86_OP_OPTIONAL() can be used for those functions that can have
- * a NULL definition, for example if "static_call_cond()" will be used
- * at the call sites.  KVM_X86_OP_OPTIONAL_RET0() can be used likewise
- * to make a definition optional, but in this case the default will
- * be __static_call_return0.
- */
 KVM_X86_OP(hardware_enable)
 KVM_X86_OP(hardware_disable)
 KVM_X86_OP(hardware_unsetup)

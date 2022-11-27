@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * APIC driver for "bigsmp" xAPIC machines with more than 8 virtual CPUs.
- *
- * Drives the local APIC in "clustered mode".
- */
 #include <linux/cpumask.h>
 #include <linux/dmi.h>
 #include <linux/smp.h>
@@ -34,10 +28,6 @@ static int bigsmp_early_logical_apicid(int cpu)
 	return early_per_cpu(x86_cpu_to_apicid, cpu);
 }
 
-/*
- * bigsmp enables physical destination mode
- * and doesn't use LDR and DFR
- */
 static void bigsmp_init_apic_ldr(void)
 {
 }

@@ -1,15 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * cppc.c: CPPC Interface for x86
- * Copyright (c) 2016, Intel Corporation.
- */
 
 #include <acpi/cppc_acpi.h>
 #include <asm/msr.h>
 #include <asm/processor.h>
 #include <asm/topology.h>
 
-/* Refer to drivers/acpi/cppc_acpi.c for the description of functions */
 
 bool cpc_supported_by_cpu(void)
 {

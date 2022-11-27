@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
 #include "bitops.h"
 
@@ -29,13 +28,6 @@ static int has_fpu(void)
 	return fsw == 0 && (fcw & 0x103f) == 0x003f;
 }
 
-/*
- * For building the 16-bit code we want to explicitly specify 32-bit
- * push/pop operations, rather than just saying 'pushf' or 'popf' and
- * letting the compiler choose. But this is also included from the
- * compressed/ directory where it may be 64-bit code, and thus needs
- * to be 'pushfq' or 'popfq' in that case.
- */
 #ifdef __x86_64__
 #define PUSHF "pushfq"
 #define POPF "popfq"
@@ -64,7 +56,6 @@ int has_eflag(unsigned long mask)
 	return !!((f0^f1) & mask);
 }
 
-/* Handle x86_32 PIC using ebx. */
 #if defined(__i386__) && defined(__PIC__)
 # define EBX_REG "=r"
 #else

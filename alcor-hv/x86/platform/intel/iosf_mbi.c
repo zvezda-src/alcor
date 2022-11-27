@@ -1,13 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * IOSF-SB MailBox Interface Driver
- * Copyright (c) 2013, Intel Corporation.
- *
- * The IOSF-SB is a fabric bus available on Atom based SOC's that uses a
- * mailbox interface (MBI) to communicate with multiple devices. This
- * driver implements access to this interface for those platforms that can
- * enumerate the device using PCI.
- */
 
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -29,7 +19,6 @@
 static struct pci_dev *mbi_pdev;
 static DEFINE_SPINLOCK(iosf_mbi_lock);
 
-/**************** Generic iosf_mbi access helpers ****************/
 
 static inline u32 iosf_mbi_form_mcr(u8 op, u8 port, u8 offset)
 {
@@ -186,15 +175,6 @@ bool iosf_mbi_available(void)
 }
 EXPORT_SYMBOL(iosf_mbi_available);
 
-/*
- **************** P-Unit/kernel shared I2C bus arbitration ****************
- *
- * Some Bay Trail and Cherry Trail devices have the P-Unit and us (the kernel)
- * share a single I2C bus to the PMIC. Below are helpers to arbitrate the
- * accesses between the kernel and the P-Unit.
- *
- * See arch/x86/include/asm/iosf_mbi.h for kernel-doc text for each function.
- */
 
 #define SEMAPHORE_TIMEOUT		500
 #define PUNIT_SEMAPHORE_BYT		0x7
@@ -222,9 +202,6 @@ void iosf_mbi_punit_acquire(void)
 		mutex_lock(&iosf_mbi_pmic_access_mutex);
 	}
 	/*
-	 * We do not need to do anything to allow the PUNIT to safely access
-	 * the PMIC, other then block in kernel accesses to the PMIC.
-	 */
 	iosf_mbi_pmic_punit_access_count++;
 	mutex_unlock(&iosf_mbi_pmic_access_mutex);
 }
@@ -255,7 +232,6 @@ static int iosf_mbi_get_sem(u32 *sem)
 		return ret;
 	}
 
-	*sem &= PUNIT_SEMAPHORE_BIT;
 	return 0;
 }
 
@@ -271,44 +247,6 @@ static void iosf_mbi_reset_semaphore(void)
 				     MBI_PMIC_BUS_ACCESS_END, NULL);
 }
 
-/*
- * This function blocks P-Unit accesses to the PMIC I2C bus, so that kernel
- * I2C code, such as e.g. a fuel-gauge driver, can access it safely.
- *
- * This function may be called by I2C controller code while an I2C driver has
- * already blocked P-Unit accesses because it wants them blocked over multiple
- * i2c-transfers, for e.g. read-modify-write of an I2C client register.
- *
- * To allow safe PMIC i2c bus accesses this function takes the following steps:
- *
- * 1) Some code sends request to the P-Unit which make it access the PMIC
- *    I2C bus. Testing has shown that the P-Unit does not check its internal
- *    PMIC bus semaphore for these requests. Callers of these requests call
- *    iosf_mbi_punit_acquire()/_release() around their P-Unit accesses, these
- *    functions increase/decrease iosf_mbi_pmic_punit_access_count, so first
- *    we wait for iosf_mbi_pmic_punit_access_count to become 0.
- *
- * 2) Check iosf_mbi_pmic_i2c_access_count, if access has already
- *    been blocked by another caller, we only need to increment
- *    iosf_mbi_pmic_i2c_access_count and we can skip the other steps.
- *
- * 3) Some code makes such P-Unit requests from atomic contexts where it
- *    cannot call iosf_mbi_punit_acquire() as that may sleep.
- *    As the second step we call a notifier chain which allows any code
- *    needing P-Unit resources from atomic context to acquire them before
- *    we take control over the PMIC I2C bus.
- *
- * 4) When CPU cores enter C6 or C7 the P-Unit needs to talk to the PMIC
- *    if this happens while the kernel itself is accessing the PMIC I2C bus
- *    the SoC hangs.
- *    As the third step we call cpu_latency_qos_update_request() to disallow the
- *    CPU to enter C6 or C7.
- *
- * 5) The P-Unit has a PMIC bus semaphore which we can request to stop
- *    autonomous P-Unit tasks from accessing the PMIC I2C bus while we hold it.
- *    As the fourth and final step we request this semaphore and wait for our
- *    request to be acknowledged.
- */
 int iosf_mbi_block_punit_i2c_access(void)
 {
 	unsigned long start, end;
@@ -334,10 +272,6 @@ int iosf_mbi_block_punit_i2c_access(void)
 				     MBI_PMIC_BUS_ACCESS_BEGIN, NULL);
 
 	/*
-	 * Disallow the CPU to enter C6 or C7 state, entering these states
-	 * requires the P-Unit to talk to the PMIC and if this happens while
-	 * we're holding the semaphore, the SoC hangs.
-	 */
 	cpu_latency_qos_update_request(&iosf_mbi_pm_qos, 0);
 
 	/* host driver writes to side band semaphore register */
@@ -441,7 +375,6 @@ void iosf_mbi_assert_punit_acquired(void)
 }
 EXPORT_SYMBOL(iosf_mbi_assert_punit_acquired);
 
-/**************** iosf_mbi debug code ****************/
 
 #ifdef CONFIG_IOSF_MBI_DEBUG
 static u32	dbg_mdr;
@@ -450,7 +383,6 @@ static u32	dbg_mcrx;
 
 static int mcr_get(void *data, u64 *val)
 {
-	*val = *(u32 *)data;
 	return 0;
 }
 
@@ -461,7 +393,6 @@ static int mcr_set(void *data, u64 val)
 	   offset  = ((u32)val & 0x0000FF00) >> 8;
 	int err;
 
-	*(u32 *)data = val;
 
 	if (!capable(CAP_SYS_RAWIO))
 		return -EACCES;

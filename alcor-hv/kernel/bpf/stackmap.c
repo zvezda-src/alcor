@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2016 Facebook
- */
 #include <linux/bpf.h>
 #include <linux/jhash.h>
 #include <linux/filter.h>
@@ -66,7 +63,6 @@ free_elems:
 	return err;
 }
 
-/* Called from syscall */
 static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 {
 	u32 value_size = attr->value_size;
@@ -559,13 +555,11 @@ const struct bpf_func_proto bpf_get_stack_proto_pe = {
 	.arg4_type	= ARG_ANYTHING,
 };
 
-/* Called from eBPF program */
 static void *stack_map_lookup_elem(struct bpf_map *map, void *key)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
-/* Called from syscall */
 int bpf_stackmap_copy(struct bpf_map *map, void *key, void *value)
 {
 	struct bpf_stack_map *smap = container_of(map, struct bpf_stack_map, map);
@@ -614,7 +608,6 @@ static int stack_map_get_next_key(struct bpf_map *map, void *key,
 	if (id >= smap->n_buckets)
 		return -ENOENT;
 
-	*(u32 *)next_key = id;
 	return 0;
 }
 
@@ -624,7 +617,6 @@ static int stack_map_update_elem(struct bpf_map *map, void *key, void *value,
 	return -EINVAL;
 }
 
-/* Called from syscall or from eBPF program */
 static int stack_map_delete_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_stack_map *smap = container_of(map, struct bpf_stack_map, map);
@@ -643,7 +635,6 @@ static int stack_map_delete_elem(struct bpf_map *map, void *key)
 	}
 }
 
-/* Called when map->refcnt goes to zero, either from workqueue or from syscall */
 static void stack_map_free(struct bpf_map *map)
 {
 	struct bpf_stack_map *smap = container_of(map, struct bpf_stack_map, map);

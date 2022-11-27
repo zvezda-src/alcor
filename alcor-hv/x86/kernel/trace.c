@@ -2,17 +2,11 @@
 #include <linux/trace.h>
 
 #if defined(CONFIG_OSNOISE_TRACER) && defined(CONFIG_X86_LOCAL_APIC)
-/*
- * trace_intel_irq_entry - record intel specific IRQ entry
- */
 static void trace_intel_irq_entry(void *data, int vector)
 {
 	osnoise_trace_irq_entry(vector);
 }
 
-/*
- * trace_intel_irq_exit - record intel specific IRQ exit
- */
 static void trace_intel_irq_exit(void *data, int vector)
 {
 	char *vector_desc = (char *) data;
@@ -20,9 +14,6 @@ static void trace_intel_irq_exit(void *data, int vector)
 	osnoise_trace_irq_exit(vector, vector_desc);
 }
 
-/*
- * register_intel_irq_tp - Register intel specific IRQ entry tracepoints
- */
 int osnoise_arch_register(void)
 {
 	int ret;

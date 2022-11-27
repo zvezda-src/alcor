@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Shadow Call Stack support.
- *
- * Copyright (C) 2019 Google LLC
- */
 
 #include <linux/cpuhotplug.h>
 #include <linux/kasan.h>
@@ -20,7 +14,6 @@ static void __scs_account(void *s, int account)
 			    account * (SCS_SIZE / SZ_1K));
 }
 
-/* Matches NR_CACHED_STACKS for VMAP_STACK */
 #define NR_CACHED_SCS 2
 static DEFINE_PER_CPU(void *, scs_cache[NR_CACHED_SCS]);
 
@@ -55,12 +48,8 @@ void *scs_alloc(int node)
 	if (!s)
 		return NULL;
 
-	*__scs_magic(s) = SCS_END_MAGIC;
 
 	/*
-	 * Poison the allocation to catch unintentional accesses to
-	 * the shadow stack when KASAN is enabled.
-	 */
 	kasan_poison_vmalloc(s, SCS_SIZE);
 	__scs_account(s, 1);
 	return s;
@@ -73,10 +62,6 @@ void scs_free(void *s)
 	__scs_account(s, -1);
 
 	/*
-	 * We cannot sleep as this can be called in interrupt context,
-	 * so use this_cpu_cmpxchg to update the cache, and vfree_atomic
-	 * to free the stack.
-	 */
 
 	for (i = 0; i < NR_CACHED_SCS; i++)
 		if (this_cpu_cmpxchg(scs_cache[i], 0, s) == NULL)

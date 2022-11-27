@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/init.h>
 #include <linux/static_call.h>
 #include <linux/bug.h>
@@ -17,7 +16,6 @@ extern struct static_call_tramp_key __start_static_call_tramp_key[],
 
 static bool static_call_initialized;
 
-/* mutex to protect key modules/sites */
 static DEFINE_MUTEX(static_call_mutex);
 
 static void static_call_lock(void)
@@ -45,7 +43,6 @@ static inline struct static_call_key *static_call_key(const struct static_call_s
 	return (void *)(__static_call_key(site) & ~STATIC_CALL_SITE_FLAGS);
 }
 
-/* These assume the key is word-aligned. */
 static inline bool static_call_is_init(struct static_call_site *site)
 {
 	return __static_call_key(site) & STATIC_CALL_SITE_INIT;
@@ -136,9 +133,6 @@ void __static_call_update(struct static_call_key *key, void *tramp, void *func)
 	arch_static_call_transform(NULL, tramp, func, false);
 
 	/*
-	 * If uninitialized, we'll not update the callsites, but they still
-	 * point to the trampoline and we just patched that.
-	 */
 	if (WARN_ON_ONCE(!static_call_initialized))
 		goto done;
 
@@ -154,12 +148,6 @@ void __static_call_update(struct static_call_key *key, void *tramp, void *func)
 
 		if (!site_mod->sites) {
 			/*
-			 * This can happen if the static call key is defined in
-			 * a module which doesn't use it.
-			 *
-			 * It also happens in the has_mods case, where the
-			 * 'first' entry has no sites associated with it.
-			 */
 			continue;
 		}
 
@@ -182,13 +170,6 @@ void __static_call_update(struct static_call_key *key, void *tramp, void *func)
 
 			if (!kernel_text_address((unsigned long)site_addr)) {
 				/*
-				 * This skips patching built-in __exit, which
-				 * is part of init_section_contains() but is
-				 * not part of kernel_text_address().
-				 *
-				 * Skipping built-in __exit is fine since it
-				 * will never be executed.
-				 */
 				WARN_ONCE(!static_call_is_init(site),
 					  "can't patch static call site at %pS",
 					  site_addr);
@@ -231,13 +212,6 @@ static int __static_call_init(struct module *mod,
 			prev_key = key;
 
 			/*
-			 * For vmlinux (!mod) avoid the allocation by storing
-			 * the sites pointer in the key itself. Also see
-			 * __static_call_update()'s @first.
-			 *
-			 * This allows architectures (eg. x86) to call
-			 * static_call_init() before memory allocation works.
-			 */
 			if (!mod) {
 				key->sites = site;
 				key->type |= 1;
@@ -249,10 +223,6 @@ static int __static_call_init(struct module *mod,
 				return -ENOMEM;
 
 			/*
-			 * When the key has a direct sites pointer, extract
-			 * that into an explicit struct static_call_mod, so we
-			 * can have a list of modules.
-			 */
 			if (static_call_key_sites(key)) {
 				site_mod->mod = NULL;
 				site_mod->next = NULL;
@@ -362,16 +332,6 @@ static int static_call_add_module(struct module *mod)
 		unsigned long key;
 
 		/*
-		 * Is the key is exported, 'addr' points to the key, which
-		 * means modules are allowed to call static_call_update() on
-		 * it.
-		 *
-		 * Otherwise, the key isn't exported, and 'addr' points to the
-		 * trampoline so we need to lookup the key.
-		 *
-		 * We go through this dance to prevent crazy modules from
-		 * abusing sensitive static calls.
-		 */
 		if (!kernel_text_address(addr))
 			continue;
 

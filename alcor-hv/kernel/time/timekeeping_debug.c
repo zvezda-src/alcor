@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
-/*
- * debugfs file to track time spent in suspend
- *
- * Copyright (c) 2011, Google, Inc.
- */
 
 #include <linux/debugfs.h>
 #include <linux/err.h>

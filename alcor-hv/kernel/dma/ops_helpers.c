@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Helpers for DMA ops implementations.  These generally rely on the fact that
- * the allocated memory contains normal pages in the direct kernel mapping.
- */
 #include <linux/dma-map-ops.h>
 
 static struct page *dma_common_vaddr_to_page(void *cpu_addr)
@@ -12,9 +7,6 @@ static struct page *dma_common_vaddr_to_page(void *cpu_addr)
 	return virt_to_page(cpu_addr);
 }
 
-/*
- * Create scatter-list for the already allocated DMA buffer.
- */
 int dma_common_get_sgtable(struct device *dev, struct sg_table *sgt,
 		 void *cpu_addr, dma_addr_t dma_addr, size_t size,
 		 unsigned long attrs)
@@ -28,9 +20,6 @@ int dma_common_get_sgtable(struct device *dev, struct sg_table *sgt,
 	return ret;
 }
 
-/*
- * Create userspace mapping for the DMA-coherent memory.
- */
 int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
 		void *cpu_addr, dma_addr_t dma_addr, size_t size,
 		unsigned long attrs)
@@ -70,7 +59,6 @@ struct page *dma_common_alloc_pages(struct device *dev, size_t size,
 	if (!page)
 		return NULL;
 
-	*dma_handle = ops->map_page(dev, page, 0, size, dir,
 				    DMA_ATTR_SKIP_CPU_SYNC);
 	if (*dma_handle == DMA_MAPPING_ERROR) {
 		dma_free_contiguous(dev, page, size);

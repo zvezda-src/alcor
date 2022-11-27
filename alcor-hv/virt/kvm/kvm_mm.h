@@ -1,14 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
 
 #ifndef __KVM_MM_H__
 #define __KVM_MM_H__ 1
 
-/*
- * Architectures can choose whether to use an rwlock or spinlock
- * for the mmu_lock.  These macros, for use in common code
- * only, avoids using #ifdefs in places that must deal with
- * multiple architectures.
- */
 
 #ifdef KVM_HAVE_MMU_RWLOCK
 #define KVM_MMU_LOCK_INIT(kvm)		rwlock_init(&(kvm)->mmu_lock)

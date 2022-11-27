@@ -1,7 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- * Traceprobe fetch helper inlines
- */
 
 static nokprobe_inline void
 fetch_store_raw(unsigned long val, struct fetch_insn *code, void *buf)
@@ -48,11 +44,6 @@ fetch_apply_bitfield(struct fetch_insn *code, void *buf)
 	}
 }
 
-/*
- * These functions must be defined for each callsite.
- * Return consumed dynamic data size (>= 0), or error (< 0).
- * If dest is NULL, don't store result and return required dynamic data size.
- */
 static int
 process_fetch_insn(struct fetch_insn *code, void *rec,
 		   void *dest, void *base);
@@ -67,7 +58,6 @@ probe_mem_read(void *dest, void *src, size_t size);
 static nokprobe_inline int
 probe_mem_read_user(void *dest, void *src, size_t size);
 
-/* From the 2nd stage, routine is same */
 static nokprobe_inline int
 process_fetch_insn_bottom(struct fetch_insn *code, unsigned long val,
 			   void *dest, void *base)
@@ -167,7 +157,6 @@ array:
 	return code->op == FETCH_OP_END ? ret : -EILSEQ;
 }
 
-/* Sum up total data length for dynamic arrays (strings) */
 static nokprobe_inline int
 __get_data_size(struct trace_probe *tp, struct pt_regs *regs)
 {
@@ -186,7 +175,6 @@ __get_data_size(struct trace_probe *tp, struct pt_regs *regs)
 	return ret;
 }
 
-/* Store the value of each argument */
 static nokprobe_inline void
 store_trace_args(void *data, struct trace_probe *tp, void *rec,
 		 int header_size, int maxlen)

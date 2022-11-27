@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0 OR MIT
-/*
- * Copyright (C) 2020 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
- * Copyright (c) 2016-2020 INRIA, CMU and Microsoft Corporation
- */
 
 #include <crypto/curve25519.h>
 #include <crypto/internal/kpp.h>
@@ -38,8 +33,6 @@ static __always_inline u64 gte_mask(u64 a, u64 b)
 	return x_xor_q_ - (u64)1U;
 }
 
-/* Computes the addition of four-element f1 with value in f2
- * and returns the carry (if any) */
 static inline u64 add_scalar(u64 *out, const u64 *f1, u64 f2)
 {
 	u64 carry_r;
@@ -71,7 +64,6 @@ static inline u64 add_scalar(u64 *out, const u64 *f1, u64 f2)
 	return carry_r;
 }
 
-/* Computes the field addition of two field elements */
 static inline void fadd(u64 *out, const u64 *f1, const u64 *f2)
 {
 	asm volatile(
@@ -112,7 +104,6 @@ static inline void fadd(u64 *out, const u64 *f1, const u64 *f2)
 		: "%rax", "%rcx", "%r8", "%r9", "%r10", "%r11", "memory", "cc");
 }
 
-/* Computes the field subtraction of two field elements */
 static inline void fsub(u64 *out, const u64 *f1, const u64 *f2)
 {
 	asm volatile(
@@ -154,8 +145,6 @@ static inline void fsub(u64 *out, const u64 *f1, const u64 *f2)
 		: "%rax", "%rcx", "%r8", "%r9", "%r10", "%r11", "memory", "cc");
 }
 
-/* Computes a field multiplication: out <- f1 * f2
- * Uses the 8-element buffer tmp for intermediate results */
 static inline void fmul(u64 *out, const u64 *f1, const u64 *f2, u64 *tmp)
 {
 	asm volatile(
@@ -287,10 +276,6 @@ static inline void fmul(u64 *out, const u64 *f1, const u64 *f2, u64 *tmp)
 		  "%r14", "memory", "cc");
 }
 
-/* Computes two field multiplications:
- *   out[0] <- f1[0] * f2[0]
- *   out[1] <- f1[1] * f2[1]
- * Uses the 16-element buffer tmp for intermediate results: */
 static inline void fmul2(u64 *out, const u64 *f1, const u64 *f2, u64 *tmp)
 {
 	asm volatile(
@@ -538,8 +523,6 @@ static inline void fmul2(u64 *out, const u64 *f1, const u64 *f2, u64 *tmp)
 		  "%r14", "memory", "cc");
 }
 
-/* Computes the field multiplication of four-element f1 with value in f2
- * Requires f2 to be smaller than 2^17 */
 static inline void fmul_scalar(u64 *out, const u64 *f1, u64 f2)
 {
 	register u64 f2_r asm("rdx") = f2;
@@ -582,7 +565,6 @@ static inline void fmul_scalar(u64 *out, const u64 *f1, u64 f2)
 		  "memory", "cc");
 }
 
-/* Computes p1 <- bit ? p2 : p1 in constant time */
 static inline void cswap2(u64 bit, const u64 *p1, const u64 *p2)
 {
 	asm volatile(
@@ -665,8 +647,6 @@ static inline void cswap2(u64 bit, const u64 *p1, const u64 *p2)
 		: "%r8", "%r9", "%r10", "memory", "cc");
 }
 
-/* Computes the square of a field element: out <- f * f
- * Uses the 8-element buffer tmp for intermediate results */
 static inline void fsqr(u64 *out, const u64 *f, u64 *tmp)
 {
 	asm volatile(
@@ -774,10 +754,6 @@ static inline void fsqr(u64 *out, const u64 *f, u64 *tmp)
 		  "%r13", "%r14", "%r15", "memory", "cc");
 }
 
-/* Computes two field squarings:
- *   out[0] <- f[0] * f[0]
- *   out[1] <- f[1] * f[1]
- * Uses the 16-element buffer tmp for intermediate results */
 static inline void fsqr2(u64 *out, const u64 *f, u64 *tmp)
 {
 	asm volatile(
@@ -1253,27 +1229,6 @@ static void curve25519_ever64(u8 *out, const u8 *priv, const u8 *pub)
 	encode_point(out, init1);
 }
 
-/* The below constants were generated using this sage script:
- *
- * #!/usr/bin/env sage
- * import sys
- * from sage.all import *
- * def limbs(n):
- * 	n = int(n)
- * 	l = ((n >> 0) % 2^64, (n >> 64) % 2^64, (n >> 128) % 2^64, (n >> 192) % 2^64)
- * 	return "0x%016xULL, 0x%016xULL, 0x%016xULL, 0x%016xULL" % l
- * ec = EllipticCurve(GF(2^255 - 19), [0, 486662, 0, 1, 0])
- * p_minus_s = (ec.lift_x(9) - ec.lift_x(1))[0]
- * print("static const u64 p_minus_s[] = { %s };\n" % limbs(p_minus_s))
- * print("static const u64 table_ladder[] = {")
- * p = ec.lift_x(9)
- * for i in range(252):
- * 	l = (p[0] + p[2]) / (p[0] - p[2])
- * 	print(("\t%s" + ("," if i != 251 else "")) % limbs(l))
- * 	p = p * 2
- * print("};")
- *
- */
 
 static const u64 p_minus_s[] = { 0x816b1e0137d48290ULL, 0x440f6a51eb4d1207ULL, 0x52385f46dca2b71dULL, 0x215132111d8354cbULL };
 

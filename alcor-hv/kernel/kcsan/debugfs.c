@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * KCSAN debugfs interface.
- *
- * Copyright (C) 2019, Google LLC.
- */
 
 #define pr_fmt(fmt) "kcsan: " fmt
 
@@ -36,10 +30,6 @@ static const char *const counter_names[] = {
 };
 static_assert(ARRAY_SIZE(counter_names) == KCSAN_COUNTER_COUNT);
 
-/*
- * Addresses for filtering functions from reporting. This list can be used as a
- * whitelist or blacklist.
- */
 static struct {
 	unsigned long	*addrs;		/* array of addresses */
 	size_t		size;		/* current size */
@@ -55,11 +45,6 @@ static struct {
 };
 static DEFINE_SPINLOCK(report_filterlist_lock);
 
-/*
- * The microbenchmark allows benchmarking KCSAN core runtime only. To run
- * multiple threads, pipe 'microbench=<iters>' from multiple tasks into the
- * debugfs file. This will not generate any conflicts, and tests fast-path only.
- */
 static noinline void microbenchmark(unsigned long iters)
 {
 	const struct kcsan_ctx ctx_save = current->kcsan_ctx;
@@ -69,9 +54,6 @@ static noinline void microbenchmark(unsigned long iters)
 	/* We may have been called from an atomic region; reset context. */
 	memset(&current->kcsan_ctx, 0, sizeof(current->kcsan_ctx));
 	/*
-	 * Disable to benchmark fast-path for all accesses, and (expected
-	 * negligible) call into slow-path, but never set up watchpoints.
-	 */
 	WRITE_ONCE(kcsan_enabled, false);
 
 	pr_info("%s begin | iters: %lu\n", __func__, iters);
@@ -140,7 +122,6 @@ static void set_report_filterlist_whitelist(bool whitelist)
 	spin_unlock_irqrestore(&report_filterlist_lock, flags);
 }
 
-/* Returns 0 on success, error-code otherwise. */
 static ssize_t insert_report_filterlist(const char *func)
 {
 	unsigned long flags;

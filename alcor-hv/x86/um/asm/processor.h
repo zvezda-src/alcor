@@ -1,9 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __UM_PROCESSOR_H
 #define __UM_PROCESSOR_H
 #include <linux/time-internal.h>
 
-/* include faultinfo structure */
 #include <sysdep/faultinfo.h>
 
 #ifdef CONFIG_X86_32
@@ -21,7 +19,6 @@
 
 #include <asm/user.h>
 
-/* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
 static __always_inline void rep_nop(void)
 {
 	__asm__ __volatile__("rep;nop": : :"memory");

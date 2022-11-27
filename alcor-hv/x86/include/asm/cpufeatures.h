@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_CPUFEATURES_H
 #define _ASM_X86_CPUFEATURES_H
 
@@ -10,22 +9,10 @@
 #include <asm/disabled-features.h>
 #endif
 
-/*
- * Defines x86 CPU feature bits
- */
 #define NCAPINTS			20	   /* N 32-bit words worth of info */
 #define NBUGINTS			1	   /* N 32-bit bug flags */
 
-/*
- * Note: If the comment begins with a quoted string, that string is used
- * in /proc/cpuinfo instead of the macro name.  If the string is "",
- * this feature bit is not displayed in /proc/cpuinfo at all.
- *
- * When adding new features here that depend on other features,
- * please update the table in kernel/cpu/cpuid-deps.c as well.
- */
 
-/* Intel-defined CPU features, CPUID level 0x00000001 (EDX), word 0 */
 #define X86_FEATURE_FPU			( 0*32+ 0) /* Onboard FPU */
 #define X86_FEATURE_VME			( 0*32+ 1) /* Virtual Mode Extensions */
 #define X86_FEATURE_DE			( 0*32+ 2) /* Debugging Extensions */
@@ -57,8 +44,6 @@
 #define X86_FEATURE_IA64		( 0*32+30) /* IA-64 processor */
 #define X86_FEATURE_PBE			( 0*32+31) /* Pending Break Enable */
 
-/* AMD-defined CPU features, CPUID level 0x80000001, word 1 */
-/* Don't duplicate feature flags which are redundant with Intel! */
 #define X86_FEATURE_SYSCALL		( 1*32+11) /* SYSCALL/SYSRET */
 #define X86_FEATURE_MP			( 1*32+19) /* MP Capable */
 #define X86_FEATURE_NX			( 1*32+20) /* Execute Disable */
@@ -70,21 +55,16 @@
 #define X86_FEATURE_3DNOWEXT		( 1*32+30) /* AMD 3DNow extensions */
 #define X86_FEATURE_3DNOW		( 1*32+31) /* 3DNow */
 
-/* Transmeta-defined CPU features, CPUID level 0x80860001, word 2 */
 #define X86_FEATURE_RECOVERY		( 2*32+ 0) /* CPU in recovery mode */
 #define X86_FEATURE_LONGRUN		( 2*32+ 1) /* Longrun power control */
 #define X86_FEATURE_LRTI		( 2*32+ 3) /* LongRun table interface */
 
-/* Other features, Linux-defined mapping, word 3 */
-/* This range is used for feature bits which conflict or are synthesized */
 #define X86_FEATURE_CXMMX		( 3*32+ 0) /* Cyrix MMX extensions */
 #define X86_FEATURE_K6_MTRR		( 3*32+ 1) /* AMD K6 nonstandard MTRRs */
 #define X86_FEATURE_CYRIX_ARR		( 3*32+ 2) /* Cyrix ARRs (= MTRRs) */
 #define X86_FEATURE_CENTAUR_MCR		( 3*32+ 3) /* Centaur MCRs (= MTRRs) */
 
-/* CPU types for specific tunings: */
 #define X86_FEATURE_K8			( 3*32+ 4) /* "" Opteron, Athlon64 */
-/* FREE, was #define X86_FEATURE_K7			( 3*32+ 5) "" Athlon */
 #define X86_FEATURE_P3			( 3*32+ 6) /* "" P3 */
 #define X86_FEATURE_P4			( 3*32+ 7) /* "" P4 */
 #define X86_FEATURE_CONSTANT_TSC	( 3*32+ 8) /* TSC ticks at a constant rate */
@@ -96,7 +76,6 @@
 #define X86_FEATURE_SYSCALL32		( 3*32+14) /* "" syscall in IA32 userspace */
 #define X86_FEATURE_SYSENTER32		( 3*32+15) /* "" sysenter in IA32 userspace */
 #define X86_FEATURE_REP_GOOD		( 3*32+16) /* REP microcode works well */
-/* FREE!                                ( 3*32+17) */
 #define X86_FEATURE_LFENCE_RDTSC	( 3*32+18) /* "" LFENCE synchronizes RDTSC */
 #define X86_FEATURE_ACC_POWER		( 3*32+19) /* AMD Accumulated Power Mechanism */
 #define X86_FEATURE_NOPL		( 3*32+20) /* The NOPL (0F 1F) instructions */
@@ -112,7 +91,6 @@
 #define X86_FEATURE_NONSTOP_TSC_S3	( 3*32+30) /* TSC doesn't stop in S3 state */
 #define X86_FEATURE_TSC_KNOWN_FREQ	( 3*32+31) /* TSC has known frequency */
 
-/* Intel-defined CPU features, CPUID level 0x00000001 (ECX), word 4 */
 #define X86_FEATURE_XMM3		( 4*32+ 0) /* "pni" SSE-3 */
 #define X86_FEATURE_PCLMULQDQ		( 4*32+ 1) /* PCLMULQDQ instruction */
 #define X86_FEATURE_DTES64		( 4*32+ 2) /* 64-bit Debug Store */
@@ -145,7 +123,6 @@
 #define X86_FEATURE_RDRAND		( 4*32+30) /* RDRAND instruction */
 #define X86_FEATURE_HYPERVISOR		( 4*32+31) /* Running on a hypervisor */
 
-/* VIA/Cyrix/Centaur-defined CPU features, CPUID level 0xC0000001, word 5 */
 #define X86_FEATURE_XSTORE		( 5*32+ 2) /* "rng" RNG present (xstore) */
 #define X86_FEATURE_XSTORE_EN		( 5*32+ 3) /* "rng_en" RNG enabled */
 #define X86_FEATURE_XCRYPT		( 5*32+ 6) /* "ace" on-CPU crypto (xcrypt) */
@@ -157,7 +134,6 @@
 #define X86_FEATURE_PMM			( 5*32+12) /* PadLock Montgomery Multiplier */
 #define X86_FEATURE_PMM_EN		( 5*32+13) /* PMM enabled */
 
-/* More extended AMD flags: CPUID level 0x80000001, ECX, word 6 */
 #define X86_FEATURE_LAHF_LM		( 6*32+ 0) /* LAHF/SAHF in long mode */
 #define X86_FEATURE_CMP_LEGACY		( 6*32+ 1) /* If yes HyperThreading not valid */
 #define X86_FEATURE_SVM			( 6*32+ 2) /* Secure Virtual Machine */
@@ -185,12 +161,6 @@
 #define X86_FEATURE_PERFCTR_LLC		( 6*32+28) /* Last Level Cache performance counter extensions */
 #define X86_FEATURE_MWAITX		( 6*32+29) /* MWAIT extension (MONITORX/MWAITX instructions) */
 
-/*
- * Auxiliary flags: Linux defined - For features scattered in various
- * CPUID levels like 0x6, 0xA etc, word 7.
- *
- * Reuse free bits when adding new feature flags!
- */
 #define X86_FEATURE_RING3MWAIT		( 7*32+ 0) /* Ring 3 MONITOR/MWAIT instructions */
 #define X86_FEATURE_CPUID_FAULT		( 7*32+ 1) /* Intel CPUID faulting */
 #define X86_FEATURE_CPB			( 7*32+ 2) /* AMD Core Performance Boost */
@@ -224,7 +194,6 @@
 #define X86_FEATURE_IBRS_ENHANCED	( 7*32+30) /* Enhanced IBRS */
 #define X86_FEATURE_MSR_IA32_FEAT_CTL	( 7*32+31) /* "" MSR IA32_FEAT_CTL configured */
 
-/* Virtualization flags: Linux defined, word 8 */
 #define X86_FEATURE_TPR_SHADOW		( 8*32+ 0) /* Intel TPR Shadow */
 #define X86_FEATURE_VNMI		( 8*32+ 1) /* Intel Virtual NMI */
 #define X86_FEATURE_FLEXPRIORITY	( 8*32+ 2) /* Intel FlexPriority */
@@ -240,7 +209,6 @@
 #define X86_FEATURE_VCPUPREEMPT		( 8*32+21) /* "" PV vcpu_is_preempted function */
 #define X86_FEATURE_TDX_GUEST		( 8*32+22) /* Intel Trust Domain Extensions Guest */
 
-/* Intel-defined CPU features, CPUID level 0x00000007:0 (EBX), word 9 */
 #define X86_FEATURE_FSGSBASE		( 9*32+ 0) /* RDFSBASE, WRFSBASE, RDGSBASE, WRGSBASE instructions*/
 #define X86_FEATURE_TSC_ADJUST		( 9*32+ 1) /* TSC adjustment MSR 0x3B */
 #define X86_FEATURE_SGX			( 9*32+ 2) /* Software Guard Extensions */
@@ -273,19 +241,12 @@
 #define X86_FEATURE_AVX512BW		( 9*32+30) /* AVX-512 BW (Byte/Word granular) Instructions */
 #define X86_FEATURE_AVX512VL		( 9*32+31) /* AVX-512 VL (128/256 Vector Length) Extensions */
 
-/* Extended state features, CPUID level 0x0000000d:1 (EAX), word 10 */
 #define X86_FEATURE_XSAVEOPT		(10*32+ 0) /* XSAVEOPT instruction */
 #define X86_FEATURE_XSAVEC		(10*32+ 1) /* XSAVEC instruction */
 #define X86_FEATURE_XGETBV1		(10*32+ 2) /* XGETBV with ECX = 1 instruction */
 #define X86_FEATURE_XSAVES		(10*32+ 3) /* XSAVES/XRSTORS instructions */
 #define X86_FEATURE_XFD			(10*32+ 4) /* "" eXtended Feature Disabling */
 
-/*
- * Extended auxiliary flags: Linux defined - for features scattered in various
- * CPUID levels like 0xf, etc.
- *
- * Reuse free bits when adding new feature flags!
- */
 #define X86_FEATURE_CQM_LLC		(11*32+ 0) /* LLC QoS if 1 */
 #define X86_FEATURE_CQM_OCCUP_LLC	(11*32+ 1) /* LLC occupancy monitoring */
 #define X86_FEATURE_CQM_MBM_TOTAL	(11*32+ 2) /* LLC Total MBM monitoring */
@@ -304,11 +265,9 @@
 #define X86_FEATURE_UNRET		(11*32+15) /* "" AMD BTB untrain return */
 #define X86_FEATURE_USE_IBPB_FW		(11*32+16) /* "" Use IBPB during runtime firmware calls */
 
-/* Intel-defined CPU features, CPUID level 0x00000007:1 (EAX), word 12 */
 #define X86_FEATURE_AVX_VNNI		(12*32+ 4) /* AVX VNNI instructions */
 #define X86_FEATURE_AVX512_BF16		(12*32+ 5) /* AVX512 BFLOAT16 instructions */
 
-/* AMD-defined CPU features, CPUID level 0x80000008 (EBX), word 13 */
 #define X86_FEATURE_CLZERO		(13*32+ 0) /* CLZERO instruction */
 #define X86_FEATURE_IRPERF		(13*32+ 1) /* Instructions Retired Count */
 #define X86_FEATURE_XSAVEERPTR		(13*32+ 2) /* Always save/restore FP error pointers */
@@ -326,7 +285,6 @@
 #define X86_FEATURE_BTC_NO		(13*32+29) /* "" Not vulnerable to Branch Type Confusion */
 #define X86_FEATURE_BRS			(13*32+31) /* Branch Sampling available */
 
-/* Thermal and Power Management Leaf, CPUID level 0x00000006 (EAX), word 14 */
 #define X86_FEATURE_DTHERM		(14*32+ 0) /* Digital Thermal Sensor */
 #define X86_FEATURE_IDA			(14*32+ 1) /* Intel Dynamic Acceleration */
 #define X86_FEATURE_ARAT		(14*32+ 2) /* Always Running APIC Timer */
@@ -339,7 +297,6 @@
 #define X86_FEATURE_HWP_PKG_REQ		(14*32+11) /* HWP Package Level Request */
 #define X86_FEATURE_HFI			(14*32+19) /* Hardware Feedback Interface */
 
-/* AMD SVM Feature Identification, CPUID level 0x8000000a (EDX), word 15 */
 #define X86_FEATURE_NPT			(15*32+ 0) /* Nested Page Table support */
 #define X86_FEATURE_LBRV		(15*32+ 1) /* LBR Virtualization support */
 #define X86_FEATURE_SVML		(15*32+ 2) /* "svm_lock" SVM locking MSR */
@@ -357,7 +314,6 @@
 #define X86_FEATURE_V_SPEC_CTRL		(15*32+20) /* Virtual SPEC_CTRL */
 #define X86_FEATURE_SVME_ADDR_CHK	(15*32+28) /* "" SVME addr check */
 
-/* Intel-defined CPU features, CPUID level 0x00000007:0 (ECX), word 16 */
 #define X86_FEATURE_AVX512VBMI		(16*32+ 1) /* AVX512 Vector Bit Manipulation instructions*/
 #define X86_FEATURE_UMIP		(16*32+ 2) /* User Mode Instruction Protection */
 #define X86_FEATURE_PKU			(16*32+ 3) /* Protection Keys for Userspace */
@@ -380,12 +336,10 @@
 #define X86_FEATURE_ENQCMD		(16*32+29) /* ENQCMD and ENQCMDS instructions */
 #define X86_FEATURE_SGX_LC		(16*32+30) /* Software Guard Extensions Launch Control */
 
-/* AMD-defined CPU features, CPUID level 0x80000007 (EBX), word 17 */
 #define X86_FEATURE_OVERFLOW_RECOV	(17*32+ 0) /* MCA overflow recovery support */
 #define X86_FEATURE_SUCCOR		(17*32+ 1) /* Uncorrectable error containment and recovery */
 #define X86_FEATURE_SMCA		(17*32+ 3) /* Scalable MCA */
 
-/* Intel-defined CPU features, CPUID level 0x00000007:0 (EDX), word 18 */
 #define X86_FEATURE_AVX512_4VNNIW	(18*32+ 2) /* AVX-512 Neural Network Instructions */
 #define X86_FEATURE_AVX512_4FMAPS	(18*32+ 3) /* AVX-512 Multiply Accumulation Single precision */
 #define X86_FEATURE_FSRM		(18*32+ 4) /* Fast Short Rep Mov */
@@ -411,7 +365,6 @@
 #define X86_FEATURE_CORE_CAPABILITIES	(18*32+30) /* "" IA32_CORE_CAPABILITIES MSR */
 #define X86_FEATURE_SPEC_CTRL_SSBD	(18*32+31) /* "" Speculative Store Bypass Disable */
 
-/* AMD-defined memory encryption features, CPUID level 0x8000001f (EAX), word 19 */
 #define X86_FEATURE_SME			(19*32+ 0) /* AMD Secure Memory Encryption */
 #define X86_FEATURE_SEV			(19*32+ 1) /* AMD Secure Encrypted Virtualization */
 #define X86_FEATURE_VM_PAGE_FLUSH	(19*32+ 2) /* "" VM Page Flush MSR is supported */
@@ -419,9 +372,6 @@
 #define X86_FEATURE_V_TSC_AUX		(19*32+ 9) /* "" Virtual TSC_AUX */
 #define X86_FEATURE_SME_COHERENT	(19*32+10) /* "" AMD hardware-enforced cache coherency */
 
-/*
- * BUG word(s)
- */
 #define X86_BUG(x)			(NCAPINTS*32 + (x))
 
 #define X86_BUG_F00F			X86_BUG(0) /* Intel F00F */
@@ -434,10 +384,6 @@
 #define X86_BUG_CLFLUSH_MONITOR		X86_BUG(7) /* AAI65, CLFLUSH required before MONITOR */
 #define X86_BUG_SYSRET_SS_ATTRS		X86_BUG(8) /* SYSRET doesn't fix up SS attrs */
 #ifdef CONFIG_X86_32
-/*
- * 64-bit kernels don't use X86_BUG_ESPFIX.  Make the define conditional
- * to avoid confusion.
- */
 #define X86_BUG_ESPFIX			X86_BUG(9) /* "" IRET to 16-bit SS corrupts ESP/RSP high bits */
 #endif
 #define X86_BUG_NULL_SEG		X86_BUG(10) /* Nulling a selector preserves the base */

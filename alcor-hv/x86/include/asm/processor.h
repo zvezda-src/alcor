@@ -1,10 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PROCESSOR_H
 #define _ASM_X86_PROCESSOR_H
 
 #include <asm/processor-flags.h>
 
-/* Forward declaration, a strange C thing */
 struct task_struct;
 struct mm_struct;
 struct io_bitmap;
@@ -36,21 +34,10 @@ struct vm86;
 #include <linux/irqflags.h>
 #include <linux/mem_encrypt.h>
 
-/*
- * We handle most unaligned accesses in hardware.  On the other hand
- * unaligned DMA can be quite expensive on some Nehalem processors.
- *
- * Based on this we disable the IP header alignment in network drivers.
- */
 #define NET_IP_ALIGN	0
 
 #define HBP_NUM 4
 
-/*
- * These alignment constraints are for performance in the vSMP case,
- * but in the task_struct case we must also meet hardware imposed
- * alignment requirements of the FPU state:
- */
 #ifdef CONFIG_X86_VSMP
 # define ARCH_MIN_TASKALIGN		(1 << INTERNODE_CACHE_SHIFT)
 # define ARCH_MIN_MMSTRUCT_ALIGN	(1 << INTERNODE_CACHE_SHIFT)
@@ -72,11 +59,6 @@ extern u16 __read_mostly tlb_lld_2m[NR_INFO];
 extern u16 __read_mostly tlb_lld_4m[NR_INFO];
 extern u16 __read_mostly tlb_lld_1g[NR_INFO];
 
-/*
- *  CPU type and hardware bug flags. Kept separately for each CPU.
- *  Members of this structure are referenced in head_32.S, so think twice
- *  before touching them. [mj]
- */
 
 struct cpuinfo_x86 {
 	__u8			x86;		/* CPU family */
@@ -100,10 +82,6 @@ struct cpuinfo_x86 {
 	/* Maximum supported CPUID level, -1=no CPUID: */
 	int			cpuid_level;
 	/*
-	 * Align to size of unsigned long because the x86_capability array
-	 * is passed to bitops which require the alignment. Use unnamed
-	 * union to enforce the array is aligned to size of unsigned long.
-	 */
 	union {
 		__u32		x86_capability[NCAPINTS + NBUGINTS];
 		unsigned long	x86_capability_alignment;
@@ -171,9 +149,6 @@ enum cpuid_regs_idx {
 
 #define X86_VENDOR_UNKNOWN	0xff
 
-/*
- * capabilities of CPUs
- */
 extern struct cpuinfo_x86	boot_cpu_data;
 extern struct cpuinfo_x86	new_cpu_data;
 
@@ -236,17 +211,11 @@ static inline unsigned int native_cpuid_##reg(unsigned int op)	\
 	return reg;						\
 }
 
-/*
- * Native CPUID functions returning a single datum.
- */
 native_cpuid_reg(eax)
 native_cpuid_reg(ebx)
 native_cpuid_reg(ecx)
 native_cpuid_reg(edx)
 
-/*
- * Friendlier CR3 helpers.
- */
 static inline unsigned long read_cr3_pa(void)
 {
 	return __read_cr3() & CR3_ADDR_MASK;
@@ -262,13 +231,7 @@ static inline void load_cr3(pgd_t *pgdir)
 	write_cr3(__sme_pa(pgdir));
 }
 
-/*
- * Note that while the legacy 'TSS' name comes from 'Task State Segment',
- * on modern x86 CPUs the TSS also holds information important to 64-bit mode,
- * unrelated to the task-switch mechanism:
- */
 #ifdef CONFIG_X86_32
-/* This is the TSS defined by the hardware. */
 struct x86_hw_tss {
 	unsigned short		back_link, __blh;
 	unsigned long		sp0;
@@ -276,18 +239,6 @@ struct x86_hw_tss {
 	unsigned long		sp1;
 
 	/*
-	 * We don't use ring 1, so ss1 is a convenient scratch space in
-	 * the same cacheline as sp0.  We use ss1 to cache the value in
-	 * MSR_IA32_SYSENTER_CS.  When we context switch
-	 * MSR_IA32_SYSENTER_CS, we first check if the new value being
-	 * written matches ss1, and, if it's not, then we wrmsr the new
-	 * value and update ss1.
-	 *
-	 * The only reason we context switch MSR_IA32_SYSENTER_CS is
-	 * that we set it to zero in vm86 tasks to avoid corrupting the
-	 * stack if we were to go through the sysenter path from vm86
-	 * mode.
-	 */
 	unsigned short		ss1;	/* MSR_IA32_SYSENTER_CS */
 
 	unsigned short		__ss1h;
@@ -322,10 +273,6 @@ struct x86_hw_tss {
 	u64			sp1;
 
 	/*
-	 * Since Linux does not use ring 2, the 'sp2' slot is unused by
-	 * hardware.  entry_SYSCALL_64 uses it as scratch space to stash
-	 * the user RSP value.
-	 */
 	u64			sp2;
 
 	u64			reserved2;
@@ -338,9 +285,6 @@ struct x86_hw_tss {
 } __attribute__((packed));
 #endif
 
-/*
- * IO-bitmap sizes:
- */
 #define IO_BITMAP_BITS			65536
 #define IO_BITMAP_BYTES			(IO_BITMAP_BITS / BITS_PER_BYTE)
 #define IO_BITMAP_LONGS			(IO_BITMAP_BYTES / sizeof(long))
@@ -354,10 +298,6 @@ struct x86_hw_tss {
 	 offsetof(struct tss_struct, x86_tss))
 
 #ifdef CONFIG_X86_IOPL_IOPERM
-/*
- * sizeof(unsigned long) coming from an extra "long" at the end of the
- * iobitmap. The limit is inclusive, i.e. the last valid byte.
- */
 # define __KERNEL_TSS_LIMIT	\
 	(IO_BITMAP_OFFSET_VALID_ALL + IO_BITMAP_BYTES + \
 	 sizeof(unsigned long) - 1)
@@ -366,7 +306,6 @@ struct x86_hw_tss {
 	(offsetof(struct tss_struct, x86_tss) + sizeof(struct x86_hw_tss) - 1)
 #endif
 
-/* Base offset outside of TSS_LIMIT so unpriviledged IO causes #GP */
 #define IO_BITMAP_OFFSET_INVALID	(__KERNEL_TSS_LIMIT + 1)
 
 struct entry_stack {
@@ -377,43 +316,22 @@ struct entry_stack_page {
 	struct entry_stack stack;
 } __aligned(PAGE_SIZE);
 
-/*
- * All IO bitmap related data stored in the TSS:
- */
 struct x86_io_bitmap {
 	/* The sequence number of the last active bitmap. */
 	u64			prev_sequence;
 
 	/*
-	 * Store the dirty size of the last io bitmap offender. The next
-	 * one will have to do the cleanup as the switch out to a non io
-	 * bitmap user will just set x86_tss.io_bitmap_base to a value
-	 * outside of the TSS limit. So for sane tasks there is no need to
-	 * actually touch the io_bitmap at all.
-	 */
 	unsigned int		prev_max;
 
 	/*
-	 * The extra 1 is there because the CPU will access an
-	 * additional byte beyond the end of the IO permission
-	 * bitmap. The extra byte must be all 1 bits, and must
-	 * be within the limit.
-	 */
 	unsigned long		bitmap[IO_BITMAP_LONGS + 1];
 
 	/*
-	 * Special I/O bitmap to emulate IOPL(3). All bytes zero,
-	 * except the additional byte at the end.
-	 */
 	unsigned long		mapall[IO_BITMAP_LONGS + 1];
 };
 
 struct tss_struct {
 	/*
-	 * The fixed hardware portion.  This must not cross a page boundary
-	 * at risk of violating the SDM's advice and potentially triggering
-	 * errata.
-	 */
 	struct x86_hw_tss	x86_tss;
 
 	struct x86_io_bitmap	io_bitmap;
@@ -421,7 +339,6 @@ struct tss_struct {
 
 DECLARE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss_rw);
 
-/* Per CPU interrupt stacks */
 struct irq_stack {
 	char		stack[IRQ_STACK_SIZE];
 } __aligned(IRQ_STACK_SIZE);
@@ -431,13 +348,6 @@ DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);
 #ifdef CONFIG_X86_64
 struct fixed_percpu_data {
 	/*
-	 * GCC hardcodes the stack canary as %gs:40.  Since the
-	 * irq_stack is the object at %gs:0, we reserve the bottom
-	 * 48 bytes of the irq stack for the canary.
-	 *
-	 * Once we are willing to require -mstack-protector-guard-symbol=
-	 * support for x86_64 stackprotector, we can get rid of this.
-	 */
 	char		gs_base[40];
 	unsigned long	stack_canary;
 };
@@ -454,7 +364,6 @@ DECLARE_PER_CPU(void *, hardirq_stack_ptr);
 DECLARE_PER_CPU(bool, hardirq_stack_inuse);
 extern asmlinkage void ignore_sysret(void);
 
-/* Save actual FS/GS selectors and bases to current->thread */
 void current_save_fsgs(void);
 #else	/* X86_64 */
 #ifdef CONFIG_STACKPROTECTOR
@@ -487,9 +396,6 @@ struct thread_struct {
 	unsigned long		gsbase;
 #else
 	/*
-	 * XXX: this could presumably be unsigned short.  Alternatively,
-	 * 32-bit kernels could be taught to use fsindex instead.
-	 */
 	unsigned long fs;
 	unsigned long gs;
 #endif
@@ -512,30 +418,17 @@ struct thread_struct {
 	struct io_bitmap	*io_bitmap;
 
 	/*
-	 * IOPL. Privilege level dependent I/O permission which is
-	 * emulated via the I/O bitmap to prevent user space from disabling
-	 * interrupts.
-	 */
 	unsigned long		iopl_emul;
 
 	unsigned int		iopl_warn:1;
 	unsigned int		sig_on_uaccess_err:1;
 
 	/*
-	 * Protection Keys Register for Userspace.  Loaded immediately on
-	 * context switch. Store it in thread_struct to avoid a lookup in
-	 * the tasks's FPU xstate buffer. This value is only valid when a
-	 * task is scheduled out. For 'current' the authoritative source of
-	 * PKRU is the hardware itself.
-	 */
 	u32			pkru;
 
 	/* Floating point and extended processor state */
 	struct fpu		fpu;
 	/*
-	 * WARNING: 'fpu' is dynamically-sized.  It *MUST* be at
-	 * the end.
-	 */
 };
 
 extern void fpu_thread_struct_whitelist(unsigned long *offset, unsigned long *size);
@@ -562,10 +455,6 @@ static __always_inline void native_swapgs(void)
 static __always_inline unsigned long current_top_of_stack(void)
 {
 	/*
-	 *  We can't read directly from tss.sp0: sp0 on x86_32 is special in
-	 *  and around vm86 mode and sp0 on x86_64 is special because of the
-	 *  entry trampoline.
-	 */
 	return this_cpu_read_stable(cpu_current_top_of_stack);
 }
 
@@ -587,38 +476,24 @@ static inline void load_sp0(unsigned long sp0)
 
 #endif /* CONFIG_PARAVIRT_XXL */
 
-/* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
 
 unsigned long __get_wchan(struct task_struct *p);
 
-/*
- * Generic CPUID function
- * clear %ecx since some cpus (Cyrix MII) do not set or clear %ecx
- * resulting in stale register contents being returned.
- */
 static inline void cpuid(unsigned int op,
 			 unsigned int *eax, unsigned int *ebx,
 			 unsigned int *ecx, unsigned int *edx)
 {
-	*eax = op;
-	*ecx = 0;
 	__cpuid(eax, ebx, ecx, edx);
 }
 
-/* Some CPUID calls want 'count' to be placed in ecx */
 static inline void cpuid_count(unsigned int op, int count,
 			       unsigned int *eax, unsigned int *ebx,
 			       unsigned int *ecx, unsigned int *edx)
 {
-	*eax = op;
-	*ecx = count;
 	__cpuid(eax, ebx, ecx, edx);
 }
 
-/*
- * CPUID functions returning a single datum
- */
 static inline unsigned int cpuid_eax(unsigned int op)
 {
 	unsigned int eax, ebx, ecx, edx;
@@ -667,7 +542,6 @@ extern void enable_sep_cpu(void);
 extern int sysenter_setup(void);
 
 
-/* Defined in head.S */
 extern struct desc_ptr		early_gdt_descr;
 
 extern void switch_to_new_gdt(int);
@@ -703,7 +577,6 @@ static inline void update_debugctlmsr(unsigned long debugctlmsr)
 
 extern void set_task_blockstep(struct task_struct *task, bool on);
 
-/* Boot loader type from the setup header: */
 extern int			bootloader_type;
 extern int			bootloader_version;
 
@@ -720,12 +593,6 @@ extern char			ignore_fpu_irq;
 # define BASE_PREFETCH		"prefetcht0 %P1"
 #endif
 
-/*
- * Prefetch instructions for Pentium III (+) and AMD Athlon (+)
- *
- * It's not worth to care about 3dnow prefetches for the K6
- * because they are microcoded there and very slow.
- */
 static inline void prefetch(const void *x)
 {
 	alternative_input(BASE_PREFETCH, "prefetchnta %P1",
@@ -733,11 +600,6 @@ static inline void prefetch(const void *x)
 			  "m" (*(const char *)x));
 }
 
-/*
- * 3dnow prefetch to get an exclusive cache line.
- * Useful for spinlocks to avoid one state transition in the
- * cache coherency protocol:
- */
 static __always_inline void prefetchw(const void *x)
 {
 	alternative_input(BASE_PREFETCH, "prefetchw %P1",
@@ -780,16 +642,11 @@ extern unsigned long KSTK_ESP(struct task_struct *task);
 extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
 					       unsigned long new_sp);
 
-/*
- * This decides where the kernel will search for a free chunk of vm
- * space during mmap's.
- */
 #define __TASK_UNMAPPED_BASE(task_size)	(PAGE_ALIGN(task_size / 3))
 #define TASK_UNMAPPED_BASE		__TASK_UNMAPPED_BASE(TASK_SIZE_LOW)
 
 #define KSTK_EIP(task)		(task_pt_regs(task)->ip)
 
-/* Get/set a process' ability to use the timestamp counter instruction */
 #define GET_TSC_CTL(adr)	get_tsc_mode((adr))
 #define SET_TSC_CTL(val)	set_tsc_mode((val))
 

@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/* System call table for x32 ABI. */
 
 #include <linux/linkage.h>
 #include <linux/sys.h>

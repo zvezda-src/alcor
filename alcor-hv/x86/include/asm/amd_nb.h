@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_AMD_NB_H
 #define _ASM_X86_AMD_NB_H
 
@@ -38,15 +37,9 @@ struct threshold_block {
 	bool		 interrupt_capable;	/* Bank can generate an interrupt. */
 
 	u16		 threshold_limit;	/*
-						 * Value upon which threshold
-						 * interrupt is generated.
-						 */
 
 	struct kobject	 kobj;			/* sysfs object */
 	struct list_head miscj;			/*
-						 * List of threshold blocks
-						 * within a bank.
-						 */
 };
 
 struct threshold_bank {

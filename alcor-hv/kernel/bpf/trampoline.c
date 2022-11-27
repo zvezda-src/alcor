@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2019 Facebook */
 #include <linux/hash.h>
 #include <linux/bpf.h>
 #include <linux/filter.h>
@@ -15,19 +13,16 @@
 #include <linux/bpf_lsm.h>
 #include <linux/delay.h>
 
-/* dummy _ops. The verifier will operate on target program's ops. */
 const struct bpf_verifier_ops bpf_extension_verifier_ops = {
 };
 const struct bpf_prog_ops bpf_extension_prog_ops = {
 };
 
-/* btf_vmlinux has ~22k attachable functions. 1k htab is enough. */
 #define TRAMPOLINE_HASH_BITS 10
 #define TRAMPOLINE_TABLE_SIZE (1 << TRAMPOLINE_HASH_BITS)
 
 static struct hlist_head trampoline_table[TRAMPOLINE_TABLE_SIZE];
 
-/* serializes access to trampoline_table */
 static DEFINE_MUTEX(trampoline_mutex);
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
@@ -240,7 +235,6 @@ static int modify_fentry(struct bpf_trampoline *tr, void *old_addr, void *new_ad
 	return ret;
 }
 
-/* first time registering */
 static int register_fentry(struct bpf_trampoline *tr, void *new_addr)
 {
 	void *ip = tr->func.addr;
@@ -277,7 +271,6 @@ bpf_trampoline_get_progs(const struct bpf_trampoline *tr, int *total, bool *ip_a
 	struct bpf_tramp_link **links;
 	int kind;
 
-	*total = 0;
 	tlinks = kcalloc(BPF_TRAMP_MAX, sizeof(*tlinks), GFP_KERNEL);
 	if (!tlinks)
 		return ERR_PTR(-ENOMEM);
@@ -307,7 +300,6 @@ static void __bpf_tramp_image_put_deferred(struct work_struct *work)
 	kfree_rcu(im, rcu);
 }
 
-/* callback, fexit step 3 or fentry step 2 */
 static void __bpf_tramp_image_put_rcu(struct rcu_head *rcu)
 {
 	struct bpf_tramp_image *im;
@@ -317,7 +309,6 @@ static void __bpf_tramp_image_put_rcu(struct rcu_head *rcu)
 	schedule_work(&im->work);
 }
 
-/* callback, fexit step 2. Called after percpu_ref_kill confirms. */
 static void __bpf_tramp_image_release(struct percpu_ref *pcref)
 {
 	struct bpf_tramp_image *im;
@@ -326,7 +317,6 @@ static void __bpf_tramp_image_release(struct percpu_ref *pcref)
 	call_rcu_tasks(&im->rcu, __bpf_tramp_image_put_rcu);
 }
 
-/* callback, fexit or fentry step 1 */
 static void __bpf_tramp_image_put_rcu_tasks(struct rcu_head *rcu)
 {
 	struct bpf_tramp_image *im;
@@ -616,7 +606,6 @@ static int __bpf_trampoline_unlink_prog(struct bpf_tramp_link *link, struct bpf_
 	return bpf_trampoline_update(tr, true /* lock_direct_mutex */);
 }
 
-/* bpf_trampoline_unlink_prog() should never fail. */
 int bpf_trampoline_unlink_prog(struct bpf_tramp_link *link, struct bpf_trampoline *tr)
 {
 	int err;
@@ -871,19 +860,6 @@ static void notrace inc_misses_counter(struct bpf_prog *prog)
 	u64_stats_update_end_irqrestore(&stats->syncp, flags);
 }
 
-/* The logic is similar to bpf_prog_run(), but with an explicit
- * rcu_read_lock() and migrate_disable() which are required
- * for the trampoline. The macro is split into
- * call __bpf_prog_enter
- * call prog->bpf_func
- * call __bpf_prog_exit
- *
- * __bpf_prog_enter returns:
- * 0 - skip execution of the bpf prog
- * 1 - execute bpf prog
- * [2..MAX_U64] - execute bpf prog and record execution time.
- *     This is start time.
- */
 u64 notrace __bpf_prog_enter(struct bpf_prog *prog, struct bpf_tramp_run_ctx *run_ctx)
 	__acquires(RCU)
 {

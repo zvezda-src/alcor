@@ -1,10 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  fpu_tags.c                                                               |
  |                                                                           |
  |  Set FPU register tags.                                                   |
  |                                                                           |
- | Copyright (C) 1997                                                        |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
  |                  E-mail   billm@jacobi.maths.monash.edu.au                |
  |                                                                           |
@@ -87,7 +84,6 @@ int FPU_empty_i(int stnr)
 
 int FPU_stackoverflow(FPU_REG ** st_new_ptr)
 {
-	*st_new_ptr = &st(-1);
 
 	return ((fpu_tag_word >> (((top - 1) & 7) * 2)) & 3) != TAG_Empty;
 }

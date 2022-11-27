@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2011-2014 PLUMgrid, http://plumgrid.com
- * Copyright (c) 2016 Facebook
- * Copyright (c) 2018 Covalent IO, Inc. http://covalent.io
- */
 #include <uapi/linux/btf.h>
 #include <linux/bpf-cgroup.h>
 #include <linux/kernel.h>
@@ -37,132 +32,7 @@ static const struct bpf_verifier_ops * const bpf_verifier_ops[] = {
 #undef BPF_LINK_TYPE
 };
 
-/* bpf_check() is a static code analyzer that walks eBPF program
- * instruction by instruction and updates register/stack state.
- * All paths of conditional branches are analyzed until 'bpf_exit' insn.
- *
- * The first pass is depth-first-search to check that the program is a DAG.
- * It rejects the following programs:
- * - larger than BPF_MAXINSNS insns
- * - if loop is present (detected via back-edge)
- * - unreachable insns exist (shouldn't be a forest. program = one function)
- * - out of bounds or malformed jumps
- * The second pass is all possible path descent from the 1st insn.
- * Since it's analyzing all paths through the program, the length of the
- * analysis is limited to 64k insn, which may be hit even if total number of
- * insn is less then 4K, but there are too many branches that change stack/regs.
- * Number of 'branches to be analyzed' is limited to 1k
- *
- * On entry to each instruction, each register has a type, and the instruction
- * changes the types of the registers depending on instruction semantics.
- * If instruction is BPF_MOV64_REG(BPF_REG_1, BPF_REG_5), then type of R5 is
- * copied to R1.
- *
- * All registers are 64-bit.
- * R0 - return register
- * R1-R5 argument passing registers
- * R6-R9 callee saved registers
- * R10 - frame pointer read-only
- *
- * At the start of BPF program the register R1 contains a pointer to bpf_context
- * and has type PTR_TO_CTX.
- *
- * Verifier tracks arithmetic operations on pointers in case:
- *    BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
- *    BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, -20),
- * 1st insn copies R10 (which has FRAME_PTR) type into R1
- * and 2nd arithmetic instruction is pattern matched to recognize
- * that it wants to construct a pointer to some element within stack.
- * So after 2nd insn, the register R1 has type PTR_TO_STACK
- * (and -20 constant is saved for further stack bounds checking).
- * Meaning that this reg is a pointer to stack plus known immediate constant.
- *
- * Most of the time the registers have SCALAR_VALUE type, which
- * means the register has some value, but it's not a valid pointer.
- * (like pointer plus pointer becomes SCALAR_VALUE type)
- *
- * When verifier sees load or store instructions the type of base register
- * can be: PTR_TO_MAP_VALUE, PTR_TO_CTX, PTR_TO_STACK, PTR_TO_SOCKET. These are
- * four pointer types recognized by check_mem_access() function.
- *
- * PTR_TO_MAP_VALUE means that this register is pointing to 'map element value'
- * and the range of [ptr, ptr + map's value_size) is accessible.
- *
- * registers used to pass values to function calls are checked against
- * function argument constraints.
- *
- * ARG_PTR_TO_MAP_KEY is one of such argument constraints.
- * It means that the register type passed to this function must be
- * PTR_TO_STACK and it will be used inside the function as
- * 'pointer to map element key'
- *
- * For example the argument constraints for bpf_map_lookup_elem():
- *   .ret_type = RET_PTR_TO_MAP_VALUE_OR_NULL,
- *   .arg1_type = ARG_CONST_MAP_PTR,
- *   .arg2_type = ARG_PTR_TO_MAP_KEY,
- *
- * ret_type says that this function returns 'pointer to map elem value or null'
- * function expects 1st argument to be a const pointer to 'struct bpf_map' and
- * 2nd argument should be a pointer to stack, which will be used inside
- * the helper function as a pointer to map element key.
- *
- * On the kernel side the helper function looks like:
- * u64 bpf_map_lookup_elem(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
- * {
- *    struct bpf_map *map = (struct bpf_map *) (unsigned long) r1;
- *    void *key = (void *) (unsigned long) r2;
- *    void *value;
- *
- *    here kernel can access 'key' and 'map' pointers safely, knowing that
- *    [key, key + map->key_size) bytes are valid and were initialized on
- *    the stack of eBPF program.
- * }
- *
- * Corresponding eBPF program may look like:
- *    BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),  // after this insn R2 type is FRAME_PTR
- *    BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -4), // after this insn R2 type is PTR_TO_STACK
- *    BPF_LD_MAP_FD(BPF_REG_1, map_fd),      // after this insn R1 type is CONST_PTR_TO_MAP
- *    BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
- * here verifier looks at prototype of map_lookup_elem() and sees:
- * .arg1_type == ARG_CONST_MAP_PTR and R1->type == CONST_PTR_TO_MAP, which is ok,
- * Now verifier knows that this map has key of R1->map_ptr->key_size bytes
- *
- * Then .arg2_type == ARG_PTR_TO_MAP_KEY and R2->type == PTR_TO_STACK, ok so far,
- * Now verifier checks that [R2, R2 + map's key_size) are within stack limits
- * and were initialized prior to this call.
- * If it's ok, then verifier allows this BPF_CALL insn and looks at
- * .ret_type which is RET_PTR_TO_MAP_VALUE_OR_NULL, so it sets
- * R0->type = PTR_TO_MAP_VALUE_OR_NULL which means bpf_map_lookup_elem() function
- * returns either pointer to map value or NULL.
- *
- * When type PTR_TO_MAP_VALUE_OR_NULL passes through 'if (reg != 0) goto +off'
- * insn, the register holding that pointer in the true branch changes state to
- * PTR_TO_MAP_VALUE and the same register changes state to CONST_IMM in the false
- * branch. See check_cond_jmp_op().
- *
- * After the call R0 is set to return type of the function and registers R1-R5
- * are set to NOT_INIT to indicate that they are no longer readable.
- *
- * The following reference types represent a potential reference to a kernel
- * resource which, after first being allocated, must be checked and freed by
- * the BPF program:
- * - PTR_TO_SOCKET_OR_NULL, PTR_TO_SOCKET
- *
- * When the verifier sees a helper call return a reference type, it allocates a
- * pointer id for the reference and stores it in the current function state.
- * Similar to the way that PTR_TO_MAP_VALUE_OR_NULL is converted into
- * PTR_TO_MAP_VALUE, PTR_TO_SOCKET_OR_NULL becomes PTR_TO_SOCKET when the type
- * passes through a NULL-check conditional. For the branch wherein the state is
- * changed to CONST_IMM, the verifier releases the reference.
- *
- * For each helper function that allocates a reference, such as
- * bpf_sk_lookup_tcp(), there is a corresponding release function, such as
- * bpf_sk_release(). When a reference type passes into the release function,
- * the verifier also releases the reference. If any unchecked or unreleased
- * reference remains at the end of the program, the verifier rejects it.
- */
 
-/* verifier_state + insn_idx are pushed to stack when branch is encountered */
 struct bpf_verifier_stack_elem {
 	/* verifer state is 'st'
 	 * before processing instruction 'insn_idx'
@@ -327,10 +197,6 @@ static void bpf_vlog_reset(struct bpf_verifier_log *log, u32 new_pos)
 		log->ubuf = NULL;
 }
 
-/* log_level controls verbosity level of eBPF verifier.
- * bpf_verifier_log_write() is used to dump the verification trace to the log,
- * so the user can figure out what's wrong with the program
- */
 __printf(2, 3) void bpf_verifier_log_write(struct bpf_verifier_env *env,
 					   const char *fmt, ...)
 {
@@ -525,11 +391,6 @@ static bool is_cmpxchg_insn(const struct bpf_insn *insn)
 	       insn->imm == BPF_CMPXCHG;
 }
 
-/* string representation of 'enum bpf_reg_type'
- *
- * Note that reg_type_str() can not appear more than once in a single verbose()
- * statement.
- */
 static const char *reg_type_str(struct bpf_verifier_env *env,
 				enum bpf_reg_type type)
 {
@@ -664,7 +525,6 @@ static void mark_verifier_state_clean(struct bpf_verifier_env *env)
 	env->scratched_stack_slots = 0ULL;
 }
 
-/* Used for printing the entire verifier state. */
 static void mark_verifier_state_scratched(struct bpf_verifier_env *env)
 {
 	env->scratched_regs = ~0U;
@@ -797,9 +657,6 @@ static bool is_dynptr_reg_valid_init(struct bpf_verifier_env *env, struct bpf_re
 	return state->stack[spi].spilled_ptr.dynptr.type == arg_to_dynptr_type(arg_type);
 }
 
-/* The reg state of a pointer or a bounded scalar was saved when
- * it was spilled to the stack.
- */
 static bool is_spilled_reg(const struct bpf_stack_state *stack)
 {
 	return stack->slot_type[BPF_REG_SIZE - 1] == STACK_SPILL;
@@ -845,10 +702,6 @@ static void print_verifier_state(struct bpf_verifier_env *env,
 			if (base_type(t) == PTR_TO_BTF_ID)
 				verbose(env, "%s", kernel_type_name(reg->btf, reg->btf_id));
 			verbose(env, "(");
-/*
- * _a stands for append, was shortened to avoid multiline statements below.
- * This macro is used to output a comma separated list of attributes.
- */
 #define verbose_a(fmt, ...) ({ verbose(env, "%s" fmt, sep, __VA_ARGS__); sep = ","; })
 
 			if (reg->id)
@@ -969,13 +822,6 @@ static void print_insn_state(struct bpf_verifier_env *env,
 	print_verifier_state(env, state, false);
 }
 
-/* copy array src of length n * size bytes to dst. dst is reallocated if it's too
- * small to hold src. This is different from krealloc since we don't want to preserve
- * the contents of dst.
- *
- * Leaves dst untouched if src is NULL or length is zero. Returns NULL if memory could
- * not be allocated.
- */
 static void *copy_array(void *dst, const void *src, size_t n, size_t size, gfp_t flags)
 {
 	size_t bytes;
@@ -998,11 +844,6 @@ out:
 	return dst ? dst : ZERO_SIZE_PTR;
 }
 
-/* resize an array from old_n items to new_n items. the array is reallocated if it's too
- * small to hold new_n items. new items are zeroed out if the array grows.
- *
- * Contrary to krealloc_array, does not free arr if new_n is zero.
- */
 static void *realloc_array(void *arr, size_t old_n, size_t new_n, size_t size)
 {
 	if (!new_n || old_n == new_n)
@@ -1069,11 +910,6 @@ static int grow_stack_state(struct bpf_func_state *state, int size)
 	return 0;
 }
 
-/* Acquire a pointer id from the env and update the state->refs to include
- * this new pointer reference.
- * On success, returns a valid pointer id to associate with the register
- * On failure, returns a negative errno.
- */
 static int acquire_reference_state(struct bpf_verifier_env *env, int insn_idx)
 {
 	struct bpf_func_state *state = cur_func(env);
@@ -1090,7 +926,6 @@ static int acquire_reference_state(struct bpf_verifier_env *env, int insn_idx)
 	return id;
 }
 
-/* release function corresponding to acquire_reference_state(). Idempotent. */
 static int release_reference_state(struct bpf_func_state *state, int ptr_id)
 {
 	int i, last_idx;
@@ -1139,9 +974,6 @@ static void free_verifier_state(struct bpf_verifier_state *state,
 		kfree(state);
 }
 
-/* copy verifier state from src to dst growing dst stack space
- * when necessary to accommodate larger src stack
- */
 static int copy_func_state(struct bpf_func_state *dst,
 			   const struct bpf_func_state *src)
 {
@@ -1296,7 +1128,6 @@ static const int caller_saved[CALLER_SAVED_REGS] = {
 static void __mark_reg_not_init(const struct bpf_verifier_env *env,
 				struct bpf_reg_state *reg);
 
-/* This helper doesn't clear reg->id */
 static void ___mark_reg_known(struct bpf_reg_state *reg, u64 imm)
 {
 	reg->var_off = tnum_const(imm);
@@ -1311,9 +1142,6 @@ static void ___mark_reg_known(struct bpf_reg_state *reg, u64 imm)
 	reg->u32_max_value = (u32)imm;
 }
 
-/* Mark the unknown part of a register (variable offset or scalar value) as
- * known to have the value @imm.
- */
 static void __mark_reg_known(struct bpf_reg_state *reg, u64 imm)
 {
 	/* Clear id, off, and union(map_ptr, range) */
@@ -1331,9 +1159,6 @@ static void __mark_reg32_known(struct bpf_reg_state *reg, u64 imm)
 	reg->u32_max_value = (u32)imm;
 }
 
-/* Mark the 'variable offset' part of a register as zero.  This should be
- * used only on registers holding a pointer type.
- */
 static void __mark_reg_known_zero(struct bpf_reg_state *reg)
 {
 	__mark_reg_known(reg, 0);
@@ -1396,7 +1221,6 @@ static bool reg_is_pkt_pointer_any(const struct bpf_reg_state *reg)
 	       reg->type == PTR_TO_PACKET_END;
 }
 
-/* Unmodified PTR_TO_PACKET[_META,_END] register from ctx access. */
 static bool reg_is_init_pkt_pointer(const struct bpf_reg_state *reg,
 				    enum bpf_reg_type which)
 {
@@ -1410,7 +1234,6 @@ static bool reg_is_init_pkt_pointer(const struct bpf_reg_state *reg,
 	       tnum_equals_const(reg->var_off, 0);
 }
 
-/* Reset the min/max bounds of a register */
 static void __mark_reg_unbounded(struct bpf_reg_state *reg)
 {
 	reg->smin_value = S64_MIN;
@@ -1474,7 +1297,6 @@ static void __update_reg_bounds(struct bpf_reg_state *reg)
 	__update_reg64_bounds(reg);
 }
 
-/* Uses signed min/max values to inform unsigned, and vice-versa */
 static void __reg32_deduce_bounds(struct bpf_reg_state *reg)
 {
 	/* Learn sign from signed bounds.
@@ -1549,7 +1371,6 @@ static void __reg_deduce_bounds(struct bpf_reg_state *reg)
 	__reg64_deduce_bounds(reg);
 }
 
-/* Attempts to improve var_off based on unsigned min/max information */
 static void __reg_bound_offset(struct bpf_reg_state *reg)
 {
 	struct tnum var64_off = tnum_intersect(reg->var_off,
@@ -1646,14 +1467,10 @@ static void __reg_combine_64_into_32(struct bpf_reg_state *reg)
 	reg_bounds_sync(reg);
 }
 
-/* Mark a register as having a completely unknown (scalar) value. */
 static void __mark_reg_unknown(const struct bpf_verifier_env *env,
 			       struct bpf_reg_state *reg)
 {
 	/*
-	 * Clear type, id, off, and union(map_ptr, range) and
-	 * padding between 'type' and union
-	 */
 	memset(reg, 0, offsetof(struct bpf_reg_state, var_off));
 	reg->type = SCALAR_VALUE;
 	reg->var_off = tnum_unknown;
@@ -1743,7 +1560,6 @@ static void init_func_state(struct bpf_verifier_env *env,
 	mark_verifier_state_scratched(env);
 }
 
-/* Similar to push_stack(), but for async callbacks */
 static struct bpf_verifier_state *push_async_cb(struct bpf_verifier_env *env,
 						int insn_idx, int prev_insn_idx,
 						int subprog)
@@ -2233,9 +2049,6 @@ next:
 	return 0;
 }
 
-/* Parentage chain of this register (or stack slot) should take care of all
- * issues like callee-saved registers, stack slot allocation time, etc.
- */
 static int mark_reg_read(struct bpf_verifier_env *env,
 			 const struct bpf_reg_state *state,
 			 struct bpf_reg_state *parent, u8 flag)
@@ -2284,10 +2097,6 @@ static int mark_reg_read(struct bpf_verifier_env *env,
 	return 0;
 }
 
-/* This function is supposed to be used by the following 32-bit optimization
- * code only. It returns TRUE if the source or destination register operates
- * on 64-bit, otherwise return FALSE.
- */
 static bool is_reg64(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		     u32 regno, struct bpf_reg_state *reg, enum reg_arg_type t)
 {
@@ -2372,7 +2181,6 @@ static bool is_reg64(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	return true;
 }
 
-/* Return the regno defined by the insn, or -1. */
 static int insn_def_regno(const struct bpf_insn *insn)
 {
 	switch (BPF_CLASS(insn->code)) {
@@ -2395,7 +2203,6 @@ static int insn_def_regno(const struct bpf_insn *insn)
 	}
 }
 
-/* Return TRUE if INSN has defined any 32-bit value explicitly. */
 static bool insn_has_def32(struct bpf_verifier_env *env, struct bpf_insn *insn)
 {
 	int dst_reg = insn_def_regno(insn);
@@ -2466,7 +2273,6 @@ static int check_reg_arg(struct bpf_verifier_env *env, u32 regno,
 	return 0;
 }
 
-/* for any branch, call, exit record the history of jmps in the given state */
 static int push_jmp_history(struct bpf_verifier_env *env,
 			    struct bpf_verifier_state *cur)
 {
@@ -2484,9 +2290,6 @@ static int push_jmp_history(struct bpf_verifier_env *env,
 	return 0;
 }
 
-/* Backtrack one insn at a time. If idx is not at the top of recorded
- * history then previous instruction came from straight line execution.
- */
 static int get_prev_insn_idx(struct bpf_verifier_state *st, int i,
 			     u32 *history)
 {
@@ -2517,10 +2320,6 @@ static const char *disasm_kfunc_name(void *data, const struct bpf_insn *insn)
 	return btf_name_by_offset(desc_btf, func->name_off);
 }
 
-/* For given verifier state backtrack_insn() is called from the last insn to
- * the first insn. Its purpose is to compute a bitmask of registers and
- * stack slots that needs precision in the parent verifier state.
- */
 static int backtrack_insn(struct bpf_verifier_env *env, int idx,
 			  u32 *reg_mask, u64 *stack_mask)
 {
@@ -2654,58 +2453,6 @@ static int backtrack_insn(struct bpf_verifier_env *env, int idx,
 	return 0;
 }
 
-/* the scalar precision tracking algorithm:
- * . at the start all registers have precise=false.
- * . scalar ranges are tracked as normal through alu and jmp insns.
- * . once precise value of the scalar register is used in:
- *   .  ptr + scalar alu
- *   . if (scalar cond K|scalar)
- *   .  helper_call(.., scalar, ...) where ARG_CONST is expected
- *   backtrack through the verifier states and mark all registers and
- *   stack slots with spilled constants that these scalar regisers
- *   should be precise.
- * . during state pruning two registers (or spilled stack slots)
- *   are equivalent if both are not precise.
- *
- * Note the verifier cannot simply walk register parentage chain,
- * since many different registers and stack slots could have been
- * used to compute single precise scalar.
- *
- * The approach of starting with precise=true for all registers and then
- * backtrack to mark a register as not precise when the verifier detects
- * that program doesn't care about specific value (e.g., when helper
- * takes register as ARG_ANYTHING parameter) is not safe.
- *
- * It's ok to walk single parentage chain of the verifier states.
- * It's possible that this backtracking will go all the way till 1st insn.
- * All other branches will be explored for needing precision later.
- *
- * The backtracking needs to deal with cases like:
- *   R8=map_value(id=0,off=0,ks=4,vs=1952,imm=0) R9_w=map_value(id=0,off=40,ks=4,vs=1952,imm=0)
- * r9 -= r8
- * r5 = r9
- * if r5 > 0x79f goto pc+7
- *    R5_w=inv(id=0,umax_value=1951,var_off=(0x0; 0x7ff))
- * r5 += 1
- * ...
- * call bpf_perf_event_output#25
- *   where .arg5_type = ARG_CONST_SIZE_OR_ZERO
- *
- * and this case:
- * r6 = 1
- * call foo // uses callee's r6 inside to compute r0
- * r0 += r6
- * if r0 == 0 goto
- *
- * to track above reg_mask/stack_mask needs to be independent for each frame.
- *
- * Also if parent's curframe > frame where backtracking started,
- * the verifier need to mark registers in both frames, otherwise callees
- * may incorrectly prune callers. This is similar to
- * commit 7640ead93924 ("bpf: verifier: make sure callees don't prune with caller differences")
- *
- * For now backtracking falls back into conservative marking.
- */
 static void mark_all_scalars_precise(struct bpf_verifier_env *env,
 				     struct bpf_verifier_state *st)
 {
@@ -2934,7 +2681,6 @@ static bool is_spillable_regtype(enum bpf_reg_type type)
 	}
 }
 
-/* Does this register contain a constant zero? */
 static bool register_is_null(struct bpf_reg_state *reg)
 {
 	return reg->type == SCALAR_VALUE && tnum_equals_const(reg->var_off, 0);
@@ -2986,9 +2732,6 @@ static void save_register_state(struct bpf_func_state *state,
 		scrub_spilled_slot(&state->stack[spi].slot_type[i - 1]);
 }
 
-/* check_stack_{read,write}_fixed_off functions track spill/fill of registers,
- * stack boundary and alignment are checked in check_mem_access()
- */
 static int check_stack_write_fixed_off(struct bpf_verifier_env *env,
 				       /* stack frame we're writing to */
 				       struct bpf_func_state *state,
@@ -3095,25 +2838,6 @@ static int check_stack_write_fixed_off(struct bpf_verifier_env *env,
 	return 0;
 }
 
-/* Write the stack: 'stack[ptr_regno + off] = value_regno'. 'ptr_regno' is
- * known to contain a variable offset.
- * This function checks whether the write is permitted and conservatively
- * tracks the effects of the write, considering that each stack slot in the
- * dynamic range is potentially written to.
- *
- * 'off' includes 'regno->off'.
- * 'value_regno' can be -1, meaning that an unknown value is being written to
- * the stack.
- *
- * Spilled pointers in range are not marked as written because we don't know
- * what's going to be actually written. This means that read propagation for
- * future reads cannot be terminated by this write.
- *
- * For privileged programs, uninitialized stack slots are considered
- * initialized by this write (even though we don't know exactly what offsets
- * are going to be written to). The idea is that we don't want the verifier to
- * reject future reads that access slots written to through variable offsets.
- */
 static int check_stack_write_var_off(struct bpf_verifier_env *env,
 				     /* func where register points to */
 				     struct bpf_func_state *state,
@@ -3201,14 +2925,6 @@ static int check_stack_write_var_off(struct bpf_verifier_env *env,
 	return 0;
 }
 
-/* When register 'dst_regno' is assigned some values from stack[min_off,
- * max_off), we set the register's type according to the types of the
- * respective stack slots. If all the stack values are known to be zeros, then
- * so is the destination reg. Otherwise, the register is considered to be
- * SCALAR. This function does not deal with register filling; the caller must
- * ensure that all spilled registers in the stack range have been marked as
- * read.
- */
 static void mark_reg_stack_read(struct bpf_verifier_env *env,
 				/* func where src register points to */
 				struct bpf_func_state *ptr_state,
@@ -3251,15 +2967,6 @@ static void mark_reg_stack_read(struct bpf_verifier_env *env,
 	state->regs[dst_regno].live |= REG_LIVE_WRITTEN;
 }
 
-/* Read the stack at 'off' and put the results into the register indicated by
- * 'dst_regno'. It handles reg filling if the addressed stack slot is a
- * spilled reg.
- *
- * 'dst_regno' can be -1, meaning that the read value is not going to a
- * register.
- *
- * The access is assumed to be within the current stack bounds.
- */
 static int check_stack_read_fixed_off(struct bpf_verifier_env *env,
 				      /* func where src register points to */
 				      struct bpf_func_state *reg_state,
@@ -3370,19 +3077,6 @@ static struct bpf_reg_state *reg_state(struct bpf_verifier_env *env, int regno)
 	return cur_regs(env) + regno;
 }
 
-/* Read the stack at 'ptr_regno + off' and put the result into the register
- * 'dst_regno'.
- * 'off' includes the pointer register's fixed offset(i.e. 'ptr_regno.off'),
- * but not its variable offset.
- * 'size' is assumed to be <= reg size and the access is assumed to be aligned.
- *
- * As opposed to check_stack_read_fixed_off, this function doesn't deal with
- * filling registers (i.e. reads of spilled register cannot be detected when
- * the offset is not fixed). We conservatively mark 'dst_regno' as containing
- * SCALAR_VALUE. That's why we assert that the 'ptr_regno' has a variable
- * offset; for a fixed offset check_stack_read_fixed_off should be used
- * instead.
- */
 static int check_stack_read_var_off(struct bpf_verifier_env *env,
 				    int ptr_regno, int off, int size, int dst_regno)
 {
@@ -3405,15 +3099,6 @@ static int check_stack_read_var_off(struct bpf_verifier_env *env,
 	return 0;
 }
 
-/* check_stack_read dispatches to check_stack_read_fixed_off or
- * check_stack_read_var_off.
- *
- * The caller must ensure that the offset falls within the allocated stack
- * bounds.
- *
- * 'dst_regno' is a register which will receive the value from the stack. It
- * can be -1, meaning that the read value is not going to a register.
- */
 static int check_stack_read(struct bpf_verifier_env *env,
 			    int ptr_regno, int off, int size,
 			    int dst_regno)
@@ -3465,16 +3150,6 @@ static int check_stack_read(struct bpf_verifier_env *env,
 }
 
 
-/* check_stack_write dispatches to check_stack_write_fixed_off or
- * check_stack_write_var_off.
- *
- * 'ptr_regno' is the register used as a pointer into the stack.
- * 'off' includes 'ptr_regno->off', but not its variable offset (if any).
- * 'value_regno' is the register whose value we're writing to the stack. It can
- * be -1, meaning that we're not writing from a register.
- *
- * The caller must ensure that the offset falls within the maximum stack size.
- */
 static int check_stack_write(struct bpf_verifier_env *env,
 			     int ptr_regno, int off, int size,
 			     int value_regno, int insn_idx)
@@ -3520,7 +3195,6 @@ static int check_map_access_type(struct bpf_verifier_env *env, u32 regno,
 	return 0;
 }
 
-/* check read/write into memory region (e.g., map value, ringbuf sample, etc) */
 static int __check_mem_access(struct bpf_verifier_env *env, int regno,
 			      int off, int size, u32 mem_size,
 			      bool zero_size_allowed)
@@ -3556,7 +3230,6 @@ static int __check_mem_access(struct bpf_verifier_env *env, int regno,
 	return -EACCES;
 }
 
-/* check read/write into a memory region with possible variable offset */
 static int check_mem_region_access(struct bpf_verifier_env *env, u32 regno,
 				   int off, int size, u32 mem_size,
 				   bool zero_size_allowed)
@@ -3777,7 +3450,6 @@ static int check_map_kptr_access(struct bpf_verifier_env *env, u32 regno,
 	return 0;
 }
 
-/* check read/write into a map element with possible variable offset */
 static int check_map_access(struct bpf_verifier_env *env, u32 regno,
 			    int off, int size, bool zero_size_allowed,
 			    enum bpf_access_src src)
@@ -3935,7 +3607,6 @@ static int check_packet_access(struct bpf_verifier_env *env, u32 regno, int off,
 	return err;
 }
 
-/* check access to 'struct bpf_context' fields.  Supports fixed offsets only */
 static int check_ctx_access(struct bpf_verifier_env *env, int insn_idx, int off, int size,
 			    enum bpf_access_type t, enum bpf_reg_type *reg_type,
 			    struct btf **btf, u32 *btf_id)
@@ -4189,12 +3860,6 @@ static int update_stack_depth(struct bpf_verifier_env *env,
 	return 0;
 }
 
-/* starting from main bpf function walk all instructions of the function
- * and recursively walk all callees that given function can call.
- * Ignore jump and exit insns.
- * Since recursion is prevented by check_cfg() this algorithm
- * only needs a local stack of MAX_CALL_FRAMES to remember callsites
- */
 static int check_max_stack_depth(struct bpf_verifier_env *env)
 {
 	int depth = 0, frame = 0, idx = 0, i = 0, subprog_end;
@@ -4378,16 +4043,12 @@ static int check_buffer_access(struct bpf_verifier_env *env,
 	return 0;
 }
 
-/* BPF architecture zero extends alu32 ops into 64-bit registesr */
 static void zext_32_to_64(struct bpf_reg_state *reg)
 {
 	reg->var_off = tnum_subreg(reg->var_off);
 	__reg_assign_32_into_64(reg);
 }
 
-/* truncate register to smaller size (in bytes)
- * must be called with size < BPF_REG_SIZE
- */
 static void coerce_reg_to_size(struct bpf_reg_state *reg, int size)
 {
 	u64 mask;
@@ -4593,12 +4254,6 @@ static int check_ptr_to_map_access(struct bpf_verifier_env *env,
 	return 0;
 }
 
-/* Check that the stack access at the given offset is within bounds. The
- * maximum valid offset is -1.
- *
- * The minimum valid offset is -MAX_BPF_STACK for writes, and
- * -state->allocated_stack for reads.
- */
 static int check_stack_slot_within_bounds(int off,
 					  struct bpf_func_state *state,
 					  enum bpf_access_type t)
@@ -4615,11 +4270,6 @@ static int check_stack_slot_within_bounds(int off,
 	return 0;
 }
 
-/* Check that the stack access at 'regno + off' falls within the maximum stack
- * bounds.
- *
- * 'off' includes `regno->offset`, but not its dynamic part (if any).
- */
 static int check_stack_access_within_bounds(
 		struct bpf_verifier_env *env,
 		int regno, int off, int access_size,
@@ -4679,12 +4329,6 @@ static int check_stack_access_within_bounds(
 	return err;
 }
 
-/* check whether memory at (regno + off) is accessible for t = (read | write)
- * if t==write, value_regno is a register which value is stored into memory
- * if t==read, value_regno is a register which will receive the value from memory
- * if t==write && value_regno==-1, some unknown value is stored into memory
- * if t==read && value_regno==-1, don't care what we read from memory
- */
 static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regno,
 			    int off, int bpf_size, enum bpf_access_type t,
 			    int value_regno, bool strict_alignment_once)
@@ -5029,15 +4673,6 @@ static int check_atomic(struct bpf_verifier_env *env, int insn_idx, struct bpf_i
 	return 0;
 }
 
-/* When register 'regno' is used to read the stack (either directly or through
- * a helper function) make sure that it's within stack boundary and, depending
- * on the access type, that all elements of the stack are initialized.
- *
- * 'off' includes 'regno->off', but not its dynamic part (if any).
- *
- * All registers that have been spilled on the stack in the slots within the
- * read offsets are marked as read.
- */
 static int check_stack_range_initialized(
 		struct bpf_verifier_env *env, int regno, int off,
 		int access_size, bool zero_size_allowed,
@@ -5351,25 +4986,6 @@ int check_kfunc_mem_size_reg(struct bpf_verifier_env *env, struct bpf_reg_state 
 	return err;
 }
 
-/* Implementation details:
- * bpf_map_lookup returns PTR_TO_MAP_VALUE_OR_NULL
- * Two bpf_map_lookups (even with the same key) will have different reg->id.
- * For traditional PTR_TO_MAP_VALUE the verifier clears reg->id after
- * value_or_null->value transition, since the verifier only cares about
- * the range of access to valid map value pointer and doesn't care about actual
- * address of the map element.
- * For maps with 'struct bpf_spin_lock' inside map value the verifier keeps
- * reg->id > 0 after value_or_null->value transition. By doing so
- * two bpf_map_lookups will be considered two different pointers that
- * point to different bpf_spin_locks.
- * The verifier allows taking only one bpf_spin_lock at a time to avoid
- * dead-locks.
- * Since only one bpf_spin_lock is allowed the checks are simpler than
- * reg_is_refcounted() logic. The verifier needs to remember only
- * one spin_lock instead of array of acquired_refs.
- * cur_state->active_spin_lock remembers which map value element got locked
- * and clears it after bpf_spin_unlock.
- */
 static int process_spin_lock(struct bpf_verifier_env *env, int regno,
 			     bool is_lock)
 {
@@ -6507,9 +6123,6 @@ static int check_func_proto(const struct bpf_func_proto *fn, int func_id,
 	       check_refcount_ok(fn, func_id) ? 0 : -EINVAL;
 }
 
-/* Packet data might have moved, any old PTR_TO_PACKET[_META,_END]
- * are now invalid, so turn them into unknown SCALAR_VALUE.
- */
 static void __clear_all_pkt_pointers(struct bpf_verifier_env *env,
 				     struct bpf_func_state *state)
 {
@@ -6582,9 +6195,6 @@ static void release_reg_references(struct bpf_verifier_env *env,
 	}
 }
 
-/* The pointer with the specified id has released its reference to kernel
- * resources. Identify all copies of the same pointer and clear the reference.
- */
 static int release_reference(struct bpf_verifier_env *env,
 			     int ref_obj_id)
 {
@@ -6725,7 +6335,6 @@ static int __check_func_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 	state->curframe++;
 
 	/* and go analyze first insn of the callee */
-	*insn_idx = env->subprog_info[subprog].start - 1;
 
 	if (env->log.level & BPF_LOG_LEVEL) {
 		verbose(env, "caller:\n");
@@ -6943,7 +6552,6 @@ static int prepare_func_exit(struct bpf_verifier_env *env, int *insn_idx)
 	if (err)
 		return err;
 
-	*insn_idx = callee->callsite + 1;
 	if (env->log.level & BPF_LOG_LEVEL) {
 		verbose(env, "returning from callee:\n");
 		print_verifier_state(env, callee, true);
@@ -7528,9 +7136,6 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 	return 0;
 }
 
-/* mark_btf_func_reg_size() is used when the reg size is determined by
- * the BTF func_proto's return value size and argument.
- */
 static void mark_btf_func_reg_size(struct bpf_verifier_env *env, u32 regno,
 				   size_t reg_size)
 {
@@ -7773,7 +7378,6 @@ static int retrieve_ptr_limit(const struct bpf_reg_state *ptr_reg,
 
 	if (ptr_limit >= max)
 		return REASON_LIMIT;
-	*alu_limit = ptr_limit;
 	return 0;
 }
 
@@ -7990,16 +7594,6 @@ static int sanitize_err(struct bpf_verifier_env *env,
 	return -EACCES;
 }
 
-/* check that stack access falls within stack limits and that 'reg' doesn't
- * have a variable offset.
- *
- * Variable offset is prohibited for unprivileged mode for simplicity since it
- * requires corresponding support in Spectre masking for stack ALU.  See also
- * retrieve_ptr_limit().
- *
- *
- * 'off' includes 'reg->off'.
- */
 static int check_stack_access_for_ptr_arithmetic(
 				struct bpf_verifier_env *env,
 				int regno,
@@ -8056,11 +7650,6 @@ static int sanitize_check_bounds(struct bpf_verifier_env *env,
 	return 0;
 }
 
-/* Handles arithmetic on a pointer and a scalar: computes new min/max and var_off.
- * Caller should also handle BPF_MOV case separately.
- * If we return -EACCES, caller may want to try again treating pointer as a
- * scalar.  So we only emit a diagnostic if !env->allow_ptr_leaks.
- */
 static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 				   struct bpf_insn *insn,
 				   const struct bpf_reg_state *ptr_reg,
@@ -8854,10 +8443,6 @@ static void scalar_min_max_arsh(struct bpf_reg_state *dst_reg,
 	__update_reg_bounds(dst_reg);
 }
 
-/* WARNING: This function does calculations on 64-bit values, but the actual
- * execution may occur on 32-bit values. Therefore, things like bitshifts
- * need extra checks in the 32-bit case.
- */
 static int adjust_scalar_min_max_vals(struct bpf_verifier_env *env,
 				      struct bpf_insn *insn,
 				      struct bpf_reg_state *dst_reg,
@@ -9016,9 +8601,6 @@ static int adjust_scalar_min_max_vals(struct bpf_verifier_env *env,
 	return 0;
 }
 
-/* Handles ALU ops other than BPF_END, BPF_NEG and BPF_MOV: computes new min/max
- * and var_off.
- */
 static int adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 				   struct bpf_insn *insn)
 {
@@ -9099,7 +8681,6 @@ static int adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 	return adjust_scalar_min_max_vals(env, insn, dst_reg, *src_reg);
 }
 
-/* check validity of 32-bit and 64-bit arithmetic operations */
 static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 {
 	struct bpf_reg_state *regs = cur_regs(env);
@@ -9516,13 +9097,6 @@ static int is_branch64_taken(struct bpf_reg_state *reg, u64 val, u8 opcode)
 	return -1;
 }
 
-/* compute branch direction of the expression "if (reg opcode val) goto target;"
- * and return:
- *  1 - branch will be taken and "goto target" will be executed
- *  0 - branch will not be taken and fall-through to next insn
- * -1 - unknown. Example: "if (reg < 5)" is unknown when register value
- *      range [0,10]
- */
 static int is_branch_taken(struct bpf_reg_state *reg, u64 val, u8 opcode,
 			   bool is_jmp32)
 {
@@ -9612,11 +9186,6 @@ static int is_pkt_ptr_branch_taken(struct bpf_reg_state *dst_reg,
 	return -1;
 }
 
-/* Adjusts the register min/max values in the case that the dst_reg is the
- * variable register that we are working on, and src_reg is a constant or we're
- * simply doing a BPF_K check.
- * In JEQ/JNE cases we also adjust the var_off values.
- */
 static void reg_set_min_max(struct bpf_reg_state *true_reg,
 			    struct bpf_reg_state *false_reg,
 			    u64 val, u32 val32,
@@ -9774,9 +9343,6 @@ static void reg_set_min_max(struct bpf_reg_state *true_reg,
 	}
 }
 
-/* Same as above, but for the case that dst_reg holds a constant and src_reg is
- * the variable reg.
- */
 static void reg_set_min_max_inv(struct bpf_reg_state *true_reg,
 				struct bpf_reg_state *false_reg,
 				u64 val, u32 val32,
@@ -9790,7 +9356,6 @@ static void reg_set_min_max_inv(struct bpf_reg_state *true_reg,
 		reg_set_min_max(true_reg, false_reg, val, val32, opcode, is_jmp32);
 }
 
-/* Regs are known to be equal, so intersect their min/max/var_off */
 static void __reg_combine_min_max(struct bpf_reg_state *src_reg,
 				  struct bpf_reg_state *dst_reg)
 {
@@ -9882,9 +9447,6 @@ static void __mark_ptr_or_null_regs(struct bpf_func_state *state, u32 id,
 	}
 }
 
-/* The logic is similar to find_good_pkt_pointers(), both could eventually
- * be folded together at some point.
- */
 static void mark_ptr_or_null_regs(struct bpf_verifier_state *vstate, u32 regno,
 				  bool is_null)
 {
@@ -10226,7 +9788,6 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 	return 0;
 }
 
-/* verify BPF_LD_IMM64 instruction */
 static int check_ld_imm(struct bpf_verifier_env *env, struct bpf_insn *insn)
 {
 	struct bpf_insn_aux_data *aux = cur_aux(env);
@@ -10331,21 +9892,6 @@ static bool may_access_skb(enum bpf_prog_type type)
 	}
 }
 
-/* verify safety of LD_ABS|LD_IND instructions:
- * - they can only appear in the programs where ctx == skb
- * - since they are wrappers of function calls, they scratch R1-R5 registers,
- *   preserve R6-R9, and store return value into R0
- *
- * Implicit input:
- *   ctx == skb == R6 == CTX
- *
- * Explicit input:
- *   SRC == any register
- *   IMM == 32-bit immediate
- *
- * Output:
- *   R0 - 8/16/32-bit skb data converted to cpu endianness
- */
 static int check_ld_abs(struct bpf_verifier_env *env, struct bpf_insn *insn)
 {
 	struct bpf_reg_state *regs = cur_regs(env);
@@ -10585,38 +10131,6 @@ static int check_return_code(struct bpf_verifier_env *env)
 	return 0;
 }
 
-/* non-recursive DFS pseudo code
- * 1  procedure DFS-iterative(G,v):
- * 2      label v as discovered
- * 3      let S be a stack
- * 4      S.push(v)
- * 5      while S is not empty
- * 6            t <- S.pop()
- * 7            if t is what we're looking for:
- * 8                return t
- * 9            for all edges e in G.adjacentEdges(t) do
- * 10               if edge e is already labelled
- * 11                   continue with the next edge
- * 12               w <- G.adjacentVertex(t,e)
- * 13               if vertex w is not discovered and not explored
- * 14                   label e as tree-edge
- * 15                   label w as discovered
- * 16                   S.push(w)
- * 17                   continue at 5
- * 18               else if vertex w is discovered
- * 19                   label e as back-edge
- * 20               else
- * 21                   // vertex w is explored
- * 22                   label e as forward- or cross-edge
- * 23           label t as explored
- * 24           S.pop()
- *
- * convention:
- * 0x10 - discovered
- * 0x11 - discovered and fall-through edge labelled
- * 0x12 - discovered and fall-through and branch edges labelled
- * 0x20 - explored
- */
 
 enum {
 	DISCOVERED = 0x10,
@@ -10650,11 +10164,6 @@ enum {
 	KEEP_EXPLORING = 1,
 };
 
-/* t, w, e - match pseudo-code above:
- * t - index of current instruction
- * w - next instruction
- * e - edge
- */
 static int push_insn(int t, int w, int e, struct bpf_verifier_env *env,
 		     bool loop_ok)
 {
@@ -10727,11 +10236,6 @@ static int visit_func_call_insn(int t, int insn_cnt,
 	return ret;
 }
 
-/* Visits the instruction at index t and returns one of the following:
- *  < 0 - an error occurred
- *  DONE_EXPLORING - the instruction was fully explored
- *  KEEP_EXPLORING - there is still work to be done before it is fully explored
- */
 static int visit_insn(int t, int insn_cnt, struct bpf_verifier_env *env)
 {
 	struct bpf_insn *insns = env->prog->insnsi;
@@ -10794,9 +10298,6 @@ static int visit_insn(int t, int insn_cnt, struct bpf_verifier_env *env)
 	}
 }
 
-/* non-recursive depth-first-search to detect loops in BPF program
- * loop == back-edge in directed graph
- */
 static int check_cfg(struct bpf_verifier_env *env)
 {
 	int insn_cnt = env->prog->len;
@@ -10877,7 +10378,6 @@ static int check_abnormal_return(struct bpf_verifier_env *env)
 	return 0;
 }
 
-/* The minimum supported BTF func info size */
 #define MIN_BPF_FUNCINFO_SIZE	8
 #define MAX_FUNCINFO_REC_SIZE	252
 
@@ -11086,16 +10586,6 @@ static int check_btf_line(struct bpf_verifier_env *env,
 		}
 
 		/*
-		 * Check insn_off to ensure
-		 * 1) strictly increasing AND
-		 * 2) bounded by prog->len
-		 *
-		 * The linfo[0].insn_off == 0 check logically falls into
-		 * the later "missing bpf_line_info for func..." case
-		 * because the first linfo[0].insn_off must be the
-		 * first sub also and the first sub must have
-		 * subprog_info[0].start == 0.
-		 */
 		if ((i && linfo[i].insn_off <= prev_offset) ||
 		    linfo[i].insn_off >= prog->len) {
 			verbose(env, "Invalid line_info[%u].insn_off:%u (prev_offset:%u prog->len:%u)\n",
@@ -11261,7 +10751,6 @@ static int check_btf_info(struct bpf_verifier_env *env,
 	return 0;
 }
 
-/* check %cur's range satisfies %old's */
 static bool range_within(struct bpf_reg_state *old,
 			 struct bpf_reg_state *cur)
 {
@@ -11275,16 +10764,6 @@ static bool range_within(struct bpf_reg_state *old,
 	       old->s32_max_value >= cur->s32_max_value;
 }
 
-/* If in the old state two registers had the same id, then they need to have
- * the same id in the new state as well.  But that id could be different from
- * the old state, so we need to track the mapping from old to new ids.
- * Once we have seen that, say, a reg with old id 5 had new id 9, any subsequent
- * regs with old id 5 must also have new id 9 for the new state to be safe.  But
- * regs with a different old id could still have new id 9, we don't care about
- * that.
- * So we look through our idmap to see if this old id has been seen before.  If
- * so, we require the new id to match; otherwise, we add the id pair to the map.
- */
 static bool check_ids(u32 old_id, u32 cur_id, struct bpf_id_pair *idmap)
 {
 	unsigned int i;
@@ -11346,38 +10825,6 @@ static void clean_verifier_state(struct bpf_verifier_env *env,
 		clean_func_state(env, st->frame[i]);
 }
 
-/* the parentage chains form a tree.
- * the verifier states are added to state lists at given insn and
- * pushed into state stack for future exploration.
- * when the verifier reaches bpf_exit insn some of the verifer states
- * stored in the state lists have their final liveness state already,
- * but a lot of states will get revised from liveness point of view when
- * the verifier explores other branches.
- * Example:
- * 1: r0 = 1
- * 2: if r1 == 100 goto pc+1
- * 3: r0 = 2
- * 4: exit
- * when the verifier reaches exit insn the register r0 in the state list of
- * insn 2 will be seen as !REG_LIVE_READ. Then the verifier pops the other_branch
- * of insn 2 and goes exploring further. At the insn 4 it will walk the
- * parentage chain from insn 4 into insn 2 and will mark r0 as REG_LIVE_READ.
- *
- * Since the verifier pushes the branch states as it sees them while exploring
- * the program the condition of walking the branch instruction for the second
- * time means that all states below this branch were already explored and
- * their final liveness marks are already propagated.
- * Hence when the verifier completes the search of state list in is_state_visited()
- * we can call this clean_live_states() function to mark all liveness states
- * as REG_LIVE_DONE to indicate that 'parent' pointers of 'struct bpf_reg_state'
- * will not be used.
- * This function also clears the registers and stack for states that !READ
- * to simplify state merging.
- *
- * Important note here that walking the same branch instruction in the callee
- * doesn't meant that the states are DONE. The verifier has to compare
- * the callsites
- */
 static void clean_live_states(struct bpf_verifier_env *env, int insn,
 			      struct bpf_verifier_state *cur)
 {
@@ -11400,7 +10847,6 @@ next:
 	}
 }
 
-/* Returns true if (rold safe implies rcur safe) */
 static bool regsafe(struct bpf_verifier_env *env, struct bpf_reg_state *rold,
 		    struct bpf_reg_state *rcur, struct bpf_id_pair *idmap)
 {
@@ -11590,32 +11036,6 @@ static bool refsafe(struct bpf_func_state *old, struct bpf_func_state *cur)
 		       sizeof(*old->refs) * old->acquired_refs);
 }
 
-/* compare two verifier states
- *
- * all states stored in state_list are known to be valid, since
- * verifier reached 'bpf_exit' instruction through them
- *
- * this function is called when verifier exploring different branches of
- * execution popped from the state stack. If it sees an old state that has
- * more strict register state and more strict stack state then this execution
- * branch doesn't need to be explored further, since verifier already
- * concluded that more strict state leads to valid finish.
- *
- * Therefore two states are equivalent if register state is more conservative
- * and explored stack state is more conservative than the current one.
- * Example:
- *       explored                   current
- * (slot1=INV slot2=MISC) == (slot1=MISC slot2=MISC)
- * (slot1=MISC slot2=MISC) != (slot1=INV slot2=MISC)
- *
- * In other words if current stack state (one being explored) has more
- * valid slots than old one that already passed validation, it means
- * the verifier can stop exploring and conclude that current state is valid too
- *
- * Similarly with registers. If explored state has register type as invalid
- * whereas register type in current state is meaningful, it means that
- * the current state will reach 'bpf_exit' instruction safely
- */
 static bool func_states_equal(struct bpf_verifier_env *env, struct bpf_func_state *old,
 			      struct bpf_func_state *cur)
 {
@@ -11666,9 +11086,6 @@ static bool states_equal(struct bpf_verifier_env *env,
 	return true;
 }
 
-/* Return 0 if no propagation happened. Return negative error code if error
- * happened. Otherwise, return the propagated bit.
- */
 static int propagate_liveness_reg(struct bpf_verifier_env *env,
 				  struct bpf_reg_state *reg,
 				  struct bpf_reg_state *parent_reg)
@@ -11695,13 +11112,6 @@ static int propagate_liveness_reg(struct bpf_verifier_env *env,
 	return flag;
 }
 
-/* A write screens off any subsequent reads; but write marks come from the
- * straight-line code between a state and its parent.  When we arrive at an
- * equivalent state (jump target or such) we didn't arrive by the straight-line
- * code, so read marks in the state must propagate to the parent regardless
- * of the state's write marks. That's what 'parent == state->parent' comparison
- * in mark_reg_read() is for.
- */
 static int propagate_liveness(struct bpf_verifier_env *env,
 			      const struct bpf_verifier_state *vstate,
 			      struct bpf_verifier_state *vparent)
@@ -11746,9 +11156,6 @@ static int propagate_liveness(struct bpf_verifier_env *env,
 	return 0;
 }
 
-/* find precise scalars in the previous equivalent state and
- * propagate them into the current state
- */
 static int propagate_precision(struct bpf_verifier_env *env,
 			       const struct bpf_verifier_state *old)
 {
@@ -11992,7 +11399,6 @@ next:
 	cur->first_insn_idx = insn_idx;
 	clear_jmp_history(cur);
 	new_sl->next = *explored_state(env, insn_idx);
-	*explored_state(env, insn_idx) = new_sl;
 	/* connect new state to parentage chain. Current frame needs all
 	 * registers connected. Only r6 - r9 of the callers are alive (pushed
 	 * to the stack implicitly by JITs) so in callers' frames connect just
@@ -12027,7 +11433,6 @@ next:
 	return 0;
 }
 
-/* Return true if it's OK to have the same insn return a different type. */
 static bool reg_type_mismatch_ok(enum bpf_reg_type type)
 {
 	switch (base_type(type)) {
@@ -12043,18 +11448,6 @@ static bool reg_type_mismatch_ok(enum bpf_reg_type type)
 	}
 }
 
-/* If an instruction was previously used with particular pointer types, then we
- * need to be careful to avoid cases such as the below, where it may be ok
- * for one branch accessing the pointer, but not ok for the other branch:
- *
- * R1 = sock_ptr
- * goto X;
- * ...
- * R1 = some_other_valid_ptr;
- * goto X;
- * ...
- * R2 = *(u32 *)(R1 + 0);
- */
 static bool reg_type_mismatch(enum bpf_reg_type src, enum bpf_reg_type prev)
 {
 	return src != prev && (!reg_type_mismatch_ok(src) ||
@@ -12403,10 +11796,6 @@ static int find_btf_percpu_datasec(struct btf *btf)
 	int i, n;
 
 	/*
-	 * Both vmlinux and module each have their own ".data..percpu"
-	 * DATASECs in BTF. So for module's case, we need to skip vmlinux BTF
-	 * types to look at only module's own BTF types.
-	 */
 	n = btf_nr_types(btf);
 	if (btf_is_module(btf))
 		i = btf_nr_types(btf_vmlinux);
@@ -12426,7 +11815,6 @@ static int find_btf_percpu_datasec(struct btf *btf)
 	return -ENOENT;
 }
 
-/* replace pseudo btf_id with kernel symbol address */
 static int check_pseudo_btf_id(struct bpf_verifier_env *env,
 			       struct bpf_insn *insn,
 			       struct bpf_insn_aux_data *aux)
@@ -12595,22 +11983,6 @@ static int check_map_prog_compatibility(struct bpf_verifier_env *env,
 {
 	enum bpf_prog_type prog_type = resolve_prog_type(prog);
 	/*
-	 * Validate that trace type programs use preallocated hash maps.
-	 *
-	 * For programs attached to PERF events this is mandatory as the
-	 * perf NMI can hit any arbitrary code sequence.
-	 *
-	 * All other trace types using preallocated hash maps are unsafe as
-	 * well because tracepoint or kprobes can be inside locked regions
-	 * of the memory allocator or at a place where a recursion into the
-	 * memory allocator would see inconsistent state.
-	 *
-	 * On RT enabled kernels run-time allocation of all trace type
-	 * programs is strictly prohibited due to lock type constraints. On
-	 * !RT kernels it is allowed for backwards compatibility reasons for
-	 * now, but warnings are emitted so developers are made aware of
-	 * the unsafety and can fix their programs before this is enforced.
-	 */
 	if (is_tracing_prog_type(prog_type) && !is_preallocated_map(map)) {
 		if (prog_type == BPF_PROG_TYPE_PERF_EVENT) {
 			verbose(env, "perf_event programs can only use preallocated hash map\n");
@@ -12695,13 +12067,6 @@ static bool bpf_map_is_cgroup_storage(struct bpf_map *map)
 		map->map_type == BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE);
 }
 
-/* find and rewrite pseudo imm in ld_imm64 instructions:
- *
- * 1. if it accesses map FD, replace it with actual map pointer.
- * 2. if it accesses btf_id of a VAR, replace it with pointer to the var.
- *
- * NOTE: btf_vmlinux is required for converting pseudo btf_id.
- */
 static int resolve_pseudo_ldimm64(struct bpf_verifier_env *env)
 {
 	struct bpf_insn *insn = env->prog->insnsi;
@@ -12885,21 +12250,18 @@ next_insn:
 	return 0;
 }
 
-/* drop refcnt of maps used by the rejected program */
 static void release_maps(struct bpf_verifier_env *env)
 {
 	__bpf_free_used_maps(env->prog->aux, env->used_maps,
 			     env->used_map_cnt);
 }
 
-/* drop refcnt of maps used by the rejected program */
 static void release_btfs(struct bpf_verifier_env *env)
 {
 	__bpf_free_used_btfs(env->prog->aux, env->used_btfs,
 			     env->used_btf_cnt);
 }
 
-/* convert pseudo BPF_LD_IMM64 into generic BPF_LD_IMM64 */
 static void convert_pseudo_ld_imm64(struct bpf_verifier_env *env)
 {
 	struct bpf_insn *insn = env->prog->insnsi;
@@ -12915,10 +12277,6 @@ static void convert_pseudo_ld_imm64(struct bpf_verifier_env *env)
 	}
 }
 
-/* single env->prog->insni[off] instruction was replaced with the range
- * insni[off, off + cnt).  Adjust corresponding insn_aux_data by copying
- * [0, off) and [off, end) to new locations, so the patched range stays zero
- */
 static void adjust_insn_aux_data(struct bpf_verifier_env *env,
 				 struct bpf_insn_aux_data *new_data,
 				 struct bpf_prog *new_prog, u32 off, u32 cnt)
@@ -13154,17 +12512,6 @@ static int verifier_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt)
 	return 0;
 }
 
-/* The verifier does more data flow analysis than llvm and will not
- * explore branches that are dead at run time. Malicious programs can
- * have dead code too. Therefore replace all dead at-run-time code
- * with 'ja -1'.
- *
- * Just nops are not optimal, e.g. if they would sit at the end of the
- * program and through another bug we would manage to jump there, then
- * we'd execute beyond program memory otherwise. Returning exception
- * code also wouldn't work since we can have subprogs where the dead
- * code could be located.
- */
 static void sanitize_dead_code(struct bpf_verifier_env *env)
 {
 	struct bpf_insn_aux_data *aux_data = env->insn_aux_data;
@@ -13361,11 +12708,6 @@ apply_patch_buffer:
 	return 0;
 }
 
-/* convert load instructions that access fields of a context type into a
- * sequence of instructions that access fields of the underlying structure:
- *     struct __sk_buff    -> struct sk_buff
- *     struct bpf_sock_ops -> struct sock
- */
 static int convert_ctx_accesses(struct bpf_verifier_env *env)
 {
 	const struct bpf_verifier_ops *ops = env->ops;
@@ -13858,9 +13200,6 @@ static int fixup_kfunc_call(struct bpf_verifier_env *env,
 	return 0;
 }
 
-/* Do various post-verification rewrites in a single program pass.
- * These rewrites simplify JIT and interpreter implementations.
- */
 static int do_misc_fixups(struct bpf_verifier_env *env)
 {
 	struct bpf_prog *prog = env->prog;
@@ -14439,7 +13778,6 @@ static struct bpf_prog *inline_bpf_loop(struct bpf_verifier_env *env,
 		BPF_LDX_MEM(BPF_DW, BPF_REG_8, BPF_REG_10, r8_offset),
 	};
 
-	*cnt = ARRAY_SIZE(insn_buf);
 	new_prog = bpf_patch_insn_data(env, position, insn_buf, *cnt);
 	if (!new_prog)
 		return new_prog;
@@ -14461,15 +13799,6 @@ static bool is_bpf_loop_call(struct bpf_insn *insn)
 		insn->imm == BPF_FUNC_loop;
 }
 
-/* For all sub-programs in the program (including main) check
- * insn_aux_data to see if there are bpf_loop calls that require
- * inlining. If such calls are found the calls are replaced with a
- * sequence of instructions produced by `inline_bpf_loop` function and
- * subprog stack_depth is increased by the size of 3 registers.
- * This stack space is used to spill values of the R6, R7, R8.  These
- * registers are used to store the loop bound, counter and context
- * variables.
- */
 static int optimize_bpf_loop(struct bpf_verifier_env *env)
 {
 	struct bpf_subprog_info *subprogs = env->subprog_info;
@@ -14624,23 +13953,6 @@ out:
 	return ret;
 }
 
-/* Verify all global functions in a BPF program one by one based on their BTF.
- * All global functions must pass verification. Otherwise the whole program is rejected.
- * Consider:
- * int bar(int);
- * int foo(int f)
- * {
- *    return bar(f);
- * }
- * int bar(int b)
- * {
- *    ...
- * }
- * foo() will be verified first for R1=any_scalar_value. During verification it
- * will be assumed that bar() already verified successfully and call to bar()
- * from foo() will be checked for type match only. Later bar() will be verified
- * independently to check that it's safe for R1=any_scalar_value.
- */
 static int do_check_subprogs(struct bpf_verifier_env *env)
 {
 	struct bpf_prog_aux *aux = env->prog->aux;
@@ -14769,13 +14081,7 @@ static int check_attach_modify_return(unsigned long addr, const char *func_name)
 	return -EINVAL;
 }
 
-/* list of non-sleepable functions that are otherwise on
- * ALLOW_ERROR_INJECTION list
- */
 BTF_SET_START(btf_non_sleepable_error_inject)
-/* Three functions below can be called from sleepable and non-sleepable context.
- * Assume non-sleepable from bpf safety point of view.
- */
 BTF_ID(func, __filemap_add_folio)
 BTF_ID(func, should_fail_alloc_page)
 BTF_ID(func, should_failslab)
@@ -15354,7 +14660,6 @@ err_release_maps:
 	if (env->prog->type == BPF_PROG_TYPE_EXT)
 		env->prog->expected_attach_type = 0;
 
-	*prog = env->prog;
 err_unlock:
 	if (!is_priv)
 		mutex_unlock(&bpf_verifier_lock);

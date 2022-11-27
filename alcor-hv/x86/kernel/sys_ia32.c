@@ -1,25 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * sys_ia32.c: Conversion between 32bit and 64bit native syscalls. Based on
- *             sys_sparc32
- *
- * Copyright (C) 2000		VA Linux Co
- * Copyright (C) 2000		Don Dugger <n0ano@valinux.com>
- * Copyright (C) 1999		Arun Sharma <arun.sharma@intel.com>
- * Copyright (C) 1997,1998	Jakub Jelinek (jj@sunsite.mff.cuni.cz)
- * Copyright (C) 1997		David S. Miller (davem@caip.rutgers.edu)
- * Copyright (C) 2000		Hewlett-Packard Co.
- * Copyright (C) 2000		David Mosberger-Tang <davidm@hpl.hp.com>
- * Copyright (C) 2000,2001,2002	Andi Kleen, SuSE Labs (x86-64 port)
- *
- * These routines maintain argument size conversion between 32bit and 64bit
- * environment. In 2.5 most of this should be moved to a generic directory.
- *
- * This file assumes that there is a hole at the end of user address space.
- *
- * Some of the functions are LE specific currently. These are
- * hopefully all marked.  This should be fixed.
- */
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -64,7 +42,6 @@ SYSCALL_DEFINE3(ia32_ftruncate64, unsigned int, fd,
 	return ksys_ftruncate(fd, ((loff_t) offset_high << 32) | offset_low);
 }
 
-/* warning: next two assume little endian */
 SYSCALL_DEFINE5(ia32_pread64, unsigned int, fd, char __user *, ubuf,
 		u32, count, u32, poslo, u32, poshi)
 {
@@ -80,10 +57,6 @@ SYSCALL_DEFINE5(ia32_pwrite64, unsigned int, fd, const char __user *, ubuf,
 }
 
 
-/*
- * Some system calls that need sign extended arguments. This could be
- * done by a generic wrapper.
- */
 SYSCALL_DEFINE6(ia32_fadvise64_64, int, fd, __u32, offset_low,
 		__u32, offset_high, __u32, len_low, __u32, len_high,
 		int, advice)
@@ -125,10 +98,6 @@ SYSCALL_DEFINE6(ia32_fallocate, int, fd, int, mode,
 }
 
 #ifdef CONFIG_IA32_EMULATION
-/*
- * Another set for IA32/LFS -- x86_64 struct stat is different due to
- * support for 64bit inode numbers.
- */
 static int cp_stat64(struct stat64 __user *ubuf, struct kstat *stat)
 {
 	typeof(ubuf->st_uid) uid = 0;
@@ -205,11 +174,6 @@ COMPAT_SYSCALL_DEFINE4(ia32_fstatat64, unsigned int, dfd,
 	return cp_stat64(statbuf, &stat);
 }
 
-/*
- * Linux/i386 didn't use to be able to handle more than
- * 4 system call parameters, so these system calls used a memory
- * block for parameter passing..
- */
 
 struct mmap_arg_struct32 {
 	unsigned int addr;
@@ -234,9 +198,6 @@ COMPAT_SYSCALL_DEFINE1(ia32_mmap, struct mmap_arg_struct32 __user *, arg)
 			       a.offset>>PAGE_SHIFT);
 }
 
-/*
- * The 32-bit clone ABI is CONFIG_CLONE_BACKWARDS
- */
 COMPAT_SYSCALL_DEFINE5(ia32_clone, unsigned long, clone_flags,
 		       unsigned long, newsp, int __user *, parent_tidptr,
 		       unsigned long, tls_val, int __user *, child_tidptr)

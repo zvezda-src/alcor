@@ -1,17 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  reg_ld_str.c                                                             |
  |                                                                           |
  | All of the functions which transfer data between user memory and FPU_REGs.|
  |                                                                           |
- | Copyright (C) 1992,1993,1994,1996,1997                                    |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
  |                  E-mail   billm@suburbia.net                              |
  |                                                                           |
  |                                                                           |
  +---------------------------------------------------------------------------*/
 
-/*---------------------------------------------------------------------------+
  | Note:                                                                     |
  |    The file contains code which accesses user memory.                     |
  |    Emulator static data may change when user memory is accessed, due to   |
@@ -78,7 +74,6 @@ int FPU_tagof(FPU_REG *ptr)
 	return TAG_Valid;
 }
 
-/* Get a long double from user memory */
 int FPU_load_extended(long double __user *s, int stnr)
 {
 	FPU_REG *sti_ptr = &st(stnr);
@@ -91,7 +86,6 @@ int FPU_load_extended(long double __user *s, int stnr)
 	return FPU_tagof(sti_ptr);
 }
 
-/* Get a double from user memory */
 int FPU_load_double(double __user *dfloat, FPU_REG *loaded_data)
 {
 	int exp, tag, negative;
@@ -152,7 +146,6 @@ int FPU_load_double(double __user *dfloat, FPU_REG *loaded_data)
 	return tag;
 }
 
-/* Get a float from user memory */
 int FPU_load_single(float __user *single, FPU_REG *loaded_data)
 {
 	unsigned m32;
@@ -206,7 +199,6 @@ int FPU_load_single(float __user *single, FPU_REG *loaded_data)
 	return tag;
 }
 
-/* Get a long long from user memory */
 int FPU_load_int64(long long __user *_s)
 {
 	long long s;
@@ -236,7 +228,6 @@ int FPU_load_int64(long long __user *_s)
 	return normalize_no_excep(st0_ptr, 63, sign);
 }
 
-/* Get a long from user memory */
 int FPU_load_int32(long __user *_s, FPU_REG *loaded_data)
 {
 	long s;
@@ -265,7 +256,6 @@ int FPU_load_int32(long __user *_s, FPU_REG *loaded_data)
 	return normalize_no_excep(loaded_data, 31, negative);
 }
 
-/* Get a short from user memory */
 int FPU_load_int16(short __user *_s, FPU_REG *loaded_data)
 {
 	int s, negative;
@@ -294,7 +284,6 @@ int FPU_load_int16(short __user *_s, FPU_REG *loaded_data)
 	return normalize_no_excep(loaded_data, 15, negative);
 }
 
-/* Get a packed bcd array from user memory */
 int FPU_load_bcd(u_char __user *s)
 {
 	FPU_REG *st0_ptr = &st(0);
@@ -331,17 +320,11 @@ int FPU_load_bcd(u_char __user *s)
 	}
 }
 
-/*===========================================================================*/
 
-/* Put a long double into user memory */
 int FPU_store_extended(FPU_REG *st0_ptr, u_char st0_tag,
 		       long double __user * d)
 {
 	/*
-	   The only exception raised by an attempt to store to an
-	   extended format is the Invalid Stack exception, i.e.
-	   attempting to store from an empty register.
-	 */
 
 	if (st0_tag != TAG_Empty) {
 		RE_ENTRANT_CHECK_OFF;
@@ -375,7 +358,6 @@ int FPU_store_extended(FPU_REG *st0_ptr, u_char st0_tag,
 
 }
 
-/* Put a double into user memory */
 int FPU_store_double(FPU_REG *st0_ptr, u_char st0_tag, double __user *dfloat)
 {
 	unsigned long l[2];
@@ -560,7 +542,6 @@ denormal_arg:
 	return 1;
 }
 
-/* Put a float into user memory */
 int FPU_store_single(FPU_REG *st0_ptr, u_char st0_tag, float __user *single)
 {
 	long templ = 0;
@@ -749,7 +730,6 @@ int FPU_store_single(FPU_REG *st0_ptr, u_char st0_tag, float __user *single)
 	return 1;
 }
 
-/* Put a long long into user memory */
 int FPU_store_int64(FPU_REG *st0_ptr, u_char st0_tag, long long __user *d)
 {
 	FPU_REG t;
@@ -799,7 +779,6 @@ int FPU_store_int64(FPU_REG *st0_ptr, u_char st0_tag, long long __user *d)
 	return 1;
 }
 
-/* Put a long into user memory */
 int FPU_store_int32(FPU_REG *st0_ptr, u_char st0_tag, long __user *d)
 {
 	FPU_REG t;
@@ -845,7 +824,6 @@ int FPU_store_int32(FPU_REG *st0_ptr, u_char st0_tag, long __user *d)
 	return 1;
 }
 
-/* Put a short into user memory */
 int FPU_store_int16(FPU_REG *st0_ptr, u_char st0_tag, short __user *d)
 {
 	FPU_REG t;
@@ -891,7 +869,6 @@ int FPU_store_int16(FPU_REG *st0_ptr, u_char st0_tag, short __user *d)
 	return 1;
 }
 
-/* Put a packed bcd array into user memory */
 int FPU_store_bcd(FPU_REG *st0_ptr, u_char st0_tag, u_char __user *d)
 {
 	FPU_REG t;
@@ -957,14 +934,10 @@ int FPU_store_bcd(FPU_REG *st0_ptr, u_char st0_tag, u_char __user *d)
 	return 1;
 }
 
-/*===========================================================================*/
 
-/* r gets mangled such that sig is int, sign: 
    it is NOT normalized */
-/* The return value (in eax) is zero if the result is exact,
    if bits are changed due to rounding, truncation, etc, then
    a non-zero value is returned */
-/* Overflow is signaled by a non-zero return value (in eax).
    In the case of overflow, the returned significand always has the
    largest possible value */
 int FPU_round_to_int(FPU_REG *r, u_char tag)
@@ -1022,7 +995,6 @@ int FPU_round_to_int(FPU_REG *r, u_char tag)
 
 }
 
-/*===========================================================================*/
 
 u_char __user *fldenv(fpu_addr_modes addr_modes, u_char __user *s)
 {
@@ -1217,4 +1189,3 @@ void fsave(fpu_addr_modes addr_modes, u_char __user *data_address)
 	finit();
 }
 
-/*===========================================================================*/

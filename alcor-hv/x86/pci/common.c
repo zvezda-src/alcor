@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- *	Low-Level PCI Support for PC
- *
- *	(c) 1999--2000 Martin Mares <mj@ucw.cz>
- */
 
 #include <linux/sched.h>
 #include <linux/pci.h>
@@ -74,10 +68,6 @@ struct pci_ops pci_root_ops = {
 	.write = pci_write,
 };
 
-/*
- * This interrupt-safe spinlock protects all accesses to PCI configuration
- * space, except for the mmconfig (ECAM) based operations.
- */
 DEFINE_RAW_SPINLOCK(pci_config_lock);
 
 static int __init can_skip_ioresource_align(const struct dmi_system_id *d)
@@ -88,10 +78,6 @@ static int __init can_skip_ioresource_align(const struct dmi_system_id *d)
 }
 
 static const struct dmi_system_id can_skip_pciprobe_dmi_table[] __initconst = {
-/*
- * Systems where PCI IO resource ISA alignment can be skipped
- * when the ISA enable bit in the bridge control is not set
- */
 	{
 		.callback = can_skip_ioresource_align,
 		.ident = "IBM System x3800",
@@ -132,10 +118,6 @@ static void pcibios_fixup_device_resources(struct pci_dev *dev)
 
 	if (pci_probe & PCI_NOASSIGN_BARS) {
 		/*
-		* If the BIOS did not assign the BAR, zero out the
-		* resource so the kernel doesn't attempt to assign
-		* it later on in pci_assign_unassigned_resources
-		*/
 		for (bar = 0; bar < PCI_STD_NUM_BARS; bar++) {
 			bar_r = &dev->resource[bar];
 			if (bar_r->start == 0 && bar_r->end != 0) {
@@ -156,10 +138,6 @@ static void pcibios_fixup_device_resources(struct pci_dev *dev)
 	}
 }
 
-/*
- *  Called after each bus is probed, but before its children
- *  are examined.
- */
 
 void pcibios_fixup_bus(struct pci_bus *b)
 {
@@ -180,10 +158,6 @@ void pcibios_remove_bus(struct pci_bus *bus)
 	acpi_pci_remove_bus(bus);
 }
 
-/*
- * Only use DMI information to set this if nothing was passed
- * on the kernel command line (which was parsed earlier).
- */
 
 static int __init set_bf_sort(const struct dmi_system_id *d)
 {
@@ -211,9 +185,6 @@ static int __init find_sort_method(const struct dmi_system_id *d)
 	return 0;
 }
 
-/*
- * Enable renumbering of PCI bus# ranges to reach all PCI busses (Cardbus)
- */
 #ifdef __i386__
 static int __init assign_all_busses(const struct dmi_system_id *d)
 {
@@ -234,9 +205,6 @@ static int __init set_scan_all(const struct dmi_system_id *d)
 
 static const struct dmi_system_id pciprobe_dmi_table[] __initconst = {
 #ifdef __i386__
-/*
- * Laptops which need pci=assign-busses to see Cardbus cards
- */
 	{
 		.callback = assign_all_busses,
 		.ident = "Samsung X20 Laptop",
@@ -483,11 +451,6 @@ void __init pcibios_set_cache_line_size(void)
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
 	/*
-	 * Set PCI cacheline size to that of the CPU if the CPU has reported it.
-	 * (For older CPUs that don't support cpuid, we se it to 32 bytes
-	 * It's also good for 386/486s (which actually have 16)
-	 * as quite a few PCI devices do not support smaller values.
-	 */
 	if (c->x86_clflush_size > 0) {
 		pci_dfl_cache_line_size = c->x86_clflush_size >> 2;
 		printk(KERN_DEBUG "PCI: pci_cache_line_size set to %d bytes\n",
@@ -673,14 +636,6 @@ int pcibios_device_add(struct pci_dev *dev)
 	set_dev_domain_options(dev);
 
 	/*
-	 * Setup the initial MSI domain of the device. If the underlying
-	 * bus has a PCI/MSI irqdomain associated use the bus domain,
-	 * otherwise set the default domain. This ensures that special irq
-	 * domains e.g. VMD are preserved. The default ensures initial
-	 * operation if irq remapping is not active. If irq remapping is
-	 * active it will overwrite the domain pointer when the device is
-	 * associated to a remapping domain.
-	 */
 	msidom = dev_get_msi_domain(&dev->bus->dev);
 	if (!msidom)
 		msidom = x86_pci_msi_default_domain;

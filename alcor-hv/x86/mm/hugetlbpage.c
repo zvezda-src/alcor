@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * IA-32 Huge TLB Page Support for Kernel.
- *
- * Copyright (C) 2002, Rohit Seth <rohit.seth@intel.com>
- */
 
 #include <linux/init.h>
 #include <linux/fs.h>
@@ -19,11 +13,6 @@
 #include <asm/tlbflush.h>
 #include <asm/elf.h>
 
-/*
- * pmd_huge() returns 1 if @pmd is hugetlb related entry, that is normal
- * hugetlb entry or non-present (migration or hwpoisoned) hugetlb entry.
- * Otherwise, returns 0.
- */
 int pmd_huge(pmd_t pmd)
 {
 	return !pmd_none(pmd) &&
@@ -48,9 +37,6 @@ static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
 	info.low_limit = get_mmap_base(1);
 
 	/*
-	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
-	 * in the full address space.
-	 */
 	info.high_limit = in_32bit_syscall() ?
 		task_size_32bit() : task_size_64bit(addr > DEFAULT_MAP_WINDOW);
 
@@ -72,9 +58,6 @@ static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
 	info.high_limit = get_mmap_base(0);
 
 	/*
-	 * If hint address is above DEFAULT_MAP_WINDOW, look for unmapped area
-	 * in the full address space.
-	 */
 	if (addr > DEFAULT_MAP_WINDOW && !in_32bit_syscall())
 		info.high_limit += TASK_SIZE_MAX - DEFAULT_MAP_WINDOW;
 
@@ -83,11 +66,6 @@ static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
 	addr = vm_unmapped_area(&info);
 
 	/*
-	 * A failed mmap() very likely causes application failure,
-	 * so fall back to the bottom-up function here. This scenario
-	 * can happen with large stack limits and large mmap()
-	 * allocations.
-	 */
 	if (addr & ~PAGE_MASK) {
 		VM_BUG_ON(addr != -ENOMEM);
 		info.flags = 0;

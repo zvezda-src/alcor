@@ -1,11 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * irq.h: in kernel interrupt controller related definitions
- * Copyright (c) 2007, Intel Corporation.
- *
- * Authors:
- *   Yaozu (Eddie) Dong <Eddie.dong@intel.com>
- */
 
 #ifndef __IRQ_H
 #define __IRQ_H

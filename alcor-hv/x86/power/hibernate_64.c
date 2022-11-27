@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Hibernation support for x86-64
- *
- * Copyright (c) 2007 Rafael J. Wysocki <rjw@sisk.pl>
- * Copyright (c) 2002 Pavel Machek <pavel@ucw.cz>
- * Copyright (c) 2001 Patrick Mochel <mochel@osdl.org>
- */
 
 #include <linux/gfp.h>
 #include <linux/smp.h>
@@ -38,18 +30,6 @@ static int set_up_temporary_text_mapping(pgd_t *pgd)
 	pgprot_val(pgtable_prot)  &= __default_kernel_pte_mask;
 
 	/*
-	 * The new mapping only has to cover the page containing the image
-	 * kernel's entry point (jump_address_phys), because the switch over to
-	 * it is carried out by relocated code running from a page allocated
-	 * specifically for this purpose and covered by the identity mapping, so
-	 * the temporary kernel text mapping is only needed for the final jump.
-	 * Moreover, in that mapping the virtual address of the image kernel's
-	 * entry point must be the same as its virtual address in the image
-	 * kernel (restore_jump_address), so the image kernel's
-	 * restore_registers() code doesn't find itself in a different area of
-	 * the virtual address space after switching over to the original page
-	 * tables used by the image kernel.
-	 */
 
 	if (pgtable_l5_enabled()) {
 		p4d = (p4d_t *)get_safe_page(GFP_ATOMIC);

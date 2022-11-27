@@ -1,13 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Xen time implementation.
- *
- * This is implemented in terms of a clocksource driver which uses
- * the hypervisor clock as a nanosecond timebase, and a clockevent
- * driver which uses the hypervisor's timer mechanism.
- *
- * Jeremy Fitzhardinge <jeremy@xensource.com>, XenSource Inc, 2007
- */
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/clocksource.h>
@@ -28,12 +18,10 @@
 
 #include "xen-ops.h"
 
-/* Minimum amount of time until next clock event fires */
 #define TIMER_SLOP	100000
 
 static u64 xen_sched_clock_offset __read_mostly;
 
-/* Get the TSC speed from Xen */
 static unsigned long xen_tsc_khz(void)
 {
 	struct pvclock_vcpu_time_info *info =
@@ -102,9 +90,6 @@ static int xen_pvclock_gtod_notify(struct notifier_block *nb,
 	now.tv_nsec = (long)(tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift);
 
 	/*
-	 * We only take the expensive HV call when the clock was set
-	 * or when the 11 minutes RTC synchronization time elapsed.
-	 */
 	if (!was_set && timespec64_compare(&now, &next_sync) < 0)
 		return NOTIFY_OK;
 
@@ -132,10 +117,6 @@ again:
 		return NOTIFY_BAD;
 
 	/*
-	 * Move the next drift compensation time 11 minutes
-	 * ahead. That's emulating the sync_cmos_clock() update for
-	 * the hardware RTC.
-	 */
 	next_sync = now;
 	next_sync.tv_sec += 11 * 60;
 
@@ -161,37 +142,8 @@ static struct clocksource xen_clocksource __read_mostly = {
 	.enable = xen_cs_enable,
 };
 
-/*
-   Xen clockevent implementation
-
-   Xen has two clockevent implementations:
-
-   The old timer_op one works with all released versions of Xen prior
-   to version 3.0.4.  This version of the hypervisor provides a
-   single-shot timer with nanosecond resolution.  However, sharing the
-   same event channel is a 100Hz tick which is delivered while the
-   vcpu is running.  We don't care about or use this tick, but it will
-   cause the core time code to think the timer fired too soon, and
-   will end up resetting it each time.  It could be filtered, but
-   doing so has complications when the ktime clocksource is not yet
-   the xen clocksource (ie, at boot time).
-
-   The new vcpu_op-based timer interface allows the tick timer period
-   to be changed or turned off.  The tick timer is not useful as a
-   periodic timer because events are only delivered to running vcpus.
-   The one-shot timer can report when a timeout is in the past, so
-   set_next_event is capable of returning -ETIME when appropriate.
-   This interface is used when available.
-*/
 
 
-/*
-  Get a hypervisor absolute time.  In theory we could maintain an
-  offset between the kernel's time and the hypervisor's time, and
-  apply that to a kernel's absolute timeout.  Unfortunately the
-  hypervisor and kernel times can drift even if the kernel is using
-  the Xen clocksource, because ntp can warp the kernel's clocksource.
-*/
 static s64 get_abs_timeout(unsigned long delta)
 {
 	return xen_clocksource_read() + delta;
@@ -415,14 +367,6 @@ void xen_restore_time_memory_area(void)
 	ret = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_time_memory_area, 0, &t);
 
 	/*
-	 * We don't disable VDSO_CLOCKMODE_PVCLOCK entirely if it fails to
-	 * register the secondary time info with Xen or if we migrated to a
-	 * host without the necessary flags. On both of these cases what
-	 * happens is either process seeing a zeroed out pvti or seeing no
-	 * PVCLOCK_TSC_STABLE_BIT bit set. Userspace checks the latter and
-	 * if 0, it discards the data in pvti and fallbacks to a system
-	 * call for a reliable timestamp.
-	 */
 	if (ret != 0)
 		pr_notice("Cannot restore secondary vcpu_time_info (err %d)",
 			  ret);
@@ -453,10 +397,6 @@ static void xen_setup_vsyscall_time_info(void)
 	}
 
 	/*
-	 * If primary time info had this bit set, secondary should too since
-	 * it's the same data on both just different memory regions. But we
-	 * still check it in case hypervisor is buggy.
-	 */
 	if (!(ti->pvti.flags & PVCLOCK_TSC_STABLE_BIT)) {
 		t.addr.v = NULL;
 		ret = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_time_memory_area,
@@ -501,9 +441,6 @@ static void __init xen_time_init(void)
 	setup_force_cpu_cap(X86_FEATURE_TSC);
 
 	/*
-	 * We check ahead on the primary time info if this
-	 * bit is supported hence speeding up Xen clocksource.
-	 */
 	pvti = &__this_cpu_read(xen_vcpu)->time;
 	if (pvti->flags & PVCLOCK_TSC_STABLE_BIT) {
 		pvclock_set_flags(PVCLOCK_TSC_STABLE_BIT);
@@ -549,10 +486,6 @@ static void xen_hvm_setup_cpu_clockevents(void)
 	int cpu = smp_processor_id();
 	xen_setup_runstate_info(cpu);
 	/*
-	 * xen_setup_timer(cpu) - snprintf is bad in atomic context. Hence
-	 * doing it xen_hvm_cpu_notify (which gets called by smp_init during
-	 * early bootup and also during CPU hotplug events).
-	 */
 	xen_setup_cpu_clockevents();
 }
 
@@ -564,10 +497,6 @@ void __init xen_hvm_init_time_ops(void)
 		return;
 
 	/*
-	 * vector callback is needed otherwise we cannot receive interrupts
-	 * on cpu > 0 and at this point we don't know how many cpus are
-	 * available.
-	 */
 	if (!xen_have_vector_callback)
 		return;
 
@@ -577,14 +506,6 @@ void __init xen_hvm_init_time_ops(void)
 	}
 
 	/*
-	 * Only MAX_VIRT_CPUS 'vcpu_info' are embedded inside 'shared_info'.
-	 * The __this_cpu_read(xen_vcpu) is still NULL when Xen HVM guest
-	 * boots on vcpu >= MAX_VIRT_CPUS (e.g., kexec), To access
-	 * __this_cpu_read(xen_vcpu) via xen_clocksource_read() will panic.
-	 *
-	 * The xen_hvm_init_time_ops() should be called again later after
-	 * __this_cpu_read(xen_vcpu) is available.
-	 */
 	if (!__this_cpu_read(xen_vcpu)) {
 		pr_info("Delay xen_init_time_common() as kernel is running on vcpu=%d\n",
 			xen_vcpu_nr(0));
@@ -602,7 +523,6 @@ void __init xen_hvm_init_time_ops(void)
 }
 #endif
 
-/* Kernel parameter to specify Xen timer slop */
 static int __init parse_xen_timer_slop(char *ptr)
 {
 	unsigned long slop = memparse(ptr, NULL);

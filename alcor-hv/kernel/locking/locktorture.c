@@ -1,13 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
-/*
- * Module-based torture test facility for locking
- *
- * Copyright (C) IBM Corporation, 2014
- *
- * Authors: Paul E. McKenney <paulmck@linux.ibm.com>
- *          Davidlohr Bueso <dave@stgolabs.net>
- *	Based on kernel/rcu/torture.c.
- */
 
 #define pr_fmt(fmt) fmt
 
@@ -67,12 +57,8 @@ struct lock_stress_stats {
 	long n_lock_acquired;
 };
 
-/* Forward reference. */
 static void lock_torture_cleanup(void);
 
-/*
- * Operations vector for selecting different types of tests.
- */
 struct lock_torture_ops {
 	void (*init)(void);
 	void (*exit)(void);
@@ -101,9 +87,6 @@ struct lock_torture_cxt {
 static struct lock_torture_cxt cxt = { 0, 0, false, false,
 				       ATOMIC_INIT(0),
 				       NULL, NULL};
-/*
- * Definitions for lock torture testing.
- */
 
 static int torture_lock_busted_write_lock(int tid __maybe_unused)
 {
@@ -367,11 +350,6 @@ static struct lock_torture_ops mutex_lock_ops = {
 };
 
 #include <linux/ww_mutex.h>
-/*
- * The torture ww_mutexes should belong to the same lock class as
- * torture_ww_class to avoid lockdep problem. The ww_mutex_init()
- * function is called for initialization to ensure that.
- */
 static DEFINE_WD_CLASS(torture_ww_class);
 static struct ww_mutex torture_ww_mutex_0, torture_ww_mutex_1, torture_ww_mutex_2;
 static struct ww_acquire_ctx *ww_acquire_ctxs;
@@ -480,10 +458,6 @@ static void torture_rtmutex_boost(struct torture_random_state *trsp)
 
 	if (!rt_task(current)) {
 		/*
-		 * Boost priority once every ~50k operations. When the
-		 * task tries to take the lock, the rtmutex it will account
-		 * for the new priority, and do any corresponding pi-dance.
-		 */
 		if (trsp && !(torture_random(trsp) %
 			      (cxt.nrealwriters_stress * factor))) {
 			sched_set_fifo(current);
@@ -491,12 +465,6 @@ static void torture_rtmutex_boost(struct torture_random_state *trsp)
 			return;
 	} else {
 		/*
-		 * The task will remain boosted for another ~500k operations,
-		 * then restored back to its original prio, and so forth.
-		 *
-		 * When @trsp is nil, we want to force-reset the task for
-		 * stopping the kthread.
-		 */
 		if (!trsp || !(torture_random(trsp) %
 			       (cxt.nrealwriters_stress * factor * 2))) {
 			sched_set_normal(current, 0);
@@ -511,9 +479,6 @@ static void torture_rtmutex_delay(struct torture_random_state *trsp)
 	const unsigned long longdelay_ms = 100;
 
 	/*
-	 * We want a short delay mostly to emulate likely code, and
-	 * we want a long delay occasionally to force massive contention.
-	 */
 	if (!(torture_random(trsp) %
 	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
 		mdelay(longdelay_ms);
@@ -660,10 +625,6 @@ static struct lock_torture_ops percpu_rwsem_lock_ops = {
 	.name		= "percpu_rwsem_lock"
 };
 
-/*
- * Lock torture writer kthread.  Repeatedly acquires and releases
- * the lock, checking for duplicate acquisitions.
- */
 static int lock_torture_writer(void *arg)
 {
 	struct lock_stress_stats *lwsp = arg;
@@ -699,10 +660,6 @@ static int lock_torture_writer(void *arg)
 	return 0;
 }
 
-/*
- * Lock torture reader kthread.  Repeatedly acquires and releases
- * the reader lock.
- */
 static int lock_torture_reader(void *arg)
 {
 	struct lock_stress_stats *lrsp = arg;
@@ -732,9 +689,6 @@ static int lock_torture_reader(void *arg)
 	return 0;
 }
 
-/*
- * Create an lock-torture-statistics message in the specified buffer.
- */
 static void __torture_print_stats(char *page,
 				  struct lock_stress_stats *statp, bool write)
 {
@@ -765,14 +719,6 @@ static void __torture_print_stats(char *page,
 		atomic_inc(&cxt.n_lock_torture_errors);
 }
 
-/*
- * Print torture statistics.  Caller must ensure that there is only one
- * call to this function at a given time!!!  This is normally accomplished
- * by relying on the module system to only have one copy of the module
- * loaded, and then by giving the lock_torture_stats kthread full control
- * (or the init/cleanup functions when lock_torture_stats thread is not
- * running).
- */
 static void lock_torture_stats_print(void)
 {
 	int size = cxt.nrealwriters_stress * 200 + 8192;
@@ -806,13 +752,6 @@ static void lock_torture_stats_print(void)
 	}
 }
 
-/*
- * Periodically prints torture statistics, if periodic statistics printing
- * was specified via the stat_interval module parameter.
- *
- * No need to worry about fullstop here, since this one doesn't reference
- * volatile state or register callbacks.
- */
 static int lock_torture_stats(void *arg)
 {
 	VERBOSE_TOROUT_STRING("lock_torture_stats task started");
@@ -845,12 +784,6 @@ static void lock_torture_cleanup(void)
 		return;
 
 	/*
-	 * Indicates early cleanup, meaning that the test has not run,
-	 * such as when passing bogus args when loading the module.
-	 * However cxt->cur_ops.init() may have been invoked, so beside
-	 * perform the underlying torture-specific cleanups, cur_ops.exit()
-	 * will be invoked if needed.
-	 */
 	if (!cxt.lwsa && !cxt.lrsa)
 		goto end;
 
@@ -988,10 +921,6 @@ static int __init lock_torture_init(void)
 			cxt.nrealreaders_stress = nreaders_stress;
 		else {
 			/*
-			 * By default distribute evenly the number of
-			 * readers and writers. We still run the same number
-			 * of threads as the writer-only locks default.
-			 */
 			if (nwriters_stress < 0) /* user doesn't care */
 				cxt.nrealwriters_stress = num_online_cpus();
 			cxt.nrealreaders_stress = cxt.nrealwriters_stress;
@@ -1067,13 +996,6 @@ static int __init lock_torture_init(void)
 	}
 
 	/*
-	 * Create the kthreads and start torturing (oh, those poor little locks).
-	 *
-	 * TODO: Note that we interleave writers with readers, giving writers a
-	 * slight advantage, by creating its kthread first. This can be modified
-	 * for very specific needs, or even let the user choose the policy, if
-	 * ever wanted.
-	 */
 	for (i = 0, j = 0; i < cxt.nrealwriters_stress ||
 		    j < cxt.nrealreaders_stress; i++, j++) {
 		if (i >= cxt.nrealwriters_stress)

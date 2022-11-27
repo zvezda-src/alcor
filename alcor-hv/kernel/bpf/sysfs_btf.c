@@ -1,14 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Provide kernel BTF information for introspection and use by eBPF tools.
- */
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/kobject.h>
 #include <linux/init.h>
 #include <linux/sysfs.h>
 
-/* See scripts/link-vmlinux.sh, gen_btf() func for details */
 extern char __weak __start_BTF[];
 extern char __weak __stop_BTF[];
 

@@ -1,20 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Machine check injection support.
- * Copyright 2008 Intel Corporation.
- *
- * Authors:
- * Andi Kleen
- * Ying Huang
- *
- * The AMD part (from mce_amd_inj.c): a simple MCE injection facility
- * for testing different aspects of the RAS code. This driver should be
- * built as module so that it can be loaded on production kernels for
- * testing purposes.
- *
- * Copyright (c) 2010-17:  Borislav Petkov <bp@alien8.de>
- *			   Advanced Micro Devices Inc.
- */
 
 #include <linux/cpu.h>
 #include <linux/debugfs.h>
@@ -35,9 +18,6 @@
 
 static bool hw_injection_possible = true;
 
-/*
- * Collect all the MCi_XXX settings
- */
 static struct mce i_mce;
 static struct dentry *dfs_inj;
 
@@ -60,7 +40,6 @@ static const char * const flags_options[] = {
 	NULL
 };
 
-/* Set default injection to SW_INJ */
 static enum injection_type inj_type = SW_INJ;
 
 #define MCE_INJECT_SET(reg)						\
@@ -82,7 +61,6 @@ static int inj_##reg##_get(void *data, u64 *val)			\
 {									\
 	struct mce *m = (struct mce *)data;				\
 									\
-	*val = m->reg;							\
 	return 0;							\
 }
 
@@ -97,7 +75,6 @@ DEFINE_SIMPLE_ATTRIBUTE(misc_fops, inj_misc_get, inj_misc_set, "%llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(addr_fops, inj_addr_get, inj_addr_set, "%llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(synd_fops, inj_synd_get, inj_synd_set, "%llx\n");
 
-/* Use the user provided IPID value on a sw injection. */
 static int inj_ipid_set(void *data, u64 val)
 {
 	struct mce *m = (struct mce *)data;
@@ -122,7 +99,6 @@ static void setup_inj_struct(struct mce *m)
 	m->microcode = boot_cpu_data.microcode;
 }
 
-/* Update fake mce registers on current CPU. */
 static void inject_mce(struct mce *m)
 {
 	struct mce *i = &per_cpu(injectm, m->extcpu);
@@ -200,7 +176,6 @@ static void mce_irq_ipi(void *info)
 	}
 }
 
-/* Inject mce on current CPU */
 static int raise_local(void)
 {
 	struct mce *m = this_cpu_ptr(&injectm);
@@ -213,10 +188,6 @@ static int raise_local(void)
 		switch (context) {
 		case MCJ_CTX_IRQ:
 			/*
-			 * Could do more to fake interrupts like
-			 * calling irq_enter, but the necessary
-			 * machinery isn't exported currently.
-			 */
 			fallthrough;
 		case MCJ_CTX_PROCESS:
 			raise_exception(m, NULL);
@@ -262,9 +233,6 @@ static void __maybe_unused raise_mce(struct mce *m)
 		if (!cpumask_empty(mce_inject_cpumask)) {
 			if (m->inject_flags & MCJ_IRQ_BROADCAST) {
 				/*
-				 * don't wait because mce_irq_ipi is necessary
-				 * to be sync with following raise_local
-				 */
 				preempt_disable();
 				smp_call_function_many(mce_inject_cpumask,
 					mce_irq_ipi, NULL, 0);
@@ -311,10 +279,6 @@ static struct notifier_block inject_nb = {
 	.notifier_call  = mce_inject_raise,
 };
 
-/*
- * Caller needs to be make sure this cpu doesn't disappear
- * from under us, i.e.: get_cpu/put_cpu.
- */
 static int toggle_hw_mce_inject(unsigned int cpu, bool enable)
 {
 	u32 l, h;
@@ -384,7 +348,6 @@ static ssize_t flags_write(struct file *filp, const char __user *ubuf,
 		return err;
 	}
 
-	*ppos += cnt;
 
 	return cnt;
 }
@@ -395,9 +358,6 @@ static const struct file_operations flags_fops = {
 	.llseek         = generic_file_llseek,
 };
 
-/*
- * On which CPU to inject?
- */
 MCE_INJECT_GET(extcpu);
 
 static int inj_extcpu_set(void *data, u64 val)
@@ -527,20 +487,12 @@ static void do_inject(void)
 		mcg_status |= MCG_STATUS_RIPV;
 
 	/*
-	 * Ensure necessary status bits for deferred errors:
-	 * - MCx_STATUS[Deferred]: make sure it is a deferred error
-	 * - MCx_STATUS[UC] cleared: deferred errors are _not_ UC
-	 */
 	if (inj_type == DFR_INT_INJ) {
 		i_mce.status |= MCI_STATUS_DEFERRED;
 		i_mce.status &= ~MCI_STATUS_UC;
 	}
 
 	/*
-	 * For multi node CPUs, logging and reporting of bank 4 errors happens
-	 * only on the node base core. Refer to D18F3x44[NbMcaToMstCpuEn] for
-	 * Fam10h and later BKDGs.
-	 */
 	if (boot_cpu_has(X86_FEATURE_AMD_DCM) &&
 	    b == 4 &&
 	    boot_cpu_data.x86 < 0x17) {
@@ -576,10 +528,6 @@ err:
 
 }
 
-/*
- * This denotes into which bank we're injecting and triggers
- * the injection, at the same time.
- */
 static int inj_bank_set(void *data, u64 val)
 {
 	struct mce *m = (struct mce *)data;
@@ -598,16 +546,10 @@ static int inj_bank_set(void *data, u64 val)
 	m->bank = val;
 
 	/*
-	 * sw-only injection allows to write arbitrary values into the MCA
-	 * registers because it tests only the decoding paths.
-	 */
 	if (inj_type == SW_INJ)
 		goto inject;
 
 	/*
-	 * Read IPID value to determine if a bank is populated on the target
-	 * CPU.
-	 */
 	if (cpu_feature_enabled(X86_FEATURE_SMCA)) {
 		u64 ipid;
 
@@ -727,9 +669,6 @@ static void check_hw_inj_possible(void)
 	u8 bank;
 
 	/*
-	 * This behavior exists only on SMCA systems though its not directly
-	 * related to SMCA.
-	 */
 	if (!cpu_feature_enabled(X86_FEATURE_SMCA))
 		return;
 

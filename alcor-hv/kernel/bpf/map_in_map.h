@@ -1,6 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2017 Facebook
- */
 #ifndef __MAP_IN_MAP_H__
 #define __MAP_IN_MAP_H__
 

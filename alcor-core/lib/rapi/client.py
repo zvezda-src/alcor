@@ -1,31 +1,4 @@
-#
-#
 
-# Copyright (C) 2010, 2011, 2012 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 """Alcor RAPI client.
@@ -39,8 +12,6 @@
 
 """
 
-# No Alcor-specific modules should be imported. The RAPI client is supposed to
-# be standalone.
 
 import logging
 import socket
@@ -104,57 +75,42 @@ JOB_STATUS_ALL = frozenset([
   JOB_STATUS_RUNNING,
   ]) | JOB_STATUS_PENDING | JOB_STATUS_FINALIZED
 
-# Legacy name
 JOB_STATUS_WAITLOCK = JOB_STATUS_WAITING
 
-# Internal constants
 _REQ_DATA_VERSION_FIELD = "__version__"
 _QPARAM_DRY_RUN = "dry-run"
 _QPARAM_FORCE = "force"
 
-# Feature strings
 INST_CREATE_REQV1 = "instance-create-reqv1"
 INST_REINSTALL_REQV1 = "instance-reinstall-reqv1"
 NODE_MIGRATE_REQV1 = "node-migrate-reqv1"
 NODE_EVAC_RES1 = "node-evac-res1"
 
-# Old feature constant names in case they're references by users of this module
 _INST_CREATE_REQV1 = INST_CREATE_REQV1
 _INST_REINSTALL_REQV1 = INST_REINSTALL_REQV1
 _NODE_MIGRATE_REQV1 = NODE_MIGRATE_REQV1
 _NODE_EVAC_RES1 = NODE_EVAC_RES1
 
-#: Resolver errors
 ECODE_RESOLVER = "resolver_error"
 
-#: Not enough resources (iallocator failure, disk space, memory, etc.)
 ECODE_NORES = "insufficient_resources"
 
-#: Temporarily out of resources; operation can be tried again
 ECODE_TEMP_NORES = "temp_insufficient_resources"
 
-#: Wrong arguments (at syntax level)
 ECODE_INVAL = "wrong_input"
 
-#: Wrong entity state
 ECODE_STATE = "wrong_state"
 
-#: Entity not found
 ECODE_NOENT = "unknown_entity"
 
-#: Entity already exists
 ECODE_EXISTS = "already_exists"
 
-#: Resource not unique (e.g. MAC or IP duplication)
 ECODE_NOTUNIQUE = "resource_not_unique"
 
-#: Internal cluster error
 ECODE_FAULT = "internal_error"
 
-#: Environment error (e.g. node disk error)
 ECODE_ENVIRON = "environment_error"
 
-#: List of all failure types
 ECODE_ALL = frozenset([
   ECODE_RESOLVER,
   ECODE_NORES,
@@ -168,7 +124,6 @@ ECODE_ALL = frozenset([
   ECODE_ENVIRON,
   ])
 
-# Older pycURL versions don't have all error constants
 try:
   _CURLE_SSL_CACERT = pycurl.E_SSL_CACERT
   _CURLE_SSL_CACERT_BADFILE = pycurl.E_SSL_CACERT_BADFILE

@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
 #include <linux/crash_dump.h>
 
@@ -8,13 +7,6 @@
 #include "mmu.h"
 
 #ifdef CONFIG_PROC_VMCORE
-/*
- * The kdump kernel has to check whether a pfn of the crashed kernel
- * was a ballooned page. vmcore is using this function to decide
- * whether to access a pfn of the crashed kernel.
- * Returns "false" if the pfn is not backed by a RAM page, the caller may
- * handle the pfn special in this case.
- */
 static bool xen_vmcore_pfn_is_ram(struct vmcore_cb *cb, unsigned long pfn)
 {
 	struct xen_hvm_get_mem_type a = {

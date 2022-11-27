@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (c) 2020 Facebook
- * Copyright 2020 Google LLC.
- */
 
 #include <linux/pid.h>
 #include <linux/sched.h>
@@ -227,7 +222,6 @@ out:
 	return err;
 }
 
-/* *gfp_flags* is a hidden argument provided by the verifier */
 BPF_CALL_5(bpf_task_storage_get, struct bpf_map *, map, struct task_struct *,
 	   task, void *, value, u64, flags, gfp_t, gfp_flags)
 {

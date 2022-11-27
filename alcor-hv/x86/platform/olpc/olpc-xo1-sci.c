@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Support for OLPC XO-1 System Control Interrupts (SCI)
- *
- * Copyright (C) 2010 One Laptop per Child
- * Copyright (C) 2006 Red Hat, Inc.
- * Copyright (C) 2006 Advanced Micro Devices, Inc.
- */
 
 #include <linux/cs5535.h>
 #include <linux/device.h>
@@ -70,7 +62,6 @@ static void ac_status_changed(void)
 	}
 }
 
-/* Report current ebook switch state through input layer */
 static void send_ebook_state(void)
 {
 	unsigned char state;
@@ -101,15 +92,6 @@ static void flip_lid_inverter(void)
 static void detect_lid_state(void)
 {
 	/*
-	 * the edge detector hookup on the gpio inputs on the geode is
-	 * odd, to say the least.  See http://dev.laptop.org/ticket/5703
-	 * for details, but in a nutshell:  we don't use the edge
-	 * detectors.  instead, we make use of an anomaly:  with the both
-	 * edge detectors turned off, we still get an edge event on a
-	 * positive edge transition.  to take advantage of this, we use the
-	 * front-end inverter to ensure that that's the edge we're always
-	 * going to see next.
-	 */
 
 	int state;
 
@@ -121,7 +103,6 @@ static void detect_lid_state(void)
 	flip_lid_inverter();
 }
 
-/* Report current lid switch state through input layer */
 static void send_lid_state(void)
 {
 	if (!!test_bit(SW_LID, lid_switch_idev->sw) == !lid_open)
@@ -162,15 +143,6 @@ static struct attribute *lid_attrs[] = {
 };
 ATTRIBUTE_GROUPS(lid);
 
-/*
- * Process all items in the EC's SCI queue.
- *
- * This is handled in a workqueue because olpc_ec_cmd can be slow (and
- * can even timeout).
- *
- * If propagate_events is false, the queue is drained without events being
- * generated for the interrupts.
- */
 static void process_sci_queue(bool propagate_events)
 {
 	int r;
@@ -294,9 +266,6 @@ static int xo1_sci_suspend(struct platform_device *pdev, pm_message_t state)
 static int xo1_sci_resume(struct platform_device *pdev)
 {
 	/*
-	 * We don't know what may have happened while we were asleep.
-	 * Reestablish our lid setup so we're sure to catch all transitions.
-	 */
 	detect_lid_state();
 	send_lid_state();
 	cs5535_gpio_set(OLPC_GPIO_LID, GPIO_EVENTS_ENABLE);
@@ -367,19 +336,6 @@ static int setup_ec_sci(void)
 	cs5535_gpio_set(OLPC_GPIO_ECSCI, GPIO_POSITIVE_EDGE_STS);
 
 	/*
-	 * Enable EC SCI events, and map them to both a PME and the SCI
-	 * interrupt.
-	 *
-	 * Ordinarily, in addition to functioning as GPIOs, Geode GPIOs can
-	 * be mapped to regular interrupts *or* Geode-specific Power
-	 * Management Events (PMEs) - events that bring the system out of
-	 * suspend. In this case, we want both of those things - the system
-	 * wakeup, *and* the ability to get an interrupt when an event occurs.
-	 *
-	 * To achieve this, we map the GPIO to a PME, and then we use one
-	 * of the many generic knobs on the CS5535 PIC to additionally map the
-	 * PME to the regular SCI interrupt line.
-	 */
 	cs5535_gpio_set(OLPC_GPIO_ECSCI, GPIO_EVENTS_ENABLE);
 
 	/* Set the SCI to cause a PME event on group 7 */

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PERCPU_H
 #define _ASM_X86_PERCPU_H
 
@@ -31,10 +30,6 @@
 #define __percpu_prefix		"%%"__stringify(__percpu_seg)":"
 #define __my_cpu_offset		this_cpu_read(this_cpu_off)
 
-/*
- * Compared to the generic __my_cpu_offset version, the following
- * saves one instruction and avoids clobbering a temp register.
- */
 #define arch_raw_cpu_ptr(ptr)				\
 ({							\
 	unsigned long tcp_ptr__;			\
@@ -49,13 +44,6 @@
 
 #define __percpu_arg(x)		__percpu_prefix "%" #x
 
-/*
- * Initialized pointers to per-cpu variables needed for the boot
- * processor need to use these macros to get the proper address
- * offset from __per_cpu_load on SMP.
- *
- * There also must be an entry in vmlinux_64.lds.S
- */
 #define DECLARE_INIT_PER_CPU(var) \
        extern typeof(var) init_per_cpu_var(var)
 
@@ -65,8 +53,6 @@
 #define init_per_cpu_var(var)  var
 #endif
 
-/* For arch-specific code, we can use direct single-insn ops (they
- * don't give an lvalue though). */
 
 #define __pcpu_type_1 u8
 #define __pcpu_type_2 u16
@@ -117,10 +103,6 @@ do {									\
 	    : [var] "+m" (_var));					\
 })
 
-/*
- * Generate a percpu add to memory instruction and optimize code
- * if one is added or subtracted.
- */
 #define percpu_add_op(size, qual, var, val)				\
 do {									\
 	const int pao_ID__ = (__builtin_constant_p(val) &&		\
@@ -157,9 +139,6 @@ do {									\
 	(typeof(_var))(unsigned long) pfo_val__;			\
 })
 
-/*
- * Add return operation
- */
 #define percpu_add_return_op(size, qual, _var, _val)			\
 ({									\
 	__pcpu_type_##size paro_tmp__ = __pcpu_cast_##size(_val);	\
@@ -171,11 +150,6 @@ do {									\
 	(typeof(_var))(unsigned long) (paro_tmp__ + _val);		\
 })
 
-/*
- * xchg is implemented using cmpxchg without a lock prefix. xchg is
- * expensive due to the implied lock prefix.  The processor cannot prefetch
- * cachelines if xchg is used.
- */
 #define percpu_xchg_op(size, qual, _var, _nval)				\
 ({									\
 	__pcpu_type_##size pxo_old__;					\
@@ -193,10 +167,6 @@ do {									\
 	(typeof(_var))(unsigned long) pxo_old__;			\
 })
 
-/*
- * cmpxchg has no such implied lock semantics as a result it is much
- * more efficient for cpu local operations.
- */
 #define percpu_cmpxchg_op(size, qual, _var, _oval, _nval)		\
 ({									\
 	__pcpu_type_##size pco_old__ = __pcpu_cast_##size(_oval);	\
@@ -210,15 +180,6 @@ do {									\
 	(typeof(_var))(unsigned long) pco_old__;			\
 })
 
-/*
- * this_cpu_read() makes gcc load the percpu variable every time it is
- * accessed while this_cpu_read_stable() allows the value to be cached.
- * this_cpu_read_stable() is more efficient and can be used if its value
- * is guaranteed to be valid across cpus.  The current users include
- * get_current() and get_thread_info() both of which are actually
- * per-thread variables implemented as per-cpu variables and thus
- * stable for the duration of the respective task.
- */
 #define this_cpu_read_stable_1(pcp)	percpu_stable_op(1, "mov", pcp)
 #define this_cpu_read_stable_2(pcp)	percpu_stable_op(2, "mov", pcp)
 #define this_cpu_read_stable_4(pcp)	percpu_stable_op(4, "mov", pcp)
@@ -242,10 +203,6 @@ do {									\
 #define raw_cpu_or_2(pcp, val)		percpu_to_op(2, , "or", (pcp), val)
 #define raw_cpu_or_4(pcp, val)		percpu_to_op(4, , "or", (pcp), val)
 
-/*
- * raw_cpu_xchg() can use a load-store since it is not required to be
- * IRQ-safe.
- */
 #define raw_percpu_xchg_op(var, nval)					\
 ({									\
 	typeof(var) pxo_ret__ = raw_cpu_read(var);			\
@@ -307,10 +264,6 @@ do {									\
 #define this_cpu_cmpxchg_double_4	percpu_cmpxchg8b_double
 #endif /* CONFIG_X86_CMPXCHG64 */
 
-/*
- * Per cpu atomic 64 bit operations are only available under 64 bit.
- * 32 bit must fall back to generic operations.
- */
 #ifdef CONFIG_X86_64
 #define raw_cpu_read_8(pcp)			percpu_from_op(8, , "mov", pcp)
 #define raw_cpu_write_8(pcp, val)		percpu_to_op(8, , "mov", (pcp), val)
@@ -330,12 +283,6 @@ do {									\
 #define this_cpu_xchg_8(pcp, nval)		percpu_xchg_op(8, volatile, pcp, nval)
 #define this_cpu_cmpxchg_8(pcp, oval, nval)	percpu_cmpxchg_op(8, volatile, pcp, oval, nval)
 
-/*
- * Pretty complex macro to generate cmpxchg16 instruction.  The instruction
- * is not supported on early AMD64 processors so we must be able to emulate
- * it in software.  The address used in the cmpxchg16 instruction must be
- * aligned to a 16 byte boundary.
- */
 #define percpu_cmpxchg16b_double(pcp1, pcp2, o1, o2, n1, n2)		\
 ({									\
 	bool __ret;							\
@@ -389,18 +336,12 @@ static inline bool x86_this_cpu_variable_test_bit(int nr,
 
 #include <asm-generic/percpu.h>
 
-/* We can use this directly for local CPU (faster). */
 DECLARE_PER_CPU_READ_MOSTLY(unsigned long, this_cpu_off);
 
 #endif /* !__ASSEMBLY__ */
 
 #ifdef CONFIG_SMP
 
-/*
- * Define the "EARLY_PER_CPU" macros.  These are used for some per_cpu
- * variables that are initialized and accessed before there are per_cpu
- * areas allocated.
- */
 
 #define	DEFINE_EARLY_PER_CPU(_type, _name, _initvalue)			\
 	DEFINE_PER_CPU(_type, _name) = _initvalue;			\
@@ -430,7 +371,6 @@ DECLARE_PER_CPU_READ_MOSTLY(unsigned long, this_cpu_off);
 #define	early_per_cpu_ptr(_name) (_name##_early_ptr)
 #define	early_per_cpu_map(_name, _idx) (_name##_early_map[_idx])
 #define	early_per_cpu(_name, _cpu) 				\
-	*(early_per_cpu_ptr(_name) ?				\
 		&early_per_cpu_ptr(_name)[_cpu] :		\
 		&per_cpu(_name, _cpu))
 
@@ -452,7 +392,6 @@ DECLARE_PER_CPU_READ_MOSTLY(unsigned long, this_cpu_off);
 
 #define	early_per_cpu(_name, _cpu) per_cpu(_name, _cpu)
 #define	early_per_cpu_ptr(_name) NULL
-/* no early_per_cpu_map() */
 
 #endif	/* !CONFIG_SMP */
 

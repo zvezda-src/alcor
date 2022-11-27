@@ -1,9 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __UM_DESC_H
 #define __UM_DESC_H
 
-/* Taken from asm-i386/desc.h, it's the only thing we need. The rest wouldn't
- * compile, and has never been used. */
 #define LDT_empty(info) (\
 	(info)->base_addr	== 0	&& \
 	(info)->limit		== 0	&& \

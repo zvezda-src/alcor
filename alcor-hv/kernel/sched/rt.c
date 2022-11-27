@@ -1,27 +1,13 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Real-Time Scheduling Class (mapped to the SCHED_FIFO and SCHED_RR
- * policies)
- */
 
 int sched_rr_timeslice = RR_TIMESLICE;
-/* More than 4 hours if BW_SHIFT equals 20. */
 static const u64 max_rt_runtime = MAX_BW;
 
 static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun);
 
 struct rt_bandwidth def_rt_bandwidth;
 
-/*
- * period over which we measure -rt task CPU usage in us.
- * default: 1s
- */
 unsigned int sysctl_sched_rt_period = 1000000;
 
-/*
- * part of the period that we allow rt tasks to run in us.
- * default: 0.95s
- */
 int sysctl_sched_rt_runtime = 950000;
 
 #ifdef CONFIG_SYSCTL
@@ -105,13 +91,6 @@ static inline void do_start_rt_bandwidth(struct rt_bandwidth *rt_b)
 	if (!rt_b->rt_period_active) {
 		rt_b->rt_period_active = 1;
 		/*
-		 * SCHED_DEADLINE updates the bandwidth, as a run away
-		 * RT task with a DL task could hog a CPU. But DL does
-		 * not reset the period. If a deadline task was running
-		 * without an RT task running, it can cause RT tasks to
-		 * throttle when they start up. Kick the timer right away
-		 * to update the period.
-		 */
 		hrtimer_forward_now(&rt_b->rt_period_timer, ns_to_ktime(0));
 		hrtimer_start_expires(&rt_b->rt_period_timer,
 				      HRTIMER_MODE_ABS_PINNED_HARD);
@@ -336,14 +315,6 @@ static inline void rt_set_overload(struct rq *rq)
 
 	cpumask_set_cpu(rq->cpu, rq->rd->rto_mask);
 	/*
-	 * Make sure the mask is visible before we set
-	 * the overload count. That is checked to determine
-	 * if we should look at the mask. It would be a shame
-	 * if we looked at the mask, but the mask was not
-	 * updated yet.
-	 *
-	 * Matched by the barrier in pull_rt_task().
-	 */
 	smp_wmb();
 	atomic_inc(&rq->rd->rto_count);
 }
@@ -488,20 +459,6 @@ static inline int on_rt_rq(struct sched_rt_entity *rt_se)
 }
 
 #ifdef CONFIG_UCLAMP_TASK
-/*
- * Verify the fitness of task @p to run on @cpu taking into account the uclamp
- * settings.
- *
- * This check is only important for heterogeneous systems where uclamp_min value
- * is higher than the capacity of a @cpu. For non-heterogeneous system this
- * function will always return true.
- *
- * The function will return true if the capacity of the @cpu is >= the
- * uclamp_min and false otherwise.
- *
- * Note that uclamp_min will be clamped to uclamp_max if uclamp_min
- * > uclamp_max.
- */
 static inline bool rt_task_fits_capacity(struct task_struct *p, int cpu)
 {
 	unsigned int min_cap;
@@ -722,9 +679,6 @@ bool sched_rt_bandwidth_account(struct rt_rq *rt_rq)
 }
 
 #ifdef CONFIG_SMP
-/*
- * We ran out of runtime, see if we can borrow some from our neighbours.
- */
 static void do_balance_runtime(struct rt_rq *rt_rq)
 {
 	struct rt_bandwidth *rt_b = sched_rt_bandwidth(rt_rq);
@@ -745,17 +699,10 @@ static void do_balance_runtime(struct rt_rq *rt_rq)
 
 		raw_spin_lock(&iter->rt_runtime_lock);
 		/*
-		 * Either all rqs have inf runtime and there's nothing to steal
-		 * or __disable_runtime() below sets a specific rq to inf to
-		 * indicate its been disabled and disallow stealing.
-		 */
 		if (iter->rt_runtime == RUNTIME_INF)
 			goto next;
 
 		/*
-		 * From runqueues with spare time, take 1/n part of their
-		 * spare time, but no more than our period.
-		 */
 		diff = iter->rt_runtime - iter->rt_time;
 		if (diff > 0) {
 			diff = div_u64((u64)diff, weight);
@@ -774,9 +721,6 @@ next:
 	raw_spin_unlock(&rt_b->rt_runtime_lock);
 }
 
-/*
- * Ensure this RQ takes back all the runtime it lend to its neighbours.
- */
 static void __disable_runtime(struct rq *rq)
 {
 	struct root_domain *rd = rq->rd;
@@ -794,32 +738,20 @@ static void __disable_runtime(struct rq *rq)
 		raw_spin_lock(&rt_b->rt_runtime_lock);
 		raw_spin_lock(&rt_rq->rt_runtime_lock);
 		/*
-		 * Either we're all inf and nobody needs to borrow, or we're
-		 * already disabled and thus have nothing to do, or we have
-		 * exactly the right amount of runtime to take out.
-		 */
 		if (rt_rq->rt_runtime == RUNTIME_INF ||
 				rt_rq->rt_runtime == rt_b->rt_runtime)
 			goto balanced;
 		raw_spin_unlock(&rt_rq->rt_runtime_lock);
 
 		/*
-		 * Calculate the difference between what we started out with
-		 * and what we current have, that's the amount of runtime
-		 * we lend and now have to reclaim.
-		 */
 		want = rt_b->rt_runtime - rt_rq->rt_runtime;
 
 		/*
-		 * Greedy reclaim, take back as much as we can.
-		 */
 		for_each_cpu(i, rd->span) {
 			struct rt_rq *iter = sched_rt_period_rt_rq(rt_b, i);
 			s64 diff;
 
 			/*
-			 * Can't reclaim from ourselves or disabled runqueues.
-			 */
 			if (iter == rt_rq || iter->rt_runtime == RUNTIME_INF)
 				continue;
 
@@ -840,15 +772,9 @@ static void __disable_runtime(struct rq *rq)
 
 		raw_spin_lock(&rt_rq->rt_runtime_lock);
 		/*
-		 * We cannot be left wanting - that would mean some runtime
-		 * leaked out of the system.
-		 */
 		BUG_ON(want);
 balanced:
 		/*
-		 * Disable all the borrow logic by pretending we have inf
-		 * runtime - in which case borrowing doesn't make sense.
-		 */
 		rt_rq->rt_runtime = RUNTIME_INF;
 		rt_rq->rt_throttled = 0;
 		raw_spin_unlock(&rt_rq->rt_runtime_lock);
@@ -868,8 +794,6 @@ static void __enable_runtime(struct rq *rq)
 		return;
 
 	/*
-	 * Reset each runqueue's bandwidth settings
-	 */
 	for_each_rt_rq(rt_rq, iter, rq) {
 		struct rt_bandwidth *rt_b = sched_rt_bandwidth(rt_rq);
 
@@ -906,14 +830,6 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 	span = sched_rt_period_mask();
 #ifdef CONFIG_RT_GROUP_SCHED
 	/*
-	 * FIXME: isolated CPUs should really leave the root task group,
-	 * whether they are isolcpus or were isolated via cpusets, lest
-	 * the timer run on a CPU which does not service all runqueues,
-	 * potentially leaving other CPUs indefinitely throttled.  If
-	 * isolation is really required, the user will turn the throttle
-	 * off to kill the perturbations it causes anyway.  Meanwhile,
-	 * this maintains functionality for boot and/or troubleshooting.
-	 */
 	if (rt_b == &root_task_group.rt_bandwidth)
 		span = cpu_online_mask;
 #endif
@@ -925,9 +841,6 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 		int skip;
 
 		/*
-		 * When span == cpu_online_mask, taking each rq->lock
-		 * can be time-consuming. Try to avoid it when possible.
-		 */
 		raw_spin_lock(&rt_rq->rt_runtime_lock);
 		if (!sched_feat(RT_RUNTIME_SHARE) && rt_rq->rt_runtime != RUNTIME_INF)
 			rt_rq->rt_runtime = rt_b->rt_runtime;
@@ -952,12 +865,6 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 				enqueue = 1;
 
 				/*
-				 * When we're idle and a woken (rt) task is
-				 * throttled check_preempt_curr() will set
-				 * skip_update and the time between the wakeup
-				 * and this unthrottle will get accounted as
-				 * 'runtime'.
-				 */
 				if (rt_rq->rt_nr_running && rq->curr == rq->idle)
 					rq_clock_cancel_skipupdate(rq);
 			}
@@ -1014,18 +921,11 @@ static int sched_rt_runtime_exceeded(struct rt_rq *rt_rq)
 		struct rt_bandwidth *rt_b = sched_rt_bandwidth(rt_rq);
 
 		/*
-		 * Don't actually throttle groups that have no runtime assigned
-		 * but accrue some time due to boosting.
-		 */
 		if (likely(rt_b->rt_runtime)) {
 			rt_rq->rt_throttled = 1;
 			printk_deferred_once("sched: RT throttling activated\n");
 		} else {
 			/*
-			 * In case we did anyway, make it go away,
-			 * replenishment is a joke, since it will replenish us
-			 * with exactly 0 ns.
-			 */
 			rt_rq->rt_time = 0;
 		}
 
@@ -1038,10 +938,6 @@ static int sched_rt_runtime_exceeded(struct rt_rq *rt_rq)
 	return 0;
 }
 
-/*
- * Update the current task's runtime statistics. Skip current tasks that
- * are not in our scheduling class.
- */
 static void update_curr_rt(struct rq *rq)
 {
 	struct task_struct *curr = rq->curr;
@@ -1136,8 +1032,6 @@ inc_rt_prio_smp(struct rt_rq *rt_rq, int prio, int prev_prio)
 
 #ifdef CONFIG_RT_GROUP_SCHED
 	/*
-	 * Change rq's cpupri only if rt_rq is the top queue.
-	 */
 	if (&rq->rt != rt_rq)
 		return;
 #endif
@@ -1152,8 +1046,6 @@ dec_rt_prio_smp(struct rt_rq *rt_rq, int prio, int prev_prio)
 
 #ifdef CONFIG_RT_GROUP_SCHED
 	/*
-	 * Change rq's cpupri only if rt_rq is the top queue.
-	 */
 	if (&rq->rt != rt_rq)
 		return;
 #endif
@@ -1192,9 +1084,6 @@ dec_rt_prio(struct rt_rq *rt_rq, int prio)
 		WARN_ON(prio < prev_prio);
 
 		/*
-		 * This may have been our highest task, and therefore
-		 * we may have some recomputation to do
-		 */
 		if (prio == prev_prio) {
 			struct rt_prio_array *array = &rt_rq->active;
 
@@ -1302,11 +1191,6 @@ void dec_rt_tasks(struct sched_rt_entity *rt_se, struct rt_rq *rt_rq)
 	dec_rt_group(rt_se, rt_rq);
 }
 
-/*
- * Change rt_se->run_list location unless SAVE && !MOVE
- *
- * assumes ENQUEUE/DEQUEUE flags match
- */
 static inline bool move_entity(unsigned int flags)
 {
 	if ((flags & (DEQUEUE_SAVE | DEQUEUE_MOVE)) == DEQUEUE_SAVE)
@@ -1439,11 +1323,6 @@ static void __enqueue_rt_entity(struct sched_rt_entity *rt_se, unsigned int flag
 	struct list_head *queue = array->queue + rt_se_prio(rt_se);
 
 	/*
-	 * Don't enqueue the group if its throttled, or when empty.
-	 * The latter is a consequence of the former when a child group
-	 * get throttled and the current group doesn't have any other
-	 * active members.
-	 */
 	if (group_rq && (rt_rq_throttled(group_rq) || !group_rq->rt_nr_running)) {
 		if (rt_se->on_list)
 			__delist_rt_entity(rt_se, array);
@@ -1479,10 +1358,6 @@ static void __dequeue_rt_entity(struct sched_rt_entity *rt_se, unsigned int flag
 	dec_rt_tasks(rt_se, rt_rq);
 }
 
-/*
- * Because the prio of an upper entry depends on the lower
- * entries, we must remove entries top - down.
- */
 static void dequeue_rt_stack(struct sched_rt_entity *rt_se, unsigned int flags)
 {
 	struct sched_rt_entity *back = NULL;
@@ -1532,9 +1407,6 @@ static void dequeue_rt_entity(struct sched_rt_entity *rt_se, unsigned int flags)
 	enqueue_top_rt_rq(&rq->rt);
 }
 
-/*
- * Adding/removing a task to/from a priority array:
- */
 static void
 enqueue_task_rt(struct rq *rq, struct task_struct *p, int flags)
 {
@@ -1562,10 +1434,6 @@ static void dequeue_task_rt(struct rq *rq, struct task_struct *p, int flags)
 	dequeue_pushable_task(rq, p);
 }
 
-/*
- * Put task to the head or the end of the run list without the overhead of
- * dequeue followed by enqueue.
- */
 static void
 requeue_rt_entity(struct rt_rq *rt_rq, struct sched_rt_entity *rt_se, int head)
 {
@@ -1616,31 +1484,6 @@ select_task_rq_rt(struct task_struct *p, int cpu, int flags)
 	curr = READ_ONCE(rq->curr); /* unlocked access */
 
 	/*
-	 * If the current task on @p's runqueue is an RT task, then
-	 * try to see if we can wake this RT task up on another
-	 * runqueue. Otherwise simply start this RT task
-	 * on its current runqueue.
-	 *
-	 * We want to avoid overloading runqueues. If the woken
-	 * task is a higher priority, then it will stay on this CPU
-	 * and the lower prio task should be moved to another CPU.
-	 * Even though this will probably make the lower prio task
-	 * lose its cache, we do not want to bounce a higher task
-	 * around just because it gave up its CPU, perhaps for a
-	 * lock?
-	 *
-	 * For equal prio tasks, we just let the scheduler sort it out.
-	 *
-	 * Otherwise, just let it ride on the affined RQ and the
-	 * post-schedule router will push the preempted task away
-	 *
-	 * This test is optimistic, if we get it wrong the load-balancer
-	 * will have to sort it out.
-	 *
-	 * We take into account the capacity of the CPU to ensure it fits the
-	 * requirement of the task - which is only important on heterogeneous
-	 * systems like big.LITTLE.
-	 */
 	test = curr &&
 	       unlikely(rt_task(curr)) &&
 	       (curr->nr_cpus_allowed < 2 || curr->prio <= p->prio);
@@ -1649,16 +1492,10 @@ select_task_rq_rt(struct task_struct *p, int cpu, int flags)
 		int target = find_lowest_rq(p);
 
 		/*
-		 * Bail out if we were forcing a migration to find a better
-		 * fitting CPU but our search failed.
-		 */
 		if (!test && target != -1 && !rt_task_fits_capacity(p, target))
 			goto out_unlock;
 
 		/*
-		 * Don't bother moving it if the destination CPU is
-		 * not running a lower priority task.
-		 */
 		if (target != -1 &&
 		    p->prio < cpu_rq(target)->rt.highest_prio.curr)
 			cpu = target;
@@ -1674,26 +1511,16 @@ out:
 static void check_preempt_equal_prio(struct rq *rq, struct task_struct *p)
 {
 	/*
-	 * Current can't be migrated, useless to reschedule,
-	 * let's hope p can move out.
-	 */
 	if (rq->curr->nr_cpus_allowed == 1 ||
 	    !cpupri_find(&rq->rd->cpupri, rq->curr, NULL))
 		return;
 
 	/*
-	 * p is migratable, so let's not schedule it and
-	 * see if it is pushed or pulled somewhere else.
-	 */
 	if (p->nr_cpus_allowed != 1 &&
 	    cpupri_find(&rq->rd->cpupri, p, NULL))
 		return;
 
 	/*
-	 * There appear to be other CPUs that can accept
-	 * the current task but none can run 'p', so lets reschedule
-	 * to try and push the current task away:
-	 */
 	requeue_task_rt(rq, p, 1);
 	resched_curr(rq);
 }
@@ -1702,11 +1529,6 @@ static int balance_rt(struct rq *rq, struct task_struct *p, struct rq_flags *rf)
 {
 	if (!on_rt_rq(&p->rt) && need_pull_rt_task(rq, p)) {
 		/*
-		 * This is OK, because current is on_cpu, which avoids it being
-		 * picked for load-balance and preemption/IRQs are still
-		 * disabled avoiding further scheduler activity on it and we've
-		 * not yet started the picking loop.
-		 */
 		rq_unpin_lock(rq, rf);
 		pull_rt_task(rq);
 		rq_repin_lock(rq, rf);
@@ -1716,9 +1538,6 @@ static int balance_rt(struct rq *rq, struct task_struct *p, struct rq_flags *rf)
 }
 #endif /* CONFIG_SMP */
 
-/*
- * Preempt the current task with a newly woken task if needed:
- */
 static void check_preempt_curr_rt(struct rq *rq, struct task_struct *p, int flags)
 {
 	if (p->prio < rq->curr->prio) {
@@ -1728,17 +1547,6 @@ static void check_preempt_curr_rt(struct rq *rq, struct task_struct *p, int flag
 
 #ifdef CONFIG_SMP
 	/*
-	 * If:
-	 *
-	 * - the newly woken task is of equal priority to the current task
-	 * - the newly woken task is non-migratable while current is migratable
-	 * - current will be preempted on the next reschedule
-	 *
-	 * we should check to see if current can readily move to a different
-	 * cpu.  If so, we will reschedule to allow the push logic to try
-	 * to move current somewhere else, making room for our non-migratable
-	 * task.
-	 */
 	if (p->prio == rq->curr->prio && !test_tsk_need_resched(rq->curr))
 		check_preempt_equal_prio(rq, p);
 #endif
@@ -1760,10 +1568,6 @@ static inline void set_next_task_rt(struct rq *rq, struct task_struct *p, bool f
 		return;
 
 	/*
-	 * If prev task was rt, put_prev_task() has already updated the
-	 * utilization. We only care of the case where we start to schedule a
-	 * rt task
-	 */
 	if (rq->curr->sched_class != &rt_sched_class)
 		update_rt_rq_load_avg(rq_clock_pelt(rq), rq, 0);
 
@@ -1835,16 +1639,12 @@ static void put_prev_task_rt(struct rq *rq, struct task_struct *p)
 	update_rt_rq_load_avg(rq_clock_pelt(rq), rq, 1);
 
 	/*
-	 * The previous task needs to be made eligible for pushing
-	 * if it is still active
-	 */
 	if (on_rt_rq(&p->rt) && p->nr_cpus_allowed > 1)
 		enqueue_pushable_task(rq, p);
 }
 
 #ifdef CONFIG_SMP
 
-/* Only try algorithms three times */
 #define RT_MAX_TRIES 3
 
 static int pick_rt_task(struct rq *rq, struct task_struct *p, int cpu)
@@ -1856,10 +1656,6 @@ static int pick_rt_task(struct rq *rq, struct task_struct *p, int cpu)
 	return 0;
 }
 
-/*
- * Return the highest pushable rq's task, which is suitable to be executed
- * on the CPU, NULL otherwise
- */
 static struct task_struct *pick_highest_pushable_task(struct rq *rq, int cpu)
 {
 	struct plist_head *head = &rq->rt.pushable_tasks;
@@ -1894,9 +1690,6 @@ static int find_lowest_rq(struct task_struct *task)
 		return -1; /* No other targets possible */
 
 	/*
-	 * If we're on asym system ensure we consider the different capacities
-	 * of the CPUs when searching for the lowest_mask.
-	 */
 	if (static_branch_unlikely(&sched_asym_cpucapacity)) {
 
 		ret = cpupri_find_fitness(&task_rq(task)->rd->cpupri,
@@ -1912,20 +1705,10 @@ static int find_lowest_rq(struct task_struct *task)
 		return -1; /* No targets found */
 
 	/*
-	 * At this point we have built a mask of CPUs representing the
-	 * lowest priority tasks in the system.  Now we want to elect
-	 * the best one based on our affinity and topology.
-	 *
-	 * We prioritize the last CPU that the task executed on since
-	 * it is most likely cache-hot in that location.
-	 */
 	if (cpumask_test_cpu(cpu, lowest_mask))
 		return cpu;
 
 	/*
-	 * Otherwise, we consult the sched_domains span maps to figure
-	 * out which CPU is logically closest to our hot cache data.
-	 */
 	if (!cpumask_test_cpu(this_cpu, lowest_mask))
 		this_cpu = -1; /* Skip this_cpu opt if not among lowest */
 
@@ -1935,9 +1718,6 @@ static int find_lowest_rq(struct task_struct *task)
 			int best_cpu;
 
 			/*
-			 * "this_cpu" is cheaper to preempt than a
-			 * remote processor.
-			 */
 			if (this_cpu != -1 &&
 			    cpumask_test_cpu(this_cpu, sched_domain_span(sd))) {
 				rcu_read_unlock();
@@ -1955,10 +1735,6 @@ static int find_lowest_rq(struct task_struct *task)
 	rcu_read_unlock();
 
 	/*
-	 * And finally, if there were no matches within the domains
-	 * just give the caller *something* to work with from the compatible
-	 * locations.
-	 */
 	if (this_cpu != -1)
 		return this_cpu;
 
@@ -1969,7 +1745,6 @@ static int find_lowest_rq(struct task_struct *task)
 	return -1;
 }
 
-/* Will lock the rq it finds */
 static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
 {
 	struct rq *lowest_rq = NULL;
@@ -1986,10 +1761,6 @@ static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
 
 		if (lowest_rq->rt.highest_prio.curr <= task->prio) {
 			/*
-			 * Target rq has tasks of equal or higher priority,
-			 * retrying does not release any lock and is unlikely
-			 * to yield a different result.
-			 */
 			lowest_rq = NULL;
 			break;
 		}
@@ -1997,11 +1768,6 @@ static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
 		/* if the prio of this runqueue changed, try again */
 		if (double_lock_balance(rq, lowest_rq)) {
 			/*
-			 * We had to unlock the run queue. In
-			 * the mean time, task could have
-			 * migrated already or had its affinity changed.
-			 * Also make sure that it wasn't scheduled on its rq.
-			 */
 			if (unlikely(task_rq(task) != rq ||
 				     !cpumask_test_cpu(lowest_rq->cpu, &task->cpus_mask) ||
 				     task_running(rq, task) ||
@@ -2046,11 +1812,6 @@ static struct task_struct *pick_next_pushable_task(struct rq *rq)
 	return p;
 }
 
-/*
- * If the current CPU has more than one RT task, see if the non
- * running task can migrate over to a CPU that is running a task
- * of lesser priority.
- */
 static int push_rt_task(struct rq *rq, bool pull)
 {
 	struct task_struct *next_task;
@@ -2066,10 +1827,6 @@ static int push_rt_task(struct rq *rq, bool pull)
 
 retry:
 	/*
-	 * It's possible that the next_task slipped in of
-	 * higher priority than current. If that's the case
-	 * just reschedule current.
-	 */
 	if (unlikely(next_task->prio < rq->curr->prio)) {
 		resched_curr(rq);
 		return 0;
@@ -2083,14 +1840,6 @@ retry:
 			return 0;
 
 		/*
-		 * Invoking find_lowest_rq() on anything but an RT task doesn't
-		 * make sense. Per the above priority check, curr has to
-		 * be of higher priority than next_task, so no need to
-		 * reschedule when bailing out.
-		 *
-		 * Note that the stoppers are masqueraded as SCHED_FIFO
-		 * (cf. sched_set_stop_task()), so we can't rely on rt_task().
-		 */
 		if (rq->curr->sched_class != &rt_sched_class)
 			return 0;
 
@@ -2099,11 +1848,6 @@ retry:
 			return 0;
 
 		/*
-		 * Given we found a CPU with lower priority than @next_task,
-		 * therefore it should be running. However we cannot migrate it
-		 * to this other CPU, instead attempt to push the current
-		 * running task on this CPU away.
-		 */
 		push_task = get_push_task(rq);
 		if (push_task) {
 			raw_spin_rq_unlock(rq);
@@ -2126,21 +1870,9 @@ retry:
 	if (!lowest_rq) {
 		struct task_struct *task;
 		/*
-		 * find_lock_lowest_rq releases rq->lock
-		 * so it is possible that next_task has migrated.
-		 *
-		 * We need to make sure that the task is still on the same
-		 * run-queue and is also still the next task eligible for
-		 * pushing.
-		 */
 		task = pick_next_pushable_task(rq);
 		if (task == next_task) {
 			/*
-			 * The task hasn't migrated, and is still the next
-			 * eligible task, but we failed to find a run-queue
-			 * to push it to.  Do not retry in this case, since
-			 * other CPUs will pull from us when ready.
-			 */
 			goto out;
 		}
 
@@ -2149,8 +1881,6 @@ retry:
 			goto out;
 
 		/*
-		 * Something has shifted, try again.
-		 */
 		put_task_struct(next_task);
 		next_task = task;
 		goto retry;
@@ -2178,65 +1908,12 @@ static void push_rt_tasks(struct rq *rq)
 
 #ifdef HAVE_RT_PUSH_IPI
 
-/*
- * When a high priority task schedules out from a CPU and a lower priority
- * task is scheduled in, a check is made to see if there's any RT tasks
- * on other CPUs that are waiting to run because a higher priority RT task
- * is currently running on its CPU. In this case, the CPU with multiple RT
- * tasks queued on it (overloaded) needs to be notified that a CPU has opened
- * up that may be able to run one of its non-running queued RT tasks.
- *
- * All CPUs with overloaded RT tasks need to be notified as there is currently
- * no way to know which of these CPUs have the highest priority task waiting
- * to run. Instead of trying to take a spinlock on each of these CPUs,
- * which has shown to cause large latency when done on machines with many
- * CPUs, sending an IPI to the CPUs to have them push off the overloaded
- * RT tasks waiting to run.
- *
- * Just sending an IPI to each of the CPUs is also an issue, as on large
- * count CPU machines, this can cause an IPI storm on a CPU, especially
- * if its the only CPU with multiple RT tasks queued, and a large number
- * of CPUs scheduling a lower priority task at the same time.
- *
- * Each root domain has its own irq work function that can iterate over
- * all CPUs with RT overloaded tasks. Since all CPUs with overloaded RT
- * task must be checked if there's one or many CPUs that are lowering
- * their priority, there's a single irq work iterator that will try to
- * push off RT tasks that are waiting to run.
- *
- * When a CPU schedules a lower priority task, it will kick off the
- * irq work iterator that will jump to each CPU with overloaded RT tasks.
- * As it only takes the first CPU that schedules a lower priority task
- * to start the process, the rto_start variable is incremented and if
- * the atomic result is one, then that CPU will try to take the rto_lock.
- * This prevents high contention on the lock as the process handles all
- * CPUs scheduling lower priority tasks.
- *
- * All CPUs that are scheduling a lower priority task will increment the
- * rt_loop_next variable. This will make sure that the irq work iterator
- * checks all RT overloaded CPUs whenever a CPU schedules a new lower
- * priority task, even if the iterator is in the middle of a scan. Incrementing
- * the rt_loop_next will cause the iterator to perform another scan.
- *
- */
 static int rto_next_cpu(struct root_domain *rd)
 {
 	int next;
 	int cpu;
 
 	/*
-	 * When starting the IPI RT pushing, the rto_cpu is set to -1,
-	 * rt_next_cpu() will simply return the first CPU found in
-	 * the rto_mask.
-	 *
-	 * If rto_next_cpu() is called with rto_cpu is a valid CPU, it
-	 * will return the next CPU found in the rto_mask.
-	 *
-	 * If there are no more CPUs left in the rto_mask, then a check is made
-	 * against rto_loop and rto_loop_next. rto_loop is only updated with
-	 * the rto_lock held, but any CPU may increment the rto_loop_next
-	 * without any locking.
-	 */
 	for (;;) {
 
 		/* When rto_cpu is -1 this acts like cpumask_first() */
@@ -2250,11 +1927,6 @@ static int rto_next_cpu(struct root_domain *rd)
 		rd->rto_cpu = -1;
 
 		/*
-		 * ACQUIRE ensures we see the @rto_mask changes
-		 * made prior to the @next value observed.
-		 *
-		 * Matches WMB in rt_set_overload().
-		 */
 		next = atomic_read_acquire(&rd->rto_loop_next);
 
 		if (rd->rto_loop == next)
@@ -2290,11 +1962,6 @@ static void tell_cpu_to_push(struct rq *rq)
 	raw_spin_lock(&rq->rd->rto_lock);
 
 	/*
-	 * The rto_cpu is updated under the lock, if it has a valid CPU
-	 * then the IPI is still running and will continue due to the
-	 * update to loop_next, and nothing needs to be done here.
-	 * Otherwise it is finishing up and an ipi needs to be sent.
-	 */
 	if (rq->rd->rto_cpu < 0)
 		cpu = rto_next_cpu(rq->rd);
 
@@ -2309,7 +1976,6 @@ static void tell_cpu_to_push(struct rq *rq)
 	}
 }
 
-/* Called from hardirq context */
 void rto_push_irq_work_func(struct irq_work *work)
 {
 	struct root_domain *rd =
@@ -2320,9 +1986,6 @@ void rto_push_irq_work_func(struct irq_work *work)
 	rq = this_rq();
 
 	/*
-	 * We do not need to grab the lock to check for has_pushable_tasks.
-	 * When it gets updated, a check is made if a push is possible.
-	 */
 	if (has_pushable_tasks(rq)) {
 		raw_spin_rq_lock(rq);
 		while (push_rt_task(rq, true))
@@ -2359,9 +2022,6 @@ static void pull_rt_task(struct rq *this_rq)
 		return;
 
 	/*
-	 * Match the barrier from rt_set_overloaded; this guarantees that if we
-	 * see overloaded we must also see the rto_mask bit.
-	 */
 	smp_rmb();
 
 	/* If we are the only overloaded CPU do nothing */
@@ -2383,46 +2043,23 @@ static void pull_rt_task(struct rq *this_rq)
 		src_rq = cpu_rq(cpu);
 
 		/*
-		 * Don't bother taking the src_rq->lock if the next highest
-		 * task is known to be lower-priority than our current task.
-		 * This may look racy, but if this value is about to go
-		 * logically higher, the src_rq will push this task away.
-		 * And if its going logically lower, we do not care
-		 */
 		if (src_rq->rt.highest_prio.next >=
 		    this_rq->rt.highest_prio.curr)
 			continue;
 
 		/*
-		 * We can potentially drop this_rq's lock in
-		 * double_lock_balance, and another CPU could
-		 * alter this_rq
-		 */
 		push_task = NULL;
 		double_lock_balance(this_rq, src_rq);
 
 		/*
-		 * We can pull only a task, which is pushable
-		 * on its rq, and no others.
-		 */
 		p = pick_highest_pushable_task(src_rq, this_cpu);
 
 		/*
-		 * Do we have an RT task that preempts
-		 * the to-be-scheduled task?
-		 */
 		if (p && (p->prio < this_rq->rt.highest_prio.curr)) {
 			WARN_ON(p == src_rq->curr);
 			WARN_ON(!task_on_rq_queued(p));
 
 			/*
-			 * There's a chance that p is higher in priority
-			 * than what's currently running on its CPU.
-			 * This is just that p is waking up and hasn't
-			 * had a chance to schedule. We only pull
-			 * p if it is lower in priority than the
-			 * current task on the run queue
-			 */
 			if (p->prio < src_rq->curr->prio)
 				goto skip;
 
@@ -2435,11 +2072,6 @@ static void pull_rt_task(struct rq *this_rq)
 				resched = true;
 			}
 			/*
-			 * We continue with the search, just in
-			 * case there's an even higher prio task
-			 * in another runqueue. (low likelihood
-			 * but possible)
-			 */
 		}
 skip:
 		double_unlock_balance(this_rq, src_rq);
@@ -2456,10 +2088,6 @@ skip:
 		resched_curr(this_rq);
 }
 
-/*
- * If we are not running and we are not going to reschedule soon, we should
- * try to push tasks away now
- */
 static void task_woken_rt(struct rq *rq, struct task_struct *p)
 {
 	bool need_to_push = !task_running(rq, p) &&
@@ -2473,7 +2101,6 @@ static void task_woken_rt(struct rq *rq, struct task_struct *p)
 		push_rt_tasks(rq);
 }
 
-/* Assumes rq->lock is held */
 static void rq_online_rt(struct rq *rq)
 {
 	if (rq->rt.overloaded)
@@ -2484,7 +2111,6 @@ static void rq_online_rt(struct rq *rq)
 	cpupri_set(&rq->rd->cpupri, rq->cpu, rq->rt.highest_prio.curr);
 }
 
-/* Assumes rq->lock is held */
 static void rq_offline_rt(struct rq *rq)
 {
 	if (rq->rt.overloaded)
@@ -2495,19 +2121,9 @@ static void rq_offline_rt(struct rq *rq)
 	cpupri_set(&rq->rd->cpupri, rq->cpu, CPUPRI_INVALID);
 }
 
-/*
- * When switch from the rt queue, we bring ourselves to a position
- * that we might want to pull RT tasks from other runqueues.
- */
 static void switched_from_rt(struct rq *rq, struct task_struct *p)
 {
 	/*
-	 * If there are other RT tasks then we will reschedule
-	 * and the scheduling of the other RT tasks will handle
-	 * the balancing. But if we are the last RT task
-	 * we may need to handle the pulling of RT tasks
-	 * now.
-	 */
 	if (!task_on_rq_queued(p) || rq->rt.rt_nr_running)
 		return;
 
@@ -2525,27 +2141,15 @@ void __init init_sched_rt_class(void)
 }
 #endif /* CONFIG_SMP */
 
-/*
- * When switching a task to RT, we may overload the runqueue
- * with RT tasks. In this case we try to push them off to
- * other runqueues.
- */
 static void switched_to_rt(struct rq *rq, struct task_struct *p)
 {
 	/*
-	 * If we are running, update the avg_rt tracking, as the running time
-	 * will now on be accounted into the latter.
-	 */
 	if (task_current(rq, p)) {
 		update_rt_rq_load_avg(rq_clock_pelt(rq), rq, 0);
 		return;
 	}
 
 	/*
-	 * If we are not running we may need to preempt the current
-	 * running task. If that current running task is also an RT task
-	 * then see if we can move to another run queue.
-	 */
 	if (task_on_rq_queued(p)) {
 #ifdef CONFIG_SMP
 		if (p->nr_cpus_allowed > 1 && rq->rt.overloaded)
@@ -2556,10 +2160,6 @@ static void switched_to_rt(struct rq *rq, struct task_struct *p)
 	}
 }
 
-/*
- * Priority of the task has changed. This may cause
- * us to initiate a push or pull.
- */
 static void
 prio_changed_rt(struct rq *rq, struct task_struct *p, int oldprio)
 {
@@ -2569,16 +2169,10 @@ prio_changed_rt(struct rq *rq, struct task_struct *p, int oldprio)
 	if (task_current(rq, p)) {
 #ifdef CONFIG_SMP
 		/*
-		 * If our priority decreases while running, we
-		 * may need to pull tasks to this runqueue.
-		 */
 		if (oldprio < p->prio)
 			rt_queue_pull_task(rq);
 
 		/*
-		 * If there's a higher priority task waiting to run
-		 * then reschedule.
-		 */
 		if (p->prio > rq->rt.highest_prio.curr)
 			resched_curr(rq);
 #else
@@ -2588,10 +2182,6 @@ prio_changed_rt(struct rq *rq, struct task_struct *p, int oldprio)
 #endif /* CONFIG_SMP */
 	} else {
 		/*
-		 * This task is not running, but if it is
-		 * greater than the current running task
-		 * then reschedule.
-		 */
 		if (p->prio < rq->curr->prio)
 			resched_curr(rq);
 	}
@@ -2625,14 +2215,6 @@ static void watchdog(struct rq *rq, struct task_struct *p)
 static inline void watchdog(struct rq *rq, struct task_struct *p) { }
 #endif
 
-/*
- * scheduler tick hitting a task of our scheduling class.
- *
- * NOTE: This function can be called remotely by the tick offload that
- * goes along full dynticks. Therefore no local assumption can be made
- * and everything must be accessed through the @rq and @curr passed in
- * parameters.
- */
 static void task_tick_rt(struct rq *rq, struct task_struct *p, int queued)
 {
 	struct sched_rt_entity *rt_se = &p->rt;
@@ -2643,9 +2225,6 @@ static void task_tick_rt(struct rq *rq, struct task_struct *p, int queued)
 	watchdog(rq, p);
 
 	/*
-	 * RR tasks need a special form of timeslice management.
-	 * FIFO tasks have no timeslices.
-	 */
 	if (p->policy != SCHED_RR)
 		return;
 
@@ -2655,9 +2234,6 @@ static void task_tick_rt(struct rq *rq, struct task_struct *p, int queued)
 	p->rt.time_slice = sched_rr_timeslice;
 
 	/*
-	 * Requeue to the end of queue if we (and all of our ancestors) are not
-	 * the only element on the queue
-	 */
 	for_each_sched_rt_entity(rt_se) {
 		if (rt_se->run_list.prev != rt_se->run_list.next) {
 			requeue_task_rt(rq, p, 0);
@@ -2670,8 +2246,6 @@ static void task_tick_rt(struct rq *rq, struct task_struct *p, int queued)
 static unsigned int get_rr_interval_rt(struct rq *rq, struct task_struct *task)
 {
 	/*
-	 * Time slice is 0 for SCHED_FIFO tasks
-	 */
 	if (task->policy == SCHED_RR)
 		return sched_rr_timeslice;
 	else
@@ -2717,9 +2291,6 @@ DEFINE_SCHED_CLASS(rt) = {
 };
 
 #ifdef CONFIG_RT_GROUP_SCHED
-/*
- * Ensure that the real time constraints are schedulable.
- */
 static DEFINE_MUTEX(rt_constraints_mutex);
 
 static inline int tg_has_rt_tasks(struct task_group *tg)
@@ -2729,8 +2300,6 @@ static inline int tg_has_rt_tasks(struct task_group *tg)
 	int ret = 0;
 
 	/*
-	 * Autogroups do not have RT tasks; see autogroup_create().
-	 */
 	if (task_group_is_autogroup(tg))
 		return 0;
 
@@ -2764,14 +2333,10 @@ static int tg_rt_schedulable(struct task_group *tg, void *data)
 	}
 
 	/*
-	 * Cannot have more runtime than the period.
-	 */
 	if (runtime > period && runtime != RUNTIME_INF)
 		return -EINVAL;
 
 	/*
-	 * Ensure we don't starve existing RT tasks if runtime turns zero.
-	 */
 	if (rt_bandwidth_enabled() && !runtime &&
 	    tg->rt_bandwidth.rt_runtime && tg_has_rt_tasks(tg))
 		return -EBUSY;
@@ -2779,14 +2344,10 @@ static int tg_rt_schedulable(struct task_group *tg, void *data)
 	total = to_ratio(period, runtime);
 
 	/*
-	 * Nobody can have more than the global setting allows.
-	 */
 	if (total > to_ratio(global_rt_period(), global_rt_runtime()))
 		return -EINVAL;
 
 	/*
-	 * The sum of our children's runtime should not exceed our own.
-	 */
 	list_for_each_entry_rcu(child, &tg->children, siblings) {
 		period = ktime_to_ns(child->rt_bandwidth.rt_period);
 		runtime = child->rt_bandwidth.rt_runtime;
@@ -2828,9 +2389,6 @@ static int tg_set_rt_bandwidth(struct task_group *tg,
 	int i, err = 0;
 
 	/*
-	 * Disallowing the root group RT runtime is BAD, it would disallow the
-	 * kernel creating (and or operating) RT threads.
-	 */
 	if (tg == &root_task_group && rt_runtime == 0)
 		return -EINVAL;
 
@@ -2839,8 +2397,6 @@ static int tg_set_rt_bandwidth(struct task_group *tg,
 		return -EINVAL;
 
 	/*
-	 * Bound quota to defend quota against overflow during bandwidth shift.
-	 */
 	if (rt_runtime != RUNTIME_INF && rt_runtime > max_rt_runtime)
 		return -EINVAL;
 
@@ -3033,9 +2589,6 @@ static int sched_rr_handler(struct ctl_table *table, int write, void *buffer,
 	mutex_lock(&mutex);
 	ret = proc_dointvec(table, write, buffer, lenp, ppos);
 	/*
-	 * Make sure that internally we keep jiffies.
-	 * Also, writing zero resets the timeslice to default:
-	 */
 	if (!ret && write) {
 		sched_rr_timeslice =
 			sysctl_sched_rr_timeslice <= 0 ? RR_TIMESLICE :

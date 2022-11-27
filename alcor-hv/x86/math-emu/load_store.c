@@ -1,18 +1,14 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  load_store.c                                                             |
  |                                                                           |
  | This file contains most of the code to interpret the FPU instructions     |
  | which load and store from user memory.                                    |
  |                                                                           |
- | Copyright (C) 1992,1993,1994,1997                                         |
  |                       W. Metzenthen, 22 Parker St, Ormond, Vic 3163,      |
  |                       Australia.  E-mail   billm@suburbia.net             |
  |                                                                           |
  |                                                                           |
  +---------------------------------------------------------------------------*/
 
-/*---------------------------------------------------------------------------+
  | Note:                                                                     |
  |    The file contains code which accesses user memory.                     |
  |    Emulator static data may change when user memory is accessed, due to   |
@@ -34,7 +30,6 @@
 
 #define pop_0()	{ FPU_settag0(TAG_Empty); top++; }
 
-/* index is a 5-bit value: (3-bit FPU_modrm.reg field | opcode[2,1]) */
 static u_char const type_table[32] = {
 	_PUSH_, _PUSH_, _PUSH_, _PUSH_, /* /0: d9:fld f32,  db:fild m32,  dd:fld f64,  df:fild m16 */
 	_null_, _REG0_, _REG0_, _REG0_, /* /1: d9:undef,    db,dd,df:fisttp m32/64/16 */

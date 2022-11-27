@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/cpuhotplug.h>
 #include <linux/cpumask.h>
@@ -15,11 +14,6 @@ struct cluster_mask {
 	struct cpumask	mask;
 };
 
-/*
- * __x2apic_send_IPI_mask() possibly needs to read
- * x86_cpu_to_logical_apicid for all online cpus in a sequential way.
- * Using per cpu variable would cost one cache line per cpu.
- */
 static u32 *x86_cpu_to_logical_apicid __read_mostly;
 
 static DEFINE_PER_CPU(cpumask_var_t, ipi_mask);
@@ -134,9 +128,6 @@ static int alloc_clustermask(unsigned int cpu, int node)
 	if (per_cpu(cluster_masks, cpu))
 		return 0;
 	/*
-	 * If a hotplug spare mask exists, check whether it's on the right
-	 * node. If not, free it and allocate a new one.
-	 */
 	if (cluster_hotplug_mask) {
 		if (cluster_hotplug_mask->node == node)
 			return 0;

@@ -1,18 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Intel MID Power Management Unit (PWRMU) device driver
- *
- * Copyright (C) 2016, Intel Corporation
- *
- * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
- *
- * Intel MID Power Management Unit device driver handles the South Complex PCI
- * devices such as GPDMA, SPI, I2C, PWM, and so on. By default PCI core
- * modifies bits in PMCSR register in the PCI configuration space. This is not
- * enough on some SoCs like Intel Tangier. In such case PCI core sets a new
- * power state of the device in question through a PM hook registered in struct
- * pci_platform_pm_ops (see drivers/pci/pci-mid.c).
- */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -26,7 +11,6 @@
 
 #include <asm/intel-mid.h>
 
-/* Registers */
 #define PM_STS			0x00
 #define PM_CMD			0x04
 #define PM_ICS			0x08
@@ -35,10 +19,8 @@
 #define PM_SSC(x)		(0x20 + (x) * 4)
 #define PM_SSS(x)		(0x30 + (x) * 4)
 
-/* Bits in PM_STS */
 #define PM_STS_BUSY		(1 << 8)
 
-/* Bits in PM_CMD */
 #define PM_CMD_CMD(x)		((x) << 0)
 #define PM_CMD_IOC		(1 << 8)
 #define PM_CMD_CM_NOP		(0 << 9)
@@ -46,25 +28,19 @@
 #define PM_CMD_CM_DELAY		(2 << 9)
 #define PM_CMD_CM_TRIGGER	(3 << 9)
 
-/* System states */
 #define PM_CMD_SYS_STATE_S5	(5 << 16)
 
-/* Trigger variants */
 #define PM_CMD_CFG_TRIGGER_NC	(3 << 19)
 
-/* Message to wait for TRIGGER_NC case */
 #define TRIGGER_NC_MSG_2	(2 << 22)
 
-/* List of commands */
 #define CMD_SET_CFG		0x01
 
-/* Bits in PM_ICS */
 #define PM_ICS_INT_STATUS(x)	((x) & 0xff)
 #define PM_ICS_IE		(1 << 8)
 #define PM_ICS_IP		(1 << 9)
 #define PM_ICS_SW_INT_STS	(1 << 10)
 
-/* List of interrupts */
 #define INT_INVALID		0
 #define INT_CMD_COMPLETE	1
 #define INT_CMD_ERR		2
@@ -75,14 +51,12 @@
 #define INT_TRIGGER_ERR		7
 #define INT_INACTIVITY		8
 
-/* South Complex devices */
 #define LSS_MAX_SHARED_DEVS	4
 #define LSS_MAX_DEVS		64
 
 #define LSS_WS_BITS		1	/* wake state width */
 #define LSS_PWS_BITS		2	/* power state width */
 
-/* Supported device IDs */
 #define PCI_DEVICE_ID_PENWELL	0x0828
 #define PCI_DEVICE_ID_TANGIER	0x11a1
 
@@ -128,7 +102,6 @@ static bool mid_pwr_is_busy(struct mid_pwr *pwr)
 	return !!(readl(pwr->regs + PM_STS) & PM_STS_BUSY);
 }
 
-/* Wait 500ms that the latest PWRMU command finished */
 static int mid_pwr_wait(struct mid_pwr *pwr)
 {
 	unsigned int count = 500000;
@@ -307,9 +280,6 @@ int intel_mid_pwr_get_lss_id(struct pci_dev *pdev)
 	u8 id;
 
 	/*
-	 * Mapping to PWRMU index is kept in the Logical SubSystem ID byte of
-	 * Vendor capability.
-	 */
 	vndr = pci_find_capability(pdev, PCI_CAP_ID_VNDR);
 	if (!vndr)
 		return -EINVAL;
@@ -401,25 +371,10 @@ static int mid_set_initial_state(struct mid_pwr *pwr, const u32 *states)
 	int ret;
 
 	/*
-	 * Enable wake events.
-	 *
-	 * PWRMU supports up to 32 sources for wake up the system. Ungate them
-	 * all here.
-	 */
 	mid_pwr_set_wake(pwr, 0, 0xffffffff);
 	mid_pwr_set_wake(pwr, 1, 0xffffffff);
 
 	/*
-	 * Power off South Complex devices.
-	 *
-	 * There is a map (see a note below) of 64 devices with 2 bits per each
-	 * on 32-bit HW registers. The following calls set all devices to one
-	 * known initial state, i.e. PCI_D3hot. This is done in conjunction
-	 * with PMCSR setting in arch/x86/pci/intel_mid_pci.c.
-	 *
-	 * NOTE: The actual device mapping is provided by a platform at run
-	 * time using vendor capability of PCI configuration space.
-	 */
 	mid_pwr_set_state(pwr, 0, states[0]);
 	mid_pwr_set_state(pwr, 1, states[1]);
 	mid_pwr_set_state(pwr, 2, states[2]);
@@ -469,7 +424,6 @@ static const struct mid_pwr_device_info tng_info = {
 	.set_initial_state = tng_set_initial_state,
 };
 
-/* This table should be in sync with the one in drivers/pci/pci-mid.c */
 static const struct pci_device_id mid_pwr_pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PENWELL), (kernel_ulong_t)&pnw_info },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_TANGIER), (kernel_ulong_t)&tng_info },

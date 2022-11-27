@@ -1,19 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Support for Intel AES-NI instructions. This file contains glue
- * code, the real AES implementation is in intel-aes_asm.S.
- *
- * Copyright (C) 2008, Intel Corp.
- *    Author: Huang Ying <ying.huang@intel.com>
- *
- * Added RFC4106 AES-GCM support for 128-bit keys under the AEAD
- * interface for 64-bit kernels.
- *    Authors: Adrian Hoban <adrian.hoban@intel.com>
- *             Gabriele Paoloni <gabriele.paoloni@intel.com>
- *             Tadeusz Struk (tadeusz.struk@intel.com)
- *             Aidan O'Mahony (aidan.o.mahony@intel.com)
- *    Copyright (c) 2010, Intel Corporation.
- */
 
 #include <linux/hardirq.h>
 #include <linux/types.h>
@@ -45,10 +29,6 @@
 #define CRYPTO_AES_CTX_SIZE (sizeof(struct crypto_aes_ctx) + AESNI_ALIGN_EXTRA)
 #define XTS_AES_CTX_SIZE (sizeof(struct aesni_xts_ctx) + AESNI_ALIGN_EXTRA)
 
-/* This data is stored at the end of the crypto_tfm struct.
- * It's a type of per "session" data storage location.
- * This needs to be 16 byte aligned.
- */
 struct aesni_rfc4106_gcm_ctx {
 	u8 hash_subkey[16] AESNI_ALIGN_ATTR;
 	struct crypto_aes_ctx aes_key_expanded AESNI_ALIGN_ATTR;
@@ -112,7 +92,6 @@ asmlinkage void aesni_ctr_enc(struct crypto_aes_ctx *ctx, u8 *out,
 			      const u8 *in, unsigned int len, u8 *iv);
 DEFINE_STATIC_CALL(aesni_ctr_enc_tfm, aesni_ctr_enc);
 
-/* Scatter / Gather routines, with args similar to above */
 asmlinkage void aesni_gcm_init(void *ctx,
 			       struct gcm_context_data *gdata,
 			       u8 *iv,
@@ -149,11 +128,6 @@ asmlinkage void aes_xctr_enc_256_avx_by8(const u8 *in, const u8 *iv,
 	const void *keys, u8 *out, unsigned int num_bytes,
 	unsigned int byte_ctr);
 
-/*
- * asmlinkage void aesni_gcm_init_avx_gen2()
- * gcm_data *my_ctx_data, context data
- * u8 *hash_subkey,  the Hash sub key input. Data starts on a 16-byte boundary.
- */
 asmlinkage void aesni_gcm_init_avx_gen2(void *my_ctx_data,
 					struct gcm_context_data *gdata,
 					u8 *iv,
@@ -172,11 +146,6 @@ asmlinkage void aesni_gcm_finalize_avx_gen2(void *ctx,
 				   struct gcm_context_data *gdata,
 				   u8 *auth_tag, unsigned long auth_tag_len);
 
-/*
- * asmlinkage void aesni_gcm_init_avx_gen4()
- * gcm_data *my_ctx_data, context data
- * u8 *hash_subkey,  the Hash sub key input. Data starts on a 16-byte boundary.
- */
 asmlinkage void aesni_gcm_init_avx_gen4(void *my_ctx_data,
 					struct gcm_context_data *gdata,
 					u8 *iv,
@@ -494,11 +463,6 @@ static void aesni_ctr_enc_avx_tfm(struct crypto_aes_ctx *ctx, u8 *out,
 			      const u8 *in, unsigned int len, u8 *iv)
 {
 	/*
-	 * based on key length, override with the by8 version
-	 * of ctr mode encryption/decryption for improved performance
-	 * aes_set_key_common() ensures that key length is one of
-	 * {128,192,256}
-	 */
 	if (ctx->key_length == AES_KEYSIZE_128)
 		aes_ctr_enc_128_avx_by8(in, iv, (void *)ctx, out, len);
 	else if (ctx->key_length == AES_KEYSIZE_192)
@@ -632,8 +596,6 @@ static int common_rfc4106_set_key(struct crypto_aead *aead, const u8 *key,
 	       rfc4106_set_hash_subkey(ctx->hash_subkey, key, key_len);
 }
 
-/* This is the Integrity Check Value (aka the authentication tag) length and can
- * be 8, 12 or 16 bytes long. */
 static int common_rfc4106_set_authsize(struct crypto_aead *aead,
 				       unsigned int authsize)
 {
@@ -845,7 +807,6 @@ static int helper_rfc4106_encrypt(struct aead_request *req)
 		*(iv+i) = ctx->nonce[i];
 	for (i = 0; i < 8; i++)
 		*(iv+4+i) = req->iv[i];
-	*((__be32 *)(iv+12)) = counter;
 
 	return gcmaes_encrypt(req, req->assoclen - 8, ctx->hash_subkey, iv,
 			      aes_ctx);
@@ -873,7 +834,6 @@ static int helper_rfc4106_decrypt(struct aead_request *req)
 		*(iv+i) = ctx->nonce[i];
 	for (i = 0; i < 8; i++)
 		*(iv+4+i) = req->iv[i];
-	*((__be32 *)(iv+12)) = counter;
 
 	return gcmaes_decrypt(req, req->assoclen - 8, ctx->hash_subkey, iv,
 			      aes_ctx);
@@ -1118,10 +1078,6 @@ static
 struct simd_skcipher_alg *aesni_simd_skciphers[ARRAY_SIZE(aesni_skciphers)];
 
 #ifdef CONFIG_X86_64
-/*
- * XCTR does not have a non-AVX implementation, so it must be enabled
- * conditionally.
- */
 static struct skcipher_alg aesni_xctr = {
 	.base = {
 		.cra_name		= "__xctr(aes)",
@@ -1165,7 +1121,6 @@ static int generic_gcmaes_encrypt(struct aead_request *req)
 	__be32 counter = cpu_to_be32(1);
 
 	memcpy(iv, req->iv, 12);
-	*((__be32 *)(iv+12)) = counter;
 
 	return gcmaes_encrypt(req, req->assoclen, ctx->hash_subkey, iv,
 			      aes_ctx);
@@ -1181,7 +1136,6 @@ static int generic_gcmaes_decrypt(struct aead_request *req)
 	u8 *iv = PTR_ALIGN(&ivbuf[0], AESNI_ALIGN);
 
 	memcpy(iv, req->iv, 12);
-	*((__be32 *)(iv+12)) = counter;
 
 	return gcmaes_decrypt(req, req->assoclen, ctx->hash_subkey, iv,
 			      aes_ctx);

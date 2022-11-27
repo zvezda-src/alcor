@@ -1,11 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * Access to user system call parameters and results
- *
- * Copyright (C) 2008-2009 Red Hat, Inc.  All rights reserved.
- *
- * See asm-generic/syscall.h for descriptions of what we must do here.
- */
 
 #ifndef _ASM_X86_SYSCALL_H
 #define _ASM_X86_SYSCALL_H
@@ -22,19 +14,10 @@ extern const sys_call_ptr_t sys_call_table[];
 #if defined(CONFIG_X86_32)
 #define ia32_sys_call_table sys_call_table
 #else
-/*
- * These may not exist, but still put the prototypes in so we
- * can use IS_ENABLED().
- */
 extern const sys_call_ptr_t ia32_sys_call_table[];
 extern const sys_call_ptr_t x32_sys_call_table[];
 #endif
 
-/*
- * Only the low 32 bits of orig_ax are meaningful, so we return int.
- * This importantly ignores the high bits on 64-bit, so comparisons
- * sign-extend the low 32 bits.
- */
 static inline int syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 {
 	return regs->orig_ax;
@@ -52,14 +35,8 @@ static inline long syscall_get_error(struct task_struct *task,
 	unsigned long error = regs->ax;
 #ifdef CONFIG_IA32_EMULATION
 	/*
-	 * TS_COMPAT is set for 32-bit syscall entries and then
-	 * remains set until we return to user mode.
-	 */
 	if (task->thread_info.status & (TS_COMPAT|TS_I386_REGS_POKED))
 		/*
-		 * Sign-extend the value so (int)-EFOO becomes (long)-EFOO
-		 * and will match correctly in comparisons.
-		 */
 		error = (long) (int) error;
 #endif
 	return IS_ERR_VALUE(error) ? error : 0;

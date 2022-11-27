@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef BOOT_COMPRESSED_TDX_H
 #define BOOT_COMPRESSED_TDX_H
 

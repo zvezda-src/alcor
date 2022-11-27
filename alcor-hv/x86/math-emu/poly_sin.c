@@ -1,11 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  poly_sin.c                                                               |
  |                                                                           |
  |  Computation of an approximation of the sin function and the cosine       |
  |  function by a polynomial.                                                |
  |                                                                           |
- | Copyright (C) 1992,1993,1994,1997,1999                                    |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
  |                  E-mail   billm@melbpc.org.au                             |
  |                                                                           |
@@ -52,7 +49,6 @@ static const unsigned long long neg_terms_h[N_COEFF_NH] = {
 	0x0000000000d58f5eLL
 };
 
-/*--- poly_sine() -----------------------------------------------------------+
  |                                                                           |
  +---------------------------------------------------------------------------*/
 void poly_sine(FPU_REG *st0_ptr)
@@ -195,7 +191,6 @@ void poly_sine(FPU_REG *st0_ptr)
 
 }
 
-/*--- poly_cos() ------------------------------------------------------------+
  |                                                                           |
  +---------------------------------------------------------------------------*/
 void poly_cos(FPU_REG *st0_ptr)

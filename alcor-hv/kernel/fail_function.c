@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * fail_function.c: Function-based error injection
- */
 #include <linux/error-injection.h>
 #include <linux/debugfs.h>
 #include <linux/fault-inject.h>
@@ -18,9 +14,6 @@ static void fei_post_handler(struct kprobe *kp, struct pt_regs *regs,
 			     unsigned long flags)
 {
 	/*
-	 * A dummy post handler is required to prohibit optimizing, because
-	 * jump optimization does not support execution path overriding.
-	 */
 }
 
 struct fei_attr {
@@ -112,10 +105,6 @@ static int fei_retval_set(void *data, u64 val)
 
 	mutex_lock(&fei_lock);
 	/*
-	 * Since this operation can be done after retval file is removed,
-	 * It is safer to check the attr is still valid before accessing
-	 * its member.
-	 */
 	if (!fei_attr_is_valid(attr)) {
 		err = -ENOENT;
 		goto out;

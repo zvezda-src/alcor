@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * The AEGIS-128 Authenticated-Encryption Algorithm
- *   Glue for AES-NI + SSE2 implementation
- *
- * Copyright (c) 2017-2018 Ondrej Mosnacek <omosnacek@gmail.com>
- * Copyright (C) 2017-2018 Red Hat, Inc. All rights reserved.
- */
 
 #include <crypto/internal/aead.h>
 #include <crypto/internal/simd.h>

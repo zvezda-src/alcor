@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+
-/*
- * Unit test for the clocksource watchdog.
- *
- * Copyright (C) 2021 Facebook, Inc.
- *
- * Author: Paul E. McKenney <paulmck@kernel.org>
- */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/device.h>
@@ -28,7 +20,6 @@ static int holdoff = IS_BUILTIN(CONFIG_TEST_CLOCKSOURCE_WATCHDOG) ? 10 : 0;
 module_param(holdoff, int, 0444);
 MODULE_PARM_DESC(holdoff, "Time to wait to start test (s).");
 
-/* Watchdog kthread's task_struct pointer for debug purposes. */
 static struct task_struct *wdtest_task;
 
 static u64 wdtest_jiffies_read(struct clocksource *cs)
@@ -89,7 +80,6 @@ static struct clocksource clocksource_wdtest_ktime = {
 	.list			= LIST_HEAD_INIT(clocksource_wdtest_ktime.list),
 };
 
-/* Reset the clocksource if needed. */
 static void wdtest_ktime_clocksource_reset(void)
 {
 	if (clocksource_wdtest_ktime.flags & CLOCK_SOURCE_UNSTABLE) {
@@ -100,7 +90,6 @@ static void wdtest_ktime_clocksource_reset(void)
 	}
 }
 
-/* Run the specified series of watchdog tests. */
 static int wdtest_func(void *arg)
 {
 	unsigned long j1, j2;
@@ -110,9 +99,6 @@ static int wdtest_func(void *arg)
 	schedule_timeout_uninterruptible(holdoff * HZ);
 
 	/*
-	 * Verify that jiffies-like clocksources get the manually
-	 * specified uncertainty margin.
-	 */
 	pr_info("--- Verify jiffies-like uncertainty margin.\n");
 	__clocksource_register(&clocksource_wdtest_jiffies);
 	WARN_ON_ONCE(clocksource_wdtest_jiffies.uncertainty_margin != TICK_NSEC);
@@ -125,9 +111,6 @@ static int wdtest_func(void *arg)
 	clocksource_unregister(&clocksource_wdtest_jiffies);
 
 	/*
-	 * Verify that tsc-like clocksources are assigned a reasonable
-	 * uncertainty margin.
-	 */
 	pr_info("--- Verify tsc-like uncertainty margin.\n");
 	clocksource_register_khz(&clocksource_wdtest_ktime, 1000 * 1000);
 	WARN_ON_ONCE(clocksource_wdtest_ktime.uncertainty_margin < NSEC_PER_USEC);
@@ -174,7 +157,6 @@ static void wdtest_print_module_parms(void)
 	pr_alert("--- holdoff=%d\n", holdoff);
 }
 
-/* Cleanup function. */
 static void clocksource_wdtest_cleanup(void)
 {
 }

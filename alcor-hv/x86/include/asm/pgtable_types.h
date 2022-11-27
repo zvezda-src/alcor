@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PGTABLE_DEFS_H
 #define _ASM_X86_PGTABLE_DEFS_H
 
@@ -34,8 +33,6 @@
 #define _PAGE_BIT_SOFT_DIRTY	_PAGE_BIT_SOFTW3 /* software dirty tracking */
 #define _PAGE_BIT_DEVMAP	_PAGE_BIT_SOFTW4
 
-/* If _PAGE_BIT_PRESENT is clear, we use these: */
-/* - if the user mapped it with PROT_NONE; pte_present gives true */
 #define _PAGE_BIT_PROTNONE	_PAGE_BIT_GLOBAL
 
 #define _PAGE_PRESENT	(_AT(pteval_t, 1) << _PAGE_BIT_PRESENT)
@@ -83,16 +80,6 @@
 #define _PAGE_SOFT_DIRTY	(_AT(pteval_t, 0))
 #endif
 
-/*
- * Tracking soft dirty bit when a page goes to a swap is tricky.
- * We need a bit which can be stored in pte _and_ not conflict
- * with swap entry format. On x86 bits 1-4 are *not* involved
- * into swap entry computation, but bit 7 is used for thp migration,
- * so we borrow bit 1 for soft dirty tracking.
- *
- * Please note that this bit must be treated as swap dirty page
- * mark if and only if the PTE/PMD has present bit clear!
- */
 #ifdef CONFIG_MEM_SOFT_DIRTY
 #define _PAGE_SWP_SOFT_DIRTY	_PAGE_RW
 #else
@@ -119,26 +106,12 @@
 
 #define _PAGE_PROTNONE	(_AT(pteval_t, 1) << _PAGE_BIT_PROTNONE)
 
-/*
- * Set of bits not changed in pte_modify.  The pte's
- * protection key is treated like _PAGE_RW, for
- * instance, and is *not* included in this mask since
- * pte_modify() does modify it.
- */
 #define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
 			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY |	\
 			 _PAGE_SOFT_DIRTY | _PAGE_DEVMAP | _PAGE_ENC |  \
 			 _PAGE_UFFD_WP)
 #define _HPAGE_CHG_MASK (_PAGE_CHG_MASK | _PAGE_PSE)
 
-/*
- * The cache modes defined here are used to translate between pure SW usage
- * and the HW defined cache mode bits and/or PAT entries.
- *
- * The resulting bits for PWT, PCD and PAT should be chosen in a way
- * to have the WB mode at index 0 (all bits clear). This is the default
- * right now and likely would break too much if changed.
- */
 #ifndef __ASSEMBLY__
 enum page_cache_mode {
 	_PAGE_CACHE_MODE_WB       = 0,
@@ -230,9 +203,6 @@ enum page_cache_mode {
 
 #endif	/* __ASSEMBLY__ */
 
-/*
- * early identity mapping  pte attrib macros.
- */
 #ifdef CONFIG_X86_64
 #define __PAGE_KERNEL_IDENT_LARGE_EXEC	__PAGE_KERNEL_LARGE_EXEC
 #else
@@ -251,13 +221,8 @@ enum page_cache_mode {
 
 #include <linux/types.h>
 
-/* Extracts the PFN from a (pte|pmd|pud|pgd)val_t of a 4KB page */
 #define PTE_PFN_MASK		((pteval_t)PHYSICAL_PAGE_MASK)
 
-/*
- *  Extracts the flags from a (pte|pmd|pud|pgd)val_t
- *  This includes the protection key value.
- */
 #define PTE_FLAGS_MASK		(~PTE_PFN_MASK)
 
 typedef struct pgprot { pgprotval_t pgprot; } pgprot_t;
@@ -272,24 +237,15 @@ static inline pgprot_t pgprot_nx(pgprot_t prot)
 
 #ifdef CONFIG_X86_PAE
 
-/*
- * PHYSICAL_PAGE_MASK might be non-constant when SME is compiled in, so we can't
- * use it here.
- */
 
 #define PGD_PAE_PAGE_MASK	((signed long)PAGE_MASK)
 #define PGD_PAE_PHYS_MASK	(((1ULL << __PHYSICAL_MASK_SHIFT)-1) & PGD_PAE_PAGE_MASK)
 
-/*
- * PAE allows Base Address, P, PWT, PCD and AVL bits to be set in PGD entries.
- * All other bits are Reserved MBZ
- */
 #define PGD_ALLOWED_BITS	(PGD_PAE_PHYS_MASK | _PAGE_PRESENT | \
 				 _PAGE_PWT | _PAGE_PCD | \
 				 _PAGE_SOFTW1 | _PAGE_SOFTW2 | _PAGE_SOFTW3)
 
 #else
-/* No need to mask any bits for !PAE */
 #define PGD_ALLOWED_BITS	(~0ULL)
 #endif
 
@@ -498,7 +454,6 @@ extern pgprot_t pgprot_writecombine(pgprot_t prot);
 #define pgprot_writethrough	pgprot_writethrough
 extern pgprot_t pgprot_writethrough(pgprot_t prot);
 
-/* Indicate that x86 has its own track and untrack pfn vma functions */
 #define __HAVE_PFNMAP_TRACKING
 
 #define __HAVE_PHYS_MEM_ACCESS_PROT
@@ -506,7 +461,6 @@ struct file;
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
                               unsigned long size, pgprot_t vma_prot);
 
-/* Install a pte for a particular vaddr in kernel space. */
 void set_pte_vaddr(unsigned long vaddr, pte_t pte);
 
 #ifdef CONFIG_X86_32
@@ -533,12 +487,6 @@ extern void update_page_count(int level, unsigned long pages);
 static inline void update_page_count(int level, unsigned long pages) { }
 #endif
 
-/*
- * Helper function that returns the kernel pagetable entry controlling
- * the virtual address 'address'. NULL means no pagetable entry present.
- * NOTE: the return type is pte_t but if the pmd is PSE then we return it
- * as a pte too.
- */
 extern pte_t *lookup_address(unsigned long address, unsigned int *level);
 extern pte_t *lookup_address_in_pgd(pgd_t *pgd, unsigned long address,
 				    unsigned int *level);

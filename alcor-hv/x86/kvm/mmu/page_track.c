@@ -1,15 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Support KVM gust page tracking
- *
- * This feature allows us to track page access in guest. Currently, only
- * write access is tracked.
- *
- * Copyright(C) 2015 Intel Corporation.
- *
- * Author:
- *   Xiao Guangrong <guangrong.xiao@linux.intel.com>
- */
 
 #include <linux/kvm_host.h>
 #include <linux/rculist.h>
@@ -99,18 +87,6 @@ static void update_gfn_track(struct kvm_memory_slot *slot, gfn_t gfn,
 	slot->arch.gfn_track[mode][index] += count;
 }
 
-/*
- * add guest page to the tracking pool so that corresponding access on that
- * page will be intercepted.
- *
- * It should be called under the protection both of mmu-lock and kvm->srcu
- * or kvm->slots_lock.
- *
- * @kvm: the guest instance we are interested in.
- * @slot: the @gfn belongs to.
- * @gfn: the guest page.
- * @mode: tracking mode, currently only write track is supported.
- */
 void kvm_slot_page_track_add_page(struct kvm *kvm,
 				  struct kvm_memory_slot *slot, gfn_t gfn,
 				  enum kvm_page_track_mode mode)
@@ -126,9 +102,6 @@ void kvm_slot_page_track_add_page(struct kvm *kvm,
 	update_gfn_track(slot, gfn, mode, 1);
 
 	/*
-	 * new track stops large page mapping for the
-	 * tracked page.
-	 */
 	kvm_mmu_gfn_disallow_lpage(slot, gfn);
 
 	if (mode == KVM_PAGE_TRACK_WRITE)
@@ -137,19 +110,6 @@ void kvm_slot_page_track_add_page(struct kvm *kvm,
 }
 EXPORT_SYMBOL_GPL(kvm_slot_page_track_add_page);
 
-/*
- * remove the guest page from the tracking pool which stops the interception
- * of corresponding access on that page. It is the opposed operation of
- * kvm_slot_page_track_add_page().
- *
- * It should be called under the protection both of mmu-lock and kvm->srcu
- * or kvm->slots_lock.
- *
- * @kvm: the guest instance we are interested in.
- * @slot: the @gfn belongs to.
- * @gfn: the guest page.
- * @mode: tracking mode, currently only write track is supported.
- */
 void kvm_slot_page_track_remove_page(struct kvm *kvm,
 				     struct kvm_memory_slot *slot, gfn_t gfn,
 				     enum kvm_page_track_mode mode)
@@ -164,16 +124,10 @@ void kvm_slot_page_track_remove_page(struct kvm *kvm,
 	update_gfn_track(slot, gfn, mode, -1);
 
 	/*
-	 * allow large page mapping for the tracked page
-	 * after the tracker is gone.
-	 */
 	kvm_mmu_gfn_allow_lpage(slot, gfn);
 }
 EXPORT_SYMBOL_GPL(kvm_slot_page_track_remove_page);
 
-/*
- * check if the corresponding access on the specified guest page is tracked.
- */
 bool kvm_slot_page_track_is_active(struct kvm *kvm,
 				   const struct kvm_memory_slot *slot,
 				   gfn_t gfn, enum kvm_page_track_mode mode)
@@ -211,10 +165,6 @@ int kvm_page_track_init(struct kvm *kvm)
 	return init_srcu_struct(&head->track_srcu);
 }
 
-/*
- * register the notifier so that event interception for the tracked guest
- * pages can be received.
- */
 void
 kvm_page_track_register_notifier(struct kvm *kvm,
 				 struct kvm_page_track_notifier_node *n)
@@ -229,10 +179,6 @@ kvm_page_track_register_notifier(struct kvm *kvm,
 }
 EXPORT_SYMBOL_GPL(kvm_page_track_register_notifier);
 
-/*
- * stop receiving the event interception. It is the opposed operation of
- * kvm_page_track_register_notifier().
- */
 void
 kvm_page_track_unregister_notifier(struct kvm *kvm,
 				   struct kvm_page_track_notifier_node *n)
@@ -248,13 +194,6 @@ kvm_page_track_unregister_notifier(struct kvm *kvm,
 }
 EXPORT_SYMBOL_GPL(kvm_page_track_unregister_notifier);
 
-/*
- * Notify the node that write access is intercepted and write emulation is
- * finished at this time.
- *
- * The node should figure out if the written page is the one that node is
- * interested in by itself.
- */
 void kvm_page_track_write(struct kvm_vcpu *vcpu, gpa_t gpa, const u8 *new,
 			  int bytes)
 {
@@ -275,13 +214,6 @@ void kvm_page_track_write(struct kvm_vcpu *vcpu, gpa_t gpa, const u8 *new,
 	srcu_read_unlock(&head->track_srcu, idx);
 }
 
-/*
- * Notify the node that memory slot is being removed or moved so that it can
- * drop write-protection for the pages in the memory slot.
- *
- * The node should figure out it has any write-protected pages in this slot
- * by itself.
- */
 void kvm_page_track_flush_slot(struct kvm *kvm, struct kvm_memory_slot *slot)
 {
 	struct kvm_page_track_notifier_head *head;

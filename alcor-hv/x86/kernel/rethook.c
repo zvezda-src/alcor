@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * x86 implementation of rethook. Mostly copied from arch/x86/kernel/kprobes/core.c.
- */
 #include <linux/bug.h>
 #include <linux/rethook.h>
 #include <linux/kprobes.h>
@@ -15,10 +11,6 @@ __visible void arch_rethook_trampoline_callback(struct pt_regs *regs);
 #define ANNOTATE_NOENDBR
 #endif
 
-/*
- * When a target function returns, this code saves registers and calls
- * arch_rethook_trampoline_callback(), which calls the rethook handler.
- */
 asm(
 	".text\n"
 	".global arch_rethook_trampoline\n"
@@ -61,9 +53,6 @@ asm(
 );
 NOKPROBE_SYMBOL(arch_rethook_trampoline);
 
-/*
- * Called from arch_rethook_trampoline
- */
 __used __visible void arch_rethook_trampoline_callback(struct pt_regs *regs)
 {
 	unsigned long *frame_pointer;
@@ -79,38 +68,20 @@ __used __visible void arch_rethook_trampoline_callback(struct pt_regs *regs)
 	frame_pointer = (long *)(regs + 1);
 
 	/*
-	 * The return address at 'frame_pointer' is recovered by the
-	 * arch_rethook_fixup_return() which called from this
-	 * rethook_trampoline_handler().
-	 */
 	rethook_trampoline_handler(regs, (unsigned long)frame_pointer);
 
 	/*
-	 * Copy FLAGS to 'pt_regs::ss' so that arch_rethook_trapmoline()
-	 * can do RET right after POPF.
-	 */
-	*(unsigned long *)&regs->ss = regs->flags;
 }
 NOKPROBE_SYMBOL(arch_rethook_trampoline_callback);
 
-/*
- * arch_rethook_trampoline() skips updating frame pointer. The frame pointer
- * saved in arch_rethook_trampoline_callback() points to the real caller
- * function's frame pointer. Thus the arch_rethook_trampoline() doesn't have
- * a standard stack frame with CONFIG_FRAME_POINTER=y.
- * Let's mark it non-standard function. Anyway, FP unwinder can correctly
- * unwind without the hint.
- */
 STACK_FRAME_NON_STANDARD_FP(arch_rethook_trampoline);
 
-/* This is called from rethook_trampoline_handler(). */
 void arch_rethook_fixup_return(struct pt_regs *regs,
 			       unsigned long correct_ret_addr)
 {
 	unsigned long *frame_pointer = (void *)(regs + 1);
 
 	/* Replace fake return address with real one. */
-	*frame_pointer = correct_ret_addr;
 }
 NOKPROBE_SYMBOL(arch_rethook_fixup_return);
 

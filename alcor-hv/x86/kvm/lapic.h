@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __KVM_X86_LAPIC_H
 #define __KVM_X86_LAPIC_H
 
@@ -160,9 +159,6 @@ static inline void kvm_lapic_set_irr(int vec, struct kvm_lapic *apic)
 {
 	kvm_lapic_set_vector(vec, apic->regs + APIC_IRR);
 	/*
-	 * irr_pending must be true if any interrupt is pending; set it after
-	 * APIC_IRR to avoid race with apic_clear_irr
-	 */
 	apic->irr_pending = true;
 }
 

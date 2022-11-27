@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM test
 
@@ -47,5 +46,4 @@ TRACE_EVENT(ftrace_test_filter,
 #define TRACE_INCLUDE_PATH .
 #define TRACE_INCLUDE_FILE trace_events_filter_test
 
-/* This part must be outside protection */
 #include <trace/define_trace.h>

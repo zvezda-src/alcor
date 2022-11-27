@@ -1,34 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _ASM_X86_XOR_H
 #define _ASM_X86_XOR_H
 
-/*
- * Optimized RAID-5 checksumming functions for SSE.
- */
 
-/*
- * Cache avoiding checksumming functions utilizing KNI instructions
- * Copyright (C) 1999 Zach Brown (with obvious credit due Ingo)
- */
 
-/*
- * Based on
- * High-speed RAID5 checksumming functions utilizing SSE instructions.
- * Copyright (C) 1998 Ingo Molnar.
- */
 
-/*
- * x86-64 changes / gcc fixes from Andi Kleen.
- * Copyright 2002 Andi Kleen, SuSE Labs.
- *
- * This hasn't been optimized for the hammer yet, but there are likely
- * no advantages to be gotten from x86-64 here anyways.
- */
 
 #include <asm/fpu/api.h>
 
 #ifdef CONFIG_X86_32
-/* reduce register pressure */
 # define XOR_CONSTANT_CONSTRAINT "i"
 #else
 # define XOR_CONSTANT_CONSTRAINT "re"

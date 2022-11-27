@@ -1,12 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _SYSDEP_TLS_H
 #define _SYSDEP_TLS_H
 
 #ifdef __UM_HOST__
 
-/* Change name to avoid conflicts with the original one from <asm/ldt.h>, which
- * may be named user_desc (but in 2.4 and in header matching its API was named
- * modify_ldt_ldt_s). */
 
 typedef struct um_dup_user_desc {
 	unsigned int  entry_number;

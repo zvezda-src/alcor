@@ -1,16 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- * x86 TSC related functions
- */
 #ifndef _ASM_X86_TSC_H
 #define _ASM_X86_TSC_H
 
 #include <asm/processor.h>
 #include <asm/cpufeature.h>
 
-/*
- * Standard way to access the cycle counter.
- */
 typedef unsigned long long cycles_t;
 
 extern unsigned int cpu_khz;
@@ -48,10 +41,6 @@ extern bool tsc_async_resets;
 # define tsc_async_resets	false
 #endif
 
-/*
- * Boot-time check whether the TSCs are synchronized across
- * all CPUs/cores:
- */
 #ifdef CONFIG_X86_TSC
 extern bool tsc_store_and_check_tsc_adjust(bool bootcpu);
 extern void tsc_verify_tsc_adjust(bool resume);

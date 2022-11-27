@@ -1,14 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * event probes
- *
- * Part of this code was copied from kernel/trace/trace_kprobe.c written by
- * Masami Hiramatsu <mhiramat@kernel.org>
- *
- * Copyright (C) 2021, VMware Inc, Steven Rostedt <rostedt@goodmis.org>
- * Copyright (C) 2021, VMware Inc, Tzvetomir Stoyanov tz.stoyanov@gmail.com>
- *
- */
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/ftrace.h>
@@ -122,24 +111,8 @@ static bool eprobe_dyn_event_match(const char *system, const char *event,
 	const char *slash;
 
 	/*
-	 * We match the following:
-	 *  event only			- match all eprobes with event name
-	 *  system and event only	- match all system/event probes
-	 *  system only			- match all system probes
-	 *
-	 * The below has the above satisfied with more arguments:
-	 *
-	 *  attached system/event	- If the arg has the system and event
-	 *				  the probe is attached to, match
-	 *				  probes with the attachment.
-	 *
-	 *  If any more args are given, then it requires a full match.
-	 */
 
 	/*
-	 * If system exists, but this probe is not part of that system
-	 * do not match.
-	 */
 	if (system && strcmp(trace_probe_group_name(&ep->tp), system) != 0)
 		return false;
 
@@ -259,7 +232,6 @@ static struct trace_event_fields eprobe_fields_array[] = {
 	{}
 };
 
-/* Event entry printers */
 static enum print_line_t
 print_eprobe_event(struct trace_iterator *iter, int flags,
 		   struct trace_event *event)
@@ -360,9 +332,7 @@ static int get_eprobe_size(struct trace_probe *tp, void *rec)
 	return ret;
 }
 
-/* Kprobe specific fetch functions */
 
-/* Note that we don't verify it, since the code does not come from user space */
 static int
 process_fetch_insn(struct fetch_insn *code, void *rec, void *dest,
 		   void *base)
@@ -374,7 +344,6 @@ process_fetch_insn(struct fetch_insn *code, void *rec, void *dest,
 }
 NOKPROBE_SYMBOL(process_fetch_insn)
 
-/* Return the length of string -- including null terminal byte */
 static nokprobe_inline int
 fetch_store_strlen_user(unsigned long addr)
 {
@@ -383,7 +352,6 @@ fetch_store_strlen_user(unsigned long addr)
 	return strnlen_user_nofault(uaddr, MAX_STRING_SIZE);
 }
 
-/* Return the length of string -- including null terminal byte */
 static nokprobe_inline int
 fetch_store_strlen(unsigned long addr)
 {
@@ -403,10 +371,6 @@ fetch_store_strlen(unsigned long addr)
 	return (ret < 0) ? ret : len;
 }
 
-/*
- * Fetch a null-terminated string from user. Caller MUST set *(u32 *)buf
- * with max length and relative data location.
- */
 static nokprobe_inline int
 fetch_store_string_user(unsigned long addr, void *dest, void *base)
 {
@@ -427,10 +391,6 @@ fetch_store_string_user(unsigned long addr, void *dest, void *base)
 	return ret;
 }
 
-/*
- * Fetch a null-terminated string. Caller MUST set *(u32 *)buf with max
- * length and relative data location.
- */
 static nokprobe_inline int
 fetch_store_string(unsigned long addr, void *dest, void *base)
 {
@@ -449,9 +409,6 @@ fetch_store_string(unsigned long addr, void *dest, void *base)
 	__dest = get_loc_data(dest, base);
 
 	/*
-	 * Try to get string again, since the string can be changed while
-	 * probing.
-	 */
 	ret = strncpy_from_kernel_nofault(__dest, (void *)addr, maxlen);
 	if (ret >= 0)
 		*(u32 *)dest = make_data_loc(ret, __dest - base);
@@ -477,7 +434,6 @@ probe_mem_read(void *dest, void *src, size_t size)
 	return copy_from_kernel_nofault(dest, src, size);
 }
 
-/* eprobe handler */
 static inline void
 __eprobe_trace_func(struct eprobe_data *edata, void *rec)
 {
@@ -506,12 +462,6 @@ __eprobe_trace_func(struct eprobe_data *edata, void *rec)
 	trace_event_buffer_commit(&fbuffer);
 }
 
-/*
- * The event probe implementation uses event triggers to get access to
- * the event it is attached to, but is not an actual trigger. The below
- * functions are just stubs to fulfill what is needed to use the trigger
- * infrastructure.
- */
 static int eprobe_trigger_init(struct event_trigger_data *data)
 {
 	return 0;
@@ -604,10 +554,6 @@ new_eprobe_trigger(struct trace_eprobe *ep, struct trace_event_file *file)
 	trigger->ops = &eprobe_trigger_ops;
 
 	/*
-	 * EVENT PROBE triggers are not registered as commands with
-	 * register_event_command(), as they are not controlled by the user
-	 * from the trigger file
-	 */
 	trigger->cmd_ops = &event_trigger_cmd;
 
 	INIT_LIST_HEAD(&trigger->list);
@@ -757,11 +703,6 @@ static int disable_trace_eprobe(struct trace_event_call *call,
  out:
 	if (file)
 		/*
-		 * Synchronization is done in below function. For perf event,
-		 * file == NULL and perf_trace_event_unreg() calls
-		 * tracepoint_synchronize_unregister() to ensure synchronize
-		 * event. We don't need to care about it.
-		 */
 		trace_probe_remove_file(tp, file);
 
 	return 0;
@@ -851,11 +792,6 @@ static int trace_eprobe_tp_update_arg(struct trace_eprobe *ep, const char *argv[
 static int __trace_eprobe_create(int argc, const char *argv[])
 {
 	/*
-	 * Argument syntax:
-	 *      e[:[GRP/][ENAME]] SYSTEM.EVENT [FETCHARGS]
-	 * Fetch args:
-	 *  <name>=$<field>[:TYPE]
-	 */
 	const char *event = NULL, *group = EPROBE_EVENT_SYSTEM;
 	const char *sys_event = NULL, *sys_name = NULL;
 	struct trace_event_call *event_call;
@@ -941,10 +877,6 @@ error:
 	return ret;
 }
 
-/*
- * Register dynevent at core_initcall. This allows kernel to setup eprobe
- * events in postcore_initcall without tracefs.
- */
 static __init int trace_events_eprobe_init_early(void)
 {
 	int err = 0;

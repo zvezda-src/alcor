@@ -1,21 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/******************************************************************************
- * arch-x86_32.h
- *
- * Guest OS interface to x86 32-bit Xen.
- *
- * Copyright (c) 2004, K A Fraser
- */
 
 #ifndef _ASM_X86_XEN_INTERFACE_32_H
 #define _ASM_X86_XEN_INTERFACE_32_H
 
 
-/*
- * These flat segments are in the Xen-private section of every GDT. Since these
- * are also present in the initial GDT, many OSes will be able to avoid
- * installing their own GDT.
- */
 #define FLAT_RING1_CS 0xe019    /* GDT index 259 */
 #define FLAT_RING1_DS 0xe021    /* GDT index 260 */
 #define FLAT_RING1_SS 0xe021    /* GDT index 260 */
@@ -30,7 +17,6 @@
 #define FLAT_USER_DS    FLAT_RING3_DS
 #define FLAT_USER_SS    FLAT_RING3_SS
 
-/* And the trap vector is... */
 #define TRAP_INSTR "int $0x82"
 
 #define __MACH2PHYS_VIRT_START 0xF5800000
@@ -38,10 +24,6 @@
 
 #define __MACH2PHYS_SHIFT      2
 
-/*
- * Virtual addresses beyond this are not modifiable by guest OSes. The
- * machine->physical mapping table starts at this address, read-only.
- */
 #define __HYPERVISOR_VIRT_START 0xF5800000
 
 #ifndef __ASSEMBLY__
@@ -88,15 +70,6 @@ typedef struct xen_callback xen_callback_t;
 #endif /* !__ASSEMBLY__ */
 
 
-/*
- * Page-directory addresses above 4GB do not fit into architectural %cr3.
- * When accessing %cr3, or equivalent field in vcpu_guest_context, guests
- * must use the following accessor macros to pack/unpack valid MFNs.
- *
- * Note that Xen is using the fact that the pagetable base is always
- * page-aligned, and putting the 12 MSB of the address into the 12 LSB
- * of cr3.
- */
 #define xen_pfn_to_cr3(pfn) (((unsigned)(pfn) << 12) | ((unsigned)(pfn) >> 20))
 #define xen_cr3_to_pfn(cr3) (((unsigned)(cr3) >> 12) | ((unsigned)(cr3) << 20))
 

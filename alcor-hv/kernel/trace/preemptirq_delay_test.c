@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Preempt / IRQ disable delay thread to test latency tracers
- *
- * Copyright (C) 2018 Joel Fernandes (Google) <joel@joelfernandes.org>
- */
 
 #include <linux/trace_clock.h>
 #include <linux/delay.h>
@@ -85,10 +79,6 @@ static void execute_preemptirqtest(int idx)
 		execute_preemptirqtest(idx);		\
 	}						\
 
-/*
- * We create 10 different functions, so that we can get 10 different
- * backtraces.
- */
 DECLARE_TESTFN(0)
 DECLARE_TESTFN(1)
 DECLARE_TESTFN(2)

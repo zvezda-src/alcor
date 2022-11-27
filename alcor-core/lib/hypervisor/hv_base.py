@@ -1,31 +1,4 @@
-#
-#
 
-# Copyright (C) 2006, 2007, 2008, 2009, 2010, 2012, 2013 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 """Base class for all hypervisors
@@ -86,46 +59,34 @@ def _IsMultiCpuMaskWellFormed(cpu_mask):
   return True
 
 
-# Read the BaseHypervisor.PARAMETERS docstring for the syntax of the
-# _CHECK values
 
-# must be a file
 _FILE_CHECK = (utils.IsNormAbsPath, "must be an absolute normalized path",
                os.path.isfile, "not found or not a file")
 
-# must be a file or a URL
 _FILE_OR_URL_CHECK = (lambda x: utils.IsNormAbsPath(x) or utils.IsUrl(x),
                       "must be an absolute normalized path or a URL",
                       lambda x: os.path.isfile(x) or utils.IsUrl(x),
                       "not found or not a file or URL")
 
-# must be a directory
 _DIR_CHECK = (utils.IsNormAbsPath, "must be an absolute normalized path",
               os.path.isdir, "not found or not a directory")
 
-# CPU mask must be well-formed
-# TODO: implement node level check for the CPU mask
 _CPU_MASK_CHECK = (_IsCpuMaskWellFormed,
                    "CPU mask definition is not well-formed",
                    None, None)
 
-# Multiple CPU mask must be well-formed
 _MULTI_CPU_MASK_CHECK = (_IsMultiCpuMaskWellFormed,
                          "Multiple CPU mask definition is not well-formed",
                          None, None)
 
-# Check for validity of port number
 _NET_PORT_CHECK = (lambda x: 0 < x < 65535, "invalid port number",
                    None, None)
 
-# Check if number of queues is in safe range
 _VIRTIO_NET_QUEUES_CHECK = (lambda x: 0 < x < 9, "invalid number of queues",
                             None, None)
 
-# Check that an integer is non negative
 _NONNEGATIVE_INT_CHECK = (lambda x: x >= 0, "cannot be negative", None, None)
 
-# nice wrappers for users
 REQ_FILE_CHECK = (True, ) + _FILE_CHECK
 OPT_FILE_CHECK = (False, ) + _FILE_CHECK
 REQ_FILE_OR_URL_CHECK = (True, ) + _FILE_OR_URL_CHECK
@@ -143,13 +104,10 @@ OPT_MULTI_CPU_MASK_CHECK = (False, ) + _MULTI_CPU_MASK_CHECK
 REQ_NONNEGATIVE_INT_CHECK = (True, ) + _NONNEGATIVE_INT_CHECK
 OPT_NONNEGATIVE_INT_CHECK = (False, ) + _NONNEGATIVE_INT_CHECK
 
-# no checks at all
 NO_CHECK = (False, None, None, None, None)
 
-# required, but no other checks
 REQUIRED_CHECK = (True, None, None, None, None)
 
-# migration type
 MIGRATION_MODE_CHECK = (True, lambda x: x in constants.HT_MIGRATION_MODES,
                         "invalid migration mode", None, None)
 

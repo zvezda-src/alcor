@@ -1,10 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * CPUFreq governor based on scheduler-provided CPU utilization data.
- *
- * Copyright (C) 2016, Intel Corporation
- * Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
- */
 
 #define IOWAIT_BOOST_MIN	(SCHED_CAPACITY_SCALE / 8)
 
@@ -58,27 +51,12 @@ struct sugov_cpu {
 
 static DEFINE_PER_CPU(struct sugov_cpu, sugov_cpu);
 
-/************************ Governor internals ***********************/
 
 static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 {
 	s64 delta_ns;
 
 	/*
-	 * Since cpufreq_update_util() is called with rq->lock held for
-	 * the @target_cpu, our per-CPU data is fully serialized.
-	 *
-	 * However, drivers cannot in general deal with cross-CPU
-	 * requests, so while get_next_freq() will work, our
-	 * sugov_update_commit() call may not for the fast switching platforms.
-	 *
-	 * Hence stop here for remote requests if they aren't supported
-	 * by the hardware, as calculating the frequency is pointless if
-	 * we cannot in fact act on it.
-	 *
-	 * This is needed on the slow switching platforms too to prevent CPUs
-	 * going offline from leaving stale IRQ work items behind.
-	 */
 	if (!cpufreq_this_cpu_can_update(sg_policy->policy))
 		return false;
 
@@ -115,28 +93,6 @@ static void sugov_deferred_update(struct sugov_policy *sg_policy)
 	}
 }
 
-/**
- * get_next_freq - Compute a new frequency for a given cpufreq policy.
- * @sg_policy: schedutil policy object to compute the new frequency for.
- * @util: Current CPU utilization.
- * @max: CPU capacity.
- *
- * If the utilization is frequency-invariant, choose the new frequency to be
- * proportional to it, that is
- *
- * next_freq = C * max_freq * util / max
- *
- * Otherwise, approximate the would-be frequency-invariant utilization by
- * util_raw * (curr_freq / max_freq) which leads to
- *
- * next_freq = C * curr_freq * util_raw / max
- *
- * Take C = 1.25 for the frequency tipping point at (util / max) = 0.8.
- *
- * The lowest driver-supported frequency which is equal or greater than the raw
- * next_freq (as calculated above) is returned, subject to policy min/max and
- * cpufreq driver limitations.
- */
 static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 				  unsigned long util, unsigned long max)
 {
@@ -164,17 +120,6 @@ static void sugov_get_util(struct sugov_cpu *sg_cpu)
 					  FREQUENCY_UTIL, NULL);
 }
 
-/**
- * sugov_iowait_reset() - Reset the IO boost status of a CPU.
- * @sg_cpu: the sugov data for the CPU to boost
- * @time: the update time from the caller
- * @set_iowait_boost: true if an IO boost has been requested
- *
- * The IO wait boost of a task is disabled after a tick since the last update
- * of a CPU. If a new IO wait boost is requested after more then a tick, then
- * we enable the boost starting from IOWAIT_BOOST_MIN, which improves energy
- * efficiency by ignoring sporadic wakeups from IO.
- */
 static bool sugov_iowait_reset(struct sugov_cpu *sg_cpu, u64 time,
 			       bool set_iowait_boost)
 {
@@ -190,20 +135,6 @@ static bool sugov_iowait_reset(struct sugov_cpu *sg_cpu, u64 time,
 	return true;
 }
 
-/**
- * sugov_iowait_boost() - Updates the IO boost status of a CPU.
- * @sg_cpu: the sugov data for the CPU to boost
- * @time: the update time from the caller
- * @flags: SCHED_CPUFREQ_IOWAIT if the task is waking up after an IO wait
- *
- * Each time a task wakes up after an IO operation, the CPU utilization can be
- * boosted to a certain utilization which doubles at each "frequent and
- * successive" wakeup from IO, ranging from IOWAIT_BOOST_MIN to the utilization
- * of the maximum OPP.
- *
- * To keep doubling, an IO boost has to be requested at least once per tick,
- * otherwise we restart from the utilization of the minimum OPP.
- */
 static void sugov_iowait_boost(struct sugov_cpu *sg_cpu, u64 time,
 			       unsigned int flags)
 {
@@ -234,23 +165,6 @@ static void sugov_iowait_boost(struct sugov_cpu *sg_cpu, u64 time,
 	sg_cpu->iowait_boost = IOWAIT_BOOST_MIN;
 }
 
-/**
- * sugov_iowait_apply() - Apply the IO boost to a CPU.
- * @sg_cpu: the sugov data for the cpu to boost
- * @time: the update time from the caller
- *
- * A CPU running a task which woken up after an IO operation can have its
- * utilization boosted to speed up the completion of those IO operations.
- * The IO boost value is increased each time a task wakes up from IO, in
- * sugov_iowait_apply(), and it's instead decreased by this function,
- * each time an increase has not been requested (!iowait_boost_pending).
- *
- * A CPU which also appears to have been idle for at least one tick has also
- * its IO boost utilization reset.
- *
- * This mechanism is designed to boost high frequently IO waiting tasks, while
- * being more conservative on tasks which does sporadic IO operations.
- */
 static void sugov_iowait_apply(struct sugov_cpu *sg_cpu, u64 time)
 {
 	unsigned long boost;
@@ -265,8 +179,6 @@ static void sugov_iowait_apply(struct sugov_cpu *sg_cpu, u64 time)
 
 	if (!sg_cpu->iowait_boost_pending) {
 		/*
-		 * No boost pending; reduce the boost value.
-		 */
 		sg_cpu->iowait_boost >>= 1;
 		if (sg_cpu->iowait_boost < IOWAIT_BOOST_MIN) {
 			sg_cpu->iowait_boost = 0;
@@ -277,9 +189,6 @@ static void sugov_iowait_apply(struct sugov_cpu *sg_cpu, u64 time)
 	sg_cpu->iowait_boost_pending = false;
 
 	/*
-	 * sg_cpu->util is already in capacity scale; convert iowait_boost
-	 * into the same scale so we can compare.
-	 */
 	boost = (sg_cpu->iowait_boost * sg_cpu->max) >> SCHED_CAPACITY_SHIFT;
 	boost = uclamp_rq_util_with(cpu_rq(sg_cpu->cpu), boost, NULL);
 	if (sg_cpu->util < boost)
@@ -299,10 +208,6 @@ static bool sugov_cpu_is_busy(struct sugov_cpu *sg_cpu)
 static inline bool sugov_cpu_is_busy(struct sugov_cpu *sg_cpu) { return false; }
 #endif /* CONFIG_NO_HZ_COMMON */
 
-/*
- * Make sugov_should_update_freq() ignore the rate limit when DL
- * has increased the utilization.
- */
 static inline void ignore_dl_rate_limit(struct sugov_cpu *sg_cpu)
 {
 	if (cpu_bw_dl(cpu_rq(sg_cpu->cpu)) > sg_cpu->bw_dl)
@@ -339,11 +244,6 @@ static void sugov_update_single_freq(struct update_util_data *hook, u64 time,
 
 	next_f = get_next_freq(sg_policy, sg_cpu->util, sg_cpu->max);
 	/*
-	 * Do not reduce the frequency if the CPU has not been idle
-	 * recently, as the reduction is likely to be premature then.
-	 *
-	 * Except when the rq is capped by uclamp_max.
-	 */
 	if (!uclamp_rq_is_capped(cpu_rq(sg_cpu->cpu)) &&
 	    sugov_cpu_is_busy(sg_cpu) && next_f < sg_policy->next_freq) {
 		next_f = sg_policy->next_freq;
@@ -356,10 +256,6 @@ static void sugov_update_single_freq(struct update_util_data *hook, u64 time,
 		return;
 
 	/*
-	 * This code runs under rq->lock for the target CPU, so it won't run
-	 * concurrently on two different CPUs for the same target and it is not
-	 * necessary to acquire the lock in the fast switch case.
-	 */
 	if (sg_policy->policy->fast_switch_enabled) {
 		cpufreq_driver_fast_switch(sg_policy->policy, next_f);
 	} else {
@@ -376,10 +272,6 @@ static void sugov_update_single_perf(struct update_util_data *hook, u64 time,
 	unsigned long prev_util = sg_cpu->util;
 
 	/*
-	 * Fall back to the "frequency" path if frequency invariance is not
-	 * supported, because the direct mapping between the utilization and
-	 * the performance levels depends on the frequency invariance.
-	 */
 	if (!arch_scale_freq_invariant()) {
 		sugov_update_single_freq(hook, time, flags);
 		return;
@@ -389,11 +281,6 @@ static void sugov_update_single_perf(struct update_util_data *hook, u64 time,
 		return;
 
 	/*
-	 * Do not reduce the target performance level if the CPU has not been
-	 * idle recently, as the reduction is likely to be premature then.
-	 *
-	 * Except when the rq is capped by uclamp_max.
-	 */
 	if (!uclamp_rq_is_capped(cpu_rq(sg_cpu->cpu)) &&
 	    sugov_cpu_is_busy(sg_cpu) && sg_cpu->util < prev_util)
 		sg_cpu->util = prev_util;
@@ -465,15 +352,6 @@ static void sugov_work(struct kthread_work *work)
 	unsigned long flags;
 
 	/*
-	 * Hold sg_policy->update_lock shortly to handle the case where:
-	 * in case sg_policy->next_freq is read here, and then updated by
-	 * sugov_deferred_update() just before work_in_progress is set to false
-	 * here, we may miss queueing the new update.
-	 *
-	 * Note: If a work was queued after the update_lock is released,
-	 * sugov_work() will just be called again by kthread_work code; and the
-	 * request will be proceed before the sugov thread sleeps.
-	 */
 	raw_spin_lock_irqsave(&sg_policy->update_lock, flags);
 	freq = sg_policy->next_freq;
 	sg_policy->work_in_progress = false;
@@ -493,7 +371,6 @@ static void sugov_irq_work(struct irq_work *irq_work)
 	kthread_queue_work(&sg_policy->worker, &sg_policy->work);
 }
 
-/************************** sysfs interface ************************/
 
 static struct sugov_tunables *global_tunables;
 static DEFINE_MUTEX(global_tunables_lock);
@@ -549,7 +426,6 @@ static struct kobj_type sugov_tunables_ktype = {
 	.release = &sugov_tunables_free,
 };
 
-/********************** cpufreq governor interface *********************/
 
 struct cpufreq_governor schedutil_gov;
 
@@ -581,9 +457,6 @@ static int sugov_kthread_create(struct sugov_policy *sg_policy)
 		.sched_nice	= 0,
 		.sched_priority	= 0,
 		/*
-		 * Fake (unused) bandwidth; workaround to "fix"
-		 * priority inheritance.
-		 */
 		.sched_runtime	=  1000000,
 		.sched_deadline = 10000000,
 		.sched_period	= 10000000,
@@ -842,19 +715,11 @@ static void rebuild_sd_workfn(struct work_struct *work)
 }
 static DECLARE_WORK(rebuild_sd_work, rebuild_sd_workfn);
 
-/*
- * EAS shouldn't be attempted without sugov, so rebuild the sched_domains
- * on governor changes to make sure the scheduler knows about it.
- */
 void sched_cpufreq_governor_change(struct cpufreq_policy *policy,
 				  struct cpufreq_governor *old_gov)
 {
 	if (old_gov == &schedutil_gov || policy->governor == &schedutil_gov) {
 		/*
-		 * When called from the cpufreq_register_driver() path, the
-		 * cpu_hotplug_lock is already held, so use a work item to
-		 * avoid nested locking in rebuild_sched_domains().
-		 */
 		schedule_work(&rebuild_sd_work);
 	}
 

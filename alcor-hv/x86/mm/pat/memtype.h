@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __MEMTYPE_H_
 #define __MEMTYPE_H_
 

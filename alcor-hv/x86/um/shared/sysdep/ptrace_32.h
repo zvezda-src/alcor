@@ -1,7 +1,3 @@
-/*
- * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
- */
 
 #ifndef __SYSDEP_I386_PTRACE_H
 #define __SYSDEP_I386_PTRACE_H

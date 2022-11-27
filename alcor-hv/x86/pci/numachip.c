@@ -1,14 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Numascale NumaConnect-specific PCI code
- *
- * Copyright (C) 2012 Numascale AS. All rights reserved.
- *
- * Send feedback to <support@numascale.com>
- *
- * PCI accessor functions derived from mmconfig_64.c
- *
- */
 
 #include <linux/pci.h>
 #include <asm/pci_x86.h>

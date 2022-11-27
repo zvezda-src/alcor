@@ -1,11 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * AMD Memory Encryption Support
- *
- * Copyright (C) 2016 Advanced Micro Devices, Inc.
- *
- * Author: Tom Lendacky <thomas.lendacky@amd.com>
- */
 
 #ifndef __X86_MEM_ENCRYPT_H__
 #define __X86_MEM_ENCRYPT_H__
@@ -86,17 +78,10 @@ static inline void mem_encrypt_free_decrypted_mem(void) { }
 
 #endif	/* CONFIG_AMD_MEM_ENCRYPT */
 
-/* Architecture __weak replacement functions */
 void __init mem_encrypt_init(void);
 
 void add_encrypt_protection_map(void);
 
-/*
- * The __sme_pa() and __sme_pa_nodebug() macros are meant for use when
- * writing to or comparing values from the cr3 register.  Having the
- * encryption mask set in cr3 enables the PGD entry to be encrypted and
- * avoid special case handling of PGD allocations.
- */
 #define __sme_pa(x)		(__pa(x) | sme_me_mask)
 #define __sme_pa_nodebug(x)	(__pa_nodebug(x) | sme_me_mask)
 

@@ -1,13 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Kernel-based Virtual Machine driver for Linux
- * cpuid support routines
- *
- * derived from arch/x86/kvm/x86.c
- *
- * Copyright 2011 Red Hat, Inc. and/or its affiliates.
- * Copyright IBM Corporation, 2008
- */
 
 #include <linux/kvm_host.h>
 #include <linux/export.h>
@@ -26,10 +16,6 @@
 #include "trace.h"
 #include "pmu.h"
 
-/*
- * Unlike "struct cpuinfo_x86.x86_capability", kvm_cpu_caps doesn't need to be
- * aligned to sizeof(unsigned long) because it's not accessed via bitops.
- */
 u32 kvm_cpu_caps[NR_KVM_CPU_CAPS] __read_mostly;
 EXPORT_SYMBOL_GPL(kvm_cpu_caps);
 
@@ -58,22 +44,11 @@ u32 xstate_required_size(u64 xstate_bv, bool compacted)
 	return ret;
 }
 
-/*
- * This one is tied to SSB in the user API, and not
- * visible in /proc/cpuinfo.
- */
 #define KVM_X86_FEATURE_PSFD		(13*32+28) /* Predictive Store Forwarding Disable */
 
 #define F feature_bit
 #define SF(name) (boot_cpu_has(X86_FEATURE_##name) ? F(name) : 0)
 
-/*
- * Magic value used by KVM when querying userspace-provided CPUID entries and
- * doesn't care about the CPIUD index because the index of the function in
- * question is not significant.  Note, this magic value must have at least one
- * bit set in bits[63:32] and must be consumed as a u64 by cpuid_entry2_find()
- * to avoid false positives when processing guest CPUID input.
- */
 #define KVM_CPUID_INDEX_NOT_SIGNIFICANT -1ull
 
 static inline struct kvm_cpuid_entry2 *cpuid_entry2_find(
@@ -89,24 +64,13 @@ static inline struct kvm_cpuid_entry2 *cpuid_entry2_find(
 			continue;
 
 		/*
-		 * If the index isn't significant, use the first entry with a
-		 * matching function.  It's userspace's responsibilty to not
-		 * provide "duplicate" entries in all cases.
-		 */
 		if (!(e->flags & KVM_CPUID_FLAG_SIGNIFCANT_INDEX) || e->index == index)
 			return e;
 
 
 		/*
-		 * Similarly, use the first matching entry if KVM is doing a
-		 * lookup (as opposed to emulating CPUID) for a function that's
-		 * architecturally defined as not having a significant index.
-		 */
 		if (index == KVM_CPUID_INDEX_NOT_SIGNIFICANT) {
 			/*
-			 * Direct lookups from KVM should not diverge from what
-			 * KVM defines internally (the architectural behavior).
-			 */
 			WARN_ON_ONCE(cpuid_function_is_indexed(function));
 			return e;
 		}
@@ -123,9 +87,6 @@ static int kvm_check_cpuid(struct kvm_vcpu *vcpu,
 	u64 xfeatures;
 
 	/*
-	 * The existing code assumes virtual address is 48-bit or 57-bit in the
-	 * canonical address checks; exit if it is ever changed.
-	 */
 	best = cpuid_entry2_find(entries, nent, 0x80000008,
 				 KVM_CPUID_INDEX_NOT_SIGNIFICANT);
 	if (best) {
@@ -136,9 +97,6 @@ static int kvm_check_cpuid(struct kvm_vcpu *vcpu,
 	}
 
 	/*
-	 * Exposing dynamic xfeatures to the guest requires additional
-	 * enabling in the FPU, e.g. to expand the guest XSAVE state size.
-	 */
 	best = cpuid_entry2_find(entries, nent, 0xd, 0);
 	if (!best)
 		return 0;
@@ -151,7 +109,6 @@ static int kvm_check_cpuid(struct kvm_vcpu *vcpu,
 	return fpu_enable_guest_xfd_features(&vcpu->arch.guest_fpu, xfeatures);
 }
 
-/* Check whether the supplied CPUID data is equal to what is already set for the vCPU. */
 static int kvm_cpuid_check_equal(struct kvm_vcpu *vcpu, struct kvm_cpuid_entry2 *e2,
 				 int nent)
 {
@@ -223,17 +180,10 @@ void kvm_update_pv_runtime(struct kvm_vcpu *vcpu)
 	struct kvm_cpuid_entry2 *best = kvm_find_kvm_cpuid_features(vcpu);
 
 	/*
-	 * save the feature bitmap to avoid cpuid lookup for every PV
-	 * operation
-	 */
 	if (best)
 		vcpu->arch.pv_cpuid.features = best->eax;
 }
 
-/*
- * Calculate guest's supported XCR0 taking into account guest CPUID data and
- * KVM's supported XCR0 (comprised of host's XCR0 and KVM_SUPPORTED_XCR0).
- */
 static u64 cpuid_get_supported_xcr0(struct kvm_cpuid_entry2 *entries, int nent)
 {
 	struct kvm_cpuid_entry2 *best;
@@ -290,13 +240,6 @@ static void __kvm_update_cpuid_runtime(struct kvm_vcpu *vcpu, struct kvm_cpuid_e
 	}
 
 	/*
-	 * Bits 127:0 of the allowed SECS.ATTRIBUTES (CPUID.0x12.0x1) enumerate
-	 * the supported XSAVE Feature Request Mask (XFRM), i.e. the enclave's
-	 * requested XCR0 value.  The enclave's XFRM must be a subset of XCRO
-	 * at the time of EENTER, thus adjust the allowed XFRM by the guest's
-	 * supported XCR0.  Similar to XCR0 handling, FP and SSE are forced to
-	 * '1' even on CPUs that don't support XSAVE.
-	 */
 	best = cpuid_entry2_find(entries, nent, 0x12, 0x1);
 	if (best) {
 		best->ecx &= guest_supported_xcr0 & 0xffffffff;
@@ -347,9 +290,6 @@ static void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	static_call(kvm_x86_vcpu_after_set_cpuid)(vcpu);
 
 	/*
-	 * Except for the MMU, which needs to do its thing any vendor specific
-	 * adjustments to the reserved GPA bits.
-	 */
 	kvm_mmu_after_set_cpuid(vcpu);
 }
 
@@ -367,11 +307,6 @@ not_found:
 	return 36;
 }
 
-/*
- * This "raw" version returns the reserved GPA bits without any adjustments for
- * encryption technologies that usurp bits.  The raw mask should be used if and
- * only if hardware does _not_ strip the usurped bits, e.g. in virtual MTRRs.
- */
 u64 kvm_vcpu_reserved_gpa_bits_raw(struct kvm_vcpu *vcpu)
 {
 	return rsvd_bits(cpuid_maxphyaddr(vcpu), 63);
@@ -385,16 +320,6 @@ static int kvm_set_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid_entry2 *e2,
 	__kvm_update_cpuid_runtime(vcpu, e2, nent);
 
 	/*
-	 * KVM does not correctly handle changing guest CPUID after KVM_RUN, as
-	 * MAXPHYADDR, GBPAGES support, AMD reserved bit behavior, etc.. aren't
-	 * tracked in kvm_mmu_page_role.  As a result, KVM may miss guest page
-	 * faults due to reusing SPs/SPTEs. In practice no sane VMM mucks with
-	 * the core vCPU model on the fly. It would've been better to forbid any
-	 * KVM_SET_CPUID{,2} calls after KVM_RUN altogether but unfortunately
-	 * some VMMs (e.g. QEMU) reuse vCPU fds for CPU hotplug/unplug and do
-	 * KVM_SET_CPUID{,2} again. To support this legacy behavior, check
-	 * whether the supplied CPUID data is equal to what's already set.
-	 */
 	if (vcpu->arch.last_vmentry_cpu != -1) {
 		r = kvm_cpuid_check_equal(vcpu, e2, nent);
 		if (r)
@@ -418,7 +343,6 @@ static int kvm_set_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid_entry2 *e2,
 	return 0;
 }
 
-/* when an old userspace process fills a new kernel module */
 int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 			     struct kvm_cpuid *cpuid,
 			     struct kvm_cpuid_entry __user *entries)
@@ -507,7 +431,6 @@ out:
 	return r;
 }
 
-/* Mask kvm_cpu_caps for @leaf with the raw CPUID capabilities of this CPU. */
 static __always_inline void __kvm_cpu_cap_mask(unsigned int leaf)
 {
 	const struct cpuid_reg cpuid = x86_feature_cpuid(leaf * 32);
@@ -563,9 +486,6 @@ void kvm_set_cpu_caps(void)
 
 	kvm_cpu_cap_mask(CPUID_1_ECX,
 		/*
-		 * NOTE: MONITOR (and MWAIT) are emulated as NOP, but *not*
-		 * advertised to guests via CPUID!
-		 */
 		F(XMM3) | F(PCLMULQDQ) | 0 /* DTES64, MONITOR */ |
 		0 /* DS-CPL, VMX, SMX, EST */ |
 		0 /* TM2 */ | F(SSSE3) | 0 /* CNXT-ID */ | 0 /* Reserved */ |
@@ -610,9 +530,6 @@ void kvm_set_cpu_caps(void)
 		kvm_cpu_cap_set(X86_FEATURE_LA57);
 
 	/*
-	 * PKU not yet implemented for shadow paging and requires OSPKE
-	 * to be set on the host. Clear it if that is not the case
-	 */
 	if (!tdp_enabled || !boot_cpu_has(X86_FEATURE_OSPKE))
 		kvm_cpu_cap_clear(X86_FEATURE_PKU);
 
@@ -677,10 +594,6 @@ void kvm_set_cpu_caps(void)
 	);
 
 	/*
-	 * AMD has separate bits for each SPEC_CTRL bit.
-	 * arch/x86/kernel/cpu/bugs.c is kind enough to
-	 * record that in cpufeatures so use them.
-	 */
 	if (boot_cpu_has(X86_FEATURE_IBPB))
 		kvm_cpu_cap_set(X86_FEATURE_AMD_IBPB);
 	if (boot_cpu_has(X86_FEATURE_IBRS))
@@ -692,17 +605,11 @@ void kvm_set_cpu_caps(void)
 	if (!boot_cpu_has_bug(X86_BUG_SPEC_STORE_BYPASS))
 		kvm_cpu_cap_set(X86_FEATURE_AMD_SSB_NO);
 	/*
-	 * The preference is to use SPEC CTRL MSR instead of the
-	 * VIRT_SPEC MSR.
-	 */
 	if (boot_cpu_has(X86_FEATURE_LS_CFG_SSBD) &&
 	    !boot_cpu_has(X86_FEATURE_AMD_SSBD))
 		kvm_cpu_cap_set(X86_FEATURE_VIRT_SSBD);
 
 	/*
-	 * Hide all SVM features by default, SVM will set the cap bits for
-	 * features it emulates and/or exposes for L1.
-	 */
 	kvm_cpu_cap_mask(CPUID_8000_000A_EDX, 0);
 
 	kvm_cpu_cap_mask(CPUID_8000_001F_EAX,
@@ -716,13 +623,6 @@ void kvm_set_cpu_caps(void)
 	);
 
 	/*
-	 * Hide RDTSCP and RDPID if either feature is reported as supported but
-	 * probing MSR_TSC_AUX failed.  This is purely a sanity check and
-	 * should never happen, but the guest will likely crash if RDTSCP or
-	 * RDPID is misreported, and KVM has botched MSR_TSC_AUX emulation in
-	 * the past.  For example, the sanity check may fire if this instance of
-	 * KVM is running as L1 on top of an older, broken KVM.
-	 */
 	if (WARN_ON((kvm_cpu_cap_has(X86_FEATURE_RDTSCP) ||
 		     kvm_cpu_cap_has(X86_FEATURE_RDPID)) &&
 		     !kvm_is_supported_user_return_msr(MSR_TSC_AUX))) {
@@ -758,9 +658,6 @@ static struct kvm_cpuid_entry2 *do_host_cpuid(struct kvm_cpuid_array *array,
 
 	case 0x80000000:
 		/*
-		 * 0x80000021 is sometimes synthesized by __do_cpuid_func, which
-		 * would result in out-of-bounds calls to do_host_cpuid.
-		 */
 		{
 			static int max_cpuid_80000000;
 			if (!READ_ONCE(max_cpuid_80000000))
@@ -843,29 +740,12 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		break;
 	case 2:
 		/*
-		 * On ancient CPUs, function 2 entries are STATEFUL.  That is,
-		 * CPUID(function=2, index=0) may return different results each
-		 * time, with the least-significant byte in EAX enumerating the
-		 * number of times software should do CPUID(2, 0).
-		 *
-		 * Modern CPUs, i.e. every CPU KVM has *ever* run on are less
-		 * idiotic.  Intel's SDM states that EAX & 0xff "will always
-		 * return 01H. Software should ignore this value and not
-		 * interpret it as an informational descriptor", while AMD's
-		 * APM states that CPUID(2) is reserved.
-		 *
-		 * WARN if a frankenstein CPU that supports virtualization and
-		 * a stateful CPUID.0x2 is encountered.
-		 */
 		WARN_ON_ONCE((entry->eax & 0xff) > 1);
 		break;
 	/* functions 4 and 0x8000001d have additional index. */
 	case 4:
 	case 0x8000001d:
 		/*
-		 * Read entries until the cache type in the previous entry is
-		 * zero, i.e. indicates an invalid entry.
-		 */
 		for (i = 1; entry->eax & 0x1f; ++i) {
 			entry = do_host_cpuid(array, function, i);
 			if (!entry)
@@ -927,16 +807,9 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		break;
 	}
 	/*
-	 * Per Intel's SDM, the 0x1f is a superset of 0xb,
-	 * thus they can be handled by common code.
-	 */
 	case 0x1f:
 	case 0xb:
 		/*
-		 * Populate entries until the level type (ECX[15:8]) of the
-		 * previous entry is zero.  Note, CPUID EAX.{0x1f,0xb}.0 is
-		 * the starting entry, filled by the primary do_host_cpuid().
-		 */
 		for (i = 1; entry->ecx & 0xff00; ++i) {
 			entry = do_host_cpuid(array, function, i);
 			if (!entry)
@@ -983,13 +856,6 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 				goto out;
 
 			/*
-			 * The supported check above should have filtered out
-			 * invalid sub-leafs.  Only valid sub-leafs should
-			 * reach this point, and they should have a non-zero
-			 * save state size.  Furthermore, check whether the
-			 * processor agrees with permitted_xcr0/permitted_xss
-			 * on whether this is an XCR0- or IA32_XSS-managed area.
-			 */
 			if (WARN_ON_ONCE(!entry->eax || (entry->ecx & 0x1) != s_state)) {
 				--array->nent;
 				continue;
@@ -1009,11 +875,6 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		}
 
 		/*
-		 * Index 0: Sub-features, MISCSELECT (a.k.a extended features)
-		 * and max enclave sizes.   The SGX sub-features and MISCSELECT
-		 * are restricted by kernel and KVM capabilities (like most
-		 * feature flags), while enclave size is unrestricted.
-		 */
 		cpuid_entry_override(entry, CPUID_12_EAX);
 		entry->ebx &= SGX_MISC_EXINFO;
 
@@ -1022,12 +883,6 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 			goto out;
 
 		/*
-		 * Index 1: SECS.ATTRIBUTES.  ATTRIBUTES are restricted a la
-		 * feature flags.  Advertise all supported flags, including
-		 * privileged attributes that require explicit opt-in from
-		 * userspace.  ATTRIBUTES.XFRM is not adjusted as userspace is
-		 * expected to derive it from supported XCR0.
-		 */
 		entry->eax &= SGX_ATTR_DEBUG | SGX_ATTR_MODE64BIT |
 			      SGX_ATTR_PROVISIONKEY | SGX_ATTR_EINITTOKENKEY |
 			      SGX_ATTR_KSS;
@@ -1096,18 +951,6 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 	case 0x80000000:
 		entry->eax = min(entry->eax, 0x80000021);
 		/*
-		 * Serializing LFENCE is reported in a multitude of ways, and
-		 * NullSegClearsBase is not reported in CPUID on Zen2; help
-		 * userspace by providing the CPUID leaf ourselves.
-		 *
-		 * However, only do it if the host has CPUID leaf 0x8000001d.
-		 * QEMU thinks that it can query the host blindly for that
-		 * CPUID leaf if KVM reports that it supports 0x8000001d or
-		 * above.  The processor merrily returns values from the
-		 * highest Intel leaf which QEMU tries to use as the guest's
-		 * 0x8000001d.  Even worse, this can result in an infinite
-		 * loop if said highest leaf has no subleaves indexed by ECX.
-		 */
 		if (entry->eax >= 0x8000001d &&
 		    (static_cpu_has(X86_FEATURE_LFENCE_RDTSC)
 		     || !static_cpu_has_bug(X86_BUG_NULL_SEG)))
@@ -1133,15 +976,6 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		unsigned phys_as = entry->eax & 0xff;
 
 		/*
-		 * If TDP (NPT) is disabled use the adjusted host MAXPHYADDR as
-		 * the guest operates in the same PA space as the host, i.e.
-		 * reductions in MAXPHYADDR for memory encryption affect shadow
-		 * paging, too.
-		 *
-		 * If TDP is enabled but an explicit guest MAXPHYADDR is not
-		 * provided, use the raw bare metal MAXPHYADDR as reductions to
-		 * the HPAs do not affect GPAs.
-		 */
 		if (!tdp_enabled)
 			g_phys_as = boot_cpu_data.x86_phys_bits;
 		else if (!g_phys_as)
@@ -1176,9 +1010,6 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 			cpuid_entry_override(entry, CPUID_8000_001F_EAX);
 
 			/*
-			 * Enumerate '0' for "PA bits reduction", the adjusted
-			 * MAXPHYADDR is enumerated directly (see 0x80000008).
-			 */
 			entry->ebx &= ~GENMASK(11, 6);
 		}
 		break;
@@ -1188,15 +1019,6 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 	case 0x80000021:
 		entry->ebx = entry->ecx = entry->edx = 0;
 		/*
-		 * Pass down these bits:
-		 *    EAX      0      NNDBP, Processor ignores nested data breakpoints
-		 *    EAX      2      LAS, LFENCE always serializing
-		 *    EAX      6      NSCB, Null selector clear base
-		 *
-		 * Other defined bits are for MSRs that KVM does not expose:
-		 *   EAX      3      SPCL, SMM page configuration lock
-		 *   EAX      13     PCMSR, Prefetch control MSR
-		 */
 		entry->eax &= BIT(0) | BIT(2) | BIT(6);
 		if (static_cpu_has(X86_FEATURE_LFENCE_RDTSC))
 			entry->eax |= BIT(2);
@@ -1274,13 +1096,6 @@ static bool sanity_check_entries(struct kvm_cpuid_entry2 __user *entries,
 		return false;
 
 	/*
-	 * We want to make sure that ->padding is being passed clean from
-	 * userspace in case we want to use it for something in the future.
-	 *
-	 * Sadly, this wasn't enforced for KVM_GET_SUPPORTED_CPUID and so we
-	 * have to give ourselves satisfied only with the emulated side. /me
-	 * sheds a tear.
-	 */
 	for (i = 0; i < num_entries; i++) {
 		if (copy_from_user(pad, entries[i].padding, sizeof(pad)))
 			return true;
@@ -1350,34 +1165,6 @@ struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 }
 EXPORT_SYMBOL_GPL(kvm_find_cpuid_entry);
 
-/*
- * Intel CPUID semantics treats any query for an out-of-range leaf as if the
- * highest basic leaf (i.e. CPUID.0H:EAX) were requested.  AMD CPUID semantics
- * returns all zeroes for any undefined leaf, whether or not the leaf is in
- * range.  Centaur/VIA follows Intel semantics.
- *
- * A leaf is considered out-of-range if its function is higher than the maximum
- * supported leaf of its associated class or if its associated class does not
- * exist.
- *
- * There are three primary classes to be considered, with their respective
- * ranges described as "<base> - <top>[,<base2> - <top2>] inclusive.  A primary
- * class exists if a guest CPUID entry for its <base> leaf exists.  For a given
- * class, CPUID.<base>.EAX contains the max supported leaf for the class.
- *
- *  - Basic:      0x00000000 - 0x3fffffff, 0x50000000 - 0x7fffffff
- *  - Hypervisor: 0x40000000 - 0x4fffffff
- *  - Extended:   0x80000000 - 0xbfffffff
- *  - Centaur:    0xc0000000 - 0xcfffffff
- *
- * The Hypervisor class is further subdivided into sub-classes that each act as
- * their own independent class associated with a 0x100 byte range.  E.g. if Qemu
- * is advertising support for both HyperV and KVM, the resulting Hypervisor
- * CPUID sub-classes are:
- *
- *  - HyperV:     0x40000000 - 0x400000ff
- *  - KVM:        0x40000100 - 0x400001ff
- */
 static struct kvm_cpuid_entry2 *
 get_out_of_range_cpuid_entry(struct kvm_vcpu *vcpu, u32 *fn_ptr, u32 index)
 {
@@ -1403,18 +1190,8 @@ get_out_of_range_cpuid_entry(struct kvm_vcpu *vcpu, u32 *fn_ptr, u32 index)
 		return NULL;
 
 	/*
-	 * Leaf specific adjustments are also applied when redirecting to the
-	 * max basic entry, e.g. if the max basic leaf is 0xb but there is no
-	 * entry for CPUID.0xb.index (see below), then the output value for EDX
-	 * needs to be pulled from CPUID.0xb.1.
-	 */
-	*fn_ptr = basic->eax;
 
 	/*
-	 * The class does not exist or the requested function is out of range;
-	 * the effective CPUID entry is the max basic leaf.  Note, the index of
-	 * the original requested leaf is observed!
-	 */
 	return kvm_find_cpuid_entry_index(vcpu, basic->eax, index);
 }
 
@@ -1447,12 +1224,6 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 	} else {
 		*eax = *ebx = *ecx = *edx = 0;
 		/*
-		 * When leaf 0BH or 1FH is defined, CL is pass-through
-		 * and EDX is always the x2APIC ID, even for undefined
-		 * subleaves. Index 1 will exist iff the leaf is
-		 * implemented, so we pass through CL iff leaf 1
-		 * exists. EDX can be copied from any existing index.
-		 */
 		if (function == 0xb || function == 0x1f) {
 			entry = kvm_find_cpuid_entry_index(vcpu, function, 1);
 			if (entry) {

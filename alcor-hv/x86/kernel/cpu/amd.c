@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/export.h>
 #include <linux/bitops.h>
 #include <linux/elf.h>
@@ -32,11 +31,6 @@ static const int amd_erratum_400[];
 static const int amd_erratum_1054[];
 static bool cpu_has_amd_erratum(struct cpuinfo_x86 *cpu, const int *erratum);
 
-/*
- * nodes_per_socket: Stores the number of nodes per socket.
- * Refer to Fam15h Models 00-0fh BKDG - CPUID Fn8000_001E_ECX
- * Node Identifiers[10:8]
- */
 static u32 nodes_per_socket = 1;
 
 static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
@@ -52,7 +46,6 @@ static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
 
 	err = rdmsr_safe_regs(gprs);
 
-	*p = gprs[0] | ((u64)gprs[2] << 32);
 
 	return err;
 }
@@ -72,19 +65,6 @@ static inline int wrmsrl_amd_safe(unsigned msr, unsigned long long val)
 	return wrmsr_safe_regs(gprs);
 }
 
-/*
- *	B step AMD K6 before B 9730xxxx have hardware bugs that can cause
- *	misexecution of code under Linux. Owners of such processors should
- *	contact AMD for precise details and a CPU swap.
- *
- *	See	http://www.multimania.com/poulot/k6bug.html
- *	and	section 2.6.2 of "AMD-K6 Processor Revision Guide - Model 6"
- *		(Publication # 21266  Issue Date: August 1998)
- *
- *	The following test is erm.. interesting. AMD neglected to up
- *	the chip setting when fixing the bug but they also tweaked some
- *	performance at the same time..
- */
 
 #ifdef CONFIG_X86_32
 extern __visible void vide(void);
@@ -98,12 +78,6 @@ __asm__(".text\n"
 static void init_amd_k5(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_X86_32
-/*
- * General Systems BIOSen alias the cpu frequency registers
- * of the Elan at 0x000df000. Unfortunately, one of the Linux
- * drivers subsequently pokes it, and changes the CPU speed.
- * Workaround : Remove the unneeded alias.
- */
 #define CBAR		(0xfffc) /* Configuration Base Address  (32-bit) */
 #define CBAR_ENB	(0x80000000)
 #define CBAR_KEY	(0X000000CB)
@@ -138,9 +112,6 @@ static void init_amd_k6(struct cpuinfo_x86 *c)
 		pr_info("AMD K6 stepping B detected - ");
 
 		/*
-		 * It looks like AMD fixed the 2.6.2 bug and improved indirect
-		 * calls at the same time.
-		 */
 
 		n = K6_BUG_LOOP;
 		f_vide = vide;
@@ -214,10 +185,6 @@ static void init_amd_k7(struct cpuinfo_x86 *c)
 	u32 l, h;
 
 	/*
-	 * Bit 15 of Athlon specific MSR 15, needs to be 0
-	 * to enable SSE on Palomino/Morgan/Barton CPU's.
-	 * If the BIOS didn't enable it already, enable it here.
-	 */
 	if (c->x86_model >= 6 && c->x86_model <= 10) {
 		if (!cpu_has(c, X86_FEATURE_XMM)) {
 			pr_info("Enabling disabled K7/SSE Support.\n");
@@ -227,10 +194,6 @@ static void init_amd_k7(struct cpuinfo_x86 *c)
 	}
 
 	/*
-	 * It's been determined by AMD that Athlons since model 8 stepping 1
-	 * are more robust with CLK_CTL set to 200xxxxx instead of 600xxxxx
-	 * As per AMD technical note 27212 0.2
-	 */
 	if ((c->x86_model == 8 && c->x86_stepping >= 1) || (c->x86_model > 8)) {
 		rdmsr(MSR_K7_CLK_CTL, l, h);
 		if ((l & 0xfff00000) != 0x20000000) {
@@ -245,9 +208,6 @@ static void init_amd_k7(struct cpuinfo_x86 *c)
 		return;
 
 	/*
-	 * Certain Athlons might work (for various values of 'work') in SMP
-	 * but they are not certified as MP capable.
-	 */
 	/* Athlon 660/661 is valid. */
 	if ((c->x86_model == 6) && ((c->x86_stepping == 0) ||
 	    (c->x86_stepping == 1)))
@@ -258,12 +218,6 @@ static void init_amd_k7(struct cpuinfo_x86 *c)
 		return;
 
 	/*
-	 * Athlon 662, Duron 671, and Athlon >model 7 have capability
-	 * bit. It's worth noting that the A5 stepping (662) of some
-	 * Athlon XP's have the MP bit set.
-	 * See http://www.heise.de/newsticker/data/jow-18.10.01-000 for
-	 * more.
-	 */
 	if (((c->x86_model == 6) && (c->x86_stepping >= 2)) ||
 	    ((c->x86_model == 7) && (c->x86_stepping >= 1)) ||
 	     (c->x86_model > 7))
@@ -273,9 +227,6 @@ static void init_amd_k7(struct cpuinfo_x86 *c)
 	/* If we get here, not a certified SMP capable AMD system. */
 
 	/*
-	 * Don't taint if we are running SMP kernel on a single non-MP
-	 * approved Athlon
-	 */
 	WARN_ONCE(1, "WARNING: This combination of AMD"
 		" processors is not suitable for SMP.\n");
 	add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_NOW_UNRELIABLE);
@@ -283,10 +234,6 @@ static void init_amd_k7(struct cpuinfo_x86 *c)
 }
 
 #ifdef CONFIG_NUMA
-/*
- * To workaround broken NUMA config.  Read the comment in
- * srat_detect_node().
- */
 static int nearby_node(int apicid)
 {
 	int i, node;
@@ -305,11 +252,6 @@ static int nearby_node(int apicid)
 }
 #endif
 
-/*
- * Fix up cpu_core_id for pre-F17h systems to be in the
- * [0 .. cores_per_node - 1] range. Not really needed but
- * kept so as not to break existing setups.
- */
 static void legacy_fixup_core_id(struct cpuinfo_x86 *c)
 {
 	u32 cus_per_node;
@@ -321,12 +263,6 @@ static void legacy_fixup_core_id(struct cpuinfo_x86 *c)
 	c->cpu_core_id %= cus_per_node;
 }
 
-/*
- * Fixup core topology information for
- * (1) AMD multi-node processors
- *     Assumption: Number of cores in each internal node is the same.
- * (2) AMD processors supporting compute units
- */
 static void amd_get_topology(struct cpuinfo_x86 *c)
 {
 	int cpu = smp_processor_id();
@@ -351,9 +287,6 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 		}
 
 		/*
-		 * In case leaf B is available, use it to derive
-		 * topology information.
-		 */
 		err = detect_extended_topology(c);
 		if (!err)
 			c->x86_coreid_bits = get_count_order(c->x86_max_cores);
@@ -376,10 +309,6 @@ static void amd_get_topology(struct cpuinfo_x86 *c)
 	}
 }
 
-/*
- * On a AMD dual core setup the lower bits of the APIC id distinguish the cores.
- * Assumes number of cores is a power of two.
- */
 static void amd_detect_cmp(struct cpuinfo_x86 *c)
 {
 	unsigned bits;
@@ -412,33 +341,11 @@ static void srat_detect_node(struct cpuinfo_x86 *c)
 		node = get_llc_id(cpu);
 
 	/*
-	 * On multi-fabric platform (e.g. Numascale NumaChip) a
-	 * platform-specific handler needs to be called to fixup some
-	 * IDs of the CPU.
-	 */
 	if (x86_cpuinit.fixup_cpu_id)
 		x86_cpuinit.fixup_cpu_id(c, node);
 
 	if (!node_online(node)) {
 		/*
-		 * Two possibilities here:
-		 *
-		 * - The CPU is missing memory and no node was created.  In
-		 *   that case try picking one from a nearby CPU.
-		 *
-		 * - The APIC IDs differ from the HyperTransport node IDs
-		 *   which the K8 northbridge parsing fills in.  Assume
-		 *   they are all increased by a constant offset, but in
-		 *   the same order as the HT nodeids.  If that doesn't
-		 *   result in a usable node fall back to the path for the
-		 *   previous case.
-		 *
-		 * This workaround operates directly on the mapping between
-		 * APIC ID and NUMA node, assuming certain relationship
-		 * between APIC ID, HT node ID and NUMA topology.  As going
-		 * through CPU mapping may alter the outcome, directly
-		 * access __apicid_to_node[].
-		 */
 		int ht_nodeid = c->initial_apicid;
 
 		if (__apicid_to_node[ht_nodeid] != NUMA_NO_NODE)
@@ -533,9 +440,6 @@ static void bsp_init_amd(struct cpuinfo_x86 *c)
 		default: return;
 		}
 		/*
-		 * Try to cache the base value so further operations can
-		 * avoid RMW. If that faults, do not enable SSBD.
-		 */
 		if (!rdmsrl_safe(MSR_AMD64_LS_CFG, &x86_amd_ls_cfg_base)) {
 			setup_force_cpu_cap(X86_FEATURE_LS_CFG_SSBD);
 			setup_force_cpu_cap(X86_FEATURE_SSBD);
@@ -551,19 +455,6 @@ static void early_detect_mem_encrypt(struct cpuinfo_x86 *c)
 	u64 msr;
 
 	/*
-	 * BIOS support is required for SME and SEV.
-	 *   For SME: If BIOS has enabled SME then adjust x86_phys_bits by
-	 *	      the SME physical address space reduction value.
-	 *	      If BIOS has not enabled SME then don't advertise the
-	 *	      SME feature (set in scattered.c).
-	 *	      If the kernel has not enabled SME via any means then
-	 *	      don't advertise the SME feature.
-	 *   For SEV: If BIOS has not enabled SEV then don't advertise the
-	 *            SEV and SEV_ES feature (set in scattered.c).
-	 *
-	 *   In all cases, since support for SME and SEV requires long mode,
-	 *   don't advertise the feature under CONFIG_X86_32.
-	 */
 	if (cpu_has(c, X86_FEATURE_SME) || cpu_has(c, X86_FEATURE_SEV)) {
 		/* Check if memory encryption is enabled */
 		rdmsrl(MSR_AMD64_SYSCFG, msr);
@@ -571,10 +462,6 @@ static void early_detect_mem_encrypt(struct cpuinfo_x86 *c)
 			goto clear_all;
 
 		/*
-		 * Always adjust physical address bits. Even though this
-		 * will be a value above 32-bits this is still done for
-		 * CONFIG_X86_32 so that accurate values are reported.
-		 */
 		c->x86_phys_bits -= (cpuid_ebx(0x8000001f) >> 6) & 0x3f;
 
 		if (IS_ENABLED(CONFIG_X86_32))
@@ -610,9 +497,6 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 	rdmsr_safe(MSR_AMD64_PATCH_LEVEL, &c->microcode, &dummy);
 
 	/*
-	 * c->x86_power is 8000_0007 edx. Bit 8 is TSC runs at constant rate
-	 * with P/T states and does not stop in deep C-states
-	 */
 	if (c->x86_power & (1 << 8)) {
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
@@ -637,11 +521,6 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 #endif
 #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_PCI)
 	/*
-	 * ApicID can always be treated as an 8-bit value for AMD APIC versions
-	 * >= 0x10, but even old K8s came out of reset with version 0x10. So, we
-	 * can safely set X86_FEATURE_EXTD_APICID unconditionally for families
-	 * after 16h.
-	 */
 	if (boot_cpu_has(X86_FEATURE_APIC)) {
 		if (c->x86 > 0x16)
 			set_cpu_cap(c, X86_FEATURE_EXTD_APICID);
@@ -657,10 +536,6 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 #endif
 
 	/*
-	 * This is only needed to tell the kernel whether to use VMCALL
-	 * and VMMCALL.  VMMCALL is never executed except under virt, so
-	 * we can set it unconditionally.
-	 */
 	set_cpu_cap(c, X86_FEATURE_VMMCALL);
 
 	/* F16h erratum 793, CVE-2013-6885 */
@@ -668,11 +543,6 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 		msr_set_bit(MSR_AMD64_LS_CFG, 15);
 
 	/*
-	 * Check whether the machine is affected by erratum 400. This is
-	 * used to select the proper idle routine and to enable the check
-	 * whether the machine is affected in arch_post_acpi_init(), which
-	 * sets the X86_BUG_AMD_APIC_C1E bug depending on the MSR check.
-	 */
 	if (cpu_has_amd_erratum(c, amd_erratum_400))
 		set_cpu_bug(c, X86_BUG_AMD_E400);
 
@@ -707,10 +577,6 @@ static void init_amd_k8(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
 
 	/*
-	 * Some BIOSes incorrectly force this feature, but only K8 revision D
-	 * (model = 0x14) and later actually support it.
-	 * (AMD Erratum #110, docId: 25759).
-	 */
 	if (c->x86_model < 0x14 && cpu_has(c, X86_FEATURE_LAHF_LM)) {
 		clear_cpu_cap(c, X86_FEATURE_LAHF_LM);
 		if (!rdmsrl_amd_safe(0xc001100d, &value)) {
@@ -724,12 +590,6 @@ static void init_amd_k8(struct cpuinfo_x86 *c)
 
 #ifdef CONFIG_SMP
 	/*
-	 * Disable TLB flush filter by setting HWCR.FFDIS on K8
-	 * bit 6 of msr C001_0015
-	 *
-	 * Errata 63 for SH-B3 steppings
-	 * Errata 122 for all steppings (F+ have it disabled by default)
-	 */
 	msr_set_bit(MSR_K7_HWCR, 6);
 #endif
 	set_cpu_bug(c, X86_BUG_SWAPGS_FENCE);
@@ -746,24 +606,9 @@ static void init_amd_gh(struct cpuinfo_x86 *c)
 #endif
 
 	/*
-	 * Disable GART TLB Walk Errors on Fam10h. We do this here because this
-	 * is always needed when GART is enabled, even in a kernel which has no
-	 * MCE support built in. BIOS should disable GartTlbWlk Errors already.
-	 * If it doesn't, we do it here as suggested by the BKDG.
-	 *
-	 * Fixes: https://bugzilla.kernel.org/show_bug.cgi?id=33012
-	 */
 	msr_set_bit(MSR_AMD64_MCx_MASK(4), 10);
 
 	/*
-	 * On family 10h BIOS may not have properly enabled WC+ support, causing
-	 * it to be converted to CD memtype. This may result in performance
-	 * degradation for certain nested-paging guests. Prevent this conversion
-	 * by clearing bit 24 in MSR_AMD64_BU_CFG2.
-	 *
-	 * NOTE: we want to use the _safe accessors so as not to #GP kvm
-	 * guests on older kvm hosts.
-	 */
 	msr_clear_bit(MSR_AMD64_BU_CFG2, 24);
 
 	if (cpu_has_amd_erratum(c, amd_erratum_383))
@@ -775,9 +620,6 @@ static void init_amd_gh(struct cpuinfo_x86 *c)
 static void init_amd_ln(struct cpuinfo_x86 *c)
 {
 	/*
-	 * Apply erratum 665 fix unconditionally so machines without a BIOS
-	 * fix work.
-	 */
 	msr_set_bit(MSR_AMD64_DE_CFG, 31);
 }
 
@@ -800,26 +642,16 @@ early_param("rdrand", rdrand_cmdline);
 static void clear_rdrand_cpuid_bit(struct cpuinfo_x86 *c)
 {
 	/*
-	 * Saving of the MSR used to hide the RDRAND support during
-	 * suspend/resume is done by arch/x86/power/cpu.c, which is
-	 * dependent on CONFIG_PM_SLEEP.
-	 */
 	if (!IS_ENABLED(CONFIG_PM_SLEEP))
 		return;
 
 	/*
-	 * The self-test can clear X86_FEATURE_RDRAND, so check for
-	 * RDRAND support using the CPUID function directly.
-	 */
 	if (!(cpuid_ecx(1) & BIT(30)) || rdrand_force)
 		return;
 
 	msr_clear_bit(MSR_AMD64_CPUID_FN_1, 62);
 
 	/*
-	 * Verify that the CPUID change has occurred in case the kernel is
-	 * running virtualized and the hypervisor doesn't support the MSR.
-	 */
 	if (cpuid_ecx(1) & BIT(30)) {
 		pr_info_once("BIOS may not properly restore RDRAND after suspend, but hypervisor does not support hiding RDRAND via CPUID.\n");
 		return;
@@ -832,10 +664,6 @@ static void clear_rdrand_cpuid_bit(struct cpuinfo_x86 *c)
 static void init_amd_jg(struct cpuinfo_x86 *c)
 {
 	/*
-	 * Some BIOS implementations do not restore proper RDRAND support
-	 * across suspend and resume. Check on whether to hide the RDRAND
-	 * instruction support via CPUID.
-	 */
 	clear_rdrand_cpuid_bit(c);
 }
 
@@ -844,9 +672,6 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
 	u64 value;
 
 	/*
-	 * The way access filter has a performance penalty on some workloads.
-	 * Disable it on the affected CPUs.
-	 */
 	if ((c->x86_model >= 0x02) && (c->x86_model < 0x20)) {
 		if (!rdmsrl_safe(MSR_F15H_IC_CFG, &value) && !(value & 0x1E)) {
 			value |= 0x1E;
@@ -855,10 +680,6 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
 	}
 
 	/*
-	 * Some BIOS implementations do not restore proper RDRAND support
-	 * across suspend and resume. Check on whether to hide the RDRAND
-	 * instruction support via CPUID.
-	 */
 	clear_rdrand_cpuid_bit(c);
 }
 
@@ -868,13 +689,6 @@ void init_spectral_chicken(struct cpuinfo_x86 *c)
 	u64 value;
 
 	/*
-	 * On Zen2 we offer this chicken (bit) on the altar of Speculation.
-	 *
-	 * This suppresses speculation from the middle of a basic block, i.e. it
-	 * suppresses non-branch predictions.
-	 *
-	 * We use STIBP as a heuristic to filter out Zen2 from the rest of F17H
-	 */
 	if (!cpu_has(c, X86_FEATURE_HYPERVISOR) && cpu_has(c, X86_FEATURE_AMD_STIBP)) {
 		if (!rdmsrl_safe(MSR_ZEN2_SPECTRAL_CHICKEN, &value)) {
 			value |= MSR_ZEN2_SPECTRAL_CHICKEN_BIT;
@@ -900,10 +714,6 @@ static void init_amd_zn(struct cpuinfo_x86 *c)
 			set_cpu_cap(c, X86_FEATURE_CPB);
 
 		/*
-		 * Zen3 (Fam19 model < 0x10) parts are not susceptible to
-		 * Branch Type Confusion, but predate the allocation of the
-		 * BTC_NO bit.
-		 */
 		if (c->x86 == 0x19 && !cpu_has(c, X86_FEATURE_BTC_NO))
 			set_cpu_cap(c, X86_FEATURE_BTC_NO);
 	}
@@ -914,9 +724,6 @@ static void init_amd(struct cpuinfo_x86 *c)
 	early_init_amd(c);
 
 	/*
-	 * Bit 31 in normal CPUID used for nonstandard 3DNow ID;
-	 * 3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
-	 */
 	clear_cpu_cap(c, 0*32+31);
 
 	if (c->x86 >= 0x10)
@@ -944,9 +751,6 @@ static void init_amd(struct cpuinfo_x86 *c)
 	}
 
 	/*
-	 * Enable workaround for FXSAVE leak on CPUs
-	 * without a XSaveErPtr feature
-	 */
 	if ((c->x86 >= 6) && (!cpu_has(c, X86_FEATURE_XSAVEERPTR)))
 		set_cpu_bug(c, X86_BUG_FXSAVE_LEAK);
 
@@ -960,11 +764,6 @@ static void init_amd(struct cpuinfo_x86 *c)
 
 	if (cpu_has(c, X86_FEATURE_XMM2)) {
 		/*
-		 * Use LFENCE for execution serialization.  On families which
-		 * don't have that MSR, LFENCE is already serializing.
-		 * msr_set_bit() uses the safe accessors, too, even if the MSR
-		 * is not present.
-		 */
 		msr_set_bit(MSR_F10H_DECFG,
 			    MSR_F10H_DECFG_LFENCE_SERIALIZE_BIT);
 
@@ -973,9 +772,6 @@ static void init_amd(struct cpuinfo_x86 *c)
 	}
 
 	/*
-	 * Family 0x12 and above processors have APIC timer
-	 * running in deep C states.
-	 */
 	if (c->x86 > 0x11)
 		set_cpu_cap(c, X86_FEATURE_ARAT);
 
@@ -989,10 +785,6 @@ static void init_amd(struct cpuinfo_x86 *c)
 		set_cpu_bug(c, X86_BUG_SYSRET_SS_ATTRS);
 
 	/*
-	 * Turn on the Instructions Retired free counter on machines not
-	 * susceptible to erratum #1054 "Instructions Retired Performance
-	 * Counter May Be Inaccurate".
-	 */
 	if (cpu_has(c, X86_FEATURE_IRPERF) &&
 	    !cpu_has_amd_erratum(c, amd_erratum_1054))
 		msr_set_bit(MSR_K7_HWCR, MSR_K7_HWCR_IRPERF_EN_BIT);
@@ -1034,9 +826,6 @@ static void cpu_detect_tlb_amd(struct cpuinfo_x86 *c)
 	tlb_lli_4k[ENTRIES] = ebx & mask;
 
 	/*
-	 * K8 doesn't have 2M/4M entries in the L2 TLB so read out the L1 TLB
-	 * characteristics from the CPUID function 0x80000005 instead.
-	 */
 	if (c->x86 == 0xf) {
 		cpuid(0x80000005, &eax, &ebx, &ecx, &edx);
 		mask = 0xff;
@@ -1093,22 +882,6 @@ static const struct cpu_dev amd_cpu_dev = {
 
 cpu_dev_register(amd_cpu_dev);
 
-/*
- * AMD errata checking
- *
- * Errata are defined as arrays of ints using the AMD_LEGACY_ERRATUM() or
- * AMD_OSVW_ERRATUM() macros. The latter is intended for newer errata that
- * have an OSVW id assigned, which it takes as first argument. Both take a
- * variable number of family-specific model-stepping ranges created by
- * AMD_MODEL_RANGE().
- *
- * Example:
- *
- * const int amd_erratum_319[] =
- *	AMD_LEGACY_ERRATUM(AMD_MODEL_RANGE(0x10, 0x2, 0x1, 0x4, 0x2),
- *			   AMD_MODEL_RANGE(0x10, 0x8, 0x0, 0x8, 0x0),
- *			   AMD_MODEL_RANGE(0x10, 0x9, 0x0, 0x9, 0x0));
- */
 
 #define AMD_LEGACY_ERRATUM(...)		{ -1, __VA_ARGS__, 0 }
 #define AMD_OSVW_ERRATUM(osvw_id, ...)	{ osvw_id, __VA_ARGS__, 0 }
@@ -1125,7 +898,6 @@ static const int amd_erratum_400[] =
 static const int amd_erratum_383[] =
 	AMD_OSVW_ERRATUM(3, AMD_MODEL_RANGE(0x10, 0, 0, 0xff, 0xf));
 
-/* #1054: Instructions Retired Performance Counter May Be Inaccurate */
 static const int amd_erratum_1054[] =
 	AMD_LEGACY_ERRATUM(AMD_MODEL_RANGE(0x17, 0, 0, 0x2f, 0xf));
 

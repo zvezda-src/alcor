@@ -1,19 +1,12 @@
-// SPDX-License-Identifier: LGPL-2.1+
 
 #include <kunit/test.h>
 #include <linux/time.h>
 
-/*
- * Traditional implementation of leap year evaluation.
- */
 static bool is_leap(long year)
 {
 	return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
 }
 
-/*
- * Gets the last day of a month.
- */
 static int last_day_of_month(long year, int month)
 {
 	if (month == 2)
@@ -23,9 +16,6 @@ static int last_day_of_month(long year, int month)
 	return 31;
 }
 
-/*
- * Advances a date by one day.
- */
 static void advance_date(long *year, int *month, int *mday, int *yday)
 {
 	if (*mday != last_day_of_month(*year, *month)) {
@@ -34,29 +24,18 @@ static void advance_date(long *year, int *month, int *mday, int *yday)
 		return;
 	}
 
-	*mday = 1;
 	if (*month != 12) {
 		++*month;
 		++*yday;
 		return;
 	}
 
-	*month = 1;
-	*yday  = 0;
 	++*year;
 }
 
-/*
- * Checks every day in a 160000 years interval centered at 1970-01-01
- * against the expected result.
- */
 static void time64_to_tm_test_date_range(struct kunit *test)
 {
 	/*
-	 * 80000 years	= (80000 / 400) * 400 years
-	 *		= (80000 / 400) * 146097 days
-	 *		= (80000 / 400) * 146097 * 86400 seconds
-	 */
 	time64_t total_secs = ((time64_t) 80000) / 400 * 146097 * 86400;
 	long year = 1970 - 80000;
 	int month = 1;

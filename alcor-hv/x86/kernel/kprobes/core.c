@@ -1,31 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- *  Kernel Probes (KProbes)
- *
- * Copyright (C) IBM Corporation, 2002, 2004
- *
- * 2002-Oct	Created by Vamsi Krishna S <vamsi_krishna@in.ibm.com> Kernel
- *		Probes initial implementation ( includes contributions from
- *		Rusty Russell).
- * 2004-July	Suparna Bhattacharya <suparna@in.ibm.com> added jumper probes
- *		interface to access function arguments.
- * 2004-Oct	Jim Keniston <jkenisto@us.ibm.com> and Prasanna S Panchamukhi
- *		<prasanna@in.ibm.com> adapted for x86_64 from i386.
- * 2005-Mar	Roland McGrath <roland@redhat.com>
- *		Fixed to handle %rip-relative addressing mode correctly.
- * 2005-May	Hien Nguyen <hien@us.ibm.com>, Jim Keniston
- *		<jkenisto@us.ibm.com> and Prasanna S Panchamukhi
- *		<prasanna@in.ibm.com> added function-return probes.
- * 2005-May	Rusty Lynch <rusty.lynch@intel.com>
- *		Added function return probes functionality
- * 2006-Feb	Masami Hiramatsu <hiramatu@sdl.hitachi.co.jp> added
- *		kprobe-booster and kretprobe-booster for i386.
- * 2007-Dec	Masami Hiramatsu <mhiramat@redhat.com> added kprobe-booster
- *		and kretprobe-booster for x86-64
- * 2007-Dec	Masami Hiramatsu <mhiramat@redhat.com>, Arjan van de Ven
- *		<arjan@infradead.org> and Jim Keniston <jkenisto@us.ibm.com>
- *		unified x86 kprobes code.
- */
 #include <linux/kprobes.h>
 #include <linux/ptrace.h>
 #include <linux/string.h>
@@ -68,12 +40,6 @@ DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 	  (bc##UL << 0xc)|(bd##UL << 0xd)|(be##UL << 0xe)|(bf##UL << 0xf))    \
 	 << (row % 32))
 	/*
-	 * Undefined/reserved opcodes, conditional jump, Opcode Extension
-	 * Groups, and some special opcodes can not boost.
-	 * This is non-const and volatile to keep gcc from statically
-	 * optimizing it out, as variable_test_bit makes gcc think only
-	 * *(unsigned long*) is used.
-	 */
 static volatile u32 twobyte_is_boostable[256 / 32] = {
 	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f          */
 	/*      ----------------------------------------------          */
@@ -119,24 +85,18 @@ __synthesize_relative_insn(void *dest, void *from, void *to, u8 op)
 	insn->op = op;
 }
 
-/* Insert a jump instruction at address 'from', which jumps to address 'to'.*/
 void synthesize_reljump(void *dest, void *from, void *to)
 {
 	__synthesize_relative_insn(dest, from, to, JMP32_INSN_OPCODE);
 }
 NOKPROBE_SYMBOL(synthesize_reljump);
 
-/* Insert a call instruction at address 'from', which calls address 'to'.*/
 void synthesize_relcall(void *dest, void *from, void *to)
 {
 	__synthesize_relative_insn(dest, from, to, CALL_INSN_OPCODE);
 }
 NOKPROBE_SYMBOL(synthesize_relcall);
 
-/*
- * Returns non-zero if INSN is boostable.
- * RIP relative instructions are adjusted at copying time in 64 bits mode
- */
 int can_boost(struct insn *insn, void *addr)
 {
 	kprobe_opcode_t opcode;
@@ -199,31 +159,10 @@ __recover_probed_insn(kprobe_opcode_t *buf, unsigned long addr)
 	kp = get_kprobe((void *)addr);
 	faddr = ftrace_location(addr) == addr;
 	/*
-	 * Use the current code if it is not modified by Kprobe
-	 * and it cannot be modified by ftrace.
-	 */
 	if (!kp && !faddr)
 		return addr;
 
 	/*
-	 * Basically, kp->ainsn.insn has an original instruction.
-	 * However, RIP-relative instruction can not do single-stepping
-	 * at different place, __copy_instruction() tweaks the displacement of
-	 * that instruction. In that case, we can't recover the instruction
-	 * from the kp->ainsn.insn.
-	 *
-	 * On the other hand, in case on normal Kprobe, kp->opcode has a copy
-	 * of the first byte of the probed instruction, which is overwritten
-	 * by int3. And the instruction at kp->addr is not modified by kprobes
-	 * except for the first byte, we can recover the original instruction
-	 * from it and kp->opcode.
-	 *
-	 * In case of Kprobes using ftrace, we do not have a copy of
-	 * the original instruction. In fact, the ftrace location might
-	 * be modified at anytime and even could be in an inconsistent state.
-	 * Fortunately, we know that the original code is the ideal 5-byte
-	 * long NOP.
-	 */
 	if (copy_from_kernel_nofault(buf, (void *)addr,
 		MAX_INSN_SIZE * sizeof(kprobe_opcode_t)))
 		return 0UL;
@@ -235,12 +174,6 @@ __recover_probed_insn(kprobe_opcode_t *buf, unsigned long addr)
 	return (unsigned long)buf;
 }
 
-/*
- * Recover the probed instruction at addr for further analysis.
- * Caller must lock kprobes by kprobe_mutex, or disable preemption
- * for preventing to release referencing kprobes.
- * Returns zero if the instruction can not get recovered (or access failed).
- */
 unsigned long recover_probed_instruction(kprobe_opcode_t *buf, unsigned long addr)
 {
 	unsigned long __addr;
@@ -252,7 +185,6 @@ unsigned long recover_probed_instruction(kprobe_opcode_t *buf, unsigned long add
 	return __recover_probed_insn(buf, addr);
 }
 
-/* Check if paddr is at an instruction boundary */
 static int can_probe(unsigned long paddr)
 {
 	unsigned long addr, __addr, offset = 0;
@@ -268,13 +200,6 @@ static int can_probe(unsigned long paddr)
 		int ret;
 
 		/*
-		 * Check if the instruction has been modified by another
-		 * kprobe, in which case we replace the breakpoint by the
-		 * original instruction in our buffer.
-		 * Also, jump optimization will change the breakpoint to
-		 * relative-jump. Since the relative-jump itself is
-		 * normally used, we just go through if there is no kprobe.
-		 */
 		__addr = recover_probed_instruction(buf, addr);
 		if (!__addr)
 			return 0;
@@ -284,9 +209,6 @@ static int can_probe(unsigned long paddr)
 			return 0;
 
 		/*
-		 * Another debugging subsystem might insert this breakpoint.
-		 * In that case, we can't recover it.
-		 */
 		if (insn.opcode.bytes[0] == INT3_INSN_OPCODE)
 			return 0;
 		addr += insn.length;
@@ -295,7 +217,6 @@ static int can_probe(unsigned long paddr)
 	return (addr == paddr);
 }
 
-/* If x86 supports IBT (ENDBR) it must be skipped. */
 kprobe_opcode_t *arch_adjust_kprobe_addr(unsigned long addr, unsigned long offset,
 					 bool *on_func_entry)
 {
@@ -311,13 +232,6 @@ kprobe_opcode_t *arch_adjust_kprobe_addr(unsigned long addr, unsigned long offse
 	return (kprobe_opcode_t *)(addr + offset);
 }
 
-/*
- * Copy an instruction with recovering modified instruction by kprobes
- * and adjust the displacement if the instruction uses the %rip-relative
- * addressing mode. Note that since @real will be the final place of copied
- * instruction, displacement must be adjust by @real, not @dest.
- * This returns the length of copied instruction, or 0 if it has an error.
- */
 int __copy_instruction(u8 *dest, u8 *src, u8 *real, struct insn *insn)
 {
 	kprobe_opcode_t buf[MAX_INSN_SIZE];
@@ -354,17 +268,6 @@ int __copy_instruction(u8 *dest, u8 *src, u8 *real, struct insn *insn)
 		s64 newdisp;
 		u8 *disp;
 		/*
-		 * The copied instruction uses the %rip-relative addressing
-		 * mode.  Adjust the displacement for the difference between
-		 * the original location of this instruction and the location
-		 * of the copy that will actually be run.  The tricky bit here
-		 * is making sure that the sign extension happens correctly in
-		 * this calculation, since we need a signed 32-bit result to
-		 * be sign-extended to 64 bits when it's added to the %rip
-		 * value and yield the same 64-bit result that the sign-
-		 * extension of the original signed 32-bit displacement would
-		 * have given.
-		 */
 		newdisp = (u8 *) src + (s64) insn->displacement.value
 			  - (u8 *) real;
 		if ((s64) (s32) newdisp != newdisp) {
@@ -378,7 +281,6 @@ int __copy_instruction(u8 *dest, u8 *src, u8 *real, struct insn *insn)
 	return insn->length;
 }
 
-/* Prepare reljump or int3 right after instruction */
 static int prepare_singlestep(kprobe_opcode_t *buf, struct kprobe *p,
 			      struct insn *insn)
 {
@@ -388,9 +290,6 @@ static int prepare_singlestep(kprobe_opcode_t *buf, struct kprobe *p,
 	    !p->post_handler && can_boost(insn, p->addr) &&
 	    MAX_INSN_SIZE - len >= JMP32_INSN_SIZE) {
 		/*
-		 * These instructions can be executed directly if it
-		 * jumps back to correct address.
-		 */
 		synthesize_reljump(buf + len, p->ainsn.insn + len,
 				   p->addr + insn->length);
 		len += JMP32_INSN_SIZE;
@@ -407,7 +306,6 @@ static int prepare_singlestep(kprobe_opcode_t *buf, struct kprobe *p,
 	return len;
 }
 
-/* Make page to RO mode when allocate it */
 void *alloc_insn_page(void)
 {
 	void *page;
@@ -418,21 +316,14 @@ void *alloc_insn_page(void)
 
 	set_vm_flush_reset_perms(page);
 	/*
-	 * First make the page read-only, and only then make it executable to
-	 * prevent it from being W+X in between.
-	 */
 	set_memory_ro((unsigned long)page, 1);
 
 	/*
-	 * TODO: Once additional kernel code protection mechanisms are set, ensure
-	 * that the page was not maliciously altered and it is still zeroed.
-	 */
 	set_memory_x((unsigned long)page, 1);
 
 	return page;
 }
 
-/* Kprobe x86 instruction emulation - only regs->ip or IF flag modifiers */
 
 static void kprobe_emulate_ifmodifiers(struct kprobe *p, struct pt_regs *regs)
 {
@@ -591,9 +482,6 @@ static int prepare_emulation(struct kprobe *p, struct insn *insn)
 	case 0x9c:		/* pushfl */
 	case 0x9d:		/* popf/popfd */
 		/*
-		 * IF modifiers must be emulated since it will enable interrupt while
-		 * int3 single stepping.
-		 */
 		p->ainsn.emulate_op = kprobe_emulate_ifmodifiers;
 		p->ainsn.opcode = opcode;
 		break;
@@ -660,9 +548,6 @@ static int prepare_emulation(struct kprobe *p, struct insn *insn)
 		break;
 	case 0xff:
 		/*
-		 * Since the 0xff is an extended group opcode, the instruction
-		 * is determined by the MOD/RM byte.
-		 */
 		opcode = insn->modrm.bytes[0];
 		if ((opcode & 0x30) == 0x10) {
 			if ((opcode & 0x8) == 0x8)
@@ -839,10 +724,6 @@ static void setup_singlestep(struct kprobe *p, struct pt_regs *regs,
 		if (!reenter)
 			reset_current_kprobe();
 		/*
-		 * Reentering boosted probe doesn't reset current_kprobe,
-		 * nor set current_kprobe, because it doesn't use single
-		 * stepping.
-		 */
 		regs->ip = (unsigned long)p->ainsn.insn;
 		return;
 	}
@@ -866,24 +747,6 @@ static void setup_singlestep(struct kprobe *p, struct pt_regs *regs,
 }
 NOKPROBE_SYMBOL(setup_singlestep);
 
-/*
- * Called after single-stepping.  p->addr is the address of the
- * instruction whose first byte has been replaced by the "int3"
- * instruction.  To avoid the SMP problems that can occur when we
- * temporarily put back the original opcode to single-step, we
- * single-stepped a copy of the instruction.  The address of this
- * copy is p->ainsn.insn. We also doesn't use trap, but "int3" again
- * right after the copied instruction.
- * Different from the trap single-step, "int3" single-step can not
- * handle the instruction which changes the ip register, e.g. jmp,
- * call, conditional jmp, and the instructions which changes the IF
- * flags because interrupt must be disabled around the single-stepping.
- * Such instructions are software emulated, but others are single-stepped
- * using "int3".
- *
- * When the 2nd "int3" handled, the regs->ip and regs->flags needs to
- * be adjusted, so that we can resume execution on correct code.
- */
 static void resume_singlestep(struct kprobe *p, struct pt_regs *regs,
 			      struct kprobe_ctlblk *kcb)
 {
@@ -897,11 +760,6 @@ static void resume_singlestep(struct kprobe *p, struct pt_regs *regs,
 }
 NOKPROBE_SYMBOL(resume_singlestep);
 
-/*
- * We have reentered the kprobe_handler(), since another probe was hit while
- * within the handler. We save the original kprobes variables and just single
- * step on the instruction of the new probe without calling any user handlers.
- */
 static int reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 			  struct kprobe_ctlblk *kcb)
 {
@@ -938,10 +796,6 @@ static nokprobe_inline int kprobe_is_ss(struct kprobe_ctlblk *kcb)
 		kcb->kprobe_status == KPROBE_REENTER);
 }
 
-/*
- * Interrupts are disabled on entry as trap3 is an interrupt gate and they
- * remain disabled throughout this function.
- */
 int kprobe_int3_handler(struct pt_regs *regs)
 {
 	kprobe_opcode_t *addr;
@@ -953,10 +807,6 @@ int kprobe_int3_handler(struct pt_regs *regs)
 
 	addr = (kprobe_opcode_t *)(regs->ip - sizeof(kprobe_opcode_t));
 	/*
-	 * We don't want to be preempted for the entire duration of kprobe
-	 * processing. Since int3 and debug trap disables irqs and we clear
-	 * IF while singlestepping, it must be no preemptible.
-	 */
 
 	kcb = get_kprobe_ctlblk();
 	p = get_kprobe(addr);
@@ -970,12 +820,6 @@ int kprobe_int3_handler(struct pt_regs *regs)
 			kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 
 			/*
-			 * If we have no pre-handler or it returned 0, we
-			 * continue with normal processing.  If we have a
-			 * pre-handler and it returned non-zero, that means
-			 * user handler setup registers to exit to another
-			 * instruction, we must skip the single stepping.
-			 */
 			if (!p->pre_handler || !p->pre_handler(p, regs))
 				setup_singlestep(p, regs, kcb, 0);
 			else
@@ -995,14 +839,6 @@ int kprobe_int3_handler(struct pt_regs *regs)
 
 	if (*addr != INT3_INSN_OPCODE) {
 		/*
-		 * The breakpoint instruction was removed right
-		 * after we hit it.  Another cpu has removed
-		 * either a probepoint or a debugger breakpoint
-		 * at this address.  In either case, no further
-		 * handling of this interrupt is appropriate.
-		 * Back up over the (now missing) int3 and run
-		 * the original instruction.
-		 */
 		regs->ip = (unsigned long)addr;
 		return 1;
 	} /* else: not a kprobe fault; let the kernel handle it */
@@ -1021,18 +857,9 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		WARN_ON(kcb->kprobe_status != KPROBE_HIT_SS &&
 			kcb->kprobe_status != KPROBE_REENTER);
 		/*
-		 * We are here because the instruction being single
-		 * stepped caused a page fault. We reset the current
-		 * kprobe and the ip points back to the probe address
-		 * and allow the page fault handler to continue as a
-		 * normal page fault.
-		 */
 		regs->ip = (unsigned long)cur->addr;
 
 		/*
-		 * If the IF flag was set before the kprobe hit,
-		 * don't touch it:
-		 */
 		regs->flags |= kcb->kprobe_old_flags;
 
 		if (kcb->kprobe_status == KPROBE_REENTER)

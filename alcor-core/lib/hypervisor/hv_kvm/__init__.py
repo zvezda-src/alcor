@@ -1,31 +1,4 @@
-#
-#
 
-# Copyright (C) 2008, 2009, 2010, 2011, 2012, 2013, 2014 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 """KVM hypervisor
@@ -86,10 +59,6 @@ from alcor.hypervisor.hv_kvm.validation import check_boot_parameters, \
 _KVM_NETWORK_SCRIPT = pathutils.CONF_DIR + "/kvm-vif-bridge"
 _KVM_START_PAUSED_FLAG = "-S"
 
-# below constants show the format of runtime file
-# the nics are in second possition, while the disks in 4th (last)
-# moreover disk entries are stored as a list of in tuples
-# (L{objects.Disk}, link_name, uri)
 _KVM_NICS_RUNTIME_INDEX = 1
 _KVM_DISKS_RUNTIME_INDEX = 3
 _DEVICE_RUNTIME_INDEX = {
@@ -125,9 +94,6 @@ _DEVICE_DRIVER = {
   }
 
 
-# NICs and paravirtual disks
-# show up as devices on the PCI bus (one slot per device).
-# SCSI disks will be placed on the SCSI bus.
 _DEVICE_BUS = {
   constants.HOTPLUG_TARGET_NIC:
     lambda _: _PCI_BUS,
@@ -161,7 +127,6 @@ _SCSI_BUS = "scsi.0"
 
 _MIGRATION_CAPS_DELIM = ":"
 
-# in future make dirty_sync_count configurable
 _POSTCOPY_SYNC_COUNT_THRESHOLD = 2 # Precopy passes before enabling postcopy
 
 def _with_qmp(fn):

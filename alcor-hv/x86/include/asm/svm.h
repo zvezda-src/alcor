@@ -1,14 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SVM_H
 #define __SVM_H
 
 #include <uapi/asm/svm.h>
 #include <uapi/asm/kvm.h>
 
-/*
- * 32-bit intercept words in the VMCB Control Area, starting
- * at Byte offset 000h.
- */
 
 enum intercept_words {
 	INTERCEPT_CR = 0,
@@ -158,9 +153,6 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	u64 vmsa_pa;		/* Used for an SEV-ES guest */
 	u8 reserved_8[720];
 	/*
-	 * Offset 0x3e0, 32 bytes reserved
-	 * for use by hypervisor/software.
-	 */
 	u8 reserved_sw[32];
 };
 
@@ -230,7 +222,6 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 #define SVM_TSC_RATIO_DEFAULT	0x0100000000ULL
 
 
-/* AVIC */
 #define AVIC_LOGICAL_ID_ENTRY_GUEST_PHYSICAL_ID_MASK	(0xFFULL)
 #define AVIC_LOGICAL_ID_ENTRY_VALID_BIT			31
 #define AVIC_LOGICAL_ID_ENTRY_VALID_MASK		(1 << 31)
@@ -258,16 +249,8 @@ enum avic_ipi_failure_cause {
 
 #define AVIC_PHYSICAL_MAX_INDEX_MASK	GENMASK_ULL(9, 0)
 
-/*
- * For AVIC, the max index allowed for physical APIC ID
- * table is 0xff (255).
- */
 #define AVIC_MAX_PHYSICAL_ID		0XFEULL
 
-/*
- * For x2AVIC, the max index allowed for physical APIC ID
- * table is 0x1ff (511).
- */
 #define X2AVIC_MAX_PHYSICAL_ID		0x1FFUL
 
 #define AVIC_HPA_MASK	~((0xFFFULL << 52) | 0xFFF)
@@ -281,7 +264,6 @@ struct vmcb_seg {
 	u64 base;
 } __packed;
 
-/* Save area definition for legacy and SEV-MEM guests */
 struct vmcb_save_area {
 	struct vmcb_seg es;
 	struct vmcb_seg cs;
@@ -332,7 +314,6 @@ struct vmcb_save_area {
 	u32 spec_ctrl;		/* Guest version of SPEC_CTRL at 0x2E0 */
 } __packed;
 
-/* Save area definition for SEV-ES and SEV-SNP guests */
 struct sev_es_save_area {
 	struct vmcb_seg es;
 	struct vmcb_seg cs;
@@ -573,7 +554,6 @@ struct vmcb {
 
 #define SVM_CR0_SELECTIVE_MASK (X86_CR0_TS | X86_CR0_MP)
 
-/* GHCB Accessor functions */
 
 #define GHCB_BITMAP_IDX(field)							\
 	(offsetof(struct ghcb_save_area, field) / sizeof(u64))

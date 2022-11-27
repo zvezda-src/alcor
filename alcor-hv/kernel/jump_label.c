@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * jump label support
- *
- * Copyright (C) 2009 Jason Baron <jbaron@redhat.com>
- * Copyright (C) 2011 Peter Zijlstra
- *
- */
 #include <linux/memory.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
@@ -19,7 +11,6 @@
 #include <linux/cpu.h>
 #include <asm/sections.h>
 
-/* mutex to protect coming/going of the jump_label table */
 static DEFINE_MUTEX(jump_label_mutex);
 
 void jump_label_lock(void)
@@ -38,8 +29,6 @@ static int jump_label_cmp(const void *a, const void *b)
 	const struct jump_entry *jeb = b;
 
 	/*
-	 * Entrires are sorted by key.
-	 */
 	if (jump_entry_key(jea) < jump_entry_key(jeb))
 		return -1;
 
@@ -47,10 +36,6 @@ static int jump_label_cmp(const void *a, const void *b)
 		return 1;
 
 	/*
-	 * In the batching mode, entries should also be sorted by the code
-	 * inside the already sorted list of entries, enabling a bsearch in
-	 * the vector.
-	 */
 	if (jump_entry_code(jea) < jump_entry_code(jeb))
 		return -1;
 
@@ -92,21 +77,9 @@ jump_label_sort_entries(struct jump_entry *start, struct jump_entry *stop)
 
 static void jump_label_update(struct static_key *key);
 
-/*
- * There are similar definitions for the !CONFIG_JUMP_LABEL case in jump_label.h.
- * The use of 'atomic_read()' requires atomic.h and its problematic for some
- * kernel headers such as kernel.h and others. Since static_key_count() is not
- * used in the branch statements as it is for the !CONFIG_JUMP_LABEL case its ok
- * to have it be a function here. Similarly, for 'static_key_enable()' and
- * 'static_key_disable()', which require bug.h. This should allow jump_label.h
- * to be included from most/all places for CONFIG_JUMP_LABEL.
- */
 int static_key_count(struct static_key *key)
 {
 	/*
-	 * -1 means the first static_key_slow_inc() is in progress.
-	 *  static_key_enabled() must return true, so return 1 here.
-	 */
 	int n = atomic_read(&key->enabled);
 
 	return n >= 0 ? n : 1;
@@ -121,17 +94,6 @@ void static_key_slow_inc_cpuslocked(struct static_key *key)
 	lockdep_assert_cpus_held();
 
 	/*
-	 * Careful if we get concurrent static_key_slow_inc() calls;
-	 * later calls must wait for the first one to _finish_ the
-	 * jump_label_update() process.  At the same time, however,
-	 * the jump_label_update() call below wants to see
-	 * static_key_enabled(&key) for jumps to be updated properly.
-	 *
-	 * So give a special meaning to negative key->enabled: it sends
-	 * static_key_slow_inc() down the slow path, and it is non-zero
-	 * so it counts as "enabled" in jump_label_update().  Note that
-	 * atomic_inc_unless_negative() checks >= 0, so roll our own.
-	 */
 	for (v = atomic_read(&key->enabled); v > 0; v = v1) {
 		v1 = atomic_cmpxchg(&key->enabled, v, v + 1);
 		if (likely(v1 == v))
@@ -143,9 +105,6 @@ void static_key_slow_inc_cpuslocked(struct static_key *key)
 		atomic_set(&key->enabled, -1);
 		jump_label_update(key);
 		/*
-		 * Ensure that if the above cmpxchg loop observes our positive
-		 * value, it must also observe all the text changes.
-		 */
 		atomic_set_release(&key->enabled, 1);
 	} else {
 		atomic_inc(&key->enabled);
@@ -176,8 +135,6 @@ void static_key_enable_cpuslocked(struct static_key *key)
 		atomic_set(&key->enabled, -1);
 		jump_label_update(key);
 		/*
-		 * See static_key_slow_inc().
-		 */
 		atomic_set_release(&key->enabled, 1);
 	}
 	jump_label_unlock();
@@ -226,12 +183,6 @@ static bool static_key_slow_try_dec(struct static_key *key)
 		return false;
 
 	/*
-	 * The negative count check is valid even when a negative
-	 * key->enabled is in use by static_key_slow_inc(); a
-	 * __static_key_slow_dec() before the first static_key_slow_inc()
-	 * returns is unbalanced, because all other static_key_slow_inc()
-	 * instances block while the update is in progress.
-	 */
 	WARN(val < 0, "jump label: negative count!\n");
 	return true;
 }
@@ -366,15 +317,6 @@ static inline void static_key_set_linked(struct static_key *key)
 	key->type |= JUMP_TYPE_LINKED;
 }
 
-/***
- * A 'struct static_key' uses a union such that it either points directly
- * to a table of 'struct jump_entry' or to a linked list of modules which in
- * turn point to 'struct jump_entry' tables.
- *
- * The two lower bits of the pointer are used to keep track of which pointer
- * type is in use and to store the initial branch direction, we use an access
- * function which preserves these bits.
- */
 static void static_key_set_entries(struct static_key *key,
 				   struct jump_entry *entries)
 {
@@ -399,20 +341,11 @@ static enum jump_label_type jump_label_type(struct jump_entry *entry)
 static bool jump_label_can_update(struct jump_entry *entry, bool init)
 {
 	/*
-	 * Cannot update code that was in an init text area.
-	 */
 	if (!init && jump_entry_is_init(entry))
 		return false;
 
 	if (!kernel_text_address(jump_entry_code(entry))) {
 		/*
-		 * This skips patching built-in __exit, which
-		 * is part of init_section_contains() but is
-		 * not part of kernel_text_address().
-		 *
-		 * Skipping built-in __exit is fine since it
-		 * will never be executed.
-		 */
 		WARN_ONCE(!jump_entry_is_init(entry),
 			  "can't patch jump_label at %pS",
 			  (void *)jump_entry_code(entry));
@@ -446,8 +379,6 @@ static void __jump_label_update(struct static_key *key,
 
 		if (!arch_jump_label_transform_queue(entry, jump_label_type(entry))) {
 			/*
-			 * Queue is full: Apply the current queue and try again.
-			 */
 			arch_jump_label_transform_apply();
 			BUG_ON(!arch_jump_label_transform_queue(entry, jump_label_type(entry)));
 		}
@@ -464,11 +395,6 @@ void __init jump_label_init(void)
 	struct jump_entry *iter;
 
 	/*
-	 * Since we are initializing the static_key.enabled field with
-	 * with the 'raw' int values (to avoid pulling in atomic.h) in
-	 * jump_label.h, let's make sure that is safe. There are only two
-	 * cases to check since we initialize to 0 or 1.
-	 */
 	BUILD_BUG_ON((int)ATOMIC_INIT(0) != 0);
 	BUILD_BUG_ON((int)ATOMIC_INIT(1) != 1);
 
@@ -526,12 +452,6 @@ static inline struct static_key_mod *static_key_mod(struct static_key *key)
 	return (struct static_key_mod *)(key->type & ~JUMP_TYPE_MASK);
 }
 
-/***
- * key->type and key->next are the same via union.
- * This sets key->next and preserves the type bits.
- *
- * See additional comments above static_key_set_entries().
- */
 static void static_key_set_mod(struct static_key *key,
 			       struct static_key_mod *mod)
 {
@@ -576,9 +496,6 @@ static void __jump_label_mod_update(struct static_key *key)
 		struct module *m;
 
 		/*
-		 * NULL if the static_key is defined in a module
-		 * that does not use it
-		 */
 		if (!mod->entries)
 			continue;
 
@@ -746,19 +663,6 @@ early_initcall(jump_label_init_module);
 
 #endif /* CONFIG_MODULES */
 
-/***
- * jump_label_text_reserved - check if addr range is reserved
- * @start: start text addr
- * @end: end text addr
- *
- * checks if the text addr located between @start and @end
- * overlaps with any of the jump label patch addresses. Code
- * that wants to modify kernel text should first verify that
- * it does not overlap with any of the jump label addresses.
- * Caller must hold jump_label_mutex.
- *
- * returns 1 if there is an overlap, 0 otherwise
- */
 int jump_label_text_reserved(void *start, void *end)
 {
 	bool init = system_state < SYSTEM_RUNNING;

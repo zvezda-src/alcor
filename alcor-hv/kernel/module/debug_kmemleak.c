@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Module kmemleak support
- *
- * Copyright (C) 2009 Catalin Marinas
- */
 
 #include <linux/module.h>
 #include <linux/kmemleak.h>

@@ -6,33 +6,6 @@
  -}
 
 {-
-
-Copyright (C) 2012 Google Inc.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
-1. Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in the
-documentation and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 -}
 
 module Alcor.Query.Language
@@ -72,9 +45,7 @@ import Data.Ratio (numerator, denominator)
 import Text.JSON.Pretty (pp_value)
 import Text.JSON.Types
 import Text.JSON
-#ifdef VERSION_regex_pcre
 import qualified Text.Regex.PCRE as PCRE
-#endif
 
 import qualified Alcor.Constants as C
 import Alcor.THH
@@ -168,11 +139,8 @@ instance JSON ItemType where
 -- * Sub data types for query2 queries and responses.
 
 -- | Internal type of a regex expression (not exported).
-#ifdef VERSION_regex_pcre
 type RegexType = PCRE.Regex
-#else
 type RegexType = ()
-#endif
 
 -- | List of requested fields.
 type Fields = [ String ]
@@ -339,18 +307,15 @@ data FilterRegex = FilterRegex
 -- regular expression on the initialisation of the data structure;
 -- this might fail, if the RE is not well-formed.
 mkRegex :: (MonadFail m) => String -> m FilterRegex
-#ifdef VERSION_regex_pcre
 mkRegex str = do
   compiled <- case PCRE.getVersion of
                 Nothing -> fail $ "regex-pcre library compiled without" ++
                                   " libpcre, regex functionality not available"
                 _ -> PCRE.makeRegexM str
   return $ FilterRegex str compiled
-#else
 mkRegex _ =
   fail $ "regex-pcre not found at compile time," ++
          " regex functionality not available"
-#endif
 
 -- | 'Show' instance: we show the constructor plus the string version
 -- of the regex.

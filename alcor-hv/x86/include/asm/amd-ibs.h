@@ -1,16 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- * From PPR Vol 1 for AMD Family 19h Model 01h B1
- * 55898 Rev 0.35 - Feb 5, 2021
- */
 
 #include <asm/msr-index.h>
 
-/*
- * IBS Hardware MSRs
- */
 
-/* MSR 0xc0011030: IBS Fetch Control */
 union ibs_fetch_ctl {
 	__u64 val;
 	struct {
@@ -36,7 +27,6 @@ union ibs_fetch_ctl {
 	};
 };
 
-/* MSR 0xc0011033: IBS Execution Control */
 union ibs_op_ctl {
 	__u64 val;
 	struct {
@@ -52,7 +42,6 @@ union ibs_op_ctl {
 	};
 };
 
-/* MSR 0xc0011035: IBS Op Data 1 */
 union ibs_op_data {
 	__u64 val;
 	struct {
@@ -70,7 +59,6 @@ union ibs_op_data {
 	};
 };
 
-/* MSR 0xc0011036: IBS Op Data 2 */
 union ibs_op_data2 {
 	__u64 val;
 	struct {
@@ -83,7 +71,6 @@ union ibs_op_data2 {
 	};
 };
 
-/* MSR 0xc0011037: IBS Op Data 3 */
 union ibs_op_data3 {
 	__u64 val;
 	struct {
@@ -113,7 +100,6 @@ union ibs_op_data3 {
 	};
 };
 
-/* MSR 0xc001103c: IBS Fetch Control Extended */
 union ic_ibs_extd_ctl {
 	__u64 val;
 	struct {
@@ -122,9 +108,6 @@ union ic_ibs_extd_ctl {
 	};
 };
 
-/*
- * IBS driver related
- */
 
 struct perf_ibs_data {
 	u32		size;

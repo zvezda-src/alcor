@@ -1,14 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * kernel/power/wakelock.c
- *
- * User space wakeup sources support.
- *
- * Copyright (C) 2012 Rafael J. Wysocki <rjw@sisk.pl>
- *
- * This code is based on the analogous interface allowing user space to
- * manipulate wakelocks on Android.
- */
 
 #include <linux/capability.h>
 #include <linux/ctype.h>

@@ -1,13 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * kernel/configs.c
- * Echo the kernel .config file used to build the kernel
- *
- * Copyright (C) 2002 Khalid Aziz <khalid_aziz@hp.com>
- * Copyright (C) 2002 Randy Dunlap <rdunlap@xenotime.net>
- * Copyright (C) 2002 Al Stone <ahs3@fc.hp.com>
- * Copyright (C) 2002 Hewlett-Packard Company
- */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -16,10 +6,6 @@
 #include <linux/init.h>
 #include <linux/uaccess.h>
 
-/*
- * "IKCFG_ST" and "IKCFG_ED" are used to extract the config data from
- * a binary kernel image or a module. See scripts/extract-ikconfig.
- */
 asm (
 "	.pushsection .rodata, \"a\"		\n"
 "	.ascii \"IKCFG_ST\"			\n"

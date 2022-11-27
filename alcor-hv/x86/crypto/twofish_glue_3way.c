@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * Glue Code for 3-way parallel assembler optimized version of Twofish
- *
- * Copyright (c) 2011 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
- */
 
 #include <crypto/algapi.h>
 #include <crypto/twofish.h>
@@ -112,24 +106,11 @@ static bool is_blacklisted_cpu(void)
 		 boot_cpu_data.x86_model == 0x26 ||
 		 boot_cpu_data.x86_model == 0x36)) {
 		/*
-		 * On Atom, twofish-3way is slower than original assembler
-		 * implementation. Twofish-3way trades off some performance in
-		 * storing blocks in 64bit registers to allow three blocks to
-		 * be processed parallel. Parallel operation then allows gaining
-		 * more performance than was trade off, on out-of-order CPUs.
-		 * However Atom does not benefit from this parallelism and
-		 * should be blacklisted.
-		 */
 		return true;
 	}
 
 	if (boot_cpu_data.x86 == 0x0f) {
 		/*
-		 * On Pentium 4, twofish-3way is slower than original assembler
-		 * implementation because excessive uses of 64bit rotate and
-		 * left-shifts (which are really slow on P4) needed to store and
-		 * handle 128bit block in two 64bit registers.
-		 */
 		return true;
 	}
 

@@ -1,10 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  fpu_entry.c                                                              |
  |                                                                           |
  | The entry functions for wm-FPU-emu                                        |
  |                                                                           |
- | Copyright (C) 1992,1993,1994,1996,1997                                    |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
  |                  E-mail   billm@suburbia.net                              |
  |                                                                           |
@@ -13,14 +10,12 @@
  |                                                                           |
  +---------------------------------------------------------------------------*/
 
-/*---------------------------------------------------------------------------+
  | Note:                                                                     |
  |    The file contains code which accesses user memory.                     |
  |    Emulator static data may change when user memory is accessed, due to   |
  |    other processes using the emulator while swapping is in progress.      |
  +---------------------------------------------------------------------------*/
 
-/*---------------------------------------------------------------------------+
  | math_emulate(), restore_i387_soft() and save_i387_soft() are the only     |
  | entry points for wm-FPU-emu.                                              |
  +---------------------------------------------------------------------------*/
@@ -41,31 +36,11 @@
 
 #define __BAD__ FPU_illegal	/* Illegal on an 80486, causes SIGILL */
 
-/* fcmovCC and f(u)comi(p) are enabled if CPUID(1).EDX(15) "cmov" is set */
 
-/* WARNING: "u" entries are not documented by Intel in their 80486 manual
    and may not work on FPU clones or later Intel FPUs.
    Changes to support them provided by Linus Torvalds. */
 
 static FUNC const st_instr_table[64] = {
-/* Opcode:	d8		d9		da		db */
-/*		dc		dd		de		df */
-/* c0..7 */	fadd__,		fld_i_,		fcmovb,		fcmovnb,
-/* c0..7 */	fadd_i,		ffree_,		faddp_,		ffreep,/*u*/
-/* c8..f */	fmul__,		fxch_i,		fcmove,		fcmovne,
-/* c8..f */	fmul_i,		fxch_i,/*u*/	fmulp_,		fxch_i,/*u*/
-/* d0..7 */	fcom_st,	fp_nop,		fcmovbe,	fcmovnbe,
-/* d0..7 */	fcom_st,/*u*/	fst_i_,		fcompst,/*u*/	fstp_i,/*u*/
-/* d8..f */	fcompst,	fstp_i,/*u*/	fcmovu,		fcmovnu,
-/* d8..f */	fcompst,/*u*/	fstp_i,		fcompp,		fstp_i,/*u*/
-/* e0..7 */	fsub__,		FPU_etc,	__BAD__,	finit_,
-/* e0..7 */	fsubri,		fucom_,		fsubrp,		fstsw_,
-/* e8..f */	fsubr_,		fconst,		fucompp,	fucomi_,
-/* e8..f */	fsub_i,		fucomp,		fsubp_,		fucomip,
-/* f0..7 */	fdiv__,		FPU_triga,	__BAD__,	fcomi_,
-/* f0..7 */	fdivri,		__BAD__,	fdivrp,		fcomip,
-/* f8..f */	fdivr_,		FPU_trigb,	__BAD__,	__BAD__,
-/* f8..f */	fdiv_i,		__BAD__,	fdivp_,		__BAD__,
 };
 
 #define _NONE_ 0		/* Take no special action */
@@ -80,15 +55,6 @@ static FUNC const st_instr_table[64] = {
 #define _REGIn 0		/* Uses st(0) and st(rm), but handle checks later */
 
 static u_char const type_table[64] = {
-/* Opcode:	d8	d9	da	db	dc	dd	de	df */
-/* c0..7 */	_REGI_, _NONE_, _REGIn, _REGIn, _REGIi, _REGi_, _REGIp, _REGi_,
-/* c8..f */	_REGI_, _REGIn, _REGIn, _REGIn, _REGIi, _REGI_, _REGIp, _REGI_,
-/* d0..7 */	_REGIc, _NONE_, _REGIn, _REGIn, _REGIc, _REG0_, _REGIc, _REG0_,
-/* d8..f */	_REGIc, _REG0_, _REGIn, _REGIn, _REGIc, _REG0_, _REGIc, _REG0_,
-/* e0..7 */	_REGI_, _NONE_, _null_, _NONE_, _REGIi, _REGIc, _REGIp, _NONE_,
-/* e8..f */	_REGI_, _NONE_, _REGIc, _REGIc, _REGIi, _REGIc, _REGIp, _REGIc,
-/* f0..7 */	_REGI_, _NONE_, _null_, _REGIc, _REGIi, _null_, _REGIp, _REGIc,
-/* f8..f */	_REGI_, _NONE_, _null_, _null_, _REGIi, _null_, _REGIp, _null_,
 };
 
 #ifdef RE_ENTRANT_CHECKING
@@ -220,9 +186,6 @@ void math_emulate(struct math_emu_info *info)
 							   fnstsw */
 			((code & 0xc000) != 0xc000))))) {
 			/*
-			 *  We need to simulate the action of the kernel to FPU
-			 *  interrupts here.
-			 */
 		      do_the_FPU_interrupt:
 
 			FPU_EIP = FPU_ORIG_EIP;	/* Point to current FPU instruction. */
@@ -538,7 +501,6 @@ void math_emulate(struct math_emu_info *info)
 	RE_ENTRANT_CHECK_OFF;
 }
 
-/* Support for prefix bytes is not yet complete. To properly handle
    all prefix bytes, further changes are needed in the emulator code
    which accesses user address space. Access to separate segments is
    important for msdos emulation. */
@@ -548,7 +510,6 @@ static int valid_prefix(u_char *Byte, u_char __user **fpu_eip,
 	u_char byte;
 	u_char __user *ip = *fpu_eip;
 
-	*override = (overrides) {
 	0, 0, PREFIX_DEFAULT};	/* defaults */
 
 	RE_ENTRANT_CHECK_OFF;
@@ -585,9 +546,7 @@ static int valid_prefix(u_char *Byte, u_char __user **fpu_eip,
 			override->segment = PREFIX_DS_;
 			goto do_next_byte;
 
-/* lock is not a valid prefix for FPU instructions,
    let the cpu handle it to generate a SIGILL. */
-/*	case PREFIX_LOCK: */
 
 			/* rep.. prefixes have no meaning for FPU instructions */
 		case PREFIX_REPE:

@@ -1,22 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/******************************************************************************
- * emulate.c
- *
- * Generic x86 (32-bit and 64-bit) instruction decoder and emulator.
- *
- * Copyright (c) 2005 Keir Fraser
- *
- * Linux coding style, mod r/m decoder, segment base fixes, real-mode
- * privileged instructions:
- *
- * Copyright (C) 2006 Qumranet
- * Copyright 2010 Red Hat, Inc. and/or its affiliates.
- *
- *   Avi Kivity <avi@qumranet.com>
- *   Yaniv Kamay <yaniv@qumranet.com>
- *
- * From: xen-unstable 10676:af9809f51f81a3c43f276f00c81a52ef558afda4
- */
 
 #include <linux/kvm_host.h>
 #include "kvm_cache_regs.h"
@@ -31,9 +12,6 @@
 #include "mmu.h"
 #include "pmu.h"
 
-/*
- * Operand types
- */
 #define OpNone             0ull
 #define OpImplicit         1ull  /* No generic decode */
 #define OpReg              2ull  /* Register */
@@ -69,18 +47,8 @@
 #define OpBits             5  /* Width of operand field */
 #define OpMask             ((1ull << OpBits) - 1)
 
-/*
- * Opcode effective-address decode tables.
- * Note that we only emulate instructions that have at least one memory
- * operand (excluding implicit stack references). We assume that stack
- * references and instruction fetches will never occur in special memory
- * areas that require emulation. So, for example, 'mov <imm>,<reg>' need
- * not be handled.
- */
 
-/* Operand sizes: 8-bit operands or specified/overridden size. */
 #define ByteOp      (1<<0)	/* 8-bit operands. */
-/* Destination operand type. */
 #define DstShift    1
 #define ImplicitOps (OpImplicit << DstShift)
 #define DstReg      (OpReg << DstShift)
@@ -93,7 +61,6 @@
 #define DstDX       (OpDX << DstShift)
 #define DstAccLo    (OpAccLo << DstShift)
 #define DstMask     (OpMask << DstShift)
-/* Source operand type. */
 #define SrcShift    6
 #define SrcNone     (OpNone << SrcShift)
 #define SrcReg      (OpReg << SrcShift)
@@ -129,11 +96,8 @@
 #define InstrDual   (6<<15)     /* Alternate instruction decoding of mod == 3 */
 #define ModeDual    (7<<15)     /* Different instruction for 32/64 bit */
 #define Sse         (1<<18)     /* SSE Vector instruction */
-/* Generic ModRM decode. */
 #define ModRM       (1<<19)
-/* Destination is only written; never read. */
 #define Mov         (1<<20)
-/* Misc flags */
 #define Prot        (1<<21) /* instruction generates #UD if not in prot-mode */
 #define EmulateOnUD (1<<22) /* Emulate if unsupported by the host */
 #define NoAccess    (1<<23) /* Don't access memory (lea/invlpg/verr etc) */
@@ -144,7 +108,6 @@
 #define No64	    (1<<28)
 #define PageTable   (1 << 29)   /* instruction used to write page table */
 #define NotImpl     (1 << 30)   /* instruction is not implemented */
-/* Source 2 operand type */
 #define Src2Shift   (31)
 #define Src2None    (OpNone << Src2Shift)
 #define Src2Mem     (OpMem << Src2Shift)
@@ -288,10 +251,6 @@ static void invalidate_registers(struct x86_emulate_ctxt *ctxt)
 	ctxt->regs_valid = 0;
 }
 
-/*
- * These EFLAGS bits are restored from saved value during emulation, and
- * any changes are written back to the saved value after emulation.
- */
 #define EFLAGS_MASK (X86_EFLAGS_OF|X86_EFLAGS_SF|X86_EFLAGS_ZF|X86_EFLAGS_AF|\
 		     X86_EFLAGS_PF|X86_EFLAGS_CF)
 
@@ -301,23 +260,6 @@ static void invalidate_registers(struct x86_emulate_ctxt *ctxt)
 #define ON64(x)
 #endif
 
-/*
- * fastop functions have a special calling convention:
- *
- * dst:    rax        (in/out)
- * src:    rdx        (in/out)
- * src2:   rcx        (in)
- * flags:  rflags     (in/out)
- * ex:     rsi        (in:fastop pointer, out:zero if exception)
- *
- * Moreover, they are all exactly FASTOP_SIZE bytes long, so functions for
- * different operand sizes can be reached by calculation, rather than a jump
- * table (which would be bigger than the code).
- *
- * The 16 byte alignment, considering 5 bytes for the RET thunk, 3 for ENDBR
- * and 1 for the straight line speculation INT3, leaves 7 bytes for the
- * body of the function.  Currently none is larger than 4.
- */
 static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop);
 
 #define FASTOP_SIZE	16
@@ -373,7 +315,6 @@ static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop);
 	ON64(FOP1E(op##q, rax))	\
 	FOP_END
 
-/* 1-operand, using src2 (for MUL/DIV r/m) */
 #define FASTOP1SRC2(op, name) \
 	FOP_START(name) \
 	FOP1E(op, cl) \
@@ -382,7 +323,6 @@ static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop);
 	ON64(FOP1E(op, rcx)) \
 	FOP_END
 
-/* 1-operand, using src2 (for MUL/DIV r/m), with exceptions */
 #define FASTOP1SRC2EX(op, name) \
 	FOP_START(name) \
 	FOP1EEX(op, cl) \
@@ -404,7 +344,6 @@ static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop);
 	ON64(FOP2E(op##q, rax, rdx)) \
 	FOP_END
 
-/* 2 operand, word only */
 #define FASTOP2W(op) \
 	FOP_START(op) \
 	FOPNOP() \
@@ -413,7 +352,6 @@ static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop);
 	ON64(FOP2E(op##q, rax, rdx)) \
 	FOP_END
 
-/* 2 operand, src is CL */
 #define FASTOP2CL(op) \
 	FOP_START(op) \
 	FOP2E(op##b, al, cl) \
@@ -422,7 +360,6 @@ static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop);
 	ON64(FOP2E(op##q, rax, cl)) \
 	FOP_END
 
-/* 2 operand, src and dest are reversed */
 #define FASTOP2R(op, name) \
 	FOP_START(name) \
 	FOP2E(op##b, dl, al) \
@@ -436,7 +373,6 @@ static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop);
 	#op " %" #src2 ", %" #src ", %" #dst " \n\t"\
 	__FOP_RET(#op "_" #dst "_" #src "_" #src2)
 
-/* 3-operand, word-only, src2=cl */
 #define FASTOP3WCL(op) \
 	FOP_START(op) \
 	FOPNOP() \
@@ -445,16 +381,7 @@ static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop);
 	ON64(FOP3E(op##q, rax, rdx, cl)) \
 	FOP_END
 
-/* Special case for SETcc - 1 instruction per cc */
 
-/*
- * Depending on .config the SETcc functions look like:
- *
- * ENDBR			[4 bytes; CONFIG_X86_KERNEL_IBT]
- * SETcc %al			[3 bytes]
- * RET | JMP __x86_return_thunk	[1,5 bytes; CONFIG_RETHUNK]
- * INT3				[1 byte; CONFIG_SLS]
- */
 #define SETCC_ALIGN	16
 
 #define FOP_SETCC(op) \
@@ -491,10 +418,6 @@ FOP_FUNC(salc)
 FOP_RET(salc)
 FOP_END;
 
-/*
- * XXX: inoutclob user must know where the argument is being expanded.
- *      Relying on CONFIG_CC_HAS_ASM_GOTO would allow us to remove _fault.
- */
 #define asm_safe(insn, inoutclob...) \
 ({ \
 	int _fault = 0; \
@@ -530,7 +453,6 @@ static int emulator_check_intercept(struct x86_emulate_ctxt *ctxt,
 
 static void assign_masked(ulong *dest, ulong src, ulong mask)
 {
-	*dest = (*dest & ~mask) | (src & mask);
 }
 
 static void assign_register(unsigned long *reg, u64 val, int bytes)
@@ -573,7 +495,6 @@ static int stack_size(struct x86_emulate_ctxt *ctxt)
 	return (__fls(stack_mask(ctxt)) + 1) >> 3;
 }
 
-/* Access/update address held in a register, based on addressing mode. */
 static inline unsigned long
 address_mask(struct x86_emulate_ctxt *ctxt, unsigned long reg)
 {
@@ -700,15 +621,6 @@ static inline bool emul_is_noncanonical_address(u64 la,
 	return !__is_canonical_address(la, ctxt_virt_addr_bits(ctxt));
 }
 
-/*
- * x86 defines three classes of vector instructions: explicitly
- * aligned, explicitly unaligned, and the rest, which change behaviour
- * depending on whether they're AVX encoded or not.
- *
- * Also included is CMPXCHG16B which is not a vector instruction, yet it is
- * subject to the same check.  FXSAVE and FXRSTOR are checked here too as their
- * 512 bytes of data must be aligned to a 16 byte boundary.
- */
 static unsigned insn_alignment(struct x86_emulate_ctxt *ctxt, unsigned size)
 {
 	u64 alignment = ctxt->d & AlignMask;
@@ -742,7 +654,6 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 	u8  va_bits;
 
 	la = seg_base(ctxt, addr.seg) + addr.ea;
-	*max_size = 0;
 	switch (mode) {
 	case X86EMUL_MODE_PROT64:
 		*linear = la;
@@ -899,10 +810,6 @@ static int segmented_write_std(struct x86_emulate_ctxt *ctxt,
 	return ctxt->ops->write_std(ctxt, linear, data, size, &ctxt->exception, false);
 }
 
-/*
- * Prefetch the remaining bytes of the instruction without crossing page
- * boundary if they are not in fetch_cache yet.
- */
 static int __do_insn_fetch_bytes(struct x86_emulate_ctxt *ctxt, int op_size)
 {
 	int rc;
@@ -913,15 +820,6 @@ static int __do_insn_fetch_bytes(struct x86_emulate_ctxt *ctxt, int op_size)
 					   .ea = ctxt->eip + cur_size };
 
 	/*
-	 * We do not know exactly how many bytes will be needed, and
-	 * __linearize is expensive, so fetch as much as possible.  We
-	 * just have to avoid going beyond the 15 byte limit, the end
-	 * of the segment, or the end of the page.
-	 *
-	 * __linearize is called with size 0 so that it does not do any
-	 * boundary check itself.  Instead, we use max_size to check
-	 * against op_size.
-	 */
 	rc = __linearize(ctxt, addr, &max_size, 0, false, true, ctxt->mode,
 			 &linear);
 	if (unlikely(rc != X86EMUL_CONTINUE))
@@ -931,11 +829,6 @@ static int __do_insn_fetch_bytes(struct x86_emulate_ctxt *ctxt, int op_size)
 	size = min_t(unsigned, size, PAGE_SIZE - offset_in_page(linear));
 
 	/*
-	 * One instruction can only straddle two pages,
-	 * and one has been loaded at the beginning of
-	 * x86_decode_insn.  So, if not enough bytes
-	 * still, we must have hit the 15-byte boundary.
-	 */
 	if (unlikely(size < op_size))
 		return emulate_gp(ctxt, 0);
 
@@ -958,7 +851,6 @@ static __always_inline int do_insn_fetch_bytes(struct x86_emulate_ctxt *ctxt,
 		return X86EMUL_CONTINUE;
 }
 
-/* Fetch next part of the instruction being emulated. */
 #define insn_fetch(_type, _ctxt)					\
 ({	_type _x;							\
 									\
@@ -981,11 +873,6 @@ static __always_inline int do_insn_fetch_bytes(struct x86_emulate_ctxt *ctxt,
 	ctxt->fetch.ptr += (_size);					\
 })
 
-/*
- * Given the 'reg' portion of a ModRM byte, and a register block, return a
- * pointer into the block that addresses the relevant register.
- * @highbyte_regs specifies whether to decode AH,CH,DH,BH.
- */
 static void *decode_register(struct x86_emulate_ctxt *ctxt, u8 modrm_reg,
 			     int byteop)
 {
@@ -1007,7 +894,6 @@ static int read_descriptor(struct x86_emulate_ctxt *ctxt,
 
 	if (op_bytes == 2)
 		op_bytes = 3;
-	*address = 0;
 	rc = segmented_read_std(ctxt, addr, size, 2);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
@@ -1529,11 +1415,9 @@ static int get_descriptor_ptr(struct x86_emulate_ctxt *ctxt,
 	}
 #endif
 
-	*desc_addr_p = addr;
 	return X86EMUL_CONTINUE;
 }
 
-/* allowed just for 8 bytes segments */
 static int read_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 				   u16 selector, struct desc_struct *desc,
 				   ulong *desc_addr_p)
@@ -1547,7 +1431,6 @@ static int read_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	return linear_read_system(ctxt, *desc_addr_p, desc, sizeof(*desc));
 }
 
-/* allowed just for 8 bytes segments */
 static int write_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 				    u16 selector, struct desc_struct *desc)
 {
@@ -1611,9 +1494,6 @@ static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 				goto exception;
 
 			/*
-			 * ctxt->ops->set_segment expects the CPL to be in
-			 * SS.DPL, so fake an expand-up 32-bit data segment.
-			 */
 			seg_desc.type = 3;
 			seg_desc.p = 1;
 			seg_desc.s = 1;
@@ -1646,9 +1526,6 @@ static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	switch (seg) {
 	case VCPU_SREG_SS:
 		/*
-		 * segment is not a writable data segment or segment
-		 * selector's RPL != CPL or segment selector's RPL != CPL
-		 */
 		if (rpl != cpl || (seg_desc.type & 0xa) != 0x2 || dpl != cpl)
 			goto exception;
 		break;
@@ -1707,10 +1584,6 @@ static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 		break;
 	default: /*  DS, ES, FS, or GS */
 		/*
-		 * segment is not a data or readable code segment or
-		 * ((segment is a data or nonconforming code segment)
-		 * and (both RPL and CPL > DPL))
-		 */
 		if ((seg_desc.type & 0xa) == 0x8 ||
 		    (((seg_desc.type & 0xc) != 0xc) &&
 		     (rpl > dpl && cpl > dpl)))
@@ -1764,15 +1637,6 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	u8 cpl = ctxt->ops->cpl(ctxt);
 
 	/*
-	 * None of MOV, POP and LSS can load a NULL selector in CPL=3, but
-	 * they can load it at CPL<3 (Intel's manual says only LSS can,
-	 * but it's wrong).
-	 *
-	 * However, the Intel manual says that putting IST=1/DPL=3 in
-	 * an interrupt gate will result in SS=3 (the AMD manual instead
-	 * says it doesn't), so allow SS=3 in __load_segment_descriptor
-	 * and only forbid it here.
-	 */
 	if (seg == VCPU_SREG_SS && selector == 3 &&
 	    ctxt->mode == X86EMUL_MODE_PROT64)
 		return emulate_exception(ctxt, GP_VECTOR, 0, true);
@@ -1901,7 +1765,6 @@ static int emulate_popf(struct x86_emulate_ctxt *ctxt,
 		break;
 	}
 
-	*(unsigned long *)dest =
 		(ctxt->eflags & ~change_mask) | (val & change_mask);
 
 	return rc;
@@ -2403,10 +2266,6 @@ static int rsm_enter_protected_mode(struct x86_emulate_ctxt *ctxt,
 		return X86EMUL_UNHANDLEABLE;
 
 	/*
-	 * First enable PAE, long mode needs it before CR0.PG = 1 is set.
-	 * Then enable protected mode.	However, PCID cannot be enabled
-	 * if EFER.LMA=0, so set it separately.
-	 */
 	bad = ctxt->ops->set_cr(ctxt, 4, cr4 & ~X86_CR4_PCIDE);
 	if (bad)
 		return X86EMUL_UNHANDLEABLE;
@@ -2584,10 +2443,6 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 	ctxt->ops->exiting_smm(ctxt);
 
 	/*
-	 * Get back to real mode, to prepare a safe state in which to load
-	 * CR0/CR3/CR4/EFER.  It's all a bit more complicated if the vCPU
-	 * supports long mode.
-	 */
 	if (emulator_has_longmode(ctxt)) {
 		struct desc_struct cs_desc;
 
@@ -2620,10 +2475,6 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 	}
 
 	/*
-	 * Give leave_smm() a chance to make ISA-specific changes to the vCPU
-	 * state (e.g. enter guest mode) before loading state from the SMM
-	 * state-save area.
-	 */
 	if (ctxt->ops->leave_smm(ctxt, buf))
 		goto emulate_shutdown;
 
@@ -2638,13 +2489,6 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 		goto emulate_shutdown;
 
 	/*
-	 * Note, the ctxt->ops callbacks are responsible for handling side
-	 * effects when writing MSRs and CRs, e.g. MMU context resets, CPUID
-	 * runtime updates, etc...  If that changes, e.g. this flow is moved
-	 * out of the emulator to make it look more like enter_smm(), then
-	 * those side effects need to be explicitly handled for both success
-	 * and shutdown.
-	 */
 	return X86EMUL_CONTINUE;
 
 emulate_shutdown:
@@ -2693,9 +2537,6 @@ static bool em_syscall_is_enabled(struct x86_emulate_ctxt *ctxt)
 	u32 eax, ebx, ecx, edx;
 
 	/*
-	 * syscall should always be enabled in longmode - so only become
-	 * vendor specific (cpuid) if other modes are active...
-	 */
 	if (ctxt->mode == X86EMUL_MODE_PROT64)
 		return true;
 
@@ -2703,11 +2544,6 @@ static bool em_syscall_is_enabled(struct x86_emulate_ctxt *ctxt)
 	ecx = 0x00000000;
 	ops->get_cpuid(ctxt, &eax, &ebx, &ecx, &edx, true);
 	/*
-	 * remark: Intel CPUs only support "syscall" in 64bit longmode. Also a
-	 * 64bit guest with a 32bit compat-app running will #UD !! While this
-	 * behaviour can be fixed (by emulating) into AMD response - CPUs of
-	 * AMD can't behave like Intel.
-	 */
 	if (is_guest_vendor_intel(ebx, ecx, edx))
 		return false;
 
@@ -2716,9 +2552,6 @@ static bool em_syscall_is_enabled(struct x86_emulate_ctxt *ctxt)
 		return true;
 
 	/*
-	 * default: (not Intel, not AMD, not Hygon), apply Intel's
-	 * stricter rules...
-	 */
 	return false;
 }
 
@@ -2755,7 +2588,6 @@ static int em_syscall(struct x86_emulate_ctxt *ctxt)
 	ops->set_segment(ctxt, cs_sel, &cs, 0, VCPU_SREG_CS);
 	ops->set_segment(ctxt, ss_sel, &ss, 0, VCPU_SREG_SS);
 
-	*reg_write(ctxt, VCPU_REGS_RCX) = ctxt->_eip;
 	if (efer & EFER_LMA) {
 #ifdef CONFIG_X86_64
 		*reg_write(ctxt, VCPU_REGS_R11) = ctxt->eflags;
@@ -2795,9 +2627,6 @@ static int em_sysenter(struct x86_emulate_ctxt *ctxt)
 		return emulate_gp(ctxt, 0);
 
 	/*
-	 * Not recognized on AMD in compat mode (but is recognized in legacy
-	 * mode).
-	 */
 	if ((ctxt->mode != X86EMUL_MODE_PROT64) && (efer & EFER_LMA)
 	    && !vendor_intel(ctxt))
 		return emulate_ud(ctxt);
@@ -2826,7 +2655,6 @@ static int em_sysenter(struct x86_emulate_ctxt *ctxt)
 	ctxt->_eip = (efer & EFER_LMA) ? msr_data : (u32)msr_data;
 
 	ops->get_msr(ctxt, MSR_IA32_SYSENTER_ESP, &msr_data);
-	*reg_write(ctxt, VCPU_REGS_RSP) = (efer & EFER_LMA) ? msr_data :
 							      (u32)msr_data;
 	if (efer & EFER_LMA)
 		ctxt->mode = X86EMUL_MODE_PROT64;
@@ -2888,7 +2716,6 @@ static int em_sysexit(struct x86_emulate_ctxt *ctxt)
 	ops->set_segment(ctxt, ss_sel, &ss, 0, VCPU_SREG_SS);
 
 	ctxt->_eip = rdx;
-	*reg_write(ctxt, VCPU_REGS_RSP) = rcx;
 
 	return X86EMUL_CONTINUE;
 }
@@ -2919,9 +2746,6 @@ static bool emulator_io_port_access_allowed(struct x86_emulate_ctxt *ctxt,
 	unsigned long base;
 
 	/*
-	 * VMware allows access to these ports even if denied
-	 * by TSS I/O permission bitmap. Mimic behavior.
-	 */
 	if (enable_vmware_backdoor &&
 	    ((port == VMWARE_PORT_VMPORT) || (port == VMWARE_PORT_VMRPC)))
 		return true;
@@ -2966,14 +2790,10 @@ static bool emulator_io_permited(struct x86_emulate_ctxt *ctxt,
 static void string_registers_quirk(struct x86_emulate_ctxt *ctxt)
 {
 	/*
-	 * Intel CPUs mask the counter and pointers in quite strange
-	 * manner when ECX is zero due to REP-string optimizations.
-	 */
 #ifdef CONFIG_X86_64
 	if (ctxt->ad_bytes != 4 || !vendor_intel(ctxt))
 		return;
 
-	*reg_write(ctxt, VCPU_REGS_RCX) = 0;
 
 	switch (ctxt->b) {
 	case 0xa4:	/* movsb */
@@ -3016,19 +2836,8 @@ static int load_state_from_tss16(struct x86_emulate_ctxt *ctxt,
 
 	ctxt->_eip = tss->ip;
 	ctxt->eflags = tss->flag | 2;
-	*reg_write(ctxt, VCPU_REGS_RAX) = tss->ax;
-	*reg_write(ctxt, VCPU_REGS_RCX) = tss->cx;
-	*reg_write(ctxt, VCPU_REGS_RDX) = tss->dx;
-	*reg_write(ctxt, VCPU_REGS_RBX) = tss->bx;
-	*reg_write(ctxt, VCPU_REGS_RSP) = tss->sp;
-	*reg_write(ctxt, VCPU_REGS_RBP) = tss->bp;
-	*reg_write(ctxt, VCPU_REGS_RSI) = tss->si;
-	*reg_write(ctxt, VCPU_REGS_RDI) = tss->di;
 
 	/*
-	 * SDM says that segment selectors are loaded before segment
-	 * descriptors
-	 */
 	set_segment_selector(ctxt, tss->ldt, VCPU_SREG_LDTR);
 	set_segment_selector(ctxt, tss->es, VCPU_SREG_ES);
 	set_segment_selector(ctxt, tss->cs, VCPU_SREG_CS);
@@ -3038,9 +2847,6 @@ static int load_state_from_tss16(struct x86_emulate_ctxt *ctxt,
 	cpl = tss->cs & 3;
 
 	/*
-	 * Now load segment descriptors. If fault happens at this stage
-	 * it is handled in a context of new task
-	 */
 	ret = __load_segment_descriptor(ctxt, tss->ldt, VCPU_SREG_LDTR, cpl,
 					X86_TRANSFER_TASK_SWITCH, NULL);
 	if (ret != X86EMUL_CONTINUE)
@@ -3134,20 +2940,8 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 	ctxt->eflags = tss->eflags | 2;
 
 	/* General purpose registers */
-	*reg_write(ctxt, VCPU_REGS_RAX) = tss->eax;
-	*reg_write(ctxt, VCPU_REGS_RCX) = tss->ecx;
-	*reg_write(ctxt, VCPU_REGS_RDX) = tss->edx;
-	*reg_write(ctxt, VCPU_REGS_RBX) = tss->ebx;
-	*reg_write(ctxt, VCPU_REGS_RSP) = tss->esp;
-	*reg_write(ctxt, VCPU_REGS_RBP) = tss->ebp;
-	*reg_write(ctxt, VCPU_REGS_RSI) = tss->esi;
-	*reg_write(ctxt, VCPU_REGS_RDI) = tss->edi;
 
 	/*
-	 * SDM says that segment selectors are loaded before segment
-	 * descriptors.  This is important because CPL checks will
-	 * use CS.RPL.
-	 */
 	set_segment_selector(ctxt, tss->ldt_selector, VCPU_SREG_LDTR);
 	set_segment_selector(ctxt, tss->es, VCPU_SREG_ES);
 	set_segment_selector(ctxt, tss->cs, VCPU_SREG_CS);
@@ -3157,10 +2951,6 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 	set_segment_selector(ctxt, tss->gs, VCPU_SREG_GS);
 
 	/*
-	 * If we're switching between Protected Mode and VM86, we need to make
-	 * sure to update the mode before loading the segment descriptors so
-	 * that the selectors are interpreted correctly.
-	 */
 	if (ctxt->eflags & X86_EFLAGS_VM) {
 		ctxt->mode = X86EMUL_MODE_VM86;
 		cpl = 3;
@@ -3170,9 +2960,6 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 	}
 
 	/*
-	 * Now load segment descriptors. If fault happens at this stage
-	 * it is handled in a context of new task
-	 */
 	ret = __load_segment_descriptor(ctxt, tss->ldt_selector, VCPU_SREG_LDTR,
 					cpl, X86_TRANSFER_TASK_SWITCH, NULL);
 	if (ret != X86EMUL_CONTINUE)
@@ -3266,13 +3053,6 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 	/* FIXME: check that next_tss_desc is tss */
 
 	/*
-	 * Check privileges. The three cases are task switch caused by...
-	 *
-	 * 1. jmp/call/int to task gate: Check against DPL of the task gate
-	 * 2. Exception/IRQ/iret: No check is performed
-	 * 3. jmp/call to TSS/task-gate: No check is performed since the
-	 *    hardware checks it before exiting.
-	 */
 	if (reason == TASK_SWITCH_GATE) {
 		if (idt_index != -1) {
 			/* Software interrupts */
@@ -3566,8 +3346,6 @@ static int em_rdtsc(struct x86_emulate_ctxt *ctxt)
 	u64 tsc = 0;
 
 	ctxt->ops->get_msr(ctxt, MSR_IA32_TSC, &tsc);
-	*reg_write(ctxt, VCPU_REGS_RAX) = (u32)tsc;
-	*reg_write(ctxt, VCPU_REGS_RDX) = tsc >> 32;
 	return X86EMUL_CONTINUE;
 }
 
@@ -3577,8 +3355,6 @@ static int em_rdpmc(struct x86_emulate_ctxt *ctxt)
 
 	if (ctxt->ops->read_pmc(ctxt, reg_read(ctxt, VCPU_REGS_RCX), &pmc))
 		return emulate_gp(ctxt, 0);
-	*reg_write(ctxt, VCPU_REGS_RAX) = (u32)pmc;
-	*reg_write(ctxt, VCPU_REGS_RDX) = pmc >> 32;
 	return X86EMUL_CONTINUE;
 }
 
@@ -3598,13 +3374,6 @@ static int em_movbe(struct x86_emulate_ctxt *ctxt)
 	switch (ctxt->op_bytes) {
 	case 2:
 		/*
-		 * From MOVBE definition: "...When the operand size is 16 bits,
-		 * the upper word of the destination register remains unchanged
-		 * ..."
-		 *
-		 * Both casting ->valptr and ->val to u16 breaks strict aliasing
-		 * rules so we have to do the operation almost per hand.
-		 */
 		tmp = (u16)ctxt->src.val;
 		ctxt->dst.val &= ~0xffffUL;
 		ctxt->dst.val |= (unsigned long)swab16(tmp);
@@ -3682,8 +3451,6 @@ static int em_rdmsr(struct x86_emulate_ctxt *ctxt)
 	if (r)
 		return emulate_gp(ctxt, 0);
 
-	*reg_write(ctxt, VCPU_REGS_RAX) = (u32)msr_data;
-	*reg_write(ctxt, VCPU_REGS_RDX) = msr_data >> 32;
 	return X86EMUL_CONTINUE;
 }
 
@@ -3948,10 +3715,6 @@ static int em_cpuid(struct x86_emulate_ctxt *ctxt)
 	eax = reg_read(ctxt, VCPU_REGS_RAX);
 	ecx = reg_read(ctxt, VCPU_REGS_RCX);
 	ctxt->ops->get_cpuid(ctxt, &eax, &ebx, &ecx, &edx, false);
-	*reg_write(ctxt, VCPU_REGS_RAX) = eax;
-	*reg_write(ctxt, VCPU_REGS_RBX) = ebx;
-	*reg_write(ctxt, VCPU_REGS_RCX) = ecx;
-	*reg_write(ctxt, VCPU_REGS_RDX) = edx;
 	return X86EMUL_CONTINUE;
 }
 
@@ -3970,8 +3733,6 @@ static int em_sahf(struct x86_emulate_ctxt *ctxt)
 
 static int em_lahf(struct x86_emulate_ctxt *ctxt)
 {
-	*reg_rmw(ctxt, VCPU_REGS_RAX) &= ~0xff00UL;
-	*reg_rmw(ctxt, VCPU_REGS_RAX) |= (ctxt->eflags & 0xff) << 8;
 	return X86EMUL_CONTINUE;
 }
 
@@ -4017,19 +3778,12 @@ static int check_fxsr(struct x86_emulate_ctxt *ctxt)
 		return emulate_nm(ctxt);
 
 	/*
-	 * Don't emulate a case that should never be hit, instead of working
-	 * around a lack of fxsave64/fxrstor64 on old compilers.
-	 */
 	if (ctxt->mode >= X86EMUL_MODE_PROT64)
 		return X86EMUL_UNHANDLEABLE;
 
 	return X86EMUL_CONTINUE;
 }
 
-/*
- * Hardware doesn't save and restore XMM 0-7 without CR4.OSFXSR, but does save
- * and restore MXCSR.
- */
 static size_t __fxstate_size(int nregs)
 {
 	return offsetof(struct fxregs_state, xmm_space[0]) + nregs * 16;
@@ -4045,24 +3799,6 @@ static inline size_t fxstate_size(struct x86_emulate_ctxt *ctxt)
 	return __fxstate_size(cr4_osfxsr ? 8 : 0);
 }
 
-/*
- * FXSAVE and FXRSTOR have 4 different formats depending on execution mode,
- *  1) 16 bit mode
- *  2) 32 bit mode
- *     - like (1), but FIP and FDP (foo) are only 16 bit.  At least Intel CPUs
- *       preserve whole 32 bit values, though, so (1) and (2) are the same wrt.
- *       save and restore
- *  3) 64-bit mode with REX.W prefix
- *     - like (2), but XMM 8-15 are being saved and restored
- *  4) 64-bit mode without REX.W prefix
- *     - like (3), but FIP and FDP are 64 bit
- *
- * Emulation uses (3) for (1) and (2) and preserves XMM 8-15 to reach the
- * desired result.  (4) is not emulated.
- *
- * Note: Guest and host CPUID.(EAX=07H,ECX=0H):EBX[bit 13] (deprecate FPU CS
- * and FPU DS) should match.
- */
 static int em_fxsave(struct x86_emulate_ctxt *ctxt)
 {
 	struct fxregs_state fx_state;
@@ -4085,13 +3821,6 @@ static int em_fxsave(struct x86_emulate_ctxt *ctxt)
 		                   fxstate_size(ctxt));
 }
 
-/*
- * FXRSTOR might restore XMM registers not provided by the guest. Fill
- * in the host registers (via FXSAVE) instead, so they won't be modified.
- * (preemption has to stay disabled until FXRSTOR).
- *
- * Use noinline to keep the stack for other functions called by callers small.
- */
 static noinline int fxregs_fixup(struct fxregs_state *fx_state,
 				 const size_t used_size)
 {
@@ -4261,17 +3990,10 @@ static int check_rdpmc(struct x86_emulate_ctxt *ctxt)
 	u64 rcx = reg_read(ctxt, VCPU_REGS_RCX);
 
 	/*
-	 * VMware allows access to these Pseduo-PMCs even when read via RDPMC
-	 * in Ring3 when CR4.PCE=0.
-	 */
 	if (enable_vmware_backdoor && is_vmware_backdoor_pmc(rcx))
 		return X86EMUL_CONTINUE;
 
 	/*
-	 * If CR4.PCE is set, the SDM requires CPL=0 or CR0.PE=0.  The CR0.PE
-	 * check however is unnecessary because CPL is always 0 outside
-	 * protected mode.
-	 */
 	if ((!(cr4 & X86_CR4_PCE) && ctxt->ops->cpl(ctxt)) ||
 	    ctxt->ops->check_pmc(ctxt, rcx))
 		return emulate_gp(ctxt, 0);
@@ -4450,10 +4172,6 @@ static const struct opcode group8[] = {
 	F(DstMem | SrcImmByte | Lock | PageTable,	em_btc),
 };
 
-/*
- * The "memory" destination is actually always a register, since we come
- * from the register case of group9.
- */
 static const struct gprefix pfx_0f_c7_7 = {
 	N, N, N, II(DstMem | ModRM | Op3264 | EmulateOnUD, em_rdpid, rdpid),
 };
@@ -4823,10 +4541,6 @@ static const struct gprefix three_byte_0f_38_f1 = {
 	ID(0, &instr_dual_0f_38_f1), N, N, N
 };
 
-/*
- * Insns below are selected by the prefix which indexed by the third opcode
- * byte.
- */
 static const struct opcode opcode_map_0f_38[256] = {
 	/* 0x00 - 0x7f */
 	X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N), X16(N),
@@ -5292,9 +5006,6 @@ done_prefixes:
 	    (NotImpl|Stack|Op3264|Sse|Mmx|Intercept|CheckPerm|NearBranch|
 	     No16))) {
 		/*
-		 * These are copied unconditionally here, and checked unconditionally
-		 * in x86_emulate_insn.
-		 */
 		ctxt->check_perm = opcode.check_perm;
 		ctxt->intercept = opcode.intercept;
 
@@ -5342,17 +5053,11 @@ done_prefixes:
 	ctxt->memop.addr.mem.seg = ctxt->seg_override;
 
 	/*
-	 * Decode and fetch the source operand: register, memory
-	 * or immediate.
-	 */
 	rc = decode_operand(ctxt, &ctxt->src, (ctxt->d >> SrcShift) & OpMask);
 	if (rc != X86EMUL_CONTINUE)
 		goto done;
 
 	/*
-	 * Decode and fetch the second source operand: register, memory
-	 * or immediate.
-	 */
 	rc = decode_operand(ctxt, &ctxt->src2, (ctxt->d >> Src2Shift) & OpMask);
 	if (rc != X86EMUL_CONTINUE)
 		goto done;
@@ -5493,9 +5198,6 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 			if (rc != X86EMUL_CONTINUE)
 				goto done;
 			/*
-			 * Now that we know the fpu is exception safe, we can fetch
-			 * operands from it.
-			 */
 			fetch_possible_mmx_operand(&ctxt->src);
 			fetch_possible_mmx_operand(&ctxt->src2);
 			if (!(ctxt->d & Mov))
@@ -5688,9 +5390,6 @@ writeback:
 	}
 
 	/*
-	 * restore dst type in case the decoding will be reused
-	 * (happens for string instruction )
-	 */
 	ctxt->dst.type = saved_dst_type;
 
 	if ((ctxt->d & SrcMask) == SrcSI)
@@ -5710,16 +5409,9 @@ writeback:
 
 		if (!string_insn_completed(ctxt)) {
 			/*
-			 * Re-enter guest when pio read ahead buffer is empty
-			 * or, if it is not used, after each 1024 iteration.
-			 */
 			if ((r->end != 0 || reg_read(ctxt, VCPU_REGS_RCX) & 0x3ff) &&
 			    (r->end == 0 || r->end != r->pos)) {
 				/*
-				 * Reset read cache. Usually happens before
-				 * decode, but since instruction is restarted
-				 * we have to do it here.
-				 */
 				ctxt->mem_read.end = 0;
 				writeback_registers(ctxt);
 				return EMULATION_RESTART;

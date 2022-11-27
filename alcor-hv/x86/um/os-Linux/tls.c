@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
 #include <linux/unistd.h>
 
@@ -16,9 +15,6 @@
 #define PTRACE_SET_THREAD_AREA 26
 #endif
 
-/* Checks whether host supports TLS, and sets *tls_min according to the value
- * valid on the host.
- * i386 host have it == 6; x86_64 host have it == 12, for i386 emulation. */
 void check_host_supports_tls(int *supports_tls, int *tls_min)
 {
 	/* Values for x86 and x86_64.*/
@@ -42,7 +38,6 @@ void check_host_supports_tls(int *supports_tls, int *tls_min)
 		}
 	}
 
-	*supports_tls = 0;
 }
 
 int os_set_thread_area(user_desc_t *info, int pid)

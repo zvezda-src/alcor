@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Handling of different ABIs (personalities).
- *
- * We group personalities into execution domains which have their
- * own handlers for kernel entry points, signal mapping, etc...
- *
- * 2001-05-06	Complete rewrite,  Christoph Hellwig (hch@infradead.org)
- */
 
 #include <linux/init.h>
 #include <linux/kernel.h>

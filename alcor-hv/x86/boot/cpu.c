@@ -1,17 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* -*- linux-c -*- ------------------------------------------------------- *
- *
- *   Copyright (C) 1991, 1992 Linus Torvalds
- *   Copyright 2007-2008 rPath, Inc. - All Rights Reserved
- *
- * ----------------------------------------------------------------------- */
 
-/*
- * arch/x86/boot/cpu.c
- *
- * Check for obligatory CPU features and abort if the features are not
- * present.
- */
 
 #include "boot.h"
 #ifdef CONFIG_X86_FEATURE_NAMES

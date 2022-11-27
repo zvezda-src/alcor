@@ -1,9 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_ASM_X86_DEBUGREG_H
 #define _UAPI_ASM_X86_DEBUGREG_H
 
 
-/* Indicate the register numbers for a number of the specific
    debug registers.  Registers 0-3 contain the addresses we wish to trap on */
 #define DR_FIRSTADDR 0        /* u_debugreg[DR_FIRSTADDR] */
 #define DR_LASTADDR 3         /* u_debugreg[DR_LASTADDR]  */
@@ -11,11 +9,9 @@
 #define DR_STATUS 6           /* u_debugreg[DR_STATUS]     */
 #define DR_CONTROL 7          /* u_debugreg[DR_CONTROL] */
 
-/* Define a few things for the status register.  We can use this to determine
    which debugging register was responsible for the trap.  The other bits
    are either reserved or not of interest to us. */
 
-/* Define reserved bits in DR6 which are always set to 1 */
 #define DR6_RESERVED	(0xFFFF0FF0)
 
 #define DR_TRAP0	(0x1)		/* db0 */
@@ -28,7 +24,6 @@
 #define DR_STEP		(0x4000)	/* single-step */
 #define DR_SWITCH	(0x8000)	/* task switch */
 
-/* Now define a bunch of things for manipulating the control register.
    The top two bytes of the control register consist of 4 fields of 4
    bits - each field corresponds to one of the four debug registers,
    and indicates what types of access we trap on, and how large the data
@@ -46,7 +41,6 @@
 #define DR_LEN_4 (0xC)
 #define DR_LEN_8 (0x8)
 
-/* The low byte to the control register determine which registers are
    enabled.  There are 4 fields of two bits.  One bit is "local", meaning
    that the processor will reset the bit after a task switch and the other
    is global meaning that we have to explicitly reset the bit.  With linux,
@@ -62,7 +56,6 @@
 #define DR_LOCAL_ENABLE_MASK (0x55)  /* Set  local bits for all 4 regs */
 #define DR_GLOBAL_ENABLE_MASK (0xAA) /* Set global bits for all 4 regs */
 
-/* The second byte to the control register has a few special things.
    We can slow the instruction pipeline for instructions coming via the
    gdt or the ldt if we want to.  I am not sure why this is an advantage */
 
@@ -75,8 +68,5 @@
 #define DR_LOCAL_SLOWDOWN (0x100)   /* Local slow the pipeline */
 #define DR_GLOBAL_SLOWDOWN (0x200)  /* Global slow the pipeline */
 
-/*
- * HW breakpoint additions
- */
 
 #endif /* _UAPI_ASM_X86_DEBUGREG_H */

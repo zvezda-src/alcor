@@ -1,17 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * kallsyms.c: in-kernel printing of symbolic oopses and stack traces.
- *
- * Rewritten and vastly simplified by Rusty Russell for in-kernel
- * module loader:
- *   Copyright 2002 Rusty Russell <rusty@rustcorp.com.au> IBM Corporation
- *
- * ChangeLog:
- *
- * (25/Aug/2004) Paulo Marques <pmarques@grupopie.com>
- *      Changed the compression method from stem compression to "table lookup"
- *      compression (see scripts/kallsyms.c for a more complete description)
- */
 #include <linux/kallsyms.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
@@ -32,18 +18,10 @@
 #include <linux/bsearch.h>
 #include <linux/btf_ids.h>
 
-/*
- * These will be re-linked against their real values
- * during the second link stage.
- */
 extern const unsigned long kallsyms_addresses[] __weak;
 extern const int kallsyms_offsets[] __weak;
 extern const u8 kallsyms_names[] __weak;
 
-/*
- * Tell the compiler that the count isn't in the small data section if the arch
- * has one (eg: FRV).
- */
 extern const unsigned int kallsyms_num_syms
 __section(".rodata") __attribute__((weak));
 
@@ -55,11 +33,6 @@ extern const u16 kallsyms_token_index[] __weak;
 
 extern const unsigned int kallsyms_markers[] __weak;
 
-/*
- * Expand a compressed symbol data into the resulting uncompressed string,
- * if uncompressed string is too long (>= maxlen), it will be truncated,
- * given the offset to where the symbol is in the compressed stream.
- */
 static unsigned int kallsyms_expand_symbol(unsigned int off,
 					   char *result, size_t maxlen)
 {
@@ -73,15 +46,9 @@ static unsigned int kallsyms_expand_symbol(unsigned int off,
 	data++;
 
 	/*
-	 * Update the offset to return the offset for the next symbol on
-	 * the compressed stream.
-	 */
 	off += len + 1;
 
 	/*
-	 * For every byte on the compressed symbol data, copy the table
-	 * entry for that byte.
-	 */
 	while (len) {
 		tptr = &kallsyms_token_table[kallsyms_token_index[*data]];
 		data++;
@@ -108,41 +75,22 @@ tail:
 	return off;
 }
 
-/*
- * Get symbol type information. This is encoded as a single char at the
- * beginning of the symbol name.
- */
 static char kallsyms_get_symbol_type(unsigned int off)
 {
 	/*
-	 * Get just the first code, look it up in the token table,
-	 * and return the first char from this token.
-	 */
 	return kallsyms_token_table[kallsyms_token_index[kallsyms_names[off + 1]]];
 }
 
 
-/*
- * Find the offset on the compressed stream given and index in the
- * kallsyms array.
- */
 static unsigned int get_symbol_offset(unsigned long pos)
 {
 	const u8 *name;
 	int i;
 
 	/*
-	 * Use the closest marker we have. We have markers every 256 positions,
-	 * so that should be close enough.
-	 */
 	name = &kallsyms_names[kallsyms_markers[pos >> 8]];
 
 	/*
-	 * Sequentially scan all the symbols up to the point we're searching
-	 * for. Every symbol is stored in a [<len>][<len> bytes of data] format,
-	 * so we just need to add the len to the current pointer for every
-	 * symbol we wish to skip.
-	 */
 	for (i = 0; i < (pos & 0xFF); i++)
 		name = name + (*name) + 1;
 
@@ -174,14 +122,6 @@ static bool cleanup_symbol_name(char *s)
 		return false;
 
 	/*
-	 * LLVM appends various suffixes for local functions and variables that
-	 * must be promoted to global scope as part of LTO.  This can break
-	 * hooking of static functions with kprobes. '.' is not a valid
-	 * character in an identifier in C. Suffixes observed:
-	 * - foo.llvm.[0-9a-f]+
-	 * - foo.[0-9a-f]+
-	 * - foo.[0-9a-f]+.cfi_jt
-	 */
 	res = strchr(s, '.');
 	if (res) {
 		*res = '\0';
@@ -194,10 +134,6 @@ static bool cleanup_symbol_name(char *s)
 		return false;
 
 	/*
-	 * Prior to LLVM 13, the following suffixes were observed when thinLTO
-	 * and CFI are both enabled:
-	 * - foo$[0-9]+
-	 */
 	res = strrchr(s, '$');
 	if (res) {
 		*res = '\0';
@@ -207,7 +143,6 @@ static bool cleanup_symbol_name(char *s)
 	return false;
 }
 
-/* Lookup the address for this symbol. Returns 0 if not found. */
 unsigned long kallsyms_lookup_name(const char *name)
 {
 	char namebuf[KSYM_NAME_LEN];
@@ -230,10 +165,6 @@ unsigned long kallsyms_lookup_name(const char *name)
 	return module_kallsyms_lookup_name(name);
 }
 
-/*
- * Iterate over all symbols in vmlinux.  For symbols from modules use
- * module_kallsyms_on_each_symbol instead.
- */
 int kallsyms_on_each_symbol(int (*fn)(void *, const char *, struct module *,
 				      unsigned long),
 			    void *data)
@@ -279,9 +210,6 @@ static unsigned long get_symbol_pos(unsigned long addr,
 	}
 
 	/*
-	 * Search for the first aliased symbol. Aliased
-	 * symbols are symbols with the same address.
-	 */
 	while (low && kallsyms_sym_address(low-1) == kallsyms_sym_address(low))
 		--low;
 
@@ -313,9 +241,6 @@ static unsigned long get_symbol_pos(unsigned long addr,
 	return low;
 }
 
-/*
- * Lookup an address but don't bother to find any names.
- */
 int kallsyms_lookup_size_offset(unsigned long addr, unsigned long *symbolsize,
 				unsigned long *offset)
 {
@@ -371,13 +296,6 @@ found:
 	return ret;
 }
 
-/*
- * Lookup an address
- * - modname is set to NULL if it's in the kernel.
- * - We guarantee that the returned name is valid until we reschedule even if.
- *   It resides in a module.
- * - We also guarantee that modname will be valid until rescheduled.
- */
 const char *kallsyms_lookup(unsigned long addr,
 			    unsigned long *symbolsize,
 			    unsigned long *offset,
@@ -441,7 +359,6 @@ found:
 	return 0;
 }
 
-/* Look up a kernel symbol and return it in a text buffer. */
 static int __sprint_symbol(char *buffer, unsigned long address,
 			   int symbol_offset, int add_offset, int add_buildid)
 {
@@ -482,97 +399,34 @@ static int __sprint_symbol(char *buffer, unsigned long address,
 	return len;
 }
 
-/**
- * sprint_symbol - Look up a kernel symbol and return it in a text buffer
- * @buffer: buffer to be stored
- * @address: address to lookup
- *
- * This function looks up a kernel symbol with @address and stores its name,
- * offset, size and module name to @buffer if possible. If no symbol was found,
- * just saves its @address as is.
- *
- * This function returns the number of bytes stored in @buffer.
- */
 int sprint_symbol(char *buffer, unsigned long address)
 {
 	return __sprint_symbol(buffer, address, 0, 1, 0);
 }
 EXPORT_SYMBOL_GPL(sprint_symbol);
 
-/**
- * sprint_symbol_build_id - Look up a kernel symbol and return it in a text buffer
- * @buffer: buffer to be stored
- * @address: address to lookup
- *
- * This function looks up a kernel symbol with @address and stores its name,
- * offset, size, module name and module build ID to @buffer if possible. If no
- * symbol was found, just saves its @address as is.
- *
- * This function returns the number of bytes stored in @buffer.
- */
 int sprint_symbol_build_id(char *buffer, unsigned long address)
 {
 	return __sprint_symbol(buffer, address, 0, 1, 1);
 }
 EXPORT_SYMBOL_GPL(sprint_symbol_build_id);
 
-/**
- * sprint_symbol_no_offset - Look up a kernel symbol and return it in a text buffer
- * @buffer: buffer to be stored
- * @address: address to lookup
- *
- * This function looks up a kernel symbol with @address and stores its name
- * and module name to @buffer if possible. If no symbol was found, just saves
- * its @address as is.
- *
- * This function returns the number of bytes stored in @buffer.
- */
 int sprint_symbol_no_offset(char *buffer, unsigned long address)
 {
 	return __sprint_symbol(buffer, address, 0, 0, 0);
 }
 EXPORT_SYMBOL_GPL(sprint_symbol_no_offset);
 
-/**
- * sprint_backtrace - Look up a backtrace symbol and return it in a text buffer
- * @buffer: buffer to be stored
- * @address: address to lookup
- *
- * This function is for stack backtrace and does the same thing as
- * sprint_symbol() but with modified/decreased @address. If there is a
- * tail-call to the function marked "noreturn", gcc optimized out code after
- * the call so that the stack-saved return address could point outside of the
- * caller. This function ensures that kallsyms will find the original caller
- * by decreasing @address.
- *
- * This function returns the number of bytes stored in @buffer.
- */
 int sprint_backtrace(char *buffer, unsigned long address)
 {
 	return __sprint_symbol(buffer, address, -1, 1, 0);
 }
 
-/**
- * sprint_backtrace_build_id - Look up a backtrace symbol and return it in a text buffer
- * @buffer: buffer to be stored
- * @address: address to lookup
- *
- * This function is for stack backtrace and does the same thing as
- * sprint_symbol() but with modified/decreased @address. If there is a
- * tail-call to the function marked "noreturn", gcc optimized out code after
- * the call so that the stack-saved return address could point outside of the
- * caller. This function ensures that kallsyms will find the original caller
- * by decreasing @address. This function also appends the module build ID to
- * the @buffer if @address is within a kernel module.
- *
- * This function returns the number of bytes stored in @buffer.
- */
 int sprint_backtrace_build_id(char *buffer, unsigned long address)
 {
 	return __sprint_symbol(buffer, address, -1, 1, 1);
 }
 
-/* To avoid using get_symbol_offset for every symbol, we carry prefix along. */
 struct kallsym_iter {
 	loff_t pos;
 	loff_t pos_arch_end;
@@ -622,11 +476,6 @@ static int get_ksymbol_mod(struct kallsym_iter *iter)
 	return 1;
 }
 
-/*
- * ftrace_mod_get_kallsym() may also get symbols for pages allocated for ftrace
- * purposes. In that case "__builtin__ftrace" is used as a module name, even
- * though "__builtin__ftrace" is not a module.
- */
 static int get_ksymbol_ftrace_mod(struct kallsym_iter *iter)
 {
 	int ret = ftrace_mod_get_kallsym(iter->pos - iter->pos_mod_end,
@@ -658,11 +507,6 @@ static int get_ksymbol_bpf(struct kallsym_iter *iter)
 	return 1;
 }
 
-/*
- * This uses "__builtin__kprobes" as a module name for symbols for pages
- * allocated for kprobes' purposes, even though "__builtin__kprobes" is not a
- * module.
- */
 static int get_ksymbol_kprobe(struct kallsym_iter *iter)
 {
 	strlcpy(iter->module_name, "__builtin__kprobes", MODULE_NAME_LEN);
@@ -672,7 +516,6 @@ static int get_ksymbol_kprobe(struct kallsym_iter *iter)
 				  iter->name) < 0 ? 0 : 1;
 }
 
-/* Returns space to next name. */
 static unsigned long get_ksymbol_core(struct kallsym_iter *iter)
 {
 	unsigned off = iter->nameoff;
@@ -700,11 +543,6 @@ static void reset_iter(struct kallsym_iter *iter, loff_t new_pos)
 	}
 }
 
-/*
- * The end position (last + 1) of each additional kallsyms section is recorded
- * in iter->pos_..._end as each section is added, and so can be used to
- * determine which get_ksymbol_...() function to call next.
- */
 static int update_iter_mod(struct kallsym_iter *iter, loff_t pos)
 {
 	iter->pos = pos;
@@ -728,7 +566,6 @@ static int update_iter_mod(struct kallsym_iter *iter, loff_t pos)
 	return get_ksymbol_kprobe(iter);
 }
 
-/* Returns false if pos at or past end of file. */
 static int update_iter(struct kallsym_iter *iter, loff_t pos)
 {
 	/* Module symbols can be accessed randomly. */
@@ -780,9 +617,6 @@ static int s_show(struct seq_file *m, void *p)
 		char type;
 
 		/*
-		 * Label it "global" if it is exported,
-		 * "local" if not exported.
-		 */
 		type = iter->exported ? toupper(iter->type) :
 					tolower(iter->type);
 		seq_printf(m, "%px %c %s\t[%s]\n", value,
@@ -900,14 +734,6 @@ static inline int kallsyms_for_perf(void)
 	return 0;
 }
 
-/*
- * We show kallsyms information even to normal users if we've enabled
- * kernel profiling and are explicitly not paranoid (so kptr_restrict
- * is clear, and sysctl_perf_event_paranoid isn't set).
- *
- * Otherwise, require CAP_SYSLOG (assuming kptr_restrict isn't set to
- * block even that).
- */
 bool kallsyms_show_value(const struct cred *cred)
 {
 	switch (kptr_restrict) {
@@ -928,10 +754,6 @@ bool kallsyms_show_value(const struct cred *cred)
 static int kallsyms_open(struct inode *inode, struct file *file)
 {
 	/*
-	 * We keep iterator in m->private, since normal case is to
-	 * s_start from where we left off, so we avoid doing
-	 * using get_symbol_offset for every symbol.
-	 */
 	struct kallsym_iter *iter;
 	iter = __seq_open_private(file, &kallsyms_op, sizeof(*iter));
 	if (!iter)
@@ -939,9 +761,6 @@ static int kallsyms_open(struct inode *inode, struct file *file)
 	reset_iter(iter, 0);
 
 	/*
-	 * Instead of checking this on every s_show() call, cache
-	 * the result here at open time.
-	 */
 	iter->show_value = kallsyms_show_value(file->f_cred);
 	return 0;
 }

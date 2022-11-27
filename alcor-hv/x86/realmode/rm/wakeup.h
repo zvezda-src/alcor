@@ -1,8 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- * Definitions for the wakeup data structure at the head of the
- * wakeup code.
- */
 
 #ifndef ARCH_X86_KERNEL_ACPI_RM_WAKEUP_H
 #define ARCH_X86_KERNEL_ACPI_RM_WAKEUP_H
@@ -10,7 +5,6 @@
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
 
-/* This must match data at wakeup.S */
 struct wakeup_header {
 	u16 video_mode;		/* Video mode number */
 	u32 pmode_entry;	/* Protected mode resume point, 32-bit only */
@@ -35,7 +29,6 @@ extern struct wakeup_header wakeup_header;
 #define WAKEUP_HEADER_OFFSET	8
 #define WAKEUP_HEADER_SIGNATURE 0x51ee1111
 
-/* Wakeup behavior bits */
 #define WAKEUP_BEHAVIOR_RESTORE_MISC_ENABLE     0
 #define WAKEUP_BEHAVIOR_RESTORE_CR4		1
 #define WAKEUP_BEHAVIOR_RESTORE_EFER		2

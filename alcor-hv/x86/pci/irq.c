@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- *	Low-Level PCI Support for PC -- Routing of Interrupts
- *
- *	(c) 1999--2000 Martin Mares <mj@ucw.cz>
- */
 
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -35,11 +29,6 @@ static struct irq_routing_table *pirq_table;
 static int pirq_enable_irq(struct pci_dev *dev);
 static void pirq_disable_irq(struct pci_dev *dev);
 
-/*
- * Never use: 0, 1, 2 (timer, keyboard, and cascade)
- * Avoid using: 13, 14 and 15 (FP error and IDE).
- * Penalize: 3, 4, 6, 7, 12 (known ISA uses: serial, floppy, parallel and mouse)
- */
 unsigned int pcibios_irq_mask = 0xfff8;
 
 static int pirq_penalty[16] = {
@@ -65,10 +54,6 @@ struct irq_router_handler {
 int (*pcibios_enable_irq)(struct pci_dev *dev) = pirq_enable_irq;
 void (*pcibios_disable_irq)(struct pci_dev *dev) = pirq_disable_irq;
 
-/*
- *  Check passed address for the PCI IRQ Routing Table signature
- *  and perform checksum verification.
- */
 
 static inline struct irq_routing_table *pirq_check_routing_table(u8 *addr,
 								 u8 *limit)
@@ -95,34 +80,6 @@ static inline struct irq_routing_table *pirq_check_routing_table(u8 *addr,
 	return NULL;
 }
 
-/*
- * Handle the $IRT PCI IRQ Routing Table format used by AMI for its BCP
- * (BIOS Configuration Program) external tool meant for tweaking BIOS
- * structures without the need to rebuild it from sources.  The $IRT
- * format has been invented by AMI before Microsoft has come up with its
- * $PIR format and a $IRT table is therefore there in some systems that
- * lack a $PIR table.
- *
- * It uses the same PCI BIOS 2.1 format for interrupt routing entries
- * themselves but has a different simpler header prepended instead,
- * occupying 8 bytes, where a `$IRT' signature is followed by one byte
- * specifying the total number of interrupt routing entries allocated in
- * the table, then one byte specifying the actual number of entries used
- * (which the BCP tool can take advantage of when modifying the table),
- * and finally a 16-bit word giving the IRQs devoted exclusively to PCI.
- * Unlike with the $PIR table there is no alignment guarantee.
- *
- * Given the similarity of the two formats the $IRT one is trivial to
- * convert to the $PIR one, which we do here, except that obviously we
- * have no information as to the router device to use, but we can handle
- * it by matching PCI device IDs actually seen on the bus against ones
- * that our individual routers recognise.
- *
- * Reportedly there is another $IRT table format where a 16-bit word
- * follows the header instead that points to interrupt routing entries
- * in a $PIR table provided elsewhere.  In that case this code will not
- * be reached though as the $PIR table will have been chosen instead.
- */
 static inline struct irq_routing_table *pirq_convert_irt_table(u8 *addr,
 							       u8 *limit)
 {
@@ -164,9 +121,6 @@ static inline struct irq_routing_table *pirq_convert_irt_table(u8 *addr,
 	return rt;
 }
 
-/*
- *  Search 0xf0000 -- 0xfffff for the PCI IRQ Routing Table.
- */
 
 static struct irq_routing_table * __init pirq_find_routing_table(void)
 {
@@ -199,11 +153,6 @@ static struct irq_routing_table * __init pirq_find_routing_table(void)
 	return NULL;
 }
 
-/*
- *  If we have a IRQ routing table, use it to search for peer host
- *  bridges.  It's a gross hack, but since there are no other known
- *  ways how to get a list of buses, we have to go this way.
- */
 
 static void __init pirq_peer_trick(void)
 {
@@ -235,10 +184,6 @@ static void __init pirq_peer_trick(void)
 	pcibios_last_bus = -1;
 }
 
-/*
- *  Code for querying and setting of IRQ routes on various interrupt routers.
- *  PIC Edge/Level Control Registers (ELCR) 0x4d0 & 0x4d1.
- */
 
 void elcr_set_level_irq(unsigned int irq)
 {
@@ -259,57 +204,6 @@ void elcr_set_level_irq(unsigned int irq)
 	}
 }
 
-/*
- *	PIRQ routing for the M1487 ISA Bus Controller (IBC) ASIC used
- *	with the ALi FinALi 486 chipset.  The IBC is not decoded in the
- *	PCI configuration space, so we identify it by the accompanying
- *	M1489 Cache-Memory PCI Controller (CMP) ASIC.
- *
- *	There are four 4-bit mappings provided, spread across two PCI
- *	INTx Routing Table Mapping Registers, available in the port I/O
- *	space accessible indirectly via the index/data register pair at
- *	0x22/0x23, located at indices 0x42 and 0x43 for the INT1/INT2
- *	and INT3/INT4 lines respectively.  The INT1/INT3 and INT2/INT4
- *	lines are mapped in the low and the high 4-bit nibble of the
- *	corresponding register as follows:
- *
- *	0000 : Disabled
- *	0001 : IRQ9
- *	0010 : IRQ3
- *	0011 : IRQ10
- *	0100 : IRQ4
- *	0101 : IRQ5
- *	0110 : IRQ7
- *	0111 : IRQ6
- *	1000 : Reserved
- *	1001 : IRQ11
- *	1010 : Reserved
- *	1011 : IRQ12
- *	1100 : Reserved
- *	1101 : IRQ14
- *	1110 : Reserved
- *	1111 : IRQ15
- *
- *	In addition to the usual ELCR register pair there is a separate
- *	PCI INTx Sensitivity Register at index 0x44 in the same port I/O
- *	space, whose bits 3:0 select the trigger mode for INT[4:1] lines
- *	respectively.  Any bit set to 1 causes interrupts coming on the
- *	corresponding line to be passed to ISA as edge-triggered and
- *	otherwise they are passed as level-triggered.  Manufacturer's
- *	documentation says this register has to be set consistently with
- *	the relevant ELCR register.
- *
- *	Accesses to the port I/O space concerned here need to be unlocked
- *	by writing the value of 0xc5 to the Lock Register at index 0x03
- *	beforehand.  Any other value written to said register prevents
- *	further accesses from reaching the register file, except for the
- *	Lock Register being written with 0xc5 again.
- *
- *	References:
- *
- *	"M1489/M1487: 486 PCI Chip Set", Version 1.2, Acer Laboratories
- *	Inc., July 1997
- */
 
 #define PC_CONF_FINALI_LOCK		0x03u
 #define PC_CONF_FINALI_PCI_INTX_RT1	0x42u
@@ -337,15 +231,6 @@ static void write_pc_conf_nybble(u8 base, u8 index, u8 val)
 	pc_conf_set(reg, x);
 }
 
-/*
- * FinALi pirq rules are as follows:
- *
- * - bit 0 selects between INTx Routing Table Mapping Registers,
- *
- * - bit 3 selects the nibble within the INTx Routing Table Mapping Register,
- *
- * - bits 7:4 map to bits 3:0 of the PCI INTx Sensitivity Register.
- */
 static int pirq_finali_get(struct pci_dev *router, struct pci_dev *dev,
 			   int pirq)
 {
@@ -405,10 +290,6 @@ static int pirq_finali_lvl(struct pci_dev *router, struct pci_dev *dev,
 	return 1;
 }
 
-/*
- * Common IRQ routing practice: nibbles in config space,
- * offset by some magic constant.
- */
 static unsigned int read_config_nybble(struct pci_dev *router, unsigned offset, unsigned nr)
 {
 	u8 x;
@@ -429,11 +310,6 @@ static void write_config_nybble(struct pci_dev *router, unsigned offset,
 	pci_write_config_byte(router, reg, x);
 }
 
-/*
- * ALI pirq entries are damn ugly, and completely undocumented.
- * This has been figured out from pirq tables, and it's not a pretty
- * picture.
- */
 static int pirq_ali_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
 	static const unsigned char irqmap[16] = { 0, 9, 3, 10, 4, 5, 7, 6, 1, 11, 0, 12, 0, 14, 0, 15 };
@@ -455,32 +331,6 @@ static int pirq_ali_set(struct pci_dev *router, struct pci_dev *dev, int pirq, i
 	return 0;
 }
 
-/*
- *	PIRQ routing for the 82374EB/82374SB EISA System Component (ESC)
- *	ASIC used with the Intel 82420 and 82430 PCIsets.  The ESC is not
- *	decoded in the PCI configuration space, so we identify it by the
- *	accompanying 82375EB/82375SB PCI-EISA Bridge (PCEB) ASIC.
- *
- *	There are four PIRQ Route Control registers, available in the
- *	port I/O space accessible indirectly via the index/data register
- *	pair at 0x22/0x23, located at indices 0x60/0x61/0x62/0x63 for the
- *	PIRQ0/1/2/3# lines respectively.  The semantics is the same as
- *	with the PIIX router.
- *
- *	Accesses to the port I/O space concerned here need to be unlocked
- *	by writing the value of 0x0f to the ESC ID Register at index 0x02
- *	beforehand.  Any other value written to said register prevents
- *	further accesses from reaching the register file, except for the
- *	ESC ID Register being written with 0x0f again.
- *
- *	References:
- *
- *	"82374EB/82374SB EISA System Component (ESC)", Intel Corporation,
- *	Order Number: 290476-004, March 1996
- *
- *	"82375EB/82375SB PCI-EISA Bridge (PCEB)", Intel Corporation, Order
- *	Number: 290477-004, March 1996
- */
 
 #define PC_CONF_I82374_ESC_ID			0x02u
 #define PC_CONF_I82374_PIRQ_ROUTE_CONTROL	0x60u
@@ -523,10 +373,6 @@ static int pirq_esc_set(struct pci_dev *router, struct pci_dev *dev, int pirq,
 	return 1;
 }
 
-/*
- * The Intel PIIX4 pirq rules are fairly simple: "pirq" is
- * just a pointer to the config space.
- */
 static int pirq_piix_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
 	u8 x;
@@ -541,21 +387,6 @@ static int pirq_piix_set(struct pci_dev *router, struct pci_dev *dev, int pirq, 
 	return 1;
 }
 
-/*
- *	PIRQ routing for the 82426EX ISA Bridge (IB) ASIC used with the
- *	Intel 82420EX PCIset.
- *
- *	There are only two PIRQ Route Control registers, available in the
- *	combined 82425EX/82426EX PCI configuration space, at 0x66 and 0x67
- *	for the PIRQ0# and PIRQ1# lines respectively.  The semantics is
- *	the same as with the PIIX router.
- *
- *	References:
- *
- *	"82420EX PCIset Data Sheet, 82425EX PCI System Controller (PSC)
- *	and 82426EX ISA Bridge (IB)", Intel Corporation, Order Number:
- *	290488-004, December 1995
- */
 
 #define PCI_I82426EX_PIRQ_ROUTE_CONTROL	0x66u
 
@@ -585,11 +416,6 @@ static int pirq_ib_set(struct pci_dev *router, struct pci_dev *dev, int pirq,
 	return 1;
 }
 
-/*
- * The VIA pirq rules are nibble-based, like ALI,
- * but without the ugly irq number munging.
- * However, PIRQD is in the upper instead of lower 4 bits.
- */
 static int pirq_via_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
 	return read_config_nybble(router, 0x55, pirq == 4 ? 5 : pirq);
@@ -601,11 +427,6 @@ static int pirq_via_set(struct pci_dev *router, struct pci_dev *dev, int pirq, i
 	return 1;
 }
 
-/*
- * The VIA pirq rules are nibble-based, like ALI,
- * but without the ugly irq number munging.
- * However, for 82C586, nibble map is different .
- */
 static int pirq_via586_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
 	static const unsigned int pirqmap[5] = { 3, 2, 5, 1, 1 };
@@ -623,11 +444,6 @@ static int pirq_via586_set(struct pci_dev *router, struct pci_dev *dev, int pirq
 	return 1;
 }
 
-/*
- * ITE 8330G pirq rules are nibble-based
- * FIXME: pirqmap may be { 1, 0, 3, 2 },
- * 	  2+3 are both mapped to irq 9 on my system
- */
 static int pirq_ite_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
 	static const unsigned char pirqmap[4] = { 1, 0, 2, 3 };
@@ -645,10 +461,6 @@ static int pirq_ite_set(struct pci_dev *router, struct pci_dev *dev, int pirq, i
 	return 1;
 }
 
-/*
- * OPTI: high four bits are nibble pointer..
- * I wonder what the low bits do?
- */
 static int pirq_opti_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
 	return read_config_nybble(router, 0xb8, pirq >> 4);
@@ -660,11 +472,6 @@ static int pirq_opti_set(struct pci_dev *router, struct pci_dev *dev, int pirq, 
 	return 1;
 }
 
-/*
- * Cyrix: nibble offset 0x5C
- * 0x5C bits 7:4 is INTB bits 3:0 is INTA
- * 0x5D bits 7:4 is INTD bits 3:0 is INTC
- */
 static int pirq_cyrix_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
 	return read_config_nybble(router, 0x5C, (pirq-1)^1);
@@ -677,43 +484,6 @@ static int pirq_cyrix_set(struct pci_dev *router, struct pci_dev *dev, int pirq,
 }
 
 
-/*
- *	PIRQ routing for the SiS85C497 AT Bus Controller & Megacell (ATM)
- *	ISA bridge used with the SiS 85C496/497 486 Green PC VESA/ISA/PCI
- *	Chipset.
- *
- *	There are four PCI INTx#-to-IRQ Link registers provided in the
- *	SiS85C497 part of the peculiar combined 85C496/497 configuration
- *	space decoded by the SiS85C496 PCI & CPU Memory Controller (PCM)
- *	host bridge, at 0xc0/0xc1/0xc2/0xc3 respectively for the PCI INT
- *	A/B/C/D lines.  Bit 7 enables the respective link if set and bits
- *	3:0 select the 8259A IRQ line as follows:
- *
- *	0000 : Reserved
- *	0001 : Reserved
- *	0010 : Reserved
- *	0011 : IRQ3
- *	0100 : IRQ4
- *	0101 : IRQ5
- *	0110 : IRQ6
- *	0111 : IRQ7
- *	1000 : Reserved
- *	1001 : IRQ9
- *	1010 : IRQ10
- *	1011 : IRQ11
- *	1100 : IRQ12
- *	1101 : Reserved
- *	1110 : IRQ14
- *	1111 : IRQ15
- *
- *	We avoid using a reserved value for disabled links, hence the
- *	choice of IRQ15 for that case.
- *
- *	References:
- *
- *	"486 Green PC VESA/ISA/PCI Chipset, SiS 85C496/497", Rev 3.0,
- *	Silicon Integrated Systems Corp., July 1995
- */
 
 #define PCI_SIS497_INTA_TO_IRQ_LINK	0xc0u
 
@@ -751,66 +521,6 @@ static int pirq_sis497_set(struct pci_dev *router, struct pci_dev *dev,
 	return 1;
 }
 
-/*
- *	PIRQ routing for SiS 85C503 router used in several SiS chipsets.
- *	We have to deal with the following issues here:
- *	- vendors have different ideas about the meaning of link values
- *	- some onboard devices (integrated in the chipset) have special
- *	  links and are thus routed differently (i.e. not via PCI INTA-INTD)
- *	- different revision of the router have a different layout for
- *	  the routing registers, particularly for the onchip devices
- *
- *	For all routing registers the common thing is we have one byte
- *	per routeable link which is defined as:
- *		 bit 7      IRQ mapping enabled (0) or disabled (1)
- *		 bits [6:4] reserved (sometimes used for onchip devices)
- *		 bits [3:0] IRQ to map to
- *		     allowed: 3-7, 9-12, 14-15
- *		     reserved: 0, 1, 2, 8, 13
- *
- *	The config-space registers located at 0x41/0x42/0x43/0x44 are
- *	always used to route the normal PCI INT A/B/C/D respectively.
- *	Apparently there are systems implementing PCI routing table using
- *	link values 0x01-0x04 and others using 0x41-0x44 for PCI INTA..D.
- *	We try our best to handle both link mappings.
- *
- *	Currently (2003-05-21) it appears most SiS chipsets follow the
- *	definition of routing registers from the SiS-5595 southbridge.
- *	According to the SiS 5595 datasheets the revision id's of the
- *	router (ISA-bridge) should be 0x01 or 0xb0.
- *
- *	Furthermore we've also seen lspci dumps with revision 0x00 and 0xb1.
- *	Looks like these are used in a number of SiS 5xx/6xx/7xx chipsets.
- *	They seem to work with the current routing code. However there is
- *	some concern because of the two USB-OHCI HCs (original SiS 5595
- *	had only one). YMMV.
- *
- *	Onchip routing for router rev-id 0x01/0xb0 and probably 0x00/0xb1:
- *
- *	0x61:	IDEIRQ:
- *		bits [6:5] must be written 01
- *		bit 4 channel-select primary (0), secondary (1)
- *
- *	0x62:	USBIRQ:
- *		bit 6 OHCI function disabled (0), enabled (1)
- *
- *	0x6a:	ACPI/SCI IRQ: bits 4-6 reserved
- *
- *	0x7e:	Data Acq. Module IRQ - bits 4-6 reserved
- *
- *	We support USBIRQ (in addition to INTA-INTD) and keep the
- *	IDE, ACPI and DAQ routing untouched as set by the BIOS.
- *
- *	Currently the only reported exception is the new SiS 65x chipset
- *	which includes the SiS 69x southbridge. Here we have the 85C503
- *	router revision 0x04 and there are changes in the register layout
- *	mostly related to the different USB HCs with USB 2.0 support.
- *
- *	Onchip routing for router rev-id 0x04 (try-and-error observation)
- *
- *	0x60/0x61/0x62/0x63:	1xEHCI and 3xOHCI (companion) USB-HCs
- *				bit 6-4 are probably unused, not like 5595
- */
 
 #define PIRQ_SIS503_IRQ_MASK	0x0f
 #define PIRQ_SIS503_IRQ_DISABLE	0x80
@@ -846,13 +556,6 @@ static int pirq_sis503_set(struct pci_dev *router, struct pci_dev *dev,
 }
 
 
-/*
- * VLSI: nibble offset 0x74 - educated guess due to routing table and
- *       config space of VLSI 82C534 PCI-bridge/router (1004:0102)
- *       Tested on HP OmniBook 800 covering PIRQ 1, 2, 4, 8 for onboard
- *       devices, PIRQ 3 for non-pci(!) soundchip and (untested) PIRQ 6
- *       for the busbridge to the docking station.
- */
 
 static int pirq_vlsi_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
@@ -875,17 +578,6 @@ static int pirq_vlsi_set(struct pci_dev *router, struct pci_dev *dev, int pirq, 
 	return 1;
 }
 
-/*
- * ServerWorks: PCI interrupts mapped to system IRQ lines through Index
- * and Redirect I/O registers (0x0c00 and 0x0c01).  The Index register
- * format is (PCIIRQ## | 0x10), e.g.: PCIIRQ10=0x1a.  The Redirect
- * register is a straight binary coding of desired PIC IRQ (low nibble).
- *
- * The 'link' value in the PIRQ table is already in the correct format
- * for the Index register.  There are some special index values:
- * 0x00 for ACPI (SCI), 0x01 for USB, 0x02 for IDE0, 0x04 for IDE1,
- * and 0x03 for SMBus.
- */
 static int pirq_serverworks_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
 	outb(pirq, 0xc00);
@@ -900,14 +592,6 @@ static int pirq_serverworks_set(struct pci_dev *router, struct pci_dev *dev,
 	return 1;
 }
 
-/* Support for AMD756 PCI IRQ Routing
- * Jhon H. Caicedo <jhcaiced@osso.org.co>
- * Jun/21/2001 0.2.0 Release, fixed to use "nybble" functions... (jhcaiced)
- * Jun/19/2001 Alpha Release 0.1.0 (jhcaiced)
- * The AMD756 pirq rules are nibble-based
- * offset 0x56 0-3 PIRQA  4-7  PIRQB
- * offset 0x57 0-3 PIRQC  4-7  PIRQD
- */
 static int pirq_amd756_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
 	u8 irq;
@@ -930,9 +614,6 @@ static int pirq_amd756_set(struct pci_dev *router, struct pci_dev *dev, int pirq
 	return 1;
 }
 
-/*
- * PicoPower PT86C523
- */
 static int pirq_pico_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
 	outb(0x10 + ((pirq - 1) >> 1), 0x24);
@@ -1054,15 +735,10 @@ static __init int via_router_probe(struct irq_router *r,
 	/* FIXME: We should move some of the quirk fixup stuff here */
 
 	/*
-	 * workarounds for some buggy BIOSes
-	 */
 	if (device == PCI_DEVICE_ID_VIA_82C586_0) {
 		switch (router->device) {
 		case PCI_DEVICE_ID_VIA_82C686:
 			/*
-			 * Asus k7m bios wrongly reports 82C686A
-			 * as 586-compatible
-			 */
 			device = PCI_DEVICE_ID_VIA_82C686;
 			break;
 		case PCI_DEVICE_ID_VIA_8235:
@@ -1259,10 +935,6 @@ static struct irq_router pirq_router;
 static struct pci_dev *pirq_router_dev;
 
 
-/*
- *	FIXME: should we have an option to say "generic for
- *	chipset" ?
- */
 
 static bool __init pirq_try_router(struct irq_router *r,
 				   struct irq_routing_table *rt,
@@ -1335,12 +1007,6 @@ static void __init pirq_find_router(struct irq_router *r)
 	/* The device remains referenced for the kernel lifetime */
 }
 
-/*
- * We're supposed to match on the PCI device only and not the function,
- * but some BIOSes build their tables with the PCI function included
- * for motherboard devices, so if a complete match is found, then give
- * it precedence over a slot match.
- */
 static struct irq_info *pirq_get_dev_info(struct pci_dev *dev)
 {
 	struct irq_routing_table *rt = pirq_table;
@@ -1360,12 +1026,6 @@ static struct irq_info *pirq_get_dev_info(struct pci_dev *dev)
 	return slotinfo;
 }
 
-/*
- * Buses behind bridges are typically not listed in the PIRQ routing table.
- * Do the usual dance then and walk the tree of bridges up adjusting the
- * pin number accordingly on the way until the originating root bus device
- * has been reached and then use its routing information.
- */
 static struct irq_info *pirq_get_info(struct pci_dev *dev, u8 *pin)
 {
 	struct pci_dev *temp_dev = dev;
@@ -1387,7 +1047,6 @@ static struct irq_info *pirq_get_info(struct pci_dev *dev, u8 *pin)
 
 		temp_dev = bridge;
 	}
-	*pin = temp_pin;
 	return info;
 }
 
@@ -1453,9 +1112,6 @@ static int pcibios_lookup_irq(struct pci_dev *dev, int assign)
 	}
 
 	/*
-	 * Find the best IRQ to assign: use the one
-	 * reported by the device if possible.
-	 */
 	newirq = dev->irq;
 	if (newirq && !((1 << newirq) & mask)) {
 		if (pci_probe & PCI_USE_PIRQ_MASK)
@@ -1522,9 +1178,6 @@ static int pcibios_lookup_irq(struct pci_dev *dev, int assign)
 			continue;
 		if (info->irq[pin - 1].link == pirq) {
 			/*
-			 * We refuse to override the dev->irq
-			 * information. Give a warning!
-			 */
 			if (dev2->irq && dev2->irq != irq && \
 			(!(pci_probe & PCI_USE_PIRQ_MASK) || \
 			((1 << dev2->irq) & mask))) {
@@ -1553,18 +1206,11 @@ void __init pcibios_fixup_irqs(void)
 	DBG(KERN_DEBUG "PCI: IRQ fixup\n");
 	for_each_pci_dev(dev) {
 		/*
-		 * If the BIOS has set an out of range IRQ number, just
-		 * ignore it.  Also keep track of which IRQ's are
-		 * already in use.
-		 */
 		if (dev->irq >= 16) {
 			dev_dbg(&dev->dev, "ignoring bogus IRQ %d\n", dev->irq);
 			dev->irq = 0;
 		}
 		/*
-		 * If the IRQ is already assigned to a PCI device,
-		 * ignore its ISA use penalty
-		 */
 		if (pirq_penalty[dev->irq] >= 100 &&
 				pirq_penalty[dev->irq] < 100000)
 			pirq_penalty[dev->irq] = 0;
@@ -1581,17 +1227,11 @@ void __init pcibios_fixup_irqs(void)
 			continue;
 
 		/*
-		 * Still no IRQ? Try to lookup one...
-		 */
 		if (!dev->irq)
 			pcibios_lookup_irq(dev, 0);
 	}
 }
 
-/*
- * Work around broken HP Pavilion Notebooks which assign USB to
- * IRQ 9 even though it is actually wired to IRQ 11
- */
 static int __init fix_broken_hp_bios_irq9(const struct dmi_system_id *d)
 {
 	if (!broken_hp_bios_irq9) {
@@ -1602,10 +1242,6 @@ static int __init fix_broken_hp_bios_irq9(const struct dmi_system_id *d)
 	return 0;
 }
 
-/*
- * Work around broken Acer TravelMate 360 Notebooks which assign
- * Cardbus to IRQ 11 even though it is actually wired to IRQ 10
- */
 static int __init fix_acer_tm360_irqrouting(const struct dmi_system_id *d)
 {
 	if (!acer_tm360_irqrouting) {
@@ -1668,9 +1304,6 @@ void __init pcibios_irq_init(void)
 					pirq_penalty[i] += 100;
 		}
 		/*
-		 * If we're using the I/O APIC, avoid using the PCI IRQ
-		 * routing table
-		 */
 		if (io_apic_assign_pci_irqs) {
 			kfree(rtable);
 			pirq_table = NULL;
@@ -1682,10 +1315,6 @@ void __init pcibios_irq_init(void)
 	if (io_apic_assign_pci_irqs && pci_routeirq) {
 		struct pci_dev *dev = NULL;
 		/*
-		 * PCI IRQ routing is set up by pci_enable_device(), but we
-		 * also do it here in case there are still broken drivers that
-		 * don't use pci_enable_device().
-		 */
 		printk(KERN_INFO "PCI: Routing PCI interrupts for all devices because \"pci=routeirq\" specified\n");
 		for_each_pci_dev(dev)
 			pirq_enable_irq(dev);
@@ -1695,9 +1324,6 @@ void __init pcibios_irq_init(void)
 static void pirq_penalize_isa_irq(int irq, int active)
 {
 	/*
-	 *  If any ISAPnP device reports an IRQ in its list of possible
-	 *  IRQ's, we try to avoid assigning it to PCI devices.
-	 */
 	if (irq < 16) {
 		if (active)
 			pirq_penalty[irq] += 1000;
@@ -1738,11 +1364,6 @@ static int pirq_enable_irq(struct pci_dev *dev)
 			irq = IO_APIC_get_PCI_irq_vector(dev->bus->number,
 						PCI_SLOT(dev->devfn), pin - 1);
 			/*
-			 * Busses behind bridges are typically not listed in the MP-table.
-			 * In this case we have to look up the IRQ based on the parent bus,
-			 * parent slot, and pin number. The SMP code detects such bridged
-			 * busses itself so we should get into this branch reliably.
-			 */
 			temp_dev = dev;
 			while (irq < 0 && dev->bus->parent) { /* go back to the bridge */
 				struct pci_dev *bridge = dev->bus->self;
@@ -1774,9 +1395,6 @@ static int pirq_enable_irq(struct pci_dev *dev)
 			msg = "; please try using pci=biosirq";
 
 		/*
-		 * With IDE legacy devices the IRQ lookup failure is not
-		 * a problem..
-		 */
 		if (dev->class >> 8 == PCI_CLASS_STORAGE_IDE &&
 				!(dev->class & 0x5))
 			return 0;

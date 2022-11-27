@@ -1,14 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_MCE_H
 #define _ASM_X86_MCE_H
 
 #include <uapi/asm/mce.h>
 
-/*
- * Machine Check support for x86
- */
 
-/* MCG_CAP register defines */
 #define MCG_BANKCNT_MASK	0xff         /* Number of Banks */
 #define MCG_CTL_P		BIT_ULL(8)   /* MCG_CTL register available */
 #define MCG_EXT_P		BIT_ULL(9)   /* Extended registers available */
@@ -20,16 +15,13 @@
 #define MCG_ELOG_P		BIT_ULL(26)  /* Extended error log supported */
 #define MCG_LMCE_P		BIT_ULL(27)  /* Local machine check supported */
 
-/* MCG_STATUS register defines */
 #define MCG_STATUS_RIPV		BIT_ULL(0)   /* restart ip valid */
 #define MCG_STATUS_EIPV		BIT_ULL(1)   /* ip points to correct instruction */
 #define MCG_STATUS_MCIP		BIT_ULL(2)   /* machine check in progress */
 #define MCG_STATUS_LMCES	BIT_ULL(3)   /* LMCE signaled */
 
-/* MCG_EXT_CTL register defines */
 #define MCG_EXT_CTL_LMCE_EN	BIT_ULL(0) /* Enable LMCE */
 
-/* MCi_STATUS register defines */
 #define MCI_STATUS_VAL		BIT_ULL(63)  /* valid error */
 #define MCI_STATUS_OVER		BIT_ULL(62)  /* previous errors lost */
 #define MCI_STATUS_UC		BIT_ULL(61)  /* uncorrected error */
@@ -43,42 +35,24 @@
 #define MCI_STATUS_CEC_MASK	GENMASK_ULL(52,38)
 #define MCI_STATUS_CEC(c)	(((c) & MCI_STATUS_CEC_MASK) >> MCI_STATUS_CEC_SHIFT)
 
-/* AMD-specific bits */
 #define MCI_STATUS_TCC		BIT_ULL(55)  /* Task context corrupt */
 #define MCI_STATUS_SYNDV	BIT_ULL(53)  /* synd reg. valid */
 #define MCI_STATUS_DEFERRED	BIT_ULL(44)  /* uncorrected error, deferred exception */
 #define MCI_STATUS_POISON	BIT_ULL(43)  /* access poisonous data */
 #define MCI_STATUS_SCRUB	BIT_ULL(40)  /* Error detected during scrub operation */
 
-/*
- * McaX field if set indicates a given bank supports MCA extensions:
- *  - Deferred error interrupt type is specifiable by bank.
- *  - MCx_MISC0[BlkPtr] field indicates presence of extended MISC registers,
- *    But should not be used to determine MSR numbers.
- *  - TCC bit is present in MCx_STATUS.
- */
 #define MCI_CONFIG_MCAX		0x1
 #define MCI_IPID_MCATYPE	0xFFFF0000
 #define MCI_IPID_HWID		0xFFF
 
-/*
- * Note that the full MCACOD field of IA32_MCi_STATUS MSR is
- * bits 15:0.  But bit 12 is the 'F' bit, defined for corrected
- * errors to indicate that errors are being filtered by hardware.
- * We should mask out bit 12 when looking for specific signatures
- * of uncorrected errors - so the F bit is deliberately skipped
- * in this #define.
- */
 #define MCACOD		  0xefff     /* MCA Error Code */
 
-/* Architecturally defined codes from SDM Vol. 3B Chapter 15 */
 #define MCACOD_SCRUB	0x00C0	/* 0xC0-0xCF Memory Scrubbing */
 #define MCACOD_SCRUBMSK	0xeff0	/* Skip bit 12 ('F' bit) */
 #define MCACOD_L3WB	0x017A	/* L3 Explicit Writeback */
 #define MCACOD_DATA	0x0134	/* Data Load */
 #define MCACOD_INSTR	0x0150	/* Instruction Fetch */
 
-/* MCi_MISC register defines */
 #define MCI_MISC_ADDR_LSB(m)	((m) & 0x3f)
 #define MCI_MISC_ADDR_MODE(m)	(((m) >> 6) & 7)
 #define  MCI_MISC_ADDR_SEGOFF	0	/* segment offset */
@@ -87,7 +61,6 @@
 #define  MCI_MISC_ADDR_MEM	3	/* memory address */
 #define  MCI_MISC_ADDR_GENERIC	7	/* generic */
 
-/* CTL2 register defines */
 #define MCI_CTL2_CMCI_EN		BIT_ULL(30)
 #define MCI_CTL2_CMCI_THRESHOLD_MASK	0x7fffULL
 
@@ -105,7 +78,6 @@
 #define MCE_LOG_MIN_LEN 32U
 #define MCE_LOG_SIGNATURE	"MACHINECHECK"
 
-/* AMD Scalable MCA */
 #define MSR_AMD64_SMCA_MC0_CTL		0xc0002000
 #define MSR_AMD64_SMCA_MC0_STATUS	0xc0002001
 #define MSR_AMD64_SMCA_MC0_ADDR		0xc0002002
@@ -129,7 +101,6 @@
 
 #define XEC(x, mask)			(((x) >> 16) & mask)
 
-/* mce.kflags flag bits for logging etc. */
 #define	MCE_HANDLED_CEC		BIT_ULL(0)
 #define	MCE_HANDLED_UC		BIT_ULL(1)
 #define	MCE_HANDLED_EXTLOG	BIT_ULL(2)
@@ -137,28 +108,10 @@
 #define	MCE_HANDLED_EDAC	BIT_ULL(4)
 #define	MCE_HANDLED_MCELOG	BIT_ULL(5)
 
-/*
- * Indicates an MCE which has happened in kernel space but from
- * which the kernel can recover simply by executing fixup_exception()
- * so that an error is returned to the caller of the function that
- * hit the machine check.
- */
 #define MCE_IN_KERNEL_RECOV	BIT_ULL(6)
 
-/*
- * Indicates an MCE that happened in kernel space while copying data
- * from user. In this case fixup_exception() gets the kernel to the
- * error exit for the copy function. Machine check handler can then
- * treat it like a fault taken in user mode.
- */
 #define MCE_IN_KERNEL_COPYIN	BIT_ULL(7)
 
-/*
- * This structure contains all data related to the MCE log.  Also
- * carries a signature to make it easier to find from external
- * debugging tools.  Each entry is only valid when its finished flag
- * is set.
- */
 struct mce_log_buffer {
 	char signature[12]; /* "MACHINECHECK" */
 	unsigned len;	    /* = elements in .mce_entry[] */
@@ -168,7 +121,6 @@ struct mce_log_buffer {
 	struct mce entry[];
 };
 
-/* Highest last */
 enum mce_notifier_prios {
 	MCE_PRIO_LOWEST,
 	MCE_PRIO_MCELOG,
@@ -219,7 +171,6 @@ void mce_setup(struct mce *m);
 void mce_log(struct mce *m);
 DECLARE_PER_CPU(struct device *, mce_device);
 
-/* Maximum number of MCA banks per CPU. */
 #define MAX_NR_BANKS 64
 
 #ifdef CONFIG_X86_MCE_INTEL
@@ -261,37 +212,21 @@ int mce_notify_irq(void);
 
 DECLARE_PER_CPU(struct mce, injectm);
 
-/* Disable CMCI/polling for MCA bank claimed by firmware */
 extern void mce_disable_bank(int bank);
 
-/*
- * Exception handler
- */
 void do_machine_check(struct pt_regs *pt_regs);
 
-/*
- * Threshold handler
- */
 extern void (*mce_threshold_vector)(void);
 
-/* Deferred error interrupt handler */
 extern void (*deferred_error_int_vector)(void);
 
-/*
- * Used by APEI to report memory error via /dev/mcelog
- */
 
 struct cper_sec_mem_err;
 extern void apei_mce_report_mem_error(int corrected,
 				      struct cper_sec_mem_err *mem_err);
 
-/*
- * Enumerate new IP types and HWID values in AMD processors which support
- * Scalable MCA.
- */
 #ifdef CONFIG_X86_MCE_AMD
 
-/* These may be used by multiple smca_hwid_mcatypes */
 enum smca_bank_types {
 	SMCA_LS = 0,	/* Load Store */
 	SMCA_LS_V2,

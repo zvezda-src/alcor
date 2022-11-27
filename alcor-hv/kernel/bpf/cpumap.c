@@ -1,21 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/* bpf/cpumap.c
- *
- * Copyright (c) 2017 Jesper Dangaard Brouer, Red Hat Inc.
- */
 
-/* The 'cpumap' is primarily used as a backend map for XDP BPF helper
- * call bpf_redirect_map() and XDP_REDIRECT action, like 'devmap'.
- *
- * Unlike devmap which redirects XDP frames out another NIC device,
- * this map type redirects raw XDP frames to another CPU.  The remote
- * CPU will do SKB-allocation and call the normal network stack.
- *
- * This is a scalability and isolation mechanism, that allow
- * separating the early driver network XDP layer, from the rest of the
- * netstack, and assigning dedicated CPUs for this stage.  This
- * basically allows for 10G wirespeed pre-filtering via bpf.
- */
 #include <linux/bitops.h>
 #include <linux/bpf.h>
 #include <linux/filter.h>
@@ -32,12 +15,6 @@
 #include <linux/netdevice.h>   /* netif_receive_skb_list */
 #include <linux/etherdevice.h> /* eth_type_trans */
 
-/* General idea: XDP packets getting XDP redirected to another CPU,
- * will maximum be stored/queued for one driver ->poll() call.  It is
- * guaranteed that queueing the frame and the flush operation happen on
- * same CPU.  Thus, cpu_map_flush operation can deduct via this_cpu_ptr()
- * which queue in bpf_cpu_map_entry contains packets.
- */
 
 #define CPU_MAP_BULK_SIZE 8  /* 8 == one cacheline on 64-bit archs */
 struct bpf_cpu_map_entry;
@@ -50,7 +27,6 @@ struct xdp_bulk_queue {
 	unsigned int count;
 };
 
-/* Struct for every remote "destination" CPU in map */
 struct bpf_cpu_map_entry {
 	u32 cpu;    /* kthread CPU and map index */
 	int map_id; /* Back reference to map */
@@ -127,7 +103,6 @@ static void get_cpu_map_entry(struct bpf_cpu_map_entry *rcpu)
 	atomic_inc(&rcpu->refcnt);
 }
 
-/* called from workqueue, to workaround syscall using preempt_disable */
 static void cpu_map_kthread_stop(struct work_struct *work)
 {
 	struct bpf_cpu_map_entry *rcpu;
@@ -331,10 +306,6 @@ static int cpu_map_kthread_run(void *data)
 		}
 
 		/*
-		 * The bpf_cpu_map_entry is single consumer, with this
-		 * kthread CPU pinned. Lockless access to ptr_ring
-		 * consume side valid as no-resize allowed of queue.
-		 */
 		n = __ptr_ring_consume_batched(rcpu->queue, frames,
 					       CPUMAP_BATCH);
 		for (i = 0, xdp_n = 0; i < n; i++) {
@@ -509,25 +480,6 @@ static void __cpu_map_entry_free(struct rcu_head *rcu)
 	put_cpu_map_entry(rcpu);
 }
 
-/* After xchg pointer to bpf_cpu_map_entry, use the call_rcu() to
- * ensure any driver rcu critical sections have completed, but this
- * does not guarantee a flush has happened yet. Because driver side
- * rcu_read_lock/unlock only protects the running XDP program.  The
- * atomic xchg and NULL-ptr check in __cpu_map_flush() makes sure a
- * pending flush op doesn't fail.
- *
- * The bpf_cpu_map_entry is still used by the kthread, and there can
- * still be pending packets (in queue and percpu bulkq).  A refcnt
- * makes sure to last user (kthread_stop vs. call_rcu) free memory
- * resources.
- *
- * The rcu callback __cpu_map_entry_free flush remaining packets in
- * percpu bulkq to queue.  Due to caller map_delete_elem() disable
- * preemption, cannot call kthread_stop() to make sure queue is empty.
- * Instead a work_queue is started for stopping kthread,
- * cpu_map_kthread_stop, which waits for an RCU grace period before
- * stopping kthread, emptying the queue.
- */
 static void __cpu_map_entry_replace(struct bpf_cpu_map *cmap,
 				    u32 key_cpu, struct bpf_cpu_map_entry *rcpu)
 {
@@ -626,10 +578,6 @@ static void cpu_map_free(struct bpf_map *map)
 	kfree(cmap);
 }
 
-/* Elements are kept alive by RCU; either by rcu_read_lock() (from syscall) or
- * by local_bh_disable() (from XDP calls inside NAPI). The
- * rcu_read_lock_bh_held() below makes lockdep accept both.
- */
 static void *__cpu_map_lookup_elem(struct bpf_map *map, u32 key)
 {
 	struct bpf_cpu_map *cmap = container_of(map, struct bpf_cpu_map, map);
@@ -664,7 +612,6 @@ static int cpu_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
 
 	if (index == cmap->map.max_entries - 1)
 		return -ENOENT;
-	*next = index + 1;
 	return 0;
 }
 
@@ -722,9 +669,6 @@ static void bq_flush_to_queue(struct xdp_bulk_queue *bq)
 	trace_xdp_cpumap_enqueue(rcpu->map_id, processed, drops, to_cpu);
 }
 
-/* Runs under RCU-read-side, plus in softirq under NAPI protection.
- * Thus, safe percpu variable access.
- */
 static void bq_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_frame *xdpf)
 {
 	struct list_head *flush_list = this_cpu_ptr(&cpu_map_flush_list);

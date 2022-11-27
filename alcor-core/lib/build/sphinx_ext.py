@@ -1,39 +1,10 @@
-#
-#
 
-# Copyright (C) 2011, 2012, 2013 Google Inc.
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright
-# notice, this list of conditions and the following disclaimer in the
-# documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 """Sphinx extension for building opcode documentation.
 
 """
 
-# pylint: disable=C0413
-# C0413: Wrong import position
 
 import re
 from io import StringIO
@@ -69,7 +40,6 @@ import alcor.rapi.rlib2 # pylint: disable=W0611
 import alcor.rapi.connector # pylint: disable=W0611
 
 
-#: Regular expression for man page names
 _MAN_RE = re.compile(r"^(?P<name>[-\w_]+)\((?P<section>\d+)\)$")
 
 _TAB_WIDTH = 2
@@ -97,15 +67,11 @@ def _GetCommonParamNames():
 
 COMMON_PARAM_NAMES = _GetCommonParamNames()
 
-#: Namespace for evaluating expressions
 EVAL_NS = dict(compat=compat, constants=constants, utils=utils, errors=errors,
                rlib2=rapi.rlib2, luxi=luxi, rapi=rapi, objects=objects,
                http=http, pathutils=pathutils)
 
-# Constants documentation for man pages
 CV_ECODES_DOC = "ecodes"
-# We don't care about the leak of variables _, name and doc here.
-# pylint: disable=W0621
 CV_ECODES_DOC_LIST = [(name, doc) for (_, name, doc) in constants.CV_ALL_ECODES]
 DOCUMENTED_CONSTANTS = {
   CV_ECODES_DOC: sorted(CV_ECODES_DOC_LIST, key=lambda tup: tup[0]),

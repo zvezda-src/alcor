@@ -1,22 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * kaslr.c
- *
- * This contains the routines needed to generate a reasonable level of
- * entropy to choose a randomized kernel base address offset in support
- * of Kernel Address Space Layout Randomization (KASLR). Additionally
- * handles walking the physical memory maps (and tracking memory regions
- * to avoid) in order to select a physical memory location that can
- * contain the entire properly aligned running kernel image.
- *
- */
 
-/*
- * isspace() in linux/ctype.h is expected by next_args() to filter
- * out "space/lf/tab". While boot/ctype.h conflicts with linux/ctype.h,
- * since isdigit() is implemented in both of them. Hence disable it
- * here.
- */
 #define BOOT_CTYPE_H
 
 #include "misc.h"
@@ -37,7 +19,6 @@
 
 extern unsigned long get_cmd_line_ptr(void);
 
-/* Simplified build-specific string for starting entropy. */
 static const char build_str[] = UTS_RELEASE " (" LINUX_COMPILE_BY "@"
 		LINUX_COMPILE_HOST ") (" LINUX_COMPILER ") " UTS_VERSION;
 
@@ -56,7 +37,6 @@ static unsigned long rotate_xor(unsigned long hash, const void *area,
 	return hash;
 }
 
-/* Attempt to create a simple but unpredictable starting entropy. */
 static unsigned long get_boot_seed(void)
 {
 	unsigned long hash = 0;
@@ -71,19 +51,13 @@ static unsigned long get_boot_seed(void)
 #include "../../lib/kaslr.c"
 
 
-/* Only supporting at most 4 unusable memmap regions with kaslr */
 #define MAX_MEMMAP_REGIONS	4
 
 static bool memmap_too_large;
 
 
-/*
- * Store memory limit: MAXMEM on 64-bit and KERNEL_IMAGE_SIZE on 32-bit.
- * It may be reduced by "mem=nn[KMG]" or "memmap=nn[KMG]" command line options.
- */
 static u64 mem_limit;
 
-/* Number of immovable memory regions */
 static int num_immovable_mem;
 
 enum mem_avoid_index {
@@ -136,7 +110,6 @@ parse_memmap(char *p, u64 *start, u64 *size, enum parse_mode mode)
 		return -EINVAL;
 
 	oldp = p;
-	*size = memparse(p, &p);
 	if (p == oldp)
 		return -EINVAL;
 
@@ -149,17 +122,11 @@ parse_memmap(char *p, u64 *start, u64 *size, enum parse_mode mode)
 	case '@':
 		if (mode == PARSE_MEMMAP) {
 			/*
-			 * memmap=nn@ss specifies usable region, should
-			 * be skipped
-			 */
 			*size = 0;
 		} else {
 			u64 flags;
 
 			/*
-			 * efi_fake_mem=nn@ss:attr the attr specifies
-			 * flags that might imply a soft-reservation.
-			 */
 			*start = memparse(p + 1, &p);
 			if (p && *p == ':') {
 				p++;
@@ -173,10 +140,6 @@ parse_memmap(char *p, u64 *start, u64 *size, enum parse_mode mode)
 		fallthrough;
 	default:
 		/*
-		 * If w/o offset, only size specified, memmap=nn[KMG] has the
-		 * same behaviour as mem=nn[KMG]. It limits the max address
-		 * system can use. Region above the limit should be avoided.
-		 */
 		*start = 0;
 		return 0;
 	}
@@ -222,7 +185,6 @@ static void mem_avoid_memmap(enum parse_mode mode, char *str)
 		memmap_too_large = true;
 }
 
-/* Store the number of 1GB huge pages which users specified: */
 static unsigned long max_gb_huge_pages;
 
 static void parse_gb_huge_pages(char *param, char *val)
@@ -303,82 +265,6 @@ static void handle_mem_options(void)
 	return;
 }
 
-/*
- * In theory, KASLR can put the kernel anywhere in the range of [16M, MAXMEM)
- * on 64-bit, and [16M, KERNEL_IMAGE_SIZE) on 32-bit.
- *
- * The mem_avoid array is used to store the ranges that need to be avoided
- * when KASLR searches for an appropriate random address. We must avoid any
- * regions that are unsafe to overlap with during decompression, and other
- * things like the initrd, cmdline and boot_params. This comment seeks to
- * explain mem_avoid as clearly as possible since incorrect mem_avoid
- * memory ranges lead to really hard to debug boot failures.
- *
- * The initrd, cmdline, and boot_params are trivial to identify for
- * avoiding. They are MEM_AVOID_INITRD, MEM_AVOID_CMDLINE, and
- * MEM_AVOID_BOOTPARAMS respectively below.
- *
- * What is not obvious how to avoid is the range of memory that is used
- * during decompression (MEM_AVOID_ZO_RANGE below). This range must cover
- * the compressed kernel (ZO) and its run space, which is used to extract
- * the uncompressed kernel (VO) and relocs.
- *
- * ZO's full run size sits against the end of the decompression buffer, so
- * we can calculate where text, data, bss, etc of ZO are positioned more
- * easily.
- *
- * For additional background, the decompression calculations can be found
- * in header.S, and the memory diagram is based on the one found in misc.c.
- *
- * The following conditions are already enforced by the image layouts and
- * associated code:
- *  - input + input_size >= output + output_size
- *  - kernel_total_size <= init_size
- *  - kernel_total_size <= output_size (see Note below)
- *  - output + init_size >= output + output_size
- *
- * (Note that kernel_total_size and output_size have no fundamental
- * relationship, but output_size is passed to choose_random_location
- * as a maximum of the two. The diagram is showing a case where
- * kernel_total_size is larger than output_size, but this case is
- * handled by bumping output_size.)
- *
- * The above conditions can be illustrated by a diagram:
- *
- * 0   output            input            input+input_size    output+init_size
- * |     |                 |                             |             |
- * |     |                 |                             |             |
- * |-----|--------|--------|--------------|-----------|--|-------------|
- *                |                       |           |
- *                |                       |           |
- * output+init_size-ZO_INIT_SIZE  output+output_size  output+kernel_total_size
- *
- * [output, output+init_size) is the entire memory range used for
- * extracting the compressed image.
- *
- * [output, output+kernel_total_size) is the range needed for the
- * uncompressed kernel (VO) and its run size (bss, brk, etc).
- *
- * [output, output+output_size) is VO plus relocs (i.e. the entire
- * uncompressed payload contained by ZO). This is the area of the buffer
- * written to during decompression.
- *
- * [output+init_size-ZO_INIT_SIZE, output+init_size) is the worst-case
- * range of the copied ZO and decompression code. (i.e. the range
- * covered backwards of size ZO_INIT_SIZE, starting from output+init_size.)
- *
- * [input, input+input_size) is the original copied compressed image (ZO)
- * (i.e. it does not include its run size). This range must be avoided
- * because it contains the data used for decompression.
- *
- * [input+input_size, output+init_size) is [_text, _end) for ZO. This
- * range includes ZO's heap and stack, and must be avoided since it
- * performs the decompression.
- *
- * Since the above two ranges need to be avoided and they are adjacent,
- * they can be merged, resulting in: [input, output+init_size) which
- * becomes the MEM_AVOID_ZO_RANGE below.
- */
 static void mem_avoid_init(unsigned long input, unsigned long input_size,
 			   unsigned long output)
 {
@@ -387,9 +273,6 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 	unsigned long cmd_line, cmd_line_size;
 
 	/*
-	 * Avoid the region that is unsafe to overlap during
-	 * decompression.
-	 */
 	mem_avoid[MEM_AVOID_ZO_RANGE].start = input;
 	mem_avoid[MEM_AVOID_ZO_RANGE].size = (output + init_size) - input;
 
@@ -424,10 +307,6 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 	num_immovable_mem = count_immovable_mem_regions();
 }
 
-/*
- * Does this memory vector overlap a known avoided area? If so, record the
- * overlap region with the lowest address.
- */
 static bool mem_avoid_overlap(struct mem_vector *img,
 			      struct mem_vector *overlap)
 {
@@ -502,10 +381,6 @@ static void store_slot_info(struct mem_vector *region, unsigned long image_size)
 	slot_max += slot_area.num;
 }
 
-/*
- * Skip as many 1GB huge pages as possible in the passed region
- * according to the number which users specified:
- */
 static void
 process_gb_huge_pages(struct mem_vector *region, unsigned long image_size)
 {
@@ -626,9 +501,6 @@ static bool process_mem_region(struct mem_vector *region,
 {
 	int i;
 	/*
-	 * If no immovable memory found, or MEMORY_HOTREMOVE disabled,
-	 * use @region directly.
-	 */
 	if (!num_immovable_mem) {
 		__process_mem_region(region, minimum, image_size);
 
@@ -641,9 +513,6 @@ static bool process_mem_region(struct mem_vector *region,
 
 #if defined(CONFIG_MEMORY_HOTREMOVE) && defined(CONFIG_ACPI)
 	/*
-	 * If immovable memory found, filter the intersection between
-	 * immovable memory and @region.
-	 */
 	for (i = 0; i < num_immovable_mem; i++) {
 		u64 start, end, entry_end, region_end;
 		struct mem_vector entry;
@@ -671,10 +540,6 @@ static bool process_mem_region(struct mem_vector *region,
 }
 
 #ifdef CONFIG_EFI
-/*
- * Returns true if we processed the EFI memmap, which we prefer over the E820
- * table if it is available.
- */
 static bool
 process_efi_entries(unsigned long minimum, unsigned long image_size)
 {
@@ -716,16 +581,6 @@ process_efi_entries(unsigned long minimum, unsigned long image_size)
 		md = efi_early_memdesc_ptr(pmap, e->efi_memdesc_size, i);
 
 		/*
-		 * Here we are more conservative in picking free memory than
-		 * the EFI spec allows:
-		 *
-		 * According to the spec, EFI_BOOT_SERVICES_{CODE|DATA} are also
-		 * free memory and thus available to place the kernel image into,
-		 * but in practice there's firmware where using that memory leads
-		 * to crashes.
-		 *
-		 * Only EFI_CONVENTIONAL_MEMORY is guaranteed to be free.
-		 */
 		if (md->type != EFI_CONVENTIONAL_MEMORY)
 			continue;
 
@@ -807,10 +662,6 @@ static unsigned long find_random_virt_addr(unsigned long minimum,
 	unsigned long slots, random_addr;
 
 	/*
-	 * There are how many CONFIG_PHYSICAL_ALIGN-sized slots
-	 * that can hold image_size within the range of minimum to
-	 * KERNEL_IMAGE_SIZE?
-	 */
 	slots = 1 + (KERNEL_IMAGE_SIZE - minimum - image_size) / CONFIG_PHYSICAL_ALIGN;
 
 	random_addr = kaslr_get_random_long("Virtual") % slots;
@@ -818,10 +669,6 @@ static unsigned long find_random_virt_addr(unsigned long minimum,
 	return random_addr * CONFIG_PHYSICAL_ALIGN + minimum;
 }
 
-/*
- * Since this function examines addresses much more numerically,
- * it takes the input and output pointers as 'unsigned long'.
- */
 void choose_random_location(unsigned long input,
 			    unsigned long input_size,
 			    unsigned long *output,
@@ -846,10 +693,6 @@ void choose_random_location(unsigned long input,
 	mem_avoid_init(input, input_size, *output);
 
 	/*
-	 * Low end of the randomization range should be the
-	 * smaller of 512M or the initial kernel image
-	 * location:
-	 */
 	min_addr = min(*output, 512UL << 20);
 	/* Make sure minimum is aligned. */
 	min_addr = ALIGN(min_addr, CONFIG_PHYSICAL_ALIGN);
@@ -868,5 +711,4 @@ void choose_random_location(unsigned long input,
 	/* Pick random virtual address starting from LOAD_PHYSICAL_ADDR. */
 	if (IS_ENABLED(CONFIG_X86_64))
 		random_addr = find_random_virt_addr(LOAD_PHYSICAL_ADDR, output_size);
-	*virt_addr = random_addr;
 }

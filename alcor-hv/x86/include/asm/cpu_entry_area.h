@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef _ASM_X86_CPU_ENTRY_AREA_H
 #define _ASM_X86_CPU_ENTRY_AREA_H
@@ -16,7 +15,6 @@
 #define VC_EXCEPTION_STKSZ	0
 #endif
 
-/* Macro to enforce the same ordering and stack sizes */
 #define ESTACKS_MEMBERS(guardsize, optional_stack_size)		\
 	char	DF_stack_guard[guardsize];			\
 	char	DF_stack[EXCEPTION_STKSZ];			\
@@ -32,19 +30,14 @@
 	char	VC2_stack[optional_stack_size];			\
 	char	IST_top_guard[guardsize];			\
 
-/* The exception stacks' physical storage. No guard pages required */
 struct exception_stacks {
 	ESTACKS_MEMBERS(0, VC_EXCEPTION_STKSZ)
 };
 
-/* The effective cpu entry area mapping with guard pages. */
 struct cea_exception_stacks {
 	ESTACKS_MEMBERS(PAGE_SIZE, EXCEPTION_STKSZ)
 };
 
-/*
- * The exception stack ordering in [cea_]exception_stacks
- */
 enum exception_stack_ordering {
 	ESTACK_DF,
 	ESTACK_NMI,
@@ -79,22 +72,10 @@ struct doublefault_stack {
 } __aligned(PAGE_SIZE);
 #endif
 
-/*
- * cpu_entry_area is a percpu region that contains things needed by the CPU
- * and early entry/exit code.  Real types aren't used for all fields here
- * to avoid circular header dependencies.
- *
- * Every field is a virtual alias of some other allocated backing store.
- * There is no direct allocation of a struct cpu_entry_area.
- */
 struct cpu_entry_area {
 	char gdt[PAGE_SIZE];
 
 	/*
-	 * The GDT is just below entry_stack and thus serves (on x86_64) as
-	 * a read-only guard page. On 32-bit the GDT must be writeable, so
-	 * it needs an extra guard page.
-	 */
 #ifdef CONFIG_X86_32
 	char guard_entry_stack[PAGE_SIZE];
 #endif
@@ -106,33 +87,21 @@ struct cpu_entry_area {
 #endif
 
 	/*
-	 * On x86_64, the TSS is mapped RO.  On x86_32, it's mapped RW because
-	 * we need task switches to work, and task switches write to the TSS.
-	 */
 	struct tss_struct tss;
 
 #ifdef CONFIG_X86_64
 	/*
-	 * Exception stacks used for IST entries with guard pages.
-	 */
 	struct cea_exception_stacks estacks;
 #endif
 	/*
-	 * Per CPU debug store for Intel performance monitoring. Wastes a
-	 * full page at the moment.
-	 */
 	struct debug_store cpu_debug_store;
 	/*
-	 * The actual PEBS/BTS buffers must be mapped to user space
-	 * Reserve enough fixmap PTEs.
-	 */
 	struct debug_store_buffers cpu_debug_buffers;
 };
 
 #define CPU_ENTRY_AREA_SIZE		(sizeof(struct cpu_entry_area))
 #define CPU_ENTRY_AREA_ARRAY_SIZE	(CPU_ENTRY_AREA_SIZE * NR_CPUS)
 
-/* Total size includes the readonly IDT mapping page as well: */
 #define CPU_ENTRY_AREA_TOTAL_SIZE	(CPU_ENTRY_AREA_ARRAY_SIZE + PAGE_SIZE)
 
 DECLARE_PER_CPU(struct cpu_entry_area *, cpu_entry_area);

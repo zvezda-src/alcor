@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_MICROCODE_H
 #define _ASM_X86_MICROCODE_H
 
@@ -41,11 +40,6 @@ struct microcode_ops {
 	void (*microcode_fini_cpu) (int cpu);
 
 	/*
-	 * The generic 'microcode_core' part guarantees that
-	 * the callbacks below run on a target cpu when they
-	 * are being called.
-	 * See also the "Synchronization" section in microcode_core.c.
-	 */
 	enum ucode_state (*apply_microcode) (int cpu);
 	int (*collect_cpu_info) (int cpu, struct cpu_signature *csig);
 };
@@ -91,15 +85,6 @@ static inline void __exit exit_amd_microcode(void) {}
 #define CPUID_IS(a, b, c, ebx, ecx, edx)	\
 		(!((ebx ^ (a))|(edx ^ (b))|(ecx ^ (c))))
 
-/*
- * In early loading microcode phase on BSP, boot_cpu_data is not set up yet.
- * x86_cpuid_vendor() gets vendor id for BSP.
- *
- * In 32 bit AP case, accessing boot_cpu_data needs linear address. To simplify
- * coding, we still use x86_cpuid_vendor() to get vendor id for AP.
- *
- * x86_cpuid_vendor() gets vendor information directly from CPUID.
- */
 static inline int x86_cpuid_vendor(void)
 {
 	u32 eax = 0x00000000;

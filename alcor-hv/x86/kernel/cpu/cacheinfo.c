@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- *	Routines to identify caches on Intel CPU.
- *
- *	Changes:
- *	Venkatesh Pallipadi	: Adding cache identification through cpuid(4)
- *	Ashok Raj <ashok.raj@intel.com>: Work with CPU hotplug infrastructure.
- *	Andi Kleen / Andreas Herrmann	: CPUID4 emulation on AMD.
- */
 
 #include <linux/slab.h>
 #include <linux/cacheinfo.h>
@@ -37,7 +28,6 @@ struct _cache_table {
 
 #define MB(x)	((x) * 1024)
 
-/* All the cache descriptor types we care about (no TLB or
    trace cache entries) */
 
 static const struct _cache_table cache_table[] =
@@ -165,7 +155,6 @@ struct _cpuid4_info_regs {
 
 static unsigned short num_cache_leaves;
 
-/* AMD doesn't have CPUID4. Emulate it here to report the same
    information to the user.  This makes some assumptions about the machine:
    L2 not shared, no SMT etc. that is currently true on AMD CPUs.
 
@@ -300,9 +289,6 @@ amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
 
 #if defined(CONFIG_AMD_NB) && defined(CONFIG_SYSFS)
 
-/*
- * L3 cache descriptors
- */
 static void amd_calc_l3_indices(struct amd_northbridge *nb)
 {
 	struct amd_l3_cache *l3 = &nb->l3_cache;
@@ -326,13 +312,6 @@ static void amd_calc_l3_indices(struct amd_northbridge *nb)
 	l3->indices = (max(max3(sc0, sc1, sc2), sc3) << 10) - 1;
 }
 
-/*
- * check whether a slot used for disabling an L3 index is occupied.
- * @l3: L3 cache descriptor
- * @slot: slot number (0..1)
- *
- * @returns: the disabled index if used or negative value if slot free.
- */
 static int amd_get_l3_disable_slot(struct amd_northbridge *nb, unsigned slot)
 {
 	unsigned int reg = 0;
@@ -378,8 +357,6 @@ static void amd_l3_disable_index(struct amd_northbridge *nb, int cpu,
 	idx |= BIT(30);
 
 	/*
-	 *  disable index in all 4 subcaches
-	 */
 	for (i = 0; i < 4; i++) {
 		u32 reg = idx | (i << 20);
 
@@ -389,10 +366,6 @@ static void amd_l3_disable_index(struct amd_northbridge *nb, int cpu,
 		pci_write_config_dword(nb->misc, 0x1BC + slot * 4, reg);
 
 		/*
-		 * We need to WBINVD on a core on the node containing the L3
-		 * cache which indices we disable therefore a simple wbinvd()
-		 * is not sufficient.
-		 */
 		wbinvd_on_cpu(cpu);
 
 		reg |= BIT(31);
@@ -400,16 +373,6 @@ static void amd_l3_disable_index(struct amd_northbridge *nb, int cpu,
 	}
 }
 
-/*
- * disable a L3 cache index by using a disable-slot
- *
- * @l3:    L3 cache descriptor
- * @cpu:   A CPU on the node containing the L3 cache
- * @slot:  slot number (0..1)
- * @index: index to disable
- *
- * @return: 0 on success, error status on failure
- */
 static int amd_set_l3_disable_slot(struct amd_northbridge *nb, int cpu,
 			    unsigned slot, unsigned long index)
 {
@@ -649,9 +612,6 @@ static int find_num_cache_leaves(struct cpuinfo_x86 *c)
 void cacheinfo_amd_init_llc_id(struct cpuinfo_x86 *c, int cpu)
 {
 	/*
-	 * We may have multiple LLCs if L3 caches exist, so check if we
-	 * have an L3 cache by looking at the L3 cache CPUID leaf.
-	 */
 	if (!cpuid_edx(0x80000006))
 		return;
 
@@ -660,15 +620,9 @@ void cacheinfo_amd_init_llc_id(struct cpuinfo_x86 *c, int cpu)
 		per_cpu(cpu_llc_id, cpu) = c->cpu_die_id;
 	} else if (c->x86 == 0x17 && c->x86_model <= 0x1F) {
 		/*
-		 * LLC is at the core complex level.
-		 * Core complex ID is ApicId[3] for these processors.
-		 */
 		per_cpu(cpu_llc_id, cpu) = c->apicid >> 3;
 	} else {
 		/*
-		 * LLC ID is calculated from the number of threads sharing the
-		 * cache.
-		 * */
 		u32 eax, ebx, ecx, edx, num_sharing_cache = 0;
 		u32 llc_index = find_num_cache_leaves(c) - 1;
 
@@ -687,16 +641,10 @@ void cacheinfo_amd_init_llc_id(struct cpuinfo_x86 *c, int cpu)
 void cacheinfo_hygon_init_llc_id(struct cpuinfo_x86 *c, int cpu)
 {
 	/*
-	 * We may have multiple LLCs if L3 caches exist, so check if we
-	 * have an L3 cache by looking at the L3 cache CPUID leaf.
-	 */
 	if (!cpuid_edx(0x80000006))
 		return;
 
 	/*
-	 * LLC is at the core complex level.
-	 * Core complex ID is ApicId[3] for these processors.
-	 */
 	per_cpu(cpu_llc_id, cpu) = c->apicid >> 3;
 }
 
@@ -739,9 +687,6 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 		}
 
 		/*
-		 * Whenever possible use cpuid(4), deterministic cache
-		 * parameters cpuid leaf to find the cache details
-		 */
 		for (i = 0; i < num_cache_leaves; i++) {
 			struct _cpuid4_info_regs this_leaf = {};
 			int retval;
@@ -775,9 +720,6 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 		}
 	}
 	/*
-	 * Don't use cpuid2 if cpuid4 is supported. For P4, we use cpuid2 for
-	 * trace cache
-	 */
 	if ((num_cache_leaves == 0 || c->x86 == 15) && c->cpuid_level > 1) {
 		/* supports eax=2  call */
 		int j, n;
@@ -859,12 +801,6 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 
 #ifdef CONFIG_SMP
 	/*
-	 * If cpu_llc_id is not yet set, this means cpuid_level < 4 which in
-	 * turns means that the only possibility is SMT (as indicated in
-	 * cpuid1). Since cpuid2 doesn't specify shared caches, and we know
-	 * that SMT shares all caches, we can unconditionally set cpu_llc_id to
-	 * c->phys_proc_id.
-	 */
 	if (per_cpu(cpu_llc_id, cpu) == BAD_APICID)
 		per_cpu(cpu_llc_id, cpu) = c->phys_proc_id;
 #endif
@@ -883,9 +819,6 @@ static int __cache_amd_cpumap_setup(unsigned int cpu, int index,
 	int i, sibling;
 
 	/*
-	 * For L3, always use the pre-calculated cpu_llc_shared_mask
-	 * to derive shared_cpu_map.
-	 */
 	if (index == 3) {
 		for_each_cpu(i, cpu_llc_shared_mask(cpu)) {
 			this_cpu_ci = get_cpu_cacheinfo(i);
@@ -999,11 +932,6 @@ int init_cache_level(unsigned int cpu)
 	return 0;
 }
 
-/*
- * The max shared threads number comes from CPUID.4:EAX[25-14] with input
- * ECX as cache index. Then right shift apicid by the number's order to get
- * cache id for this cache node.
- */
 static void get_cache_id(int cpu, struct _cpuid4_info_regs *id4_regs)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);

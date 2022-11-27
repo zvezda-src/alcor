@@ -1,12 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
 
-/*
- * Hyper-V specific spinlock code.
- *
- * Copyright (C) 2018, Intel, Inc.
- *
- * Author : Yi Sun <yi.y.sun@intel.com>
- */
 
 #define pr_fmt(fmt) "Hyper-V: " fmt
 
@@ -31,22 +23,8 @@ static void hv_qlock_wait(u8 *byte, u8 val)
 		return;
 
 	/*
-	 * Reading HV_X64_MSR_GUEST_IDLE MSR tells the hypervisor that the
-	 * vCPU can be put into 'idle' state. This 'idle' state is
-	 * terminated by an IPI, usually from hv_qlock_kick(), even if
-	 * interrupts are disabled on the vCPU.
-	 *
-	 * To prevent a race against the unlock path it is required to
-	 * disable interrupts before accessing the HV_X64_MSR_GUEST_IDLE
-	 * MSR. Otherwise, if the IPI from hv_qlock_kick() arrives between
-	 * the lock value check and the rdmsrl() then the vCPU might be put
-	 * into 'idle' state by the hypervisor and kept in that state for
-	 * an unspecified amount of time.
-	 */
 	local_irq_save(flags);
 	/*
-	 * Only issue the rdmsrl() when the lock state has not changed.
-	 */
 	if (READ_ONCE(*byte) == val) {
 		unsigned long msr_val;
 
@@ -57,9 +35,6 @@ static void hv_qlock_wait(u8 *byte, u8 val)
 	local_irq_restore(flags);
 }
 
-/*
- * Hyper-V does not support this so far.
- */
 __visible bool hv_vcpu_is_preempted(int vcpu)
 {
 	return false;

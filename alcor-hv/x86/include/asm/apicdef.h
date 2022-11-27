@@ -1,21 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_APICDEF_H
 #define _ASM_X86_APICDEF_H
 
-/*
- * Constants for various Intel APICs. (local APIC, IOAPIC, etc.)
- *
- * Alan Cox <Alan.Cox@linux.org>, 1995.
- * Ingo Molnar <mingo@redhat.com>, 1999, 2000
- */
 
 #define IO_APIC_DEFAULT_PHYS_BASE	0xfec00000
 #define	APIC_DEFAULT_PHYS_BASE		0xfee00000
 
-/*
- * This is the IO-APIC register space as specified
- * by Intel docs:
- */
 #define IO_APIC_SLOT_SIZE		1024
 
 #define	APIC_ID		0x20
@@ -150,10 +139,6 @@
 # define MAX_LOCAL_APIC 32768
 #endif
 
-/*
- * All x86-64 systems are xAPIC compatible.
- * In the following, "apicid" is a physical APIC ID.
- */
 #define XAPIC_DEST_CPUS_SHIFT	4
 #define XAPIC_DEST_CPUS_MASK	((1u << XAPIC_DEST_CPUS_SHIFT) - 1)
 #define XAPIC_DEST_CLUSTER_MASK	(XAPIC_DEST_CPUS_MASK << XAPIC_DEST_CPUS_SHIFT)
@@ -162,28 +147,18 @@
 #define APIC_CPUID(apicid)	((apicid) & XAPIC_DEST_CPUS_MASK)
 #define NUM_APIC_CLUSTERS	((BAD_APICID + 1) >> XAPIC_DEST_CPUS_SHIFT)
 
-/*
- * the local APIC register structure, memory mapped. Not terribly well
- * tested, but we might eventually use this one in the future - the
- * problem why we cannot use it right now is the P5 APIC, it has an
- * errata which cannot take 8-bit reads and writes, only 32-bit ones ...
- */
 #define u32 unsigned int
 
 struct local_apic {
 
-/*000*/	struct { u32 __reserved[4]; } __reserved_01;
 
-/*010*/	struct { u32 __reserved[4]; } __reserved_02;
 
-/*020*/	struct { /* APIC ID Register */
 		u32   __reserved_1	: 24,
 			phys_apic_id	:  4,
 			__reserved_2	:  4;
 		u32 __reserved[3];
 	} id;
 
-/*030*/	const
 	struct { /* APIC Version Register */
 		u32   version		:  8,
 			__reserved_1	:  8,
@@ -192,54 +167,42 @@ struct local_apic {
 		u32 __reserved[3];
 	} version;
 
-/*040*/	struct { u32 __reserved[4]; } __reserved_03;
 
-/*050*/	struct { u32 __reserved[4]; } __reserved_04;
 
-/*060*/	struct { u32 __reserved[4]; } __reserved_05;
 
-/*070*/	struct { u32 __reserved[4]; } __reserved_06;
 
-/*080*/	struct { /* Task Priority Register */
 		u32   priority	:  8,
 			__reserved_1	: 24;
 		u32 __reserved_2[3];
 	} tpr;
 
-/*090*/	const
 	struct { /* Arbitration Priority Register */
 		u32   priority	:  8,
 			__reserved_1	: 24;
 		u32 __reserved_2[3];
 	} apr;
 
-/*0A0*/	const
 	struct { /* Processor Priority Register */
 		u32   priority	:  8,
 			__reserved_1	: 24;
 		u32 __reserved_2[3];
 	} ppr;
 
-/*0B0*/	struct { /* End Of Interrupt Register */
 		u32   eoi;
 		u32 __reserved[3];
 	} eoi;
 
-/*0C0*/	struct { u32 __reserved[4]; } __reserved_07;
 
-/*0D0*/	struct { /* Logical Destination Register */
 		u32   __reserved_1	: 24,
 			logical_dest	:  8;
 		u32 __reserved_2[3];
 	} ldr;
 
-/*0E0*/	struct { /* Destination Format Register */
 		u32   __reserved_1	: 28,
 			model		:  4;
 		u32 __reserved_2[3];
 	} dfr;
 
-/*0F0*/	struct { /* Spurious Interrupt Vector Register */
 		u32	spurious_vector	:  8,
 			apic_enabled	:  1,
 			focus_cpu	:  1,
@@ -247,22 +210,15 @@ struct local_apic {
 		u32 __reserved_3[3];
 	} svr;
 
-/*100*/	struct { /* In Service Register */
-/*170*/		u32 bitfield;
 		u32 __reserved[3];
 	} isr [8];
 
-/*180*/	struct { /* Trigger Mode Register */
-/*1F0*/		u32 bitfield;
 		u32 __reserved[3];
 	} tmr [8];
 
-/*200*/	struct { /* Interrupt Request Register */
-/*270*/		u32 bitfield;
 		u32 __reserved[3];
 	} irr [8];
 
-/*280*/	union { /* Error Status Register */
 		struct {
 			u32   send_cs_error			:  1,
 				receive_cs_error		:  1,
@@ -281,21 +237,13 @@ struct local_apic {
 		} all_errors;
 	} esr;
 
-/*290*/	struct { u32 __reserved[4]; } __reserved_08;
 
-/*2A0*/	struct { u32 __reserved[4]; } __reserved_09;
 
-/*2B0*/	struct { u32 __reserved[4]; } __reserved_10;
 
-/*2C0*/	struct { u32 __reserved[4]; } __reserved_11;
 
-/*2D0*/	struct { u32 __reserved[4]; } __reserved_12;
 
-/*2E0*/	struct { u32 __reserved[4]; } __reserved_13;
 
-/*2F0*/	struct { u32 __reserved[4]; } __reserved_14;
 
-/*300*/	struct { /* Interrupt Command Register 1 */
 		u32   vector			:  8,
 			delivery_mode		:  3,
 			destination_mode	:  1,
@@ -309,7 +257,6 @@ struct local_apic {
 		u32 __reserved_4[3];
 	} icr1;
 
-/*310*/	struct { /* Interrupt Command Register 2 */
 		union {
 			u32   __reserved_1	: 24,
 				phys_dest	:  4,
@@ -320,7 +267,6 @@ struct local_apic {
 		u32 __reserved_4[3];
 	} icr2;
 
-/*320*/	struct { /* LVT - Timer */
 		u32   vector		:  8,
 			__reserved_1	:  4,
 			delivery_status	:  1,
@@ -331,7 +277,6 @@ struct local_apic {
 		u32 __reserved_4[3];
 	} lvt_timer;
 
-/*330*/	struct { /* LVT - Thermal Sensor */
 		u32  vector		:  8,
 			delivery_mode	:  3,
 			__reserved_1	:  1,
@@ -342,7 +287,6 @@ struct local_apic {
 		u32 __reserved_4[3];
 	} lvt_thermal;
 
-/*340*/	struct { /* LVT - Performance Counter */
 		u32   vector		:  8,
 			delivery_mode	:  3,
 			__reserved_1	:  1,
@@ -353,7 +297,6 @@ struct local_apic {
 		u32 __reserved_4[3];
 	} lvt_pc;
 
-/*350*/	struct { /* LVT - LINT0 */
 		u32   vector		:  8,
 			delivery_mode	:  3,
 			__reserved_1	:  1,
@@ -366,7 +309,6 @@ struct local_apic {
 		u32 __reserved_3[3];
 	} lvt_lint0;
 
-/*360*/	struct { /* LVT - LINT1 */
 		u32   vector		:  8,
 			delivery_mode	:  3,
 			__reserved_1	:  1,
@@ -379,7 +321,6 @@ struct local_apic {
 		u32 __reserved_3[3];
 	} lvt_lint1;
 
-/*370*/	struct { /* LVT - Error */
 		u32   vector		:  8,
 			__reserved_1	:  4,
 			delivery_status	:  1,
@@ -389,32 +330,24 @@ struct local_apic {
 		u32 __reserved_4[3];
 	} lvt_error;
 
-/*380*/	struct { /* Timer Initial Count Register */
 		u32   initial_count;
 		u32 __reserved_2[3];
 	} timer_icr;
 
-/*390*/	const
 	struct { /* Timer Current Count Register */
 		u32   curr_count;
 		u32 __reserved_2[3];
 	} timer_ccr;
 
-/*3A0*/	struct { u32 __reserved[4]; } __reserved_16;
 
-/*3B0*/	struct { u32 __reserved[4]; } __reserved_17;
 
-/*3C0*/	struct { u32 __reserved[4]; } __reserved_18;
 
-/*3D0*/	struct { u32 __reserved[4]; } __reserved_19;
 
-/*3E0*/	struct { /* Timer Divide Configuration Register */
 		u32   divisor		:  4,
 			__reserved_1	: 28;
 		u32 __reserved_2[3];
 	} timer_dcr;
 
-/*3F0*/	struct { u32 __reserved[4]; } __reserved_20;
 
 } __attribute__ ((packed));
 

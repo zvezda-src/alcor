@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef ASM_X86_SM4_AVX_H
 #define ASM_X86_SM4_AVX_H
 

@@ -1,7 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * fprobe - Simple ftrace probe wrapper for function entry.
- */
 #define pr_fmt(fmt) "fprobe: " fmt
 
 #include <linux/err.h>
@@ -93,7 +89,6 @@ static int symbols_cmp(const void *a, const void *b)
 	return strcmp(*str_a, *str_b);
 }
 
-/* Convert ftrace location address from symbols */
 static unsigned long *get_ftrace_locations(const char **syms, int num)
 {
 	unsigned long *addrs;
@@ -165,17 +160,6 @@ static void fprobe_fail_cleanup(struct fprobe *fp)
 	ftrace_free_filter(&fp->ops);
 }
 
-/**
- * register_fprobe() - Register fprobe to ftrace by pattern.
- * @fp: A fprobe data structure to be registered.
- * @filter: A wildcard pattern of probed symbols.
- * @notfilter: A wildcard pattern of NOT probed symbols.
- *
- * Register @fp to ftrace for enabling the probe on the symbols matched to @filter.
- * If @notfilter is not NULL, the symbols matched the @notfilter are not probed.
- *
- * Return 0 if @fp is registered successfully, -errno if not.
- */
 int register_fprobe(struct fprobe *fp, const char *filter, const char *notfilter)
 {
 	struct ftrace_hash *hash;
@@ -222,19 +206,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(register_fprobe);
 
-/**
- * register_fprobe_ips() - Register fprobe to ftrace by address.
- * @fp: A fprobe data structure to be registered.
- * @addrs: An array of target ftrace location addresses.
- * @num: The number of entries of @addrs.
- *
- * Register @fp to ftrace for enabling the probe on the address given by @addrs.
- * The @addrs must be the addresses of ftrace location address, which may be
- * the symbol address + arch-dependent offset.
- * If you unsure what this mean, please use other registration functions.
- *
- * Return 0 if @fp is registered successfully, -errno if not.
- */
 int register_fprobe_ips(struct fprobe *fp, unsigned long *addrs, int num)
 {
 	int ret;
@@ -258,17 +229,6 @@ int register_fprobe_ips(struct fprobe *fp, unsigned long *addrs, int num)
 }
 EXPORT_SYMBOL_GPL(register_fprobe_ips);
 
-/**
- * register_fprobe_syms() - Register fprobe to ftrace by symbols.
- * @fp: A fprobe data structure to be registered.
- * @syms: An array of target symbols.
- * @num: The number of entries of @syms.
- *
- * Register @fp to the symbols given by @syms array. This will be useful if
- * you are sure the symbols exist in the kernel.
- *
- * Return 0 if @fp is registered successfully, -errno if not.
- */
 int register_fprobe_syms(struct fprobe *fp, const char **syms, int num)
 {
 	unsigned long *addrs;
@@ -289,14 +249,6 @@ int register_fprobe_syms(struct fprobe *fp, const char **syms, int num)
 }
 EXPORT_SYMBOL_GPL(register_fprobe_syms);
 
-/**
- * unregister_fprobe() - Unregister fprobe from ftrace
- * @fp: A fprobe data structure to be unregistered.
- *
- * Unregister fprobe (and remove ftrace hooks from the function entries).
- *
- * Return 0 if @fp is unregistered successfully, -errno if not.
- */
 int unregister_fprobe(struct fprobe *fp)
 {
 	int ret;
@@ -305,11 +257,6 @@ int unregister_fprobe(struct fprobe *fp)
 		return -EINVAL;
 
 	/*
-	 * rethook_free() starts disabling the rethook, but the rethook handlers
-	 * may be running on other processors at this point. To make sure that all
-	 * current running handlers are finished, call unregister_ftrace_function()
-	 * after this.
-	 */
 	if (fp->rethook)
 		rethook_free(fp->rethook);
 

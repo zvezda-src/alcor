@@ -1,10 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
-/*---------------------------------------------------------------------------+
  |  poly_l2.c                                                                |
  |                                                                           |
  | Compute the base 2 log of a FPU_REG, using a polynomial approximation.    |
  |                                                                           |
- | Copyright (C) 1992,1993,1994,1997                                         |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
  |                  E-mail   billm@suburbia.net                              |
  |                                                                           |
@@ -21,7 +18,6 @@
 static void log2_kernel(FPU_REG const *arg, u_char argsign,
 			Xsig * accum_result, long int *expon);
 
-/*--- poly_l2() -------------------------------------------------------------+
  |   Base 2 logarithm by a polynomial approximation.                         |
  +---------------------------------------------------------------------------*/
 void poly_l2(FPU_REG *st0_ptr, FPU_REG *st1_ptr, u_char st1_sign)
@@ -99,7 +95,6 @@ void poly_l2(FPU_REG *st0_ptr, FPU_REG *st1_ptr, u_char st1_sign)
 
 }
 
-/*--- poly_l2p1() -----------------------------------------------------------+
  |   Base 2 logarithm by a polynomial approximation.                         |
  |   log2(x+1)                                                               |
  +---------------------------------------------------------------------------*/
@@ -175,7 +170,6 @@ static const unsigned long long logterms[HIPOWER] = {
 
 static const unsigned long leadterm = 0xb8000000;
 
-/*--- log2_kernel() ---------------------------------------------------------+
  |   Base 2 logarithm by a polynomial approximation.                         |
  |   log2(x+1)                                                               |
  +---------------------------------------------------------------------------*/
@@ -237,7 +231,6 @@ static void log2_kernel(FPU_REG const *arg, u_char argsign, Xsig *accum_result,
 	mul32_Xsig(&arg_signif, leadterm);
 	add_two_Xsig(&accumulator, &arg_signif, &exponent);
 
-	*expon = exponent + 1;
 	accum_result->lsw = accumulator.lsw;
 	accum_result->midw = accumulator.midw;
 	accum_result->msw = accumulator.msw;

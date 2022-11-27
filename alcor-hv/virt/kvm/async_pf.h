@@ -1,12 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * kvm asynchronous fault support
- *
- * Copyright 2010 Red Hat, Inc.
- *
- * Author:
- *      Gleb Natapov <gleb@redhat.com>
- */
 
 #ifndef __KVM_ASYNC_PF_H__
 #define __KVM_ASYNC_PF_H__

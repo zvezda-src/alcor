@@ -1,27 +1,15 @@
 #ifndef _KDBPRIVATE_H
 #define _KDBPRIVATE_H
 
-/*
- * Kernel Debugger Architecture Independent Private Headers
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
- * Copyright (c) 2009 Wind River Systems, Inc.  All Rights Reserved.
- */
 
 #include <linux/kgdb.h>
 #include "../debug_core.h"
 
-/* Kernel Debugger Command codes.  Must not overlap with error codes. */
 #define KDB_CMD_GO	(-1001)
 #define KDB_CMD_CPU	(-1002)
 #define KDB_CMD_SS	(-1003)
 #define KDB_CMD_KGDB (-1005)
 
-/* Internal debug flags */
 #define KDB_DEBUG_FLAG_BP	0x0002	/* Breakpoint subsystem debug */
 #define KDB_DEBUG_FLAG_BB_SUMM	0x0004	/* Basic block analysis, summary only */
 #define KDB_DEBUG_FLAG_AR	0x0008	/* Activation record, generic */
@@ -62,13 +50,8 @@
 
 #endif
 
-/*
- * KDB_MAXBPT describes the total number of breakpoints
- * supported by this architecture.
- */
 #define KDB_MAXBPT	16
 
-/* Symbol table format returned by kallsyms. */
 typedef struct __ksymtab {
 		unsigned long value;	/* Address of symbol */
 		const char *mod_name;	/* Module containing symbol or
@@ -86,14 +69,9 @@ typedef struct __ksymtab {
 extern int kallsyms_symbol_next(char *prefix_name, int flag, int buf_size);
 extern int kallsyms_symbol_complete(char *prefix_name, int max_len);
 
-/* Exported Symbols for kernel loadable modules to use. */
 extern int kdb_getarea_size(void *, unsigned long, size_t);
 extern int kdb_putarea_size(unsigned long, void *, size_t);
 
-/*
- * Like get_user and put_user, kdb_getarea and kdb_putarea take variable
- * names, not pointers.  The underlying *_size functions take pointers.
- */
 #define kdb_getarea(x, addr) kdb_getarea_size(&(x), addr, sizeof((x)))
 #define kdb_putarea(addr, x) kdb_putarea_size(addr, &(x), sizeof((x)))
 
@@ -112,7 +90,6 @@ extern int kdbnearsym(unsigned long, kdb_symtab_t *);
 extern char *kdb_strdup(const char *str, gfp_t type);
 extern void kdb_symbol_print(unsigned long, const kdb_symtab_t *, unsigned int);
 
-/* Routine for debugging the debugger state. */
 extern void kdb_print_state(const char *, int);
 
 extern int kdb_state;
@@ -167,7 +144,6 @@ extern kdb_bp_t kdb_breakpoints[/* KDB_MAXBPT */];
 extern void kdb_register_table(kdbtab_t *kp, size_t len);
 extern int kdb_bt(int, const char **);	/* KDB display back trace */
 
-/* KDB breakpoint management functions */
 extern void kdb_initbptab(void);
 extern void kdb_bp_install(struct pt_regs *);
 extern void kdb_bp_remove(void);
@@ -182,7 +158,6 @@ typedef enum {
 extern int kdb_main_loop(kdb_reason_t, kdb_reason_t,
 			 int, kdb_dbtrap_t, struct pt_regs *);
 
-/* Miscellaneous functions and data areas */
 extern int kdb_grepping_flag;
 #define KDB_GREPPING_FLAG_SEARCH 0x8000
 extern char kdb_grep_string[];
@@ -199,7 +174,6 @@ extern char kdb_getchar(void);
 extern char *kdb_getstr(char *, size_t, const char *);
 extern void kdb_gdb_state_pass(char *buf);
 
-/* Defines for kdb_symbol_print */
 #define KDB_SP_SPACEB	0x0001		/* Space before string */
 #define KDB_SP_SPACEA	0x0002		/* Space after string */
 #define KDB_SP_PAREN	0x0004		/* Parenthesis around string */

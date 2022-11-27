@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Intel MID platform setup code
- *
- * (C) Copyright 2008, 2012, 2021 Intel Corporation
- * Author: Jacob Pan (jacob.jun.pan@intel.com)
- * Author: Sathyanarayanan Kuppuswamy <sathyanarayanan.kuppuswamy@intel.com>
- */
 
 #define pr_fmt(fmt) "intel_mid: " fmt
 
@@ -65,30 +57,14 @@ static void intel_mid_arch_setup(void)
 	}
 
 	/*
-	 * Intel MID platforms are using explicitly defined regulators.
-	 *
-	 * Let the regulator core know that we do not have any additional
-	 * regulators left. This lets it substitute unprovided regulators with
-	 * dummy ones:
-	 */
 	regulator_has_full_constraints();
 }
 
-/*
- * Moorestown does not have external NMI source nor port 0x61 to report
- * NMI status. The possible NMI sources are from pmu as a result of NMI
- * watchdog or lock debug. Reading io port 0x61 results in 0xff which
- * misled NMI handler.
- */
 static unsigned char intel_mid_get_nmi_reason(void)
 {
 	return 0;
 }
 
-/*
- * Moorestown specific x86_init function overrides and early setup
- * calls.
- */
 void __init x86_intel_mid_early_setup(void)
 {
 	x86_init.resources.probe_roms = x86_init_noop;
@@ -109,9 +85,6 @@ void __init x86_intel_mid_early_setup(void)
 	legacy_pic = &null_legacy_pic;
 
 	/*
-	 * Do nothing for now as everything needed done in
-	 * x86_intel_mid_early_setup() below.
-	 */
 	x86_init.acpi.reduced_hw_early_init = x86_init_noop;
 
 	pm_power_off = intel_mid_power_off;

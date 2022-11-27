@@ -1,13 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * KVM coalesced MMIO
- *
- * Copyright (c) 2008 Bull S.A.S.
- * Copyright 2009 Red Hat, Inc. and/or its affiliates.
- *
- *  Author: Laurent Vivier <Laurent.Vivier@bull.net>
- *
- */
 
 #include <kvm/iodev.h>
 
@@ -118,10 +108,6 @@ int kvm_coalesced_mmio_init(struct kvm *kvm)
 	kvm->coalesced_mmio_ring = page_address(page);
 
 	/*
-	 * We're using this spinlock to sync access to the coalesced ring.
-	 * The list doesn't need its own lock since device registration and
-	 * unregistration should only happen when kvm->slots_lock is held.
-	 */
 	spin_lock_init(&kvm->ring_lock);
 	INIT_LIST_HEAD(&kvm->coalesced_zones);
 
@@ -188,11 +174,6 @@ int kvm_vm_ioctl_unregister_coalesced_mmio(struct kvm *kvm,
 				zone->pio ? KVM_PIO_BUS : KVM_MMIO_BUS, &dev->dev);
 
 			/*
-			 * On failure, unregister destroys all devices on the
-			 * bus _except_ the target device, i.e. coalesced_zones
-			 * has been modified.  No need to restart the walk as
-			 * there aren't any zones left.
-			 */
 			if (r)
 				break;
 			kvm_iodevice_destructor(&dev->dev);
@@ -202,8 +183,5 @@ int kvm_vm_ioctl_unregister_coalesced_mmio(struct kvm *kvm,
 	mutex_unlock(&kvm->slots_lock);
 
 	/*
-	 * Ignore the result of kvm_io_bus_unregister_dev(), from userspace's
-	 * perspective, the coalesced MMIO is most definitely unregistered.
-	 */
 	return 0;
 }

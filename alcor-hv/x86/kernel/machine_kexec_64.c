@@ -1,8 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * handle transition of Linux booting another kernel
- * Copyright (C) 2002-2005 Eric Biederman  <ebiederm@xmission.com>
- */
 
 #define pr_fmt(fmt)	"kexec: " fmt
 
@@ -30,10 +25,6 @@
 #include <asm/cpu.h>
 
 #ifdef CONFIG_ACPI
-/*
- * Used while adding mapping for ACPI tables.
- * Can be reused when other iomem regions need be mapped
- */
 struct init_pgtable_data {
 	struct x86_mapping_info *info;
 	pgd_t *level4p;
@@ -227,11 +218,6 @@ static int init_pgtable(struct kimage *image, unsigned long start_pgtable)
 	}
 
 	/*
-	 * segments's mem ranges could be outside 0 ~ max_pfn,
-	 * for example when jump back to original kernel from kexeced kernel.
-	 * or first kernel is booted with user mem map, and second kernel
-	 * could be loaded out of that range.
-	 */
 	for (i = 0; i < image->nr_segments; i++) {
 		mstart = image->segment[i].mem;
 		mend   = mstart + image->segment[i].memsz;
@@ -244,9 +230,6 @@ static int init_pgtable(struct kimage *image, unsigned long start_pgtable)
 	}
 
 	/*
-	 * Prepare EFI systab and ACPI tables for kexec kernel since they are
-	 * not covered by pfn_mapped.
-	 */
 	result = map_efi_systab(&info, level4p);
 	if (result)
 		return result;
@@ -291,10 +274,6 @@ void machine_kexec_cleanup(struct kimage *image)
 	free_transition_pgtable(image);
 }
 
-/*
- * Do not allocate memory (or fail in any way) in machine_kexec().
- * We are past the point of no return, committed to rebooting now.
- */
 void machine_kexec(struct kimage *image)
 {
 	unsigned long page_list[PAGES_NR];
@@ -316,11 +295,6 @@ void machine_kexec(struct kimage *image)
 	if (image->preserve_context) {
 #ifdef CONFIG_X86_IO_APIC
 		/*
-		 * We need to put APICs in legacy mode so that we can
-		 * get timer interrupts in second kernel. kexec/kdump
-		 * paths already have calls to restore_boot_irq_mode()
-		 * in one form or other. kexec jump path also need one.
-		 */
 		clear_IO_APIC();
 		restore_boot_irq_mode();
 #endif
@@ -339,20 +313,8 @@ void machine_kexec(struct kimage *image)
 						<< PAGE_SHIFT);
 
 	/*
-	 * The segment registers are funny things, they have both a
-	 * visible and an invisible part.  Whenever the visible part is
-	 * set to a specific selector, the invisible part is loaded
-	 * with from a table in memory.  At no other time is the
-	 * descriptor table in memory accessed.
-	 *
-	 * I take advantage of this here by force loading the
-	 * segments, before I zap the gdt with an invalid value.
-	 */
 	load_segments();
 	/*
-	 * The gdt & idt are now invalid.
-	 * If you want to load them you must set up your own idt & gdt.
-	 */
 	native_idt_invalidate();
 	native_gdt_invalidate();
 
@@ -371,7 +333,6 @@ void machine_kexec(struct kimage *image)
 	__ftrace_enabled_restore(save_ftrace_enabled);
 }
 
-/* arch-dependent functionality related to kexec file-based syscall */
 
 #ifdef CONFIG_KEXEC_FILE
 void *arch_kexec_kernel_image_load(struct kimage *image)
@@ -385,16 +346,6 @@ void *arch_kexec_kernel_image_load(struct kimage *image)
 				 image->cmdline_buf_len);
 }
 
-/*
- * Apply purgatory relocations.
- *
- * @pi:		Purgatory to be relocated.
- * @section:	Section relocations applying to.
- * @relsec:	Section containing RELAs.
- * @symtabsec:	Corresponding symtab.
- *
- * TODO: Some of the code belongs to generic code. Move that in kexec.c.
- */
 int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 				     Elf_Shdr *section, const Elf_Shdr *relsec,
 				     const Elf_Shdr *symtabsec)
@@ -420,15 +371,6 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 	for (i = 0; i < relsec->sh_size / sizeof(*rel); i++) {
 
 		/*
-		 * rel[i].r_offset contains byte offset from beginning
-		 * of section to the storage unit affected.
-		 *
-		 * This is location to update. This is temporary buffer
-		 * where section is currently loaded. This will finally be
-		 * loaded to a different address later, pointed to by
-		 * ->sh_addr. kexec takes care of moving it
-		 *  (kexec_load_segment()).
-		 */
 		location = pi->purgatory_buf;
 		location += section->sh_offset;
 		location += rel[i].r_offset;
@@ -437,11 +379,6 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 		address = section->sh_addr + rel[i].r_offset;
 
 		/*
-		 * rel[i].r_info contains information about symbol table index
-		 * w.r.t which relocation must be made and type of relocation
-		 * to apply. ELF64_R_SYM() and ELF64_R_TYPE() macros get
-		 * these respectively.
-		 */
 		sym = (void *)pi->ehdr + symtabsec->sh_offset;
 		sym += ELF64_R_SYM(rel[i].r_info);
 
@@ -529,9 +466,6 @@ kexec_mark_range(unsigned long start, unsigned long end, bool protect)
 	unsigned int nr_pages;
 
 	/*
-	 * For physical range: [start, end]. We must skip the unassigned
-	 * crashk resource with zero-valued "end" member.
-	 */
 	if (!end || start > end)
 		return 0;
 
@@ -567,25 +501,12 @@ void arch_kexec_unprotect_crashkres(void)
 	kexec_mark_crashkres(false);
 }
 
-/*
- * During a traditional boot under SME, SME will encrypt the kernel,
- * so the SME kexec kernel also needs to be un-encrypted in order to
- * replicate a normal SME boot.
- *
- * During a traditional boot under SEV, the kernel has already been
- * loaded encrypted, so the SEV kexec kernel needs to be encrypted in
- * order to replicate a normal SEV boot.
- */
 int arch_kexec_post_alloc_pages(void *vaddr, unsigned int pages, gfp_t gfp)
 {
 	if (!cc_platform_has(CC_ATTR_HOST_MEM_ENCRYPT))
 		return 0;
 
 	/*
-	 * If host memory encryption is active we need to be sure that kexec
-	 * pages are not encrypted because when we boot to the new kernel the
-	 * pages won't be accessed encrypted (initially).
-	 */
 	return set_memory_decrypted((unsigned long)vaddr, pages);
 }
 
@@ -595,8 +516,5 @@ void arch_kexec_pre_free_pages(void *vaddr, unsigned int pages)
 		return;
 
 	/*
-	 * If host memory encryption is active we need to reset the pages back
-	 * to being an encrypted mapping before freeing them.
-	 */
 	set_memory_encrypted((unsigned long)vaddr, pages);
 }

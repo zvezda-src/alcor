@@ -1,14 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * kdb helper for dumping the ftrace buffer
- *
- * Copyright (C) 2010 Jason Wessel <jason.wessel@windriver.com>
- *
- * ftrace_dump_buf based on ftrace_dump:
- * Copyright (C) 2007-2008 Steven Rostedt <srostedt@redhat.com>
- * Copyright (C) 2008 Ingo Molnar <mingo@redhat.com>
- *
- */
 #include <linux/init.h>
 #include <linux/kgdb.h>
 #include <linux/kdb.h>
@@ -89,9 +78,6 @@ out:
 	}
 }
 
-/*
- * kdb_ftdump - Dump the ftrace log buffer
- */
 static int kdb_ftdump(int argc, const char **argv)
 {
 	int skip_entries = 0;

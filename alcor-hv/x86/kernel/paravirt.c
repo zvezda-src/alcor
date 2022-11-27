@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-/*  Paravirtualization interfaces
-    Copyright (C) 2006 Rusty Russell IBM Corporation
 
 
     2007 - x86_64 support added by Glauber de Oliveira Costa, Red Hat Inc
@@ -33,10 +30,6 @@
 #include <asm/tlb.h>
 #include <asm/io_bitmap.h>
 
-/*
- * nop stub, which must not clobber anything *including the stack* to
- * avoid confusing the entry prologues.
- */
 extern void _paravirt_nop(void);
 asm (".pushsection .entry.text, \"ax\"\n"
      ".global _paravirt_nop\n"
@@ -47,7 +40,6 @@ asm (".pushsection .entry.text, \"ax\"\n"
      ".type _paravirt_nop, @function\n\t"
      ".popsection");
 
-/* stub always returning 0. */
 asm (".pushsection .entry.text, \"ax\"\n"
      ".global paravirt_ret0\n"
      "paravirt_ret0:\n\t"
@@ -65,7 +57,6 @@ void __init default_banner(void)
 	       pv_info.name);
 }
 
-/* Undefined instruction for dealing with missing ops pointers. */
 noinstr void paravirt_BUG(void)
 {
 	BUG();
@@ -80,7 +71,6 @@ static unsigned paravirt_patch_call(void *insn_buff, const void *target,
 }
 
 #ifdef CONFIG_PARAVIRT_XXL
-/* identity function, which can be inlined */
 u64 notrace _paravirt_ident_64(u64 x)
 {
 	return x;
@@ -99,9 +89,6 @@ unsigned int paravirt_patch(u8 type, void *insn_buff, unsigned long addr,
 			    unsigned int len)
 {
 	/*
-	 * Neat trick to map patch type back to the call within the
-	 * corresponding structure.
-	 */
 	void *opfunc = *((void **)&pv_ops + type);
 	unsigned ret;
 
@@ -133,7 +120,6 @@ void paravirt_set_sched_clock(u64 (*func)(void))
 	static_call_update(pv_sched_clock, func);
 }
 
-/* These are in entry.S */
 static struct resource reserve_ioports = {
 	.start = 0,
 	.end = IO_SPACE_LIMIT,
@@ -141,13 +127,6 @@ static struct resource reserve_ioports = {
 	.flags = IORESOURCE_IO | IORESOURCE_BUSY,
 };
 
-/*
- * Reserve the whole legacy IO space to prevent any legacy drivers
- * from wasting time probing for their hardware.  This is a fairly
- * brute-force approach to disabling all non-virtual drivers.
- *
- * Note that this must be called very early to have any effect.
- */
 int paravirt_disable_iospace(void)
 {
 	return request_resource(&ioport_resource, &reserve_ioports);
@@ -259,7 +238,6 @@ struct pv_info pv_info = {
 #endif
 };
 
-/* 64-bit pagetable entries */
 #define PTE_IDENT	__PV_IS_CALLEE_SAVE(_paravirt_ident_64)
 
 struct paravirt_patch_template pv_ops = {

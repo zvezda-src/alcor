@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/* This is included from relocs_32/64.c */
 
 #define ElfW(type)		_ElfW(ELF_BITS, type)
 #define _ElfW(bits, type)	__ElfW(bits, type)
@@ -46,22 +44,12 @@ struct section {
 static struct section *secs;
 
 static const char * const sym_regex_kernel[S_NSYMTYPES] = {
-/*
- * Following symbols have been audited. There values are constant and do
- * not change if bzImage is loaded at a different physical address than
- * the address for which it has been compiled. Don't warn user about
- * absolute relocations present w.r.t these symbols.
- */
 	[S_ABS] =
 	"^(xen_irq_disable_direct_reloc$|"
 	"xen_save_fl_direct_reloc$|"
 	"VDSO|"
 	"__crc_)",
 
-/*
- * These symbols are known to be relative, even if the linker marks them
- * as absolute (typically defined outside any section in the linker script.)
- */
 	[S_REL] =
 	"^(__init_(begin|end)|"
 	"__x86_cpu_dev_(start|end)|"
@@ -93,23 +81,12 @@ static const char * const sym_regex_kernel[S_NSYMTYPES] = {
 
 
 static const char * const sym_regex_realmode[S_NSYMTYPES] = {
-/*
- * These symbols are known to be relative, even if the linker marks them
- * as absolute (typically defined outside any section in the linker script.)
- */
 	[S_REL] =
 	"^pa_",
 
-/*
- * These are 16-bit segment symbols when compiling 16-bit code.
- */
 	[S_SEG] =
 	"^real_mode_seg$",
 
-/*
- * These are offsets belonging to segments, as opposed to linear addresses,
- * when compiling 16-bit code.
- */
 	[S_LIN] =
 	"^pa_",
 };
@@ -749,29 +726,6 @@ static void walk_relocs(int (*process)(struct section *sec, Elf_Rel *rel,
 	}
 }
 
-/*
- * The .data..percpu section is a special case for x86_64 SMP kernels.
- * It is used to initialize the actual per_cpu areas and to provide
- * definitions for the per_cpu variables that correspond to their offsets
- * within the percpu area. Since the values of all of the symbols need
- * to be offsets from the start of the per_cpu area the virtual address
- * (sh_addr) of .data..percpu is 0 in SMP kernels.
- *
- * This means that:
- *
- *	Relocations that reference symbols in the per_cpu area do not
- *	need further relocation (since the value is an offset relative
- *	to the start of the per_cpu area that does not change).
- *
- *	Relocations that apply to the per_cpu area need to have their
- *	offset adjusted by by the value of __per_cpu_load to make them
- *	point to the correct place in the loaded image (because the
- *	virtual address of .data..percpu is 0).
- *
- * For non SMP kernels .data..percpu is linked as part of the normal
- * kernel data and does not require special treatment.
- *
- */
 static int per_cpu_shndx	= -1;
 static Elf_Addr per_cpu_load_addr;
 
@@ -798,21 +752,6 @@ static void percpu_init(void)
 
 #if ELF_BITS == 64
 
-/*
- * Check to see if a symbol lies in the .data..percpu section.
- *
- * The linker incorrectly associates some symbols with the
- * .data..percpu section so we also need to check the symbol
- * name to make sure that we classify the symbol correctly.
- *
- * The GNU linker incorrectly associates:
- *	__init_begin
- *	__per_cpu_load
- *
- * The "gold" linker incorrectly associates:
- *	init_per_cpu__fixed_percpu_data
- *	init_per_cpu__gdt_page
- */
 static int is_percpu_sym(ElfW(Sym) *sym, const char *symname)
 {
 	int shndx = sym_index(sym);
@@ -835,8 +774,6 @@ static int do_reloc64(struct section *sec, Elf_Rel *rel, ElfW(Sym) *sym,
 		return 0;
 
 	/*
-	 * Adjust the offset if this reloc applies to the percpu section.
-	 */
 	if (sec->shdr.sh_info == per_cpu_shndx)
 		offset += per_cpu_load_addr;
 
@@ -848,19 +785,12 @@ static int do_reloc64(struct section *sec, Elf_Rel *rel, ElfW(Sym) *sym,
 	case R_X86_64_PC32:
 	case R_X86_64_PLT32:
 		/*
-		 * PC relative relocations don't need to be adjusted unless
-		 * referencing a percpu symbol.
-		 *
-		 * NB: R_X86_64_PLT32 can be treated as R_X86_64_PC32.
-		 */
 		if (is_percpu_sym(sym, symname))
 			add_reloc(&relocs32neg, offset);
 		break;
 
 	case R_X86_64_PC64:
 		/*
-		 * Only used by jump labels
-		 */
 		if (is_percpu_sym(sym, symname))
 			die("Invalid R_X86_64_PC64 relocation against per-CPU symbol %s\n",
 			    symname);
@@ -870,16 +800,11 @@ static int do_reloc64(struct section *sec, Elf_Rel *rel, ElfW(Sym) *sym,
 	case R_X86_64_32S:
 	case R_X86_64_64:
 		/*
-		 * References to the percpu area don't need to be adjusted.
-		 */
 		if (is_percpu_sym(sym, symname))
 			break;
 
 		if (shn_abs) {
 			/*
-			 * Whitelisted absolute symbols do not require
-			 * relocation.
-			 */
 			if (is_reloc(S_ABS, symname))
 				break;
 
@@ -889,11 +814,6 @@ static int do_reloc64(struct section *sec, Elf_Rel *rel, ElfW(Sym) *sym,
 		}
 
 		/*
-		 * Relocation offsets for 64 bit kernels are output
-		 * as 32 bits and sign extended back to 64 bits when
-		 * the relocations are processed.
-		 * Make sure that the offset will fit.
-		 */
 		if ((int32_t)offset != (int64_t)offset)
 			die("Relocation offset doesn't fit in 32 bits\n");
 
@@ -927,18 +847,11 @@ static int do_reloc32(struct section *sec, Elf_Rel *rel, Elf_Sym *sym,
 	case R_386_PC8:
 	case R_386_PLT32:
 		/*
-		 * NONE can be ignored and PC relative relocations don't need
-		 * to be adjusted. Because sym must be defined, R_386_PLT32 can
-		 * be treated the same way as R_386_PC32.
-		 */
 		break;
 
 	case R_386_32:
 		if (shn_abs) {
 			/*
-			 * Whitelisted absolute symbols do not require
-			 * relocation.
-			 */
 			if (is_reloc(S_ABS, symname))
 				break;
 
@@ -972,18 +885,11 @@ static int do_reloc_real(struct section *sec, Elf_Rel *rel, Elf_Sym *sym,
 	case R_386_PC8:
 	case R_386_PLT32:
 		/*
-		 * NONE can be ignored and PC relative relocations don't need
-		 * to be adjusted. Because sym must be defined, R_386_PLT32 can
-		 * be treated the same way as R_386_PC32.
-		 */
 		break;
 
 	case R_386_16:
 		if (shn_abs) {
 			/*
-			 * Whitelisted absolute symbols do not require
-			 * relocation.
-			 */
 			if (is_reloc(S_ABS, symname))
 				break;
 
@@ -1003,9 +909,6 @@ static int do_reloc_real(struct section *sec, Elf_Rel *rel, Elf_Sym *sym,
 	case R_386_32:
 		if (shn_abs) {
 			/*
-			 * Whitelisted absolute symbols do not require
-			 * relocation.
-			 */
 			if (is_reloc(S_ABS, symname))
 				break;
 
@@ -1137,12 +1040,6 @@ static void emit_relocs(int as_text, int use_real_mode)
 	}
 }
 
-/*
- * As an aid to debugging problems with different linkers
- * print summary information about the relocs.
- * Since different linkers tend to emit the sections in
- * different orders we use the section names in the output.
- */
 static int do_reloc_info(struct section *sec, Elf_Rel *rel, ElfW(Sym) *sym,
 				const char *symname)
 {

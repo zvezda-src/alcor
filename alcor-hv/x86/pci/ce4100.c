@@ -1,18 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- *  Copyright(c) 2010 Intel Corporation. All rights reserved.
- *
- *  Contact Information:
- *    Intel Corporation
- *    2200 Mission College Blvd.
- *    Santa Clara, CA  97052
- *
- * This provides access methods for PCI registers that mis-behave on
- * the CE4100. Each register can be assigned a private init, read and
- * write routine. The exception to this is the bridge device.  The
- * bridge device is the only device on bus zero (0) that requires any
- * fixup so it is a special case ATM
- */
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -49,9 +34,6 @@ struct sim_reg_op {
 { PCI_DEVFN(device, func), offset, init_op, read_op, write_op,\
 	{0, SIZE_TO_MASK(size)} },
 
-/*
- * All read/write functions are called with pci_config_lock held.
- */
 static void reg_init(struct sim_dev_reg *reg)
 {
 	pci_direct_conf1.read(0, 1, reg->dev_func, reg->reg, 4,
@@ -60,7 +42,6 @@ static void reg_init(struct sim_dev_reg *reg)
 
 static void reg_read(struct sim_dev_reg *reg, u32 *value)
 {
-	*value = reg->sim_reg.value;
 }
 
 static void reg_write(struct sim_dev_reg *reg, u32 value)
@@ -97,7 +78,6 @@ static void sata_revid_read(struct sim_dev_reg *reg, u32 *value)
 static void reg_noirq_read(struct sim_dev_reg *reg, u32 *value)
 {
 	/* force interrupt pin value to 0 */
-	*value = reg->sim_reg.value & 0xfff00ff;
 }
 
 static struct sim_dev_reg bus1_fixups[] = {
@@ -167,9 +147,7 @@ static inline void extract_bytes(u32 *value, int reg, int len)
 {
 	uint32_t mask;
 
-	*value >>= ((reg & 3) * 8);
 	mask = 0xFFFFFFFF >> ((4 - len) * 8);
-	*value &= mask;
 }
 
 int bridge_read(unsigned int devfn, int reg, int len, u32 *value)

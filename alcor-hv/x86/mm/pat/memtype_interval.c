@@ -1,12 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0
-/*
- * Handle caching attributes in page tables (PAT)
- *
- * Authors: Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
- *          Suresh B Siddha <suresh.b.siddha@intel.com>
- *
- * Interval tree used to store the PAT memory type reservations.
- */
 
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
@@ -20,18 +11,6 @@
 
 #include "memtype.h"
 
-/*
- * The memtype tree keeps track of memory type for specific
- * physical memory areas. Without proper tracking, conflicting memory
- * types in different mappings can cause CPU cache corruption.
- *
- * The tree is an interval tree (augmented rbtree) which tree is ordered
- * by the starting address. The tree can contain multiple entries for
- * different regions which overlap. All the aliases have the same
- * cache attributes of course, as enforced by the PAT logic.
- *
- * memtype_lock protects the rbtree.
- */
 
 static inline u64 interval_start(struct memtype *entry)
 {
@@ -133,12 +112,6 @@ struct memtype *memtype_erase(u64 start, u64 end)
 	struct memtype *entry_old;
 
 	/*
-	 * Since the memtype_rbroot tree allows overlapping ranges,
-	 * memtype_erase() checks with EXACT_MATCH first, i.e. free
-	 * a whole node for the munmap case.  If no such entry is found,
-	 * it then checks with END_MATCH, i.e. shrink the size of a node
-	 * from the end for the mremap case.
-	 */
 	entry_old = memtype_match(start, end, MEMTYPE_EXACT_MATCH);
 	if (!entry_old) {
 		entry_old = memtype_match(start, end, MEMTYPE_END_MATCH);
@@ -166,11 +139,6 @@ struct memtype *memtype_lookup(u64 addr)
 	return interval_iter_first(&memtype_rbroot, addr, addr + PAGE_SIZE-1);
 }
 
-/*
- * Debugging helper, copy the Nth entry of the tree into a
- * a copy for printout. This allows us to print out the tree
- * via debugfs, without holding the memtype_lock too long:
- */
 #ifdef CONFIG_DEBUG_FS
 int memtype_copy_nth_element(struct memtype *entry_out, loff_t pos)
 {
